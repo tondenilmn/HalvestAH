@@ -1,0 +1,476 @@
+/* ── Variables ───────────────────────────────────────────── */
+:root {
+  --bg:     #070b0f;
+  --bg1:    #0f1720;
+  --bg2:    #131d28;
+  --bg3:    #1a2c3d;
+  --border: #243d52;
+  --text:   #ffffff;
+  --dim:    #607d96;
+  --bright: #e0f0ff;
+  --green:  #00e5aa;
+  --blue:   #1a9fff;
+  --yellow: #f5a623;
+  --red:    #ff4d5e;
+  --font:   'Courier New', Courier, monospace;
+}
+
+/* ── Reset ───────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--text); font-family: var(--font);
+       font-size: 13px; line-height: 1.5; }
+input, select, button, textarea { font-family: var(--font); }
+
+/* ── Layout ──────────────────────────────────────────────── */
+#app { display: flex; flex-direction: column; height: 100vh; }
+
+header {
+  background: var(--bg1); border-bottom: 1px solid var(--border);
+  padding: 0 20px; height: 58px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.header-left { display: flex; align-items: center; gap: 12px; }
+.version-pill {
+  background: var(--green); color: #000; padding: 2px 8px;
+  border-radius: 3px; font-size: 11px; font-weight: bold;
+}
+.header-title { color: var(--bright); font-size: 17px; font-weight: bold; }
+.header-sub   { color: var(--dim); font-size: 11px; }
+
+.main { display: flex; flex: 1; overflow: hidden; gap: 0; padding: 10px 12px; }
+
+/* Left scrollable panel */
+.left-panel {
+  width: 420px; min-width: 360px; max-width: 480px; flex-shrink: 0;
+  overflow-y: auto; padding-right: 10px;
+  scrollbar-width: thin; scrollbar-color: var(--bg3) transparent;
+}
+.left-panel::-webkit-scrollbar { width: 5px; }
+.left-panel::-webkit-scrollbar-thumb { background: var(--bg3); border-radius: 3px; }
+
+/* Right results panel */
+.right-panel {
+  flex: 1; overflow-y: auto; padding-left: 10px;
+  scrollbar-width: thin; scrollbar-color: var(--bg3) transparent;
+}
+.right-panel::-webkit-scrollbar { width: 5px; }
+.right-panel::-webkit-scrollbar-thumb { background: var(--bg3); border-radius: 3px; }
+
+/* ── Cards ───────────────────────────────────────────────── */
+.card {
+  background: var(--bg1); border-radius: 10px;
+  padding: 14px; margin-bottom: 10px;
+}
+.card-title {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px; font-weight: bold; color: var(--green); margin-bottom: 12px;
+}
+.card-title::before {
+  content: ''; display: inline-block;
+  width: 3px; height: 14px; background: var(--green); border-radius: 2px;
+}
+
+/* ── Section labels ──────────────────────────────────────── */
+.section-label {
+  display: flex; align-items: center; gap: 8px;
+  margin: 14px 0 6px; color: var(--dim); font-size: 11px; font-weight: bold;
+}
+.section-label::before {
+  content: ''; display: inline-block;
+  width: 3px; height: 13px; background: var(--border); border-radius: 2px; flex-shrink: 0;
+}
+.section-label::after {
+  content: ''; flex: 1; height: 1px; background: var(--border);
+}
+
+/* ── Input grids ─────────────────────────────────────────── */
+.input-grid {
+  display: grid; gap: 6px;
+}
+.input-grid.cols-4 { grid-template-columns: repeat(4, 1fr); }
+.input-grid.cols-2 { grid-template-columns: repeat(2, 1fr); }
+
+.col-group-header {
+  grid-column: span 2; font-size: 9px; font-weight: bold;
+  color: var(--dim); padding: 0 2px; margin-top: 2px;
+}
+
+.input-wrap label {
+  display: block; font-size: 10px; color: var(--dim); margin-bottom: 3px;
+}
+.input-wrap input {
+  width: 100%; background: var(--bg2); border: 1px solid var(--border);
+  color: var(--bright); padding: 6px 8px; border-radius: 6px;
+  font-size: 13px; outline: none; transition: border-color .15s;
+}
+.input-wrap input:focus { border-color: var(--green); }
+.input-wrap input[readonly] { background: var(--bg3); color: var(--dim); cursor: default; }
+
+/* ── Tabs ────────────────────────────────────────────────── */
+.tabs {
+  display: flex; gap: 4px; margin-bottom: 10px;
+  background: var(--bg2); padding: 4px; border-radius: 8px;
+}
+.tab-btn {
+  flex: 1; padding: 8px; border: none; border-radius: 6px;
+  background: transparent; color: var(--dim);
+  font-family: var(--font); font-size: 11px; font-weight: bold;
+  cursor: pointer; transition: all .15s;
+}
+.tab-btn:hover  { background: var(--bg3); color: var(--bright); }
+.tab-btn.active { background: var(--green); color: #000; }
+
+.tab-pane { display: none; }
+.tab-pane.active { display: block; }
+
+/* ── Toggle buttons ──────────────────────────────────────── */
+.toggle-btn {
+  padding: 4px 10px; border-radius: 5px;
+  border: 1px solid var(--border); background: var(--bg3);
+  color: var(--dim); font-family: var(--font); font-size: 10px;
+  font-weight: bold; cursor: pointer; transition: all .15s; white-space: nowrap;
+}
+.toggle-btn.on { background: var(--green); color: #000; border-color: var(--green); }
+.toggle-btn:hover { filter: brightness(1.15); }
+
+/* ── Signal panel ────────────────────────────────────────── */
+.signal-panel {
+  background: var(--bg1); border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px 12px; margin-bottom: 8px;
+}
+.signal-row {
+  display: flex; align-items: center; padding: 4px 0;
+  border-bottom: 1px solid transparent;
+}
+.signal-row:last-child { border-bottom: none; }
+.signal-divider { border-bottom: 1px solid var(--border); margin: 4px 0; }
+.signal-key  { width: 90px; font-size: 10px; color: var(--dim); flex-shrink: 0; }
+.signal-val  { flex: 1; font-size: 13px; font-weight: bold; color: var(--dim); }
+.signal-val.IN,
+.signal-val.DEEPER   { color: var(--green); }
+.signal-val.OUT,
+.signal-val.SHRANK   { color: var(--red); }
+.signal-val.STABLE   { color: var(--blue); }
+.signal-val.UP,
+.signal-val.DOWN     { color: var(--yellow); }
+
+/* ── Game state ──────────────────────────────────────────── */
+.gs-triggers { display: flex; gap: 6px; margin-bottom: 8px; }
+.gs-trigger-btn {
+  flex: 1; padding: 8px; border: 1px solid var(--border); border-radius: 6px;
+  background: var(--bg2); color: var(--dim);
+  font-family: var(--font); font-size: 11px; font-weight: bold;
+  cursor: pointer; transition: all .15s;
+}
+.gs-trigger-btn:hover  { background: var(--bg3); }
+.gs-trigger-btn.active { background: var(--green); color: #000; border-color: var(--green); }
+
+.gs-panel {
+  background: var(--bg1); border: 1px solid var(--border);
+  border-radius: 8px; padding: 12px 14px;
+}
+.score-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.score-input {
+  width: 60px; background: var(--bg2); border: 1px solid var(--border);
+  color: var(--bright); text-align: center; padding: 6px;
+  border-radius: 6px; font-size: 22px; font-weight: bold;
+  font-family: var(--font); outline: none;
+}
+.score-input:focus { border-color: var(--green); }
+.score-sep { color: var(--dim); font-size: 20px; font-weight: bold; }
+.score-label { color: var(--dim); font-size: 11px; }
+
+.fg-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.fg-grid label { font-size: 10px; color: var(--dim); display: block; margin-bottom: 3px; }
+select.gs-select {
+  width: 100%; background: var(--bg2); border: 1px solid var(--border);
+  color: var(--bright); padding: 7px 8px; border-radius: 6px;
+  font-family: var(--font); font-size: 13px; outline: none;
+}
+
+/* ── Min N ───────────────────────────────────────────────── */
+.min-n-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.min-n-preset {
+  padding: 5px 10px; background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 5px; color: var(--dim); font-family: var(--font);
+  font-size: 11px; font-weight: bold; cursor: pointer; transition: all .15s;
+}
+.min-n-preset:hover { background: var(--green); color: #000; border-color: var(--green); }
+.min-n-input {
+  width: 64px; background: var(--bg2); border: 1px solid var(--border);
+  color: var(--bright); text-align: center; padding: 5px;
+  border-radius: 5px; font-family: var(--font); font-size: 13px; outline: none;
+}
+.min-n-input:focus { border-color: var(--green); }
+
+/* ── Cluster / tolerance box ─────────────────────────────── */
+.option-box {
+  background: var(--bg1); border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px 12px; margin-bottom: 8px;
+}
+.option-box-hdr {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 6px;
+}
+.option-box-desc { font-size: 10px; color: var(--dim); }
+.cluster-btns { display: flex; gap: 6px; margin-top: 8px; }
+.cluster-btn {
+  flex: 1; padding: 6px; border: 1px solid var(--border); border-radius: 5px;
+  background: var(--bg2); color: var(--dim);
+  font-family: var(--font); font-size: 10px; font-weight: bold;
+  cursor: pointer; transition: all .15s;
+}
+.cluster-btn.selected { background: var(--green); color: #000; border-color: var(--green); }
+.cluster-btn:disabled { opacity: .4; cursor: default; }
+.tol-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.tol-input {
+  width: 72px; background: var(--bg2); border: 1px solid var(--border);
+  color: var(--bright); text-align: center; padding: 6px;
+  border-radius: 6px; font-family: var(--font); font-size: 14px;
+  font-weight: bold; outline: none;
+}
+.tol-input:disabled { opacity: .4; }
+.tol-input:focus { border-color: var(--green); }
+
+/* ── Run button ──────────────────────────────────────────── */
+.run-btn {
+  width: 100%; padding: 12px; border: none; border-radius: 8px;
+  background: var(--green); color: #000;
+  font-family: var(--font); font-size: 14px; font-weight: bold;
+  cursor: pointer; margin-top: 10px; margin-bottom: 14px;
+  transition: background .15s;
+}
+.run-btn:hover   { background: #00cc88; }
+.run-btn:active  { background: #00b87a; }
+.run-btn:disabled { opacity: .5; cursor: default; }
+
+/* ── Upload area ─────────────────────────────────────────── */
+.upload-area {
+  border: 2px dashed var(--border); border-radius: 8px;
+  padding: 20px; text-align: center; color: var(--dim);
+  cursor: pointer; transition: all .15s; margin-bottom: 8px;
+}
+.upload-area:hover,
+.upload-area.dragover { border-color: var(--green); color: var(--bright); }
+.db-status { font-size: 11px; color: var(--dim); }
+.db-status.loaded { color: var(--green); }
+.file-list  { margin-top: 8px; max-height: 120px; overflow-y: auto; }
+.file-row   { display: flex; justify-content: space-between; padding: 2px 0;
+               font-size: 11px; color: var(--dim); }
+.file-count { color: var(--green); font-weight: bold; }
+.db-actions { display: flex; gap: 6px; margin-top: 8px; }
+.clear-btn {
+  padding: 5px 10px; background: transparent; border: 1px solid var(--border);
+  border-radius: 5px; color: var(--dim); font-family: var(--font);
+  font-size: 10px; cursor: pointer;
+}
+.clear-btn:hover { border-color: var(--red); color: var(--red); }
+
+/* ── Placeholder ─────────────────────────────────────────── */
+.placeholder {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; height: 100%; color: var(--dim); text-align: center;
+  gap: 10px;
+}
+.placeholder .icon { font-size: 40px; }
+.placeholder p { font-size: 12px; line-height: 1.6; }
+
+/* ── Results header ──────────────────────────────────────── */
+.results-title {
+  font-size: 16px; font-weight: bold; color: var(--bright);
+  margin-bottom: 8px; margin-top: 4px;
+}
+.stat-strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 12px; }
+.stat-card {
+  background: var(--bg2); border-radius: 8px; padding: 10px;
+  text-align: center;
+}
+.stat-card .label { font-size: 10px; color: var(--dim); }
+.stat-card .value { font-size: 24px; font-weight: bold; color: var(--bright); margin: 2px 0; }
+.stat-card .sub   { font-size: 10px; color: var(--dim); }
+
+/* ── Filter trace ────────────────────────────────────────── */
+.ftrace {
+  background: var(--bg1); border-radius: 6px;
+  margin-bottom: 10px; overflow: hidden;
+}
+.ftrace-hdr {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 12px; cursor: pointer;
+}
+.ftrace-hdr:hover { background: var(--bg2); }
+.ftrace-toggle { font-size: 11px; font-weight: bold; color: var(--dim); }
+.ftrace-summary { font-size: 11px; color: var(--dim); }
+.ftrace-body { padding: 4px 12px 10px; display: none; }
+.ftrace-body.open { display: block; }
+.ftrace-row { display: flex; justify-content: space-between; padding: 2px 0; font-size: 11px; }
+.ftrace-row .step  { color: var(--dim); }
+.ftrace-row .count { color: var(--dim); text-align: right; min-width: 80px; }
+.ftrace-row .drop  { min-width: 50px; text-align: right; }
+.drop-warn   { color: var(--yellow); }
+.drop-danger { color: var(--red); }
+
+/* ── Bet cards ───────────────────────────────────────────── */
+.bet-card {
+  border-radius: 10px; border: 2px solid var(--border);
+  background: var(--bg1); margin-bottom: 10px; overflow: hidden;
+}
+.bet-card.tier-strong { border-color: var(--green); }
+.bet-card.tier-good   { border-color: var(--blue); }
+.bet-card.tier-marginal { border-color: var(--yellow); }
+
+.bet-stripe {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--bg2); padding: 8px 14px; height: 40px;
+}
+.bet-stripe .tier-label { font-size: 11px; font-weight: bold; }
+.tier-strong  .tier-label { color: var(--green); }
+.tier-good    .tier-label { color: var(--blue); }
+.tier-marginal .tier-label { color: var(--yellow); }
+.bet-stripe .badges { display: flex; gap: 10px; align-items: center; }
+.badge-n { font-size: 11px; }
+.badge-z { font-size: 11px; font-weight: bold; }
+.tier-strong  .badge-z { color: var(--green); }
+.tier-good    .badge-z { color: var(--blue); }
+.tier-marginal .badge-z { color: var(--yellow); }
+
+.bet-body { display: grid; grid-template-columns: 1fr 130px; gap: 14px; padding: 12px 14px; }
+.bet-left h3 { font-size: 14px; font-weight: bold; color: var(--bright); margin-bottom: 2px; }
+.bet-left .market { font-size: 11px; color: var(--dim); margin-bottom: 8px; }
+
+.prob-row { display: flex; align-items: baseline; gap: 10px; margin-bottom: 6px; }
+.prob-pct  { font-size: 28px; font-weight: bold; color: var(--bright); }
+.prob-edge { font-size: 11px; font-weight: bold; }
+.prob-edge.pos { color: var(--green); }
+.prob-edge.neg { color: var(--red); }
+
+.progress-bar { height: 5px; background: var(--bg3); border-radius: 3px; margin-bottom: 6px; overflow: hidden; }
+.progress-fill { height: 100%; border-radius: 3px; }
+
+.bet-ci { font-size: 11px; color: var(--dim); margin-bottom: 8px; }
+
+/* Matches toggle */
+.matches-toggle {
+  background: transparent; border: none; color: var(--dim);
+  font-family: var(--font); font-size: 11px; cursor: pointer;
+  padding: 2px 0; text-align: left;
+}
+.matches-toggle:hover { color: var(--bright); }
+.matches-box {
+  display: none; margin-top: 6px;
+  background: var(--bg2); border-radius: 6px;
+  font-size: 10px; overflow-x: auto;
+}
+.matches-box.open { display: block; }
+.match-row { display: flex; gap: 8px; padding: 3px 8px; white-space: nowrap; }
+.match-row:nth-child(even) { background: rgba(255,255,255,.02); }
+.match-hit  { color: var(--green); font-weight: bold; width: 14px; flex-shrink: 0; }
+.match-miss { color: var(--red); font-weight: bold; width: 14px; flex-shrink: 0; }
+.match-score { color: var(--bright); min-width: 80px; }
+.match-meta  { color: var(--dim); }
+
+/* Min odds panel */
+.bet-right {
+  background: var(--bg2); border-radius: 8px;
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; padding: 12px 8px; gap: 2px;
+}
+.mo-label { font-size: 11px; font-weight: bold; color: var(--dim); text-align: center; }
+.mo-value { font-size: 36px; font-weight: bold; color: var(--yellow); line-height: 1.1; }
+.mo-sub   { font-size: 11px; color: var(--dim); }
+
+/* Odds checker */
+.odds-checker {
+  background: var(--bg2); padding: 6px 12px;
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+.odds-checker label { font-size: 11px; color: var(--dim); }
+.odds-check-input {
+  width: 72px; background: var(--bg1); border: 1px solid var(--border);
+  color: var(--bright); text-align: center; padding: 4px;
+  border-radius: 5px; font-family: var(--font); font-size: 12px; outline: none;
+}
+.odds-check-input:focus { border-color: var(--green); }
+.odds-result { font-size: 11px; font-weight: bold; min-width: 120px; }
+.odds-result.value { color: var(--green); }
+.odds-result.skip  { color: var(--red); }
+
+/* ── Disc cards ──────────────────────────────────────────── */
+.disc-card {
+  background: var(--bg1); border: 1px solid var(--border);
+  border-radius: 8px; margin-bottom: 8px; padding: 12px 14px;
+  display: grid; grid-template-columns: 1fr 120px; gap: 12px;
+}
+.disc-card.tier-strong  { border-color: var(--green); }
+.disc-card.tier-good    { border-color: var(--blue); }
+.disc-card.tier-marginal { border-color: var(--yellow); }
+.disc-left h3 { font-size: 13px; font-weight: bold; color: var(--bright); margin-bottom: 2px; }
+.disc-left .market { font-size: 11px; color: var(--dim); margin-bottom: 6px; }
+.disc-cfg  { font-size: 11px; color: var(--green); margin-bottom: 4px; word-break: break-word; }
+.disc-stats { font-size: 11px; color: var(--dim); }
+.disc-right {
+  background: var(--bg2); border-radius: 6px;
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; padding: 10px 6px; text-align: center;
+}
+.disc-right .dp { font-size: 22px; font-weight: bold; color: var(--bright); }
+.disc-right .dl { font-size: 10px; color: var(--dim); margin: 2px 0; }
+.disc-right .dm { font-size: 20px; font-weight: bold; color: var(--yellow); }
+
+/* ── Warning / no bets ───────────────────────────────────── */
+.no-bets {
+  background: var(--bg1); border-radius: 10px;
+  padding: 30px; text-align: center;
+}
+.no-bets .warn-icon { font-size: 30px; margin-bottom: 10px; }
+.no-bets p { font-size: 11px; color: var(--dim); line-height: 1.7; }
+
+/* ── Loader ──────────────────────────────────────────────── */
+.loader {
+  display: none; align-items: center; justify-content: center;
+  gap: 10px; color: var(--dim); padding: 40px; font-size: 12px;
+}
+.loader.visible { display: flex; }
+.spinner {
+  width: 20px; height: 20px; border: 2px solid var(--border);
+  border-top-color: var(--green); border-radius: 50%;
+  animation: spin .6s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Disc form ───────────────────────────────────────────── */
+.disc-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.disc-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+.disc-field label { font-size: 10px; color: var(--dim); display: block; margin-bottom: 3px; }
+.disc-select {
+  width: 100%; background: var(--bg2); border: 1px solid var(--border);
+  color: var(--bright); padding: 7px 8px; border-radius: 6px;
+  font-family: var(--font); font-size: 12px; outline: none;
+}
+
+/* ── Responsive ──────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .main { flex-direction: column; overflow: auto; }
+  .left-panel { width: 100%; max-width: 100%; padding-right: 0; }
+  .right-panel { padding-left: 0; min-height: 600px; }
+  .bet-body { grid-template-columns: 1fr; }
+  .disc-card { grid-template-columns: 1fr; }
+}
+
+/* ── Live Odds Estimator ─────────────────────────────────── */
+.live-row { display: flex; align-items: center; gap: 12px; margin-bottom: 6px; }
+.live-field-label { font-size: 10px; color: var(--dim); font-weight: bold; width: 110px; flex-shrink: 0; }
+
+/* ── Live odds in bet card ───────────────────────────────── */
+.live-odds-strip {
+  background: rgba(0,229,170,.07); border-top: 1px solid rgba(0,229,170,.2);
+  padding: 6px 14px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+}
+.live-odds-label { font-size: 10px; color: var(--green); font-weight: bold; flex-shrink: 0; }
+.live-odds-p { font-size: 18px; font-weight: bold; color: var(--bright); }
+.live-odds-fair { font-size: 13px; font-weight: bold; color: var(--yellow); }
+.live-odds-note { font-size: 10px; color: var(--dim); flex: 1; }
+.live-odds-hit  { font-size: 13px; font-weight: bold; color: var(--green); }
+.live-odds-bust { font-size: 13px; font-weight: bold; color: var(--red); }
+.live-ft-note   { font-size: 10px; color: var(--dim); padding: 6px 14px; border-top: 1px solid var(--border); }

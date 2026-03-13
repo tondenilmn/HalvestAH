@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Game State Betting Tool</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- ── Header ────────────────────────────────────────── -->
+  <header>
+    <div class="header-left">
+      <span class="version-pill">v3.0</span>
+      <span class="header-title">GAME STATE BETTING TOOL</span>
+    </div>
+    <span class="header-sub">Enter match parameters → get best bets + minimum odds</span>
+  </header>
+
+  <!-- ── Main split ────────────────────────────────────── -->
+  <div class="main">
+
+    <!-- ── LEFT PANEL ──────────────────────────────────── -->
+    <div class="left-panel">
+
+      <!-- Database card -->
+      <div class="card">
+        <div class="card-title">DATABASE</div>
+
+        <div class="upload-area" id="upload-area">
+          <div>📂 Drop CSV files here — or click to browse</div>
+          <div style="font-size:10px;margin-top:4px">Pinnacle export format</div>
+        </div>
+        <input type="file" id="file-input" accept=".csv" multiple style="display:none">
+
+        <div class="db-status" id="db-status">No database loaded</div>
+
+        <div class="file-list" id="file-list"></div>
+
+        <div class="db-actions">
+          <button class="clear-btn" onclick="clearDb()">✕ Clear database</button>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('match')">MATCH ANALYSIS</button>
+        <button class="tab-btn"        onclick="switchTab('disc')">CONFIG DISCOVERY</button>
+      </div>
+
+      <!-- ══ MATCH ANALYSIS TAB ═════════════════════════ -->
+      <div id="tab-match" class="tab-pane active">
+
+        <!-- AH Line -->
+        <div class="section-label">AH LINE</div>
+        <div class="input-grid cols-4">
+          <div class="col-group-header">HOME</div>
+          <div class="col-group-header">AWAY (auto)</div>
+          <div class="input-wrap"><label>Closing</label>
+            <input id="ah_hc" type="text" placeholder="-0.75" oninput="onInputChange()"></div>
+          <div class="input-wrap"><label>Opening</label>
+            <input id="ah_ho" type="text" placeholder="-0.75" oninput="onInputChange()"></div>
+          <div class="input-wrap"><label>Closing</label>
+            <input id="ah_ac" type="text" readonly></div>
+          <div class="input-wrap"><label>Opening</label>
+            <input id="ah_ao" type="text" readonly></div>
+        </div>
+
+        <!-- AH Odds -->
+        <div class="section-label">AH ODDS</div>
+        <div class="input-grid cols-4">
+          <div class="col-group-header">HOME</div>
+          <div class="col-group-header">AWAY</div>
+          <div class="input-wrap"><label>Closing</label>
+            <input id="ho_c" type="text" placeholder="1.85" oninput="onInputChange()"></div>
+          <div class="input-wrap"><label>Opening</label>
+            <input id="ho_o" type="text" placeholder="1.90" oninput="onInputChange()"></div>
+          <div class="input-wrap"><label>Closing</label>
+            <input id="ao_c" type="text" placeholder="1.90" oninput="onInputChange()"></div>
+          <div class="input-wrap"><label>Opening</label>
+            <input id="ao_o" type="text" placeholder="1.85" oninput="onInputChange()"></div>
+        </div>
+
+        <!-- Total Line + Over -->
+        <div class="section-label">TOTAL LINE · OVER / UNDER</div>
+        <div class="input-grid cols-4">
+          <div class="col-group-header">TOTAL LINE</div>
+          <div class="col-group-header">OVER ODDS</div>
+          <div class="input-wrap"><label>Closing</label>
+            <input id="tl_c" type="text" placeholder="2.75" oninput="onInputChange()"></div>
+          <div class="input-wrap"><label>Opening</label>
+            <input id="tl_o" type="text" placeholder="2.75" oninput="onInputChange()"></div>
+          <div class="input-wrap"><label>Closing</label>
+            <input id="ov_c" type="text" placeholder="1.92" oninput="onInputChange()"></div>
+          <div class="input-wrap"><label>Opening</label>
+            <input id="ov_o" type="text" placeholder="1.88" oninput="onInputChange()"></div>
+        </div>
+        <div class="input-grid cols-2" style="margin-top:6px">
+          <div class="col-group-header">UNDER ODDS</div>
+          <div></div>
+          <div class="input-wrap"><label>Closing</label>
+            <input id="un_c" type="text" placeholder="1.88" oninput="onInputChange()"></div>
+          <div class="input-wrap"><label>Opening</label>
+            <input id="un_o" type="text" placeholder="1.92" oninput="onInputChange()"></div>
+        </div>
+
+        <!-- TL Cluster -->
+        <div class="section-label">TOTAL LINE CLUSTER</div>
+        <div class="option-box">
+          <div class="option-box-hdr">
+            <span class="option-box-desc">Filter by range — overrides exact TL when ON</span>
+            <button class="toggle-btn" id="tl-cluster-tgl" onclick="toggleOpt('tl-cluster')">OFF</button>
+          </div>
+          <div class="cluster-btns" id="tl-cluster-btns">
+            <button class="cluster-btn selected" data-v="&lt;2" onclick="setCluster(this,'&lt;2')" disabled>&lt;2</button>
+            <button class="cluster-btn" data-v="2-2.5" onclick="setCluster(this,'2-2.5')" disabled>2–2.5</button>
+            <button class="cluster-btn" data-v="2.5-3" onclick="setCluster(this,'2.5-3')" disabled>2.5–3</button>
+            <button class="cluster-btn" data-v="&gt;3" onclick="setCluster(this,'&gt;3')" disabled>&gt;3</button>
+          </div>
+        </div>
+
+        <!-- Signals -->
+        <div class="section-label">AUTO-DETECTED SIGNALS</div>
+        <div class="signal-panel">
+          <div class="signal-row">
+            <span class="signal-key">FAVOURITE</span>
+            <span class="signal-val" id="sig-fav">—</span>
+          </div>
+          <div class="signal-row">
+            <span class="signal-key">AH LINE</span>
+            <span class="signal-val" id="sig-line">—</span>
+          </div>
+          <div class="signal-row">
+            <span class="signal-key">LINE MOVE</span>
+            <span class="signal-val" id="sig-lm">—</span>
+          </div>
+          <div class="signal-divider"></div>
+          <div class="signal-row">
+            <span class="signal-key">FAV ODDS</span>
+            <span class="signal-val" id="sig-fo" style="flex:1">—</span>
+            <button class="toggle-btn" id="fav-odds-tgl" onclick="toggleSig('fav-odds')">OFF</button>
+          </div>
+          <div class="signal-row">
+            <span class="signal-key">DOG ODDS</span>
+            <span class="signal-val" id="sig-do" style="flex:1">—</span>
+            <button class="toggle-btn" id="dog-odds-tgl" onclick="toggleSig('dog-odds')">OFF</button>
+          </div>
+          <div class="signal-row">
+            <span class="signal-key">TL MOVE</span>
+            <span class="signal-val" id="sig-tlm">—</span>
+          </div>
+          <div class="signal-row">
+            <span class="signal-key">OVER ODDS</span>
+            <span class="signal-val" id="sig-ov" style="flex:1">—</span>
+            <button class="toggle-btn" id="over-odds-tgl" onclick="toggleSig('over-odds')">OFF</button>
+          </div>
+        </div>
+
+        <!-- Odds Tolerance -->
+        <div class="section-label">ODDS TOLERANCE</div>
+        <div class="option-box">
+          <div class="option-box-hdr">
+            <span class="option-box-desc">Match by raw AH odds proximity — replaces IN/STABLE/OUT when ON</span>
+            <button class="toggle-btn" id="odds-tol-tgl" onclick="toggleOpt('odds-tol')">OFF</button>
+          </div>
+          <div class="tol-row" id="tol-row">
+            <span style="color:var(--dim);font-size:14px;font-weight:bold">±</span>
+            <input class="tol-input" id="odds-tol-val" type="text" placeholder="0.02" disabled>
+            <button class="toggle-btn" onclick="setTol('0.01')" id="tol-p01" disabled>0.01</button>
+            <button class="toggle-btn" onclick="setTol('0.02')" id="tol-p02" disabled>0.02</button>
+            <button class="toggle-btn" onclick="setTol('0.03')" id="tol-p03" disabled>0.03</button>
+            <button class="toggle-btn" onclick="setTol('0.05')" id="tol-p05" disabled>0.05</button>
+          </div>
+        </div>
+
+        <!-- Game State -->
+        <div class="section-label">LIVE GAME STATE</div>
+        <div class="gs-triggers">
+          <button class="gs-trigger-btn active" id="gs-btn-HT" onclick="setGsTrigger('HT')">Half Time</button>
+          <button class="gs-trigger-btn" id="gs-btn-FIRST_GOAL" onclick="setGsTrigger('FIRST_GOAL')">First Goal</button>
+          <button class="gs-trigger-btn" id="gs-btn-INPLAY_2H" onclick="setGsTrigger('INPLAY_2H')">In-play 2H</button>
+        </div>
+        <div class="gs-panel" id="gs-panel">
+          <!-- filled by renderGsPanel() -->
+        </div>
+
+        <!-- Live Odds Estimator -->
+        <div class="section-label">LIVE ODDS ESTIMATOR</div>
+        <div class="option-box" id="live-box">
+          <div class="option-box-hdr">
+            <span class="option-box-desc">Adjust probabilities for time remaining in 2H</span>
+            <button class="toggle-btn" id="live-tgl" onclick="toggleLive()">OFF</button>
+          </div>
+          <div id="live-body" style="display:none;margin-top:10px">
+            <div class="live-row">
+              <span class="live-field-label">MATCH MINUTE</span>
+              <input class="score-input" id="live-minute" type="text" value="60" maxlength="3" style="width:64px;font-size:18px">
+            </div>
+            <p style="font-size:11px;color:var(--dim);margin:8px 0 6px">2H goals scored so far (Home – Away)</p>
+            <div class="score-row">
+              <input class="score-input" id="live-home2h" type="text" value="0" maxlength="2">
+              <span class="score-sep"> – </span>
+              <input class="score-input" id="live-away2h" type="text" value="0" maxlength="2">
+              <span class="score-label">  HOME – AWAY</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Min N -->
+        <div class="section-label">MINIMUM MATCHING RECORDS</div>
+        <div class="min-n-row">
+          <button class="min-n-preset" onclick="setMinN(10)">10</button>
+          <button class="min-n-preset" onclick="setMinN(15)">15</button>
+          <button class="min-n-preset" onclick="setMinN(20)">20</button>
+          <button class="min-n-preset" onclick="setMinN(30)">30</button>
+          <button class="min-n-preset" onclick="setMinN(50)">50</button>
+          <input class="min-n-input" id="min-n-match" type="text" value="15">
+        </div>
+
+        <!-- Run -->
+        <button class="run-btn" onclick="runMatch()">FIND BEST BETS →</button>
+      </div><!-- /tab-match -->
+
+      <!-- ══ CONFIG DISCOVERY TAB ════════════════════════ -->
+      <div id="tab-disc" class="tab-pane">
+        <p style="color:var(--dim);font-size:11px;margin-bottom:12px;line-height:1.6">
+          Sweep all parameter combinations for a given AH line + game state.<br>
+          Finds configurations with the strongest statistical edge.
+        </p>
+
+        <div class="disc-grid">
+          <div class="disc-field"><label>AH LINE</label>
+            <select class="disc-select" id="disc-line">
+              <option>0.00</option><option>0.25</option><option>0.50</option>
+              <option selected>0.75</option><option>1.00</option>
+              <option>1.25</option><option>1.50</option><option>ANY</option>
+            </select>
+          </div>
+          <div class="disc-field"><label>FAV SIDE</label>
+            <select class="disc-select" id="disc-side">
+              <option selected>ANY</option><option>HOME</option><option>AWAY</option>
+            </select>
+          </div>
+          <div class="disc-field"><label>TOTAL LINE</label>
+            <select class="disc-select" id="disc-tl">
+              <option selected>ANY</option>
+              <option>&lt;2</option><option>2-2.5</option>
+              <option>2.5-3</option><option>&gt;3</option>
+              <option>2.00</option><option>2.25</option><option>2.50</option>
+              <option>2.75</option><option>3.00</option><option>3.25</option><option>3.50</option>
+            </select>
+          </div>
+        </div>
+        <div class="disc-grid2">
+          <div class="disc-field"><label>AH LINE MOVE</label>
+            <select class="disc-select" id="disc-lm">
+              <option selected>ANY</option><option>DEEPER</option>
+              <option>STABLE</option><option>SHRANK</option>
+            </select>
+          </div>
+          <div class="disc-field"><label>TL MOVE</label>
+            <select class="disc-select" id="disc-tlm">
+              <option selected>ANY</option><option>UP</option>
+              <option>STABLE</option><option>DOWN</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Game State (discovery) -->
+        <div class="section-label" style="margin-top:14px">LIVE GAME STATE</div>
+        <div class="gs-triggers">
+          <button class="gs-trigger-btn active" id="d-gs-btn-HT" onclick="setDGsTrigger('HT')">Half Time</button>
+          <button class="gs-trigger-btn" id="d-gs-btn-FIRST_GOAL" onclick="setDGsTrigger('FIRST_GOAL')">First Goal</button>
+          <button class="gs-trigger-btn" id="d-gs-btn-INPLAY_2H" onclick="setDGsTrigger('INPLAY_2H')">In-play 2H</button>
+        </div>
+        <div class="gs-panel" id="d-gs-panel"></div>
+
+        <!-- Min N -->
+        <div class="section-label">MINIMUM MATCHING RECORDS</div>
+        <div class="min-n-row">
+          <button class="min-n-preset" onclick="setMinN(10)">10</button>
+          <button class="min-n-preset" onclick="setMinN(15)">15</button>
+          <button class="min-n-preset" onclick="setMinN(20)">20</button>
+          <button class="min-n-preset" onclick="setMinN(30)">30</button>
+          <button class="min-n-preset" onclick="setMinN(50)">50</button>
+          <input class="min-n-input" id="min-n-disc" type="text" value="15">
+        </div>
+
+        <!-- Run -->
+        <button class="run-btn" onclick="runDisc()">FIND BEST CONFIGURATIONS →</button>
+      </div><!-- /tab-disc -->
+
+    </div><!-- /left-panel -->
+
+    <!-- ── RIGHT PANEL ──────────────────────────────────── -->
+    <div class="right-panel" id="right-panel">
+      <div class="placeholder">
+        <div class="icon">📊</div>
+        <p>Results will appear here<br>after you run the analysis</p>
+      </div>
+    </div>
+
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5/papaparse.min.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>
