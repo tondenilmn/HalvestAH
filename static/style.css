@@ -205,19 +205,20 @@ header {
 .toggle-btn:hover { filter: brightness(1.15); }
 
 /* ── URL import ──────────────────────────────────────────── */
-.url-import-row {
-  display: flex; gap: 6px; margin-bottom: 6px;
+.url-import-col {
+  display: flex; flex-direction: column; gap: 6px; margin-bottom: 6px;
 }
 .url-import-input {
-  flex: 1; background: var(--bg2); border: 1px solid var(--border);
+  width: 100%; box-sizing: border-box;
+  background: var(--bg2); border: 1px solid var(--border);
   border-radius: 6px; color: var(--bright); font-size: 11px;
   font-family: var(--font); padding: 6px 8px; outline: none;
-  transition: border-color .15s; min-width: 0;
+  transition: border-color .15s;
 }
 .url-import-input::placeholder { color: var(--dim); }
 .url-import-input:focus { border-color: var(--blue); }
 .url-import-btn {
-  padding: 6px 8px; font-size: 11px; white-space: nowrap; flex-shrink: 0; min-width: 54px;
+  width: 100%; padding: 7px; font-size: 11px;
 }
 .url-import-btn:disabled { opacity: 0.5; cursor: wait; }
 .url-import-status {
@@ -344,7 +345,11 @@ select.gs-select {
 /* ── Results header ──────────────────────────────────────── */
 .results-title {
   font-size: 16px; font-weight: bold; color: var(--bright);
-  margin-bottom: 8px; margin-top: 4px;
+  margin-bottom: 4px; margin-top: 4px;
+}
+.cfg-summary {
+  font-size: 11px; color: var(--green); margin-bottom: 8px;
+  font-weight: bold; letter-spacing: 0.5px;
 }
 .stat-strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 12px; }
 .stat-card {

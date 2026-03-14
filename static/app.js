@@ -49,22 +49,36 @@ const COL_MAP = {
 };
 
 const BETS = [
+  // AH
+  { k: 'ahCover',       label: 'AH Cover (Fav)',           market: 'Asian Handicap — Favourite' },
+  // 2H results — fav-normalised
+  { k: 'favWins2H',     label: 'Fav wins 2nd half',        market: '2H Result — Favourite Win' },
+  { k: 'favScored2H',   label: 'Fav scores in 2H',         market: 'Team to Score — Fav 2nd Half' },
+  { k: 'draw2H',        label: 'Draw 2nd half',            market: '2H Result — Draw' },
+  // 2H results — home/away
   { k: 'homeWins2H',    label: 'Home wins 2nd half',       market: '2H Result — Home Win' },
   { k: 'awayWins2H',    label: 'Away wins 2nd half',       market: '2H Result — Away Win' },
-  { k: 'homeWinsFT',    label: 'Home wins full time',      market: 'Match Result — Home Win' },
-  { k: 'awayWinsFT',    label: 'Away wins full time',      market: 'Match Result — Away Win' },
-  { k: 'dnbHome',       label: 'DNB — Home',               market: 'Draw No Bet — Home' },
-  { k: 'dnbAway',       label: 'DNB — Away',               market: 'Draw No Bet — Away' },
   { k: 'homeScored2H',  label: 'Home scores in 2H',        market: 'Team to Score — Home 2nd Half' },
   { k: 'awayScored2H',  label: 'Away scores in 2H',        market: 'Team to Score — Away 2nd Half' },
   { k: 'homeOver15_2H', label: 'Home Over 1.5 in 2H',     market: 'Home Goals Over 1.5 — 2nd Half' },
   { k: 'awayOver15_2H', label: 'Away Over 1.5 in 2H',     market: 'Away Goals Over 1.5 — 2nd Half' },
+  // 2H totals
   { k: 'over05_2H',     label: 'Over 0.5 goals in 2H',    market: 'Over/Under 0.5 — 2nd Half' },
   { k: 'over15_2H',     label: 'Over 1.5 goals in 2H',    market: 'Over/Under 1.5 — 2nd Half' },
   { k: 'under05_2H',    label: 'Under 0.5 goals in 2H',   market: 'Over/Under 0.5 — 2nd Half' },
   { k: 'under15_2H',    label: 'Under 1.5 goals in 2H',   market: 'Over/Under 1.5 — 2nd Half' },
-  { k: 'over25FT',      label: 'Over 2.5 goals FT',       market: 'Over/Under 2.5 — Full Time' },
+  // FT results
+  { k: 'homeWinsFT',    label: 'Home wins full time',      market: 'Match Result — Home Win' },
+  { k: 'awayWinsFT',    label: 'Away wins full time',      market: 'Match Result — Away Win' },
+  { k: 'drawFT',        label: 'Draw full time',           market: 'Match Result — Draw' },
+  { k: 'dnbHome',       label: 'DNB — Home',               market: 'Draw No Bet — Home' },
+  { k: 'dnbAway',       label: 'DNB — Away',               market: 'Draw No Bet — Away' },
+  { k: 'btts',          label: 'BTTS full time',           market: 'Both Teams to Score — FT' },
+  // FT totals
   { k: 'over15FT',      label: 'Over 1.5 goals FT',       market: 'Over/Under 1.5 — Full Time' },
+  { k: 'over25FT',      label: 'Over 2.5 goals FT',       market: 'Over/Under 2.5 — Full Time' },
+  { k: 'over35FT',      label: 'Over 3.5 goals FT',       market: 'Over/Under 3.5 — Full Time' },
+  { k: 'under25FT',     label: 'Under 2.5 goals FT',      market: 'Over/Under 2.5 — Full Time' },
 ];
 
 /* ════════════════════════════════════════════════════════════
@@ -227,6 +241,10 @@ function processRow(row, fileLabel) {
     under15_2H:    (home2h + away2h) <= 1,
     over25FT:      ftH + ftA >= 3,
     over15FT:      ftH + ftA >= 2,
+    over35FT:      ftH + ftA >= 4,
+    under25FT:     ftH + ftA <= 2,
+    drawFT:        ftH === ftA,
+    btts:          ftH >= 1 && ftA >= 1,
   };
 }
 
@@ -301,12 +319,11 @@ function applyConfig(db, cfg) {
       const val = cfg[key];
       if (val != null) rows = rows.filter(r => r[key] != null && Math.abs(r[key] - val) <= tol);
     }
-  } else {
-    if (cfg.fav_odds_move != null && cfg.fav_odds_move !== 'ANY' && cfg.fav_odds_move !== 'UNKNOWN')
-      rows = rows.filter(r => r.fav_odds_move === cfg.fav_odds_move);
-    if (cfg.dog_odds_move != null && cfg.dog_odds_move !== 'ANY' && cfg.dog_odds_move !== 'UNKNOWN')
-      rows = rows.filter(r => r.dog_odds_move === cfg.dog_odds_move);
   }
+  if (cfg.fav_odds_move != null && cfg.fav_odds_move !== 'ANY' && cfg.fav_odds_move !== 'UNKNOWN')
+    rows = rows.filter(r => r.fav_odds_move === cfg.fav_odds_move);
+  if (cfg.dog_odds_move != null && cfg.dog_odds_move !== 'ANY' && cfg.dog_odds_move !== 'UNKNOWN')
+    rows = rows.filter(r => r.dog_odds_move === cfg.dog_odds_move);
 
   if (cfg.over_move != null && cfg.over_move !== 'ANY' && cfg.over_move !== 'UNKNOWN')
     rows = rows.filter(r => r.over_move === cfg.over_move);
@@ -353,6 +370,50 @@ function applyConfig(db, cfg) {
   return rows;
 }
 
+/* Baseline filter: only the closing market values the bookmaker/public sees.
+   No movement signals, no opening values, no game state.
+   Used as the reference hit-rate against which informational edge is measured. */
+function applyBaselineConfig(db, cfg) {
+  let rows = db;
+
+  // AH closing line
+  if (cfg.fav_line != null && cfg.fav_line !== 'ANY') {
+    const fl = parseFloat(cfg.fav_line);
+    rows = rows.filter(r => Math.abs(r.fav_line - fl) < 0.13);
+  }
+  if (cfg.fav_side != null && cfg.fav_side !== 'ANY') {
+    rows = rows.filter(r => r.fav_side === cfg.fav_side);
+  }
+
+  // AH closing odds only (not opening, not movement direction)
+  const tol = cfg.odds_tolerance;
+  if (tol != null) {
+    for (const key of ['fav_oc', 'dog_oc']) {
+      const val = cfg[key];
+      if (val != null) rows = rows.filter(r => r[key] != null && Math.abs(r[key] - val) <= tol);
+    }
+  }
+
+  // TL closing value (range / cluster / exact) — no tl_move, no tl_o
+  if (cfg.tl_range != null) {
+    const [lo, hi] = cfg.tl_range;
+    rows = rows.filter(r => r.tl_c != null && r.tl_c >= lo && r.tl_c <= hi);
+  } else {
+    const tlCluster = cfg.tl_cluster;
+    if (tlCluster != null && tlCluster !== 'ANY' && TL_CLUSTERS[tlCluster]) {
+      const [lo, hi] = TL_CLUSTERS[tlCluster];
+      rows = rows.filter(r => r.tl_c != null
+        && (lo == null || r.tl_c >= lo)
+        && (hi == null || r.tl_c < hi));
+    } else if (cfg.tl_c != null && cfg.tl_c !== 'ANY') {
+      const tlc = parseFloat(cfg.tl_c);
+      if (!isNaN(tlc)) rows = rows.filter(r => r.tl_c != null && Math.abs(r.tl_c - tlc) < 0.13);
+    }
+  }
+
+  return rows;
+}
+
 function applyGameState(rows, gs) {
   const trigger = gs.trigger || 'HT';
   if (trigger === 'HT') {
@@ -377,15 +438,15 @@ function applyGameState(rows, gs) {
   }
 }
 
-function scoreBets(stateRows, cfgRows, minN = DEFAULT_MIN_N) {
-  if (!stateRows.length || !cfgRows.length) return [];
+function scoreBets(stateRows, baselineRows, minN = DEFAULT_MIN_N) {
+  if (!stateRows.length || !baselineRows.length) return [];
   const n = stateRows.length;
   if (n < minN) return [];
   const results = [];
   for (const b of BETS) {
-    const p    = pct(stateRows, b.k);
-    const bl   = pct(cfgRows,   b.k);
-    const z    = zScore(stateRows, cfgRows, b.k);
+    const p    = pct(stateRows,    b.k);
+    const bl   = pct(baselineRows, b.k);
+    const z    = zScore(stateRows, baselineRows, b.k);
     const edge = p - bl;
     const [lo, hi] = wilsonCI(p, n);
     const stab = stability(stateRows, b.k);
@@ -403,7 +464,11 @@ function scoreBets(stateRows, cfgRows, minN = DEFAULT_MIN_N) {
     }));
     results.push({ ...b, n, p, bl, z, edge, lo, hi, stab, mo: minOdds(p), matches });
   }
-  results.sort((a, b) => (b.z * (b.lo / 100)) - (a.z * (a.lo / 100)));
+  results.sort((a, b) => {
+    const aPos = a.edge > 0, bPos = b.edge > 0;
+    if (aPos !== bPos) return aPos ? -1 : 1;
+    return (b.z * (b.lo / 100)) - (a.z * (a.lo / 100));
+  });
   return results;
 }
 
@@ -432,15 +497,14 @@ function traceConfig(db, cfg, gs) {
       if (val != null) rows = rows.filter(r => r[key] != null && Math.abs(r[key] - val) <= tol);
     }
     steps.push([`AH odds tol ±${tol}`, rows.length]);
-  } else {
-    if (cfg.fav_odds_move != null && cfg.fav_odds_move !== 'ANY' && cfg.fav_odds_move !== 'UNKNOWN') {
-      rows = rows.filter(r => r.fav_odds_move === cfg.fav_odds_move);
-      steps.push([`Fav odds ${cfg.fav_odds_move}`, rows.length]);
-    }
-    if (cfg.dog_odds_move != null && cfg.dog_odds_move !== 'ANY' && cfg.dog_odds_move !== 'UNKNOWN') {
-      rows = rows.filter(r => r.dog_odds_move === cfg.dog_odds_move);
-      steps.push([`Dog odds ${cfg.dog_odds_move}`, rows.length]);
-    }
+  }
+  if (cfg.fav_odds_move != null && cfg.fav_odds_move !== 'ANY' && cfg.fav_odds_move !== 'UNKNOWN') {
+    rows = rows.filter(r => r.fav_odds_move === cfg.fav_odds_move);
+    steps.push([`Fav odds ${cfg.fav_odds_move}`, rows.length]);
+  }
+  if (cfg.dog_odds_move != null && cfg.dog_odds_move !== 'ANY' && cfg.dog_odds_move !== 'UNKNOWN') {
+    rows = rows.filter(r => r.dog_odds_move === cfg.dog_odds_move);
+    steps.push([`Dog odds ${cfg.dog_odds_move}`, rows.length]);
   }
 
   if (cfg.over_move != null && cfg.over_move !== 'ANY' && cfg.over_move !== 'UNKNOWN') {
@@ -600,8 +664,8 @@ function discover(db, favLine, favSide, inLineMove, inTlMove, gs, minN = DEFAULT
             if (gsR.length < minN) continue;
             for (const k of BET_KEYS) {
               const p    = pct(gsR, k);
-              const bl   = pct(baseGs, k);
-              const z    = zScore(gsR, baseGs, k);
+              const bl   = pct(base, k);
+              const z    = zScore(gsR, base, k);
               const edge = p - bl;
               if (Math.abs(z) < MIN_Z || edge <= 0) continue;
               const [lo] = wilsonCI(p, gsR.length);
@@ -620,7 +684,11 @@ function discover(db, favLine, favSide, inLineMove, inTlMove, gs, minN = DEFAULT
     }
   }
 
-  results.sort((a, b) => (b.z * (b.lo / 100)) - (a.z * (a.lo / 100)));
+  results.sort((a, b) => {
+    const aPos = a.edge > 0, bPos = b.edge > 0;
+    if (aPos !== bPos) return aPos ? -1 : 1;
+    return (b.z * (b.lo / 100)) - (a.z * (a.lo / 100));
+  });
   const seen = new Set();
   const deduped = [];
   for (const r of results) {
@@ -644,11 +712,11 @@ const _LINE_STRENGTH_MOD = {0.25:0.92,0.50:0.96,0.75:1.00,1.00:1.06,1.25:1.12,1.
 const _2H_BETS_SET = new Set([
   'over05_2H','over15_2H','over25_2H','favScored2H','favWins2H','ahCover',
   'homeWins2H','awayWins2H','homeScored2H','awayScored2H',
-  'homeOver15_2H','awayOver15_2H','under05_2H','under15_2H',
+  'homeOver15_2H','awayOver15_2H','under05_2H','under15_2H','draw2H',
 ]);
 const _FT_BETS_SET = new Set([
   'noDrawFT','favWinsFT','homeWinsFT','awayWinsFT',
-  'dnbHome','dnbAway','over25FT','over15FT',
+  'dnbHome','dnbAway','over25FT','over15FT','over35FT','under25FT','drawFT','btts',
 ]);
 const _UNDER_BETS = {'under05_2H':[1,0],'under15_2H':[2,1]};
 const _BET_GOAL_THRESHOLD = {
@@ -1007,6 +1075,24 @@ function refreshAdvSignals() {
   }
   setAdvSig('adv-sig-lm', lineMove, lineMove);
 
+  // AH direction label
+  const dirEl = document.getElementById('ah-dir-label');
+  if (dirEl) {
+    if (!isNaN(hc) && hc < -0.01) {
+      dirEl.textContent = 'HOME gives ' + Math.abs(hc).toFixed(2);
+      dirEl.style.color = 'var(--green)';
+    } else if (!isNaN(hc) && hc > 0.01) {
+      dirEl.textContent = 'AWAY gives ' + hc.toFixed(2);
+      dirEl.style.color = 'var(--yellow)';
+    } else if (!isNaN(hc)) {
+      dirEl.textContent = 'Level ball (0.00)';
+      dirEl.style.color = 'var(--dim)';
+    } else {
+      dirEl.textContent = 'e.g. \u22120.75 = Home gives';
+      dirEl.style.color = 'var(--dim)';
+    }
+  }
+
   // Home odds movement
   const homMove = oddsDir(isNaN(hoc) ? null : hoc, isNaN(hoo) ? null : hoo);
   setAdvSig('adv-sig-hom', engineToUiLabel(homMove), homMove);
@@ -1266,9 +1352,10 @@ function runMatch() {
   const minN   = getMinN();
   const ftrace = traceConfig(_db, cfg, gs);
 
-  const cfgRows   = applyConfig(_db, cfg);
-  const stateRows = applyGameState(cfgRows, gs);
-  const allBets   = scoreBets(stateRows, cfgRows, minN);
+  const cfgRows      = applyConfig(_db, cfg);
+  const stateRows    = applyGameState(cfgRows, gs);
+  const baselineRows = applyBaselineConfig(_db, cfg);
+  const allBets      = scoreBets(stateRows, baselineRows, minN);
   const bets      = allBets.filter(b => Math.abs(b.z) >= MIN_Z);
 
   // Attach live odds if estimator is ON — need fav_line and fav_side from cfg
@@ -1277,8 +1364,9 @@ function runMatch() {
     const lhome2h  = parseInt(document.getElementById('live-home2h').value, 10) || 0;
     const laway2h  = parseInt(document.getElementById('live-away2h').value, 10) || 0;
     if (!isNaN(liveMin) && liveMin > 0) {
-      const favLine = parseFloat(cfg.fav_line) || 0.75;
-      const favSide = cfg.fav_side || 'HOME';
+      const favLineVal = parseFloat(cfg.fav_line);
+      const favLine = isNaN(favLineVal) ? 0.75 : favLineVal;
+      const favSide = (cfg.fav_side === 'ANY' || !cfg.fav_side) ? 'HOME' : cfg.fav_side;
       const fgDelta = favSide === 'HOME' ? lhome2h : laway2h;
       const dgDelta = favSide === 'HOME' ? laway2h : lhome2h;
       for (const bet of bets) {
@@ -1287,7 +1375,7 @@ function runMatch() {
     }
   }
 
-  renderMatchResults({ cfg_n: cfgRows.length, gs_n: stateRows.length, bets, ftrace, min_n: minN });
+  renderMatchResults({ cfg_n: cfgRows.length, gs_n: stateRows.length, bets, ftrace, min_n: minN, cfg });
 }
 
 /* Build cfg from BASIC mode inputs */
@@ -1305,7 +1393,7 @@ function buildBasicCfg() {
   const tlcRaw = document.getElementById('b_tl_c').value;
   const basicTlC = sf(tlcRaw);
   const basicTolRaw = document.getElementById('b_odds_tol').value;
-  const basicTol = sf(basicTolRaw);
+  const basicTol = sf(basicTolRaw) ?? 0;
 
   // Determine fav_side: fav is the side giving handicap
   let favSide = 'HOME';
@@ -1410,8 +1498,8 @@ function buildAdvancedCfg() {
     dog_odds_move:  state.advAomOn     ? dogOddsMove : 'ANY',
     over_move:      state.advOvmOn     ? overMove    : 'ANY',
     under_move:     state.advUnmOn     ? underMove   : 'ANY',
-    tl_range:       ADV_TL_RANGES[state.advTlRange] || null,
-    tl_c:           null,  // overridden by tl_range in advanced mode
+    tl_range:       null,
+    tl_c:           tlc != null ? tlc.toFixed(2) : null,
     tl_cluster:     null,
     tl_move:        state.advTlmOn     ? tlMove      : 'ANY',
     tl_max:         null,
@@ -1510,10 +1598,15 @@ function barColor(p, bl) {
    RENDER MATCH RESULTS
    ════════════════════════════════════════════════════════════ */
 function renderMatchResults(data) {
-  const { cfg_n, gs_n, bets, ftrace, min_n } = data;
+  const { cfg_n, gs_n, bets, ftrace, min_n, cfg } = data;
   const right = document.getElementById('right-panel');
 
-  let html = `<h2 class="results-title">BEST BETS</h2>`;
+  let cfgSummary = '';
+  if (cfg) {
+    const ahSide = cfg.fav_side === 'AWAY' ? 'Away' : 'Home';
+    cfgSummary = `<div class="cfg-summary">${ahSide} AH −${cfg.fav_line}</div>`;
+  }
+  let html = `<h2 class="results-title">BEST BETS</h2>${cfgSummary}`;
 
   const gsColor  = gs_n < min_n ? 'var(--yellow)' : 'var(--green)';
   const betColor = bets.length  ? 'var(--green)'  : 'var(--red)';
@@ -1739,7 +1832,8 @@ function renderDiscResults(data) {
     const r    = results[i];
     const tier = tierClass(r.z);
     const c    = r.cfg;
-    let cfgStr = `AH −${c.fav_line}  ·  Line: ${c.line_move}  ·  FavOdds: ${c.fav_odds_move}  ·  DogOdds: ${c.dog_odds_move}`;
+    const ahSide = c.fav_side === 'AWAY' ? 'Away' : 'Home';
+    let cfgStr = `${ahSide} AH −${c.fav_line}  ·  Line: ${c.line_move}  ·  FavOdds: ${c.fav_odds_move}  ·  DogOdds: ${c.dog_odds_move}`;
     if (c.over_move && c.over_move !== 'ANY') cfgStr += `  ·  OverOdds: ${c.over_move}`;
     if (c.tl_move   && c.tl_move   !== 'ANY') cfgStr += `  ·  TLMove: ${c.tl_move}`;
 

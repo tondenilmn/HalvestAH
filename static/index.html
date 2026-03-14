@@ -46,7 +46,7 @@
       <!-- URL Import -->
       <div class="card">
         <div class="card-title">IMPORT FROM URL</div>
-        <div class="url-import-row">
+        <div class="url-import-col">
           <input id="url-import-input" type="text" class="url-import-input"
                  placeholder="https://www.asianbetsoccer.com/…?id=…"
                  onkeydown="if(event.key==='Enter')importFromUrl()">
@@ -99,7 +99,8 @@
           <div class="section-label">ODDS TOLERANCE</div>
           <div class="tol-row" style="margin-bottom:8px">
             <span style="color:var(--dim);font-size:14px;font-weight:bold">±</span>
-            <input class="tol-input" id="b_odds_tol" type="text" placeholder="0.02">
+            <input class="tol-input" id="b_odds_tol" type="text" value="0" placeholder="0">
+            <button class="toggle-btn" onclick="setBasicTol('0')">EXACT</button>
             <button class="toggle-btn" onclick="setBasicTol('0.01')">0.01</button>
             <button class="toggle-btn" onclick="setBasicTol('0.02')">0.02</button>
             <button class="toggle-btn" onclick="setBasicTol('0.03')">0.03</button>
@@ -129,7 +130,8 @@
               <div class="col-group-header">HOME</div>
               <div class="col-group-header">AWAY (auto)</div>
               <div class="input-wrap"><label>Closing</label>
-                <input id="ah_hc" type="text" placeholder="-0.75" oninput="onInputChange()"></div>
+                <input id="ah_hc" type="text" placeholder="-0.75" oninput="onInputChange()">
+                <span id="ah-dir-label" style="font-size:10px;margin-top:3px;display:block;color:var(--dim)">e.g. −0.75 = Home gives</span></div>
               <div class="input-wrap"><label>Opening</label>
                 <input id="ah_ho" type="text" placeholder="-0.75" oninput="onInputChange()"></div>
               <div class="input-wrap"><label>Closing</label>
@@ -192,13 +194,7 @@
               TOTAL LINE
               <span class="badge-always">ALWAYS ON</span>
             </div>
-            <!-- TL range selector -->
-            <div class="adv-tl-range-btns">
-              <button class="adv-tl-range-btn" id="tl-range-1.5-2"     onclick="setAdvTlRange('1.5-2')">1.5–2</button>
-              <button class="adv-tl-range-btn selected" id="tl-range-2.25-2.75" onclick="setAdvTlRange('2.25-2.75')">2.25–2.75</button>
-              <button class="adv-tl-range-btn" id="tl-range-3-3.5"     onclick="setAdvTlRange('3-3.5')">3–3.5</button>
-            </div>
-            <div class="input-grid cols-2" style="margin-top:8px">
+            <div class="input-grid cols-2">
               <div class="input-wrap"><label>TL Closing</label>
                 <input id="tl_c" type="text" placeholder="2.75" oninput="onInputChange()"></div>
               <div class="input-wrap"><label>TL Opening</label>

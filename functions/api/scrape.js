@@ -4,6 +4,28 @@
  * Fetches the botbot3.space JS data file (server-side, bypassing CORS),
  * extracts the Pinnacle AH/TL odds from the embedded HTML table,
  * and returns clean JSON for the webapp to pre-fill its inputs.
+ *
+ * Strategy:
+ *   1. Parse tablematch1 (1X2 table) to find Pinnacle's bookmaker index —
+ *      bookmaker names only appear here, not in tablematch2.
+ *   2. Parse tablematch2 (AH/TL table) — split into per-bookmaker groups
+ *      by <tr class='vrng'> separator rows (same order as tablematch1).
+ *   3. Extract the Pinnacle group and parse H/A rows by cell position —
+ *      CSS classes (SU/SD/SN/V3/V4) encode movement direction and vary
+ *      per match, so positional parsing is the only reliable approach.
+ *
+ * H row cell positions (after the "H" label cell):
+ *   [0] AH closing line  [1] AH opening line  [2] movement (empty)
+ *   [3] home odds C      [4] home odds O
+ *   [5] TL closing (rowspan=2)  [6] TL opening (rowspan=2)
+ *   [7] "O" label        [8] movement (empty)
+ *   [9] over odds C      [10] over odds O  ...
+ *
+ * A row cell positions (after the "A" label cell):
+ *   [0] AH closing line  [1] AH opening line  [2] movement (empty)
+ *   [3] away odds C      [4] away odds O
+ *   [5] "U" label        [6] movement (empty)
+ *   [7] under odds C     [8] under odds O  ...
  */
 export async function onRequest(context) {
   const cors = {
@@ -43,7 +65,6 @@ export async function onRequest(context) {
         Referer:          'https://www.asianbetsoccer.com/',
         'User-Agent':     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
         Accept:           '*/*',
-        'Accept-Encoding':'gzip, deflate, br',
         'Accept-Language':'en-US,en;q=0.9',
       },
     });
@@ -62,7 +83,7 @@ export async function onRequest(context) {
     );
   }
 
-  const data = await parseMatchData(jsText);
+  const data = parseMatchData(jsText);
   return new Response(JSON.stringify(data), { headers: cors });
 }
 
@@ -97,147 +118,65 @@ function extractHtml(jsText, tableId) {
   return chars.join('');
 }
 
-/* ── Table parser using HTMLRewriter ───────────────────────────────── */
-async function parseMatchData(jsText) {
-  const tm2Html = extractHtml(jsText, 'tablematch2');
-  if (!tm2Html) {
-    return { error: 'Could not extract match data — source format may have changed' };
+/* ── Main parser ────────────────────────────────────────────────────── */
+function parseMatchData(jsText) {
+  // Step 1: find Pinnacle's bookmaker index from tablematch1
+  const tm1Html = extractHtml(jsText, 'tablematch1');
+  if (!tm1Html) {
+    const preview = jsText.slice(0, 120).replace(/\n/g, ' ');
+    return { error: `Could not extract match data. Response preview: "${preview}"` };
   }
 
-  /**
-   * State machine phases:
-   *   searching  → scanning for the Pinnacle bookmaker name cell
-   *   h_row      → inside Pinnacle's H (home/first) data row
-   *   a_row      → inside Pinnacle's A (away/second) data row
-   *   done       → finished collecting
-   *
-   * Column layout in tablematch2 (Pinnacle section):
-   *   H row: [SU=AH line C] [plain=AH line O] [V3=home odds C] [V4=home odds O]
-   *          [SD=TL C] [rowspan=2=TL O] [V3=over C] [V4=over O] …
-   *   A row: [SU=away AH line C] [plain=away AH line O] [V3=away odds C] [V4=away odds O]
-   *          [V3=under C] [V4=under O] …
-   */
-  const s = {
-    phase: 'searching',
-    currentText: '',
-    currentClass: '',
-    currentRowspan: '',
-    lastWasSU: false,
-    // H row accumulations
-    h_su:     null,   // AH line closing text  e.g. "-0.5"
-    h_plain:  null,   // AH line opening value e.g. -0.75
-    h_v3s:    [],     // closing odds (in order)
-    h_v4s:    [],     // opening odds (bold, in order)
-    h_sd:     null,   // TL closing
-    h_tlopen: null,   // TL opening (rowspan=2 cell)
-    // A row accumulations
-    a_v3s:    [],
-    a_v4s:    [],
-  };
+  const bookmakers = [...tm1Html.matchAll(/class='bnfsd'>([^<]+)</g)].map(m => m[1].trim());
+  const pinIdx = bookmakers.findIndex(b => b.includes('Pinnacle'));
 
-  // AH lines are multiples of 0.25 in range 0–2.0;
-  // TL values are multiples of 0.25 in range 1.5–4.5
-  const isValidHandicapLine = v => {
-    const a = Math.abs(v);
-    return a >= 0 && a <= 2.25 && Math.abs(a * 4 - Math.round(a * 4)) < 0.01;
-  };
-  const isValidTlLine = v => {
-    return v >= 1.25 && v <= 5.0 && Math.abs(v * 4 - Math.round(v * 4)) < 0.01;
-  };
-
-  const rewriter = new HTMLRewriter()
-    .on('tr', {
-      element() {
-        if (s.phase === 'h_row') {
-          s.phase = 'a_row';
-          s.lastWasSU = false;
-        } else if (s.phase === 'a_row') {
-          s.phase = 'done';
-        }
-      },
-    })
-    .on('td', {
-      element(el) {
-        s.currentClass   = (el.getAttribute('class') || '').trim();
-        s.currentRowspan = el.getAttribute('rowspan') || '';
-        s.currentText    = '';
-      },
-      text(chunk) {
-        s.currentText += chunk.text;
-        if (!chunk.lastInTextNode) return;
-
-        const txt = s.currentText.trim();
-        const cls = s.currentClass;
-        const val = parseFloat(txt);
-
-        if (s.phase === 'searching') {
-          if (txt === 'Pinnacle') {
-            s.phase = 'h_row';
-            s.lastWasSU = false;
-          }
-          return;
-        }
-
-        if (s.phase === 'h_row') {
-          if (cls.includes('SU')) {
-            s.h_su = txt;
-            s.lastWasSU = true;
-          } else if (cls.includes('SD')) {
-            if (!isNaN(val)) s.h_sd = val;
-            s.lastWasSU = false;
-          } else if (cls.includes('V3')) {
-            if (!isNaN(val)) s.h_v3s.push(val);
-            s.lastWasSU = false;
-          } else if (cls.includes('V4')) {
-            if (!isNaN(val)) s.h_v4s.push(val);
-            s.lastWasSU = false;
-          } else if (s.lastWasSU && !isNaN(val) && isValidHandicapLine(val)) {
-            // Plain <td> right after SU = AH line opening
-            s.h_plain = val;
-            s.lastWasSU = false;
-          } else if (s.currentRowspan === '2' && s.h_sd !== null && !isNaN(val) && isValidTlLine(val)) {
-            // rowspan=2 cell after SD = TL opening
-            s.h_tlopen = val;
-            s.lastWasSU = false;
-          } else {
-            s.lastWasSU = false;
-          }
-          return;
-        }
-
-        if (s.phase === 'a_row') {
-          if (cls.includes('V3')) {
-            if (!isNaN(val)) s.a_v3s.push(val);
-          } else if (cls.includes('V4')) {
-            if (!isNaN(val)) s.a_v4s.push(val);
-          }
-        }
-      },
-    });
-
-  await rewriter.transform(new Response(tm2Html)).text();
-
-  if (s.phase === 'searching') {
+  if (pinIdx === -1) {
     return { error: 'Pinnacle odds not found — make sure the URL points to a match that includes Pinnacle.' };
   }
 
+  // Step 2: extract tablematch2 and split into per-bookmaker groups
+  // Groups are separated by <tr class='vrng'> rows; order matches tablematch1
+  const tm2Html = extractHtml(jsText, 'tablematch2');
+  if (!tm2Html) {
+    return { error: 'Could not extract AH/TL data — source format may have changed' };
+  }
+
+  const groups = tm2Html.split("<tr class='vrng'><td colspan='25'></td></tr>");
+
+  if (pinIdx >= groups.length) {
+    return { error: 'Pinnacle AH odds not available for this match.' };
+  }
+
+  const pinGroup = groups[pinIdx];
+
+  // Step 3: extract H and A rows from the Pinnacle group
+  const hRowMatch = pinGroup.match(/<tr[^>]*><td>H<\/td>(.*?)<\/tr>/);
+  const aRowMatch = pinGroup.match(/<tr[^>]*><td>A<\/td>(.*?)<\/tr>/);
+
+  if (!hRowMatch || !aRowMatch) {
+    return { error: 'Could not parse Pinnacle AH row structure.' };
+  }
+
+  // Extract all TD text values in order (positional — CSS classes vary by match)
+  const parseTds = html => [...html.matchAll(/<td[^>]*>([^<]*)<\/td>/g)].map(m => m[1].trim());
+  const pf = v => { const n = parseFloat(v); return isNaN(n) ? null : n; };
+
+  const h = parseTds(hRowMatch[1]);
+  const a = parseTds(aRowMatch[1]);
+
   const result = {
-    // AH line (Home perspective, negative = Home gives handicap)
-    ah_hc: s.h_su    !== null ? parseFloat(s.h_su) : null,
-    ah_ho: s.h_plain !== null ? s.h_plain           : null,
-    // AH closing odds
-    ho_c:  s.h_v3s[0] ?? null,  // Home odds closing
-    ho_o:  s.h_v4s[0] ?? null,  // Home odds opening
-    ao_c:  s.a_v3s[0] ?? null,  // Away odds closing
-    ao_o:  s.a_v4s[0] ?? null,  // Away odds opening
-    // Total Line
-    tl_c:  s.h_sd      ?? null,
-    tl_o:  s.h_tlopen  ?? null,
-    // Over/Under odds
-    ov_c:  s.h_v3s[1]  ?? null,
-    ov_o:  s.h_v4s[1]  ?? null,
-    un_c:  s.a_v3s[1]  ?? null,
-    un_o:  s.a_v4s[1]  ?? null,
+    ah_hc: pf(h[0]),   // AH home closing line
+    ah_ho: pf(h[1]),   // AH home opening line
+    ho_c:  pf(h[3]),   // Home odds closing
+    ho_o:  pf(h[4]),   // Home odds opening
+    tl_c:  pf(h[5]),   // Total line closing (rowspan=2 cell)
+    tl_o:  pf(h[6]),   // Total line opening (rowspan=2 cell)
+    ov_c:  pf(h[9]),   // Over odds closing
+    ov_o:  pf(h[10]),  // Over odds opening
+    ao_c:  pf(a[3]),   // Away odds closing
+    ao_o:  pf(a[4]),   // Away odds opening
+    un_c:  pf(a[7]),   // Under odds closing
+    un_o:  pf(a[8]),   // Under odds opening
   };
 
   const hasData = Object.values(result).some(v => v !== null);
