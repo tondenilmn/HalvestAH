@@ -16,6 +16,15 @@ const TL_CLUSTERS = {
   '>3':    [3.0,  null],
 };
 
+const ADV_TL_RANGES = {
+  '1.5-2':     [1.5,  2.0],
+  '2.25-2.75': [2.25, 2.75],
+  '3-3.5':     [3.0,  3.5],
+};
+
+// UI label → engine value mapping for odds movement in advanced mode
+const SIGNAL_UI_TO_ENGINE = { 'STEAM': 'IN', 'DRIFT': 'OUT', 'STABLE': 'STABLE', 'UNKNOWN': 'UNKNOWN' };
+
 const COL_MAP = {
   'date': 'Date', 'event date': 'Date', 'event_date': 'Date', 'match date': 'Match Date',
   'league': 'League', 'competition': 'League', 'tournament': 'League',
@@ -121,6 +130,8 @@ function processRow(row, fileLabel) {
   const tlO  = sf(nr['Total Line Opening']);
   const ovC  = sf(nr['Over Odds Closing']);
   const ovO  = sf(nr['Over Odds Opening']);
+  const unC  = sf(nr['Under Odds Closing']);
+  const unO  = sf(nr['Under Odds Opening']);
 
   if ([ahHc, ahHo, hoC, hoO, aoC, aoO].some(v => v === null)) return null;
 
@@ -173,11 +184,17 @@ function processRow(row, fileLabel) {
     dog_oc:        dogOc,
     dog_oo:        dogOo,
     tl_c:          tlC,
+    tl_o:          tlO,
+    ov_c:          ovC,
+    ov_o:          ovO,
+    un_c:          unC,
+    un_o:          unO,
     line_move:     lineMove,
     fav_odds_move: oddsDir(favOc, favOo),
     dog_odds_move: oddsDir(dogOc, dogOo),
     tl_move:       moveDir(tlC, tlO, TL_THRESH),
     over_move:     oddsDir(ovC, ovO),
+    under_move:    oddsDir(unC, unO),
     fav_ht:        favHt,
     dog_ht:        dogHt,
     fav_ft:        favFt,
@@ -294,15 +311,38 @@ function applyConfig(db, cfg) {
   if (cfg.over_move != null && cfg.over_move !== 'ANY' && cfg.over_move !== 'UNKNOWN')
     rows = rows.filter(r => r.over_move === cfg.over_move);
 
-  const tlCluster = cfg.tl_cluster;
-  if (tlCluster != null && tlCluster !== 'ANY' && TL_CLUSTERS[tlCluster]) {
-    const [lo, hi] = TL_CLUSTERS[tlCluster];
-    rows = rows.filter(r => r.tl_c != null
-      && (lo == null || r.tl_c >= lo)
-      && (hi == null || r.tl_c < hi));
-  } else if (cfg.tl_c != null && cfg.tl_c !== 'ANY') {
-    const tlc = parseFloat(cfg.tl_c);
-    if (!isNaN(tlc)) rows = rows.filter(r => r.tl_c != null && Math.abs(r.tl_c - tlc) < 0.13);
+  if (cfg.under_move != null && cfg.under_move !== 'ANY' && cfg.under_move !== 'UNKNOWN')
+    rows = rows.filter(r => r.under_move === cfg.under_move);
+
+  // Over odds closing tolerance
+  if (cfg.ov_tol != null && cfg.ov_c != null)
+    rows = rows.filter(r => r.ov_c != null && Math.abs(r.ov_c - cfg.ov_c) <= cfg.ov_tol);
+
+  // Under odds closing tolerance
+  if (cfg.un_tol != null && cfg.un_c != null)
+    rows = rows.filter(r => r.un_c != null && Math.abs(r.un_c - cfg.un_c) <= cfg.un_tol);
+
+  // TL exact range takes priority over cluster and exact tl_c
+  if (cfg.tl_range != null) {
+    const [lo, hi] = cfg.tl_range;
+    rows = rows.filter(r => r.tl_c != null && r.tl_c >= lo && r.tl_c <= hi);
+  } else {
+    const tlCluster = cfg.tl_cluster;
+    if (tlCluster != null && tlCluster !== 'ANY' && TL_CLUSTERS[tlCluster]) {
+      const [lo, hi] = TL_CLUSTERS[tlCluster];
+      rows = rows.filter(r => r.tl_c != null
+        && (lo == null || r.tl_c >= lo)
+        && (hi == null || r.tl_c < hi));
+    } else if (cfg.tl_c != null && cfg.tl_c !== 'ANY') {
+      const tlc = parseFloat(cfg.tl_c);
+      if (!isNaN(tlc)) rows = rows.filter(r => r.tl_c != null && Math.abs(r.tl_c - tlc) < 0.13);
+    }
+  }
+
+  // TL opening match
+  if (cfg.tl_o != null && cfg.tl_o !== 'ANY') {
+    const tlo = parseFloat(cfg.tl_o);
+    if (!isNaN(tlo)) rows = rows.filter(r => r.tl_o != null && Math.abs(r.tl_o - tlo) < 0.13);
   }
 
   if (cfg.tl_move != null && cfg.tl_move !== 'ANY' && cfg.tl_move !== 'UNKNOWN')
@@ -363,7 +403,7 @@ function scoreBets(stateRows, cfgRows, minN = DEFAULT_MIN_N) {
     }));
     results.push({ ...b, n, p, bl, z, edge, lo, hi, stab, mo: minOdds(p), matches });
   }
-  results.sort((a, b) => Math.abs(b.z) - Math.abs(a.z) || b.edge - a.edge);
+  results.sort((a, b) => (b.z * (b.lo / 100)) - (a.z * (a.lo / 100)));
   return results;
 }
 
@@ -391,7 +431,7 @@ function traceConfig(db, cfg, gs) {
       const val = cfg[key];
       if (val != null) rows = rows.filter(r => r[key] != null && Math.abs(r[key] - val) <= tol);
     }
-    steps.push([`Odds tol ±${tol}`, rows.length]);
+    steps.push([`AH odds tol ±${tol}`, rows.length]);
   } else {
     if (cfg.fav_odds_move != null && cfg.fav_odds_move !== 'ANY' && cfg.fav_odds_move !== 'UNKNOWN') {
       rows = rows.filter(r => r.fav_odds_move === cfg.fav_odds_move);
@@ -408,18 +448,46 @@ function traceConfig(db, cfg, gs) {
     steps.push([`Over odds ${cfg.over_move}`, rows.length]);
   }
 
-  const tlCluster = cfg.tl_cluster;
-  if (tlCluster != null && tlCluster !== 'ANY' && TL_CLUSTERS[tlCluster]) {
-    const [lo, hi] = TL_CLUSTERS[tlCluster];
-    rows = rows.filter(r => r.tl_c != null
-      && (lo == null || r.tl_c >= lo)
-      && (hi == null || r.tl_c < hi));
-    steps.push([`TL cluster ${tlCluster}`, rows.length]);
-  } else if (cfg.tl_c != null && cfg.tl_c !== 'ANY') {
-    const tlc = parseFloat(cfg.tl_c);
-    if (!isNaN(tlc)) {
-      rows = rows.filter(r => r.tl_c != null && Math.abs(r.tl_c - tlc) < 0.13);
-      steps.push([`TL ≈${tlc.toFixed(2)}`, rows.length]);
+  if (cfg.under_move != null && cfg.under_move !== 'ANY' && cfg.under_move !== 'UNKNOWN') {
+    rows = rows.filter(r => r.under_move === cfg.under_move);
+    steps.push([`Under odds ${cfg.under_move}`, rows.length]);
+  }
+
+  if (cfg.ov_tol != null && cfg.ov_c != null) {
+    rows = rows.filter(r => r.ov_c != null && Math.abs(r.ov_c - cfg.ov_c) <= cfg.ov_tol);
+    steps.push([`Over odds tol ±${cfg.ov_tol}`, rows.length]);
+  }
+  if (cfg.un_tol != null && cfg.un_c != null) {
+    rows = rows.filter(r => r.un_c != null && Math.abs(r.un_c - cfg.un_c) <= cfg.un_tol);
+    steps.push([`Under odds tol ±${cfg.un_tol}`, rows.length]);
+  }
+
+  if (cfg.tl_range != null) {
+    const [lo, hi] = cfg.tl_range;
+    rows = rows.filter(r => r.tl_c != null && r.tl_c >= lo && r.tl_c <= hi);
+    steps.push([`TL range ${lo}–${hi}`, rows.length]);
+  } else {
+    const tlCluster = cfg.tl_cluster;
+    if (tlCluster != null && tlCluster !== 'ANY' && TL_CLUSTERS[tlCluster]) {
+      const [lo, hi] = TL_CLUSTERS[tlCluster];
+      rows = rows.filter(r => r.tl_c != null
+        && (lo == null || r.tl_c >= lo)
+        && (hi == null || r.tl_c < hi));
+      steps.push([`TL cluster ${tlCluster}`, rows.length]);
+    } else if (cfg.tl_c != null && cfg.tl_c !== 'ANY') {
+      const tlc = parseFloat(cfg.tl_c);
+      if (!isNaN(tlc)) {
+        rows = rows.filter(r => r.tl_c != null && Math.abs(r.tl_c - tlc) < 0.13);
+        steps.push([`TL ≈${tlc.toFixed(2)}`, rows.length]);
+      }
+    }
+  }
+
+  if (cfg.tl_o != null && cfg.tl_o !== 'ANY') {
+    const tlo = parseFloat(cfg.tl_o);
+    if (!isNaN(tlo)) {
+      rows = rows.filter(r => r.tl_o != null && Math.abs(r.tl_o - tlo) < 0.13);
+      steps.push([`TL opening ≈${tlo.toFixed(2)}`, rows.length]);
     }
   }
 
@@ -536,10 +604,11 @@ function discover(db, favLine, favSide, inLineMove, inTlMove, gs, minN = DEFAULT
               const z    = zScore(gsR, baseGs, k);
               const edge = p - bl;
               if (Math.abs(z) < MIN_Z || edge <= 0) continue;
+              const [lo] = wilsonCI(p, gsR.length);
               const stab    = stability(gsR, k);
               const betMeta = BETS.find(b => b.k === k) || {};
               results.push({
-                cfg, k, n: gsR.length, p, bl, z, edge,
+                cfg, k, n: gsR.length, p, bl, z, edge, lo,
                 mo: minOdds(p), stab,
                 label:  betMeta.label  || k,
                 market: betMeta.market || k,
@@ -551,7 +620,7 @@ function discover(db, favLine, favSide, inLineMove, inTlMove, gs, minN = DEFAULT
     }
   }
 
-  results.sort((a, b) => Math.abs(b.z) - Math.abs(a.z) || b.edge - a.edge);
+  results.sort((a, b) => (b.z * (b.lo / 100)) - (a.z * (a.lo / 100)));
   const seen = new Set();
   const deduped = [];
   for (const r of results) {
@@ -717,15 +786,21 @@ let _db       = [];
 let _fileInfo = [];
 
 const state = {
-  gsTrigger:  'HT',
-  dGsTrigger: 'HT',
-  tlClusterOn:  false,
-  tlCluster:    '<2',
-  odsTolOn:     false,
-  favOddsOn:    false,
-  dogOddsOn:    false,
-  overOddsOn:   false,
+  gsTrigger:    'HT',
+  dGsTrigger:   'HT',
   liveOn:       false,
+  filterMode:   'BASIC',   // 'BASIC' or 'ADVANCED'
+  // Advanced toggles
+  advLmOn:      false,
+  advOddsTolOn: false,
+  advHomOn:     false,
+  advAomOn:     false,
+  advTlmOn:     false,
+  advOvTolOn:   false,
+  advOvmOn:     false,
+  advUnTolOn:   false,
+  advUnmOn:     false,
+  advTlRange:   '2.25-2.75',
 };
 
 /* ════════════════════════════════════════════════════════════
@@ -855,14 +930,37 @@ function updateDbUI(data) {
 }
 
 /* ════════════════════════════════════════════════════════════
-   INPUT MIRRORING
+   FILTER MODE SWITCHER
    ════════════════════════════════════════════════════════════ */
-function onInputChange() {
-  mirrorAway();
-  refreshSignals();
+function setFilterMode(mode) {
+  state.filterMode = mode;
+  document.getElementById('mode-btn-BASIC').classList.toggle('active', mode === 'BASIC');
+  document.getElementById('mode-btn-ADVANCED').classList.toggle('active', mode === 'ADVANCED');
+  document.getElementById('basic-inputs').style.display  = mode === 'BASIC'    ? '' : 'none';
+  document.getElementById('adv-inputs').style.display    = mode === 'ADVANCED' ? '' : 'none';
+  onInputChange();
 }
 
-function mirrorAway() {
+/* ════════════════════════════════════════════════════════════
+   INPUT MIRRORING & SIGNAL REFRESH
+   ════════════════════════════════════════════════════════════ */
+function onInputChange() {
+  if (state.filterMode === 'BASIC') {
+    mirrorBasic();
+  } else {
+    mirrorAdvanced();
+    refreshAdvSignals();
+  }
+}
+
+function mirrorBasic() {
+  const hc = parseFloat(document.getElementById('b_ah_hc').value);
+  const el = document.getElementById('b_ah_ac');
+  if (!isNaN(hc)) el.value = (Math.abs(hc) < 0.001 ? 0 : -hc).toFixed(2);
+  else el.value = '';
+}
+
+function mirrorAdvanced() {
   const hc = parseFloat(document.getElementById('ah_hc').value);
   const ho = parseFloat(document.getElementById('ah_ho').value);
   const acEl = document.getElementById('ah_ac');
@@ -875,9 +973,17 @@ function mirrorAway() {
 }
 
 /* ════════════════════════════════════════════════════════════
-   SIGNAL PREVIEW
+   ADVANCED SIGNAL PREVIEW
    ════════════════════════════════════════════════════════════ */
-function refreshSignals() {
+
+// Map engine signal (IN/OUT/STABLE/UNKNOWN) to display label for odds direction
+function engineToUiLabel(sig) {
+  if (sig === 'IN')      return 'STEAM';
+  if (sig === 'OUT')     return 'DRIFT';
+  return sig; // STABLE, UNKNOWN, DEEPER, SHRANK, UP, DOWN, etc.
+}
+
+function refreshAdvSignals() {
   const hc  = parseFloat(document.getElementById('ah_hc').value);
   const ho  = parseFloat(document.getElementById('ah_ho').value);
   const hoc = parseFloat(document.getElementById('ho_c').value);
@@ -888,98 +994,97 @@ function refreshSignals() {
   const tlo = parseFloat(document.getElementById('tl_o').value);
   const ovc = parseFloat(document.getElementById('ov_c').value);
   const ovo = parseFloat(document.getElementById('ov_o').value);
+  const unc = parseFloat(document.getElementById('un_c').value);
+  const uno = parseFloat(document.getElementById('un_o').value);
 
-  if (isNaN(hc)) return;
+  // Line move
+  let lineMove = 'UNKNOWN';
+  if (!isNaN(hc) && !isNaN(ho)) {
+    const favLc = Math.abs(hc);
+    const favLo = Math.abs(ho);
+    const diff = favLc - favLo;
+    lineMove = diff > LINE_THRESH ? 'DEEPER' : diff < -LINE_THRESH ? 'SHRANK' : 'STABLE';
+  }
+  setAdvSig('adv-sig-lm', lineMove, lineMove);
 
-  let favSide, favOc, favOo, dogOc, dogOo, favLc;
-  if (hc < -0.01)     { favSide = 'HOME'; favLc = Math.abs(hc); favOc = hoc; favOo = hoo; dogOc = aoc; dogOo = aoo; }
-  else if (hc > 0.01) { favSide = 'AWAY'; favLc = Math.abs(hc); favOc = aoc; favOo = aoo; dogOc = hoc; dogOo = hoo; }
-  else                { favSide = 'HOME'; favLc = 0.0;           favOc = hoc; favOo = hoo; dogOc = aoc; dogOo = aoo; }
+  // Home odds movement
+  const homMove = oddsDir(isNaN(hoc) ? null : hoc, isNaN(hoo) ? null : hoo);
+  setAdvSig('adv-sig-hom', engineToUiLabel(homMove), homMove);
 
-  const favLineVal = VALID_LINES.find(l => Math.abs(l - favLc) < 0.13);
-  const lineMove   = !isNaN(ho) ? (favLc - Math.abs(ho) > LINE_THRESH ? 'DEEPER' : favLc - Math.abs(ho) < -LINE_THRESH ? 'SHRANK' : 'STABLE') : 'UNKNOWN';
-  const favOM      = oddsDir(isNaN(favOc) ? null : favOc, isNaN(favOo) ? null : favOo);
-  const dogOM      = oddsDir(isNaN(dogOc) ? null : dogOc, isNaN(dogOo) ? null : dogOo);
-  const tlMove     = moveDir(isNaN(tlc) ? null : tlc, isNaN(tlo) ? null : tlo, TL_THRESH);
-  const overMove   = oddsDir(isNaN(ovc) ? null : ovc, isNaN(ovo) ? null : ovo);
-  const lineStr    = favLineVal !== undefined ? (favLineVal === 0 ? '0.00 (Level)' : `−${favLineVal.toFixed(2)}`) : 'INVALID';
+  // Away odds movement
+  const aomMove = oddsDir(isNaN(aoc) ? null : aoc, isNaN(aoo) ? null : aoo);
+  setAdvSig('adv-sig-aom', engineToUiLabel(aomMove), aomMove);
 
-  setSig('sig-fav',  favSide,  favSide);
-  setSig('sig-line', lineStr,  favLineVal !== undefined ? 'GREEN' : 'RED');
-  setSig('sig-lm',   lineMove, lineMove);
-  setSig('sig-fo',   favOM,    favOM);
-  setSig('sig-do',   dogOM,    dogOM);
-  setSig('sig-tlm',  tlMove,   tlMove);
-  setSig('sig-ov',   overMove, overMove);
+  // TL movement
+  const tlMove = moveDir(isNaN(tlc) ? null : tlc, isNaN(tlo) ? null : tlo, TL_THRESH);
+  setAdvSig('adv-sig-tlm', tlMove, tlMove);
+
+  // Over odds movement
+  const ovMove = oddsDir(isNaN(ovc) ? null : ovc, isNaN(ovo) ? null : ovo);
+  setAdvSig('adv-sig-ovm', engineToUiLabel(ovMove), ovMove);
+
+  // Under odds movement
+  const unMove = oddsDir(isNaN(unc) ? null : unc, isNaN(uno) ? null : uno);
+  setAdvSig('adv-sig-unm', engineToUiLabel(unMove), unMove);
 }
 
-function setSig(id, text, colorClass) {
+function setAdvSig(id, text, colorClass) {
   const el = document.getElementById(id);
   if (!el) return;
   el.textContent = text;
-  el.className   = 'signal-val ' + colorClass;
+  el.className   = 'sdrow-val ' + colorClass;
 }
 
 /* ════════════════════════════════════════════════════════════
-   SIGNAL TOGGLES
+   ADVANCED TOGGLES
    ════════════════════════════════════════════════════════════ */
-function toggleSig(name) {
+function toggleAdvToggle(name) {
   const map = {
-    'fav-odds':  { key: 'favOddsOn',  tgl: 'fav-odds-tgl'  },
-    'dog-odds':  { key: 'dogOddsOn',  tgl: 'dog-odds-tgl'  },
-    'over-odds': { key: 'overOddsOn', tgl: 'over-odds-tgl' },
+    'lm':      { key: 'advLmOn',      tgl: 'adv-lm-tgl'      },
+    'oddsTol': { key: 'advOddsTolOn', tgl: 'adv-oddstol-tgl'  },
+    'hom':     { key: 'advHomOn',     tgl: 'adv-hom-tgl'      },
+    'aom':     { key: 'advAomOn',     tgl: 'adv-aom-tgl'      },
+    'tlm':     { key: 'advTlmOn',     tgl: 'adv-tlm-tgl'      },
+    'ovTol':   { key: 'advOvTolOn',   tgl: 'adv-ovtol-tgl'    },
+    'ovm':     { key: 'advOvmOn',     tgl: 'adv-ovm-tgl'      },
+    'unTol':   { key: 'advUnTolOn',   tgl: 'adv-untol-tgl'    },
+    'unm':     { key: 'advUnmOn',     tgl: 'adv-unm-tgl'      },
   };
   const m = map[name]; if (!m) return;
   state[m.key] = !state[m.key];
   const btn = document.getElementById(m.tgl);
+  if (!btn) return;
   btn.textContent = state[m.key] ? 'ON ' : 'OFF';
   btn.classList.toggle('on', state[m.key]);
 }
 
-/* ════════════════════════════════════════════════════════════
-   OPTION TOGGLES (TL cluster, Odds Tolerance)
-   ════════════════════════════════════════════════════════════ */
-function toggleOpt(name) {
-  if (name === 'tl-cluster') {
-    state.tlClusterOn = !state.tlClusterOn;
-    const btn = document.getElementById('tl-cluster-tgl');
-    btn.textContent = state.tlClusterOn ? 'ON ' : 'OFF';
-    btn.classList.toggle('on', state.tlClusterOn);
-    document.querySelectorAll('#tl-cluster-btns .cluster-btn').forEach(b => {
-      b.disabled = !state.tlClusterOn;
-    });
-  } else if (name === 'odds-tol') {
-    state.odsTolOn = !state.odsTolOn;
-    const btn = document.getElementById('odds-tol-tgl');
-    btn.textContent = state.odsTolOn ? 'ON ' : 'OFF';
-    btn.classList.toggle('on', state.odsTolOn);
-    const inp = document.getElementById('odds-tol-val');
-    inp.disabled = !state.odsTolOn;
-    ['tol-p01', 'tol-p02', 'tol-p03', 'tol-p05'].forEach(id => {
-      document.getElementById(id).disabled = !state.odsTolOn;
-    });
-  }
+function setAdvTlRange(val) {
+  state.advTlRange = val;
+  Object.keys(ADV_TL_RANGES).forEach(k => {
+    const btn = document.getElementById(`tl-range-${k}`);
+    if (btn) btn.classList.toggle('selected', k === val);
+  });
 }
 
+function setAdvTol(v) {
+  const inp = document.getElementById('adv_odds_tol');
+  if (inp) inp.value = v;
+}
+
+function setBasicTol(v) {
+  const inp = document.getElementById('b_odds_tol');
+  if (inp) inp.value = v;
+}
+
+/* ════════════════════════════════════════════════════════════
+   LIVE ODDS ESTIMATOR TOGGLE
+   ════════════════════════════════════════════════════════════ */
 function toggleLive() {
   state.liveOn = !state.liveOn;
   const btn = document.getElementById('live-tgl');
   btn.textContent = state.liveOn ? 'ON ' : 'OFF';
   btn.classList.toggle('on', state.liveOn);
   document.getElementById('live-body').style.display = state.liveOn ? 'block' : 'none';
-}
-
-function setCluster(btn, val) {
-  state.tlCluster = val;
-  document.querySelectorAll('#tl-cluster-btns .cluster-btn').forEach(b => {
-    b.classList.toggle('selected', b.dataset.v === val || b.textContent.replace('–', '-').trim() === val.replace('<', '<').trim());
-  });
-}
-
-function setTol(v) {
-  const inp = document.getElementById('odds-tol-val');
-  inp.disabled = false;
-  inp.value = v;
 }
 
 /* ════════════════════════════════════════════════════════════
@@ -994,6 +1099,74 @@ function getMinN() {
   const el = activeTab ? activeTab.querySelector('.min-n-input') : null;
   const v  = parseInt(el ? el.value : 15, 10);
   return isNaN(v) || v < 1 ? 15 : v;
+}
+
+/* ════════════════════════════════════════════════════════════
+   URL IMPORT  (asianbetsoccer.com → auto-fill inputs)
+   ════════════════════════════════════════════════════════════ */
+async function importFromUrl() {
+  const input  = document.getElementById('url-import-input');
+  const btn    = document.getElementById('url-import-btn');
+  const status = document.getElementById('url-import-status');
+
+  const url = (input.value || '').trim();
+  if (!url) return;
+
+  btn.disabled    = true;
+  btn.textContent = '…';
+  status.textContent = 'Fetching…';
+  status.className   = 'url-import-status loading';
+
+  try {
+    const resp = await fetch('/api/scrape?url=' + encodeURIComponent(url));
+    const data = await resp.json();
+
+    if (data.error) {
+      status.textContent = '✗ ' + data.error;
+      status.className   = 'url-import-status error';
+    } else {
+      fillFromScraped(data);
+      status.textContent = '✓ Imported — check fields and run analysis';
+      status.className   = 'url-import-status ok';
+    }
+  } catch (e) {
+    status.textContent = '✗ ' + e.message;
+    status.className   = 'url-import-status error';
+  } finally {
+    btn.disabled    = false;
+    btn.textContent = 'Import';
+  }
+}
+
+function fillFromScraped(data) {
+  const set = (id, v) => {
+    if (v == null) return;
+    const el = document.getElementById(id);
+    if (el && !el.readOnly) el.value = Number.isFinite(v) ? v.toFixed(2) : String(v);
+  };
+
+  // Basic mode fields (closing values only — no opening in basic mode)
+  set('b_ah_hc', data.ah_hc);
+  set('b_ho_c',  data.ho_c);
+  set('b_ao_c',  data.ao_c);
+  set('b_tl_c',  data.tl_c);
+
+  // Advanced mode fields (full opening + closing)
+  set('ah_hc', data.ah_hc);
+  set('ah_ho', data.ah_ho);
+  set('ho_c',  data.ho_c);
+  set('ho_o',  data.ho_o);
+  set('ao_c',  data.ao_c);
+  set('ao_o',  data.ao_o);
+  set('tl_c',  data.tl_c);
+  set('tl_o',  data.tl_o);
+  set('ov_c',  data.ov_c);
+  set('ov_o',  data.ov_o);
+  set('un_c',  data.un_c);
+  set('un_o',  data.un_o);
+
+  // Recompute mirrored fields and signal previews
+  onInputChange();
 }
 
 /* ════════════════════════════════════════════════════════════
@@ -1077,38 +1250,17 @@ function getGs(panelId, trigger) {
 function runMatch() {
   if (!_db.length) { showError('No database loaded. Please upload CSV files first.'); return; }
 
-  const d = deriveConfig(
-    document.getElementById('ah_hc').value,
-    document.getElementById('ah_ho').value,
-    document.getElementById('ho_c').value,
-    document.getElementById('ho_o').value,
-    document.getElementById('ao_c').value,
-    document.getElementById('ao_o').value,
-    document.getElementById('tl_c').value,
-    document.getElementById('tl_o').value,
-    document.getElementById('ov_c').value,
-    document.getElementById('ov_o').value,
-  );
-  if (!d || d.fav_line === '?') { showError('Invalid AH line — enter a valid Asian Handicap value.'); return; }
+  let cfg;
+
+  if (state.filterMode === 'BASIC') {
+    cfg = buildBasicCfg();
+  } else {
+    cfg = buildAdvancedCfg();
+  }
+
+  if (!cfg) { showError('Invalid AH line — enter a valid Asian Handicap value.'); return; }
 
   showLoader();
-
-  const cfg = {
-    fav_line:      d.fav_line,
-    fav_side:      d.fav_side,
-    line_move:     d.line_move,
-    fav_odds_move: state.favOddsOn  ? d.fav_odds_move : 'ANY',
-    dog_odds_move: state.dogOddsOn  ? d.dog_odds_move : 'ANY',
-    over_move:     state.overOddsOn ? d.over_move     : 'ANY',
-    tl_c:          d.tl_c,
-    tl_cluster:    state.tlClusterOn ? state.tlCluster : null,
-    tl_move:       d.tl_move,
-    tl_max:        null,
-    odds_tolerance: state.odsTolOn ? (parseFloat(document.getElementById('odds-tol-val').value) || null) : null,
-    fav_oc: d.fav_oc, fav_oo: d.fav_oo,
-    dog_oc: d.dog_oc, dog_oo: d.dog_oo,
-  };
-  if (state.tlClusterOn) cfg.tl_c = null;  // cluster overrides exact TL
 
   const gs     = getGs('gs-panel', state.gsTrigger);
   const minN   = getMinN();
@@ -1119,22 +1271,160 @@ function runMatch() {
   const allBets   = scoreBets(stateRows, cfgRows, minN);
   const bets      = allBets.filter(b => Math.abs(b.z) >= MIN_Z);
 
-  // Attach live odds if estimator is ON
-  if (state.liveOn && d) {
+  // Attach live odds if estimator is ON — need fav_line and fav_side from cfg
+  if (state.liveOn) {
     const liveMin  = parseInt(document.getElementById('live-minute').value, 10);
     const lhome2h  = parseInt(document.getElementById('live-home2h').value, 10) || 0;
     const laway2h  = parseInt(document.getElementById('live-away2h').value, 10) || 0;
     if (!isNaN(liveMin) && liveMin > 0) {
-      const favLine  = parseFloat(d.fav_line) || 0.75;
-      const fgDelta  = d.fav_side === 'HOME' ? lhome2h : laway2h;
-      const dgDelta  = d.fav_side === 'HOME' ? laway2h : lhome2h;
+      const favLine = parseFloat(cfg.fav_line) || 0.75;
+      const favSide = cfg.fav_side || 'HOME';
+      const fgDelta = favSide === 'HOME' ? lhome2h : laway2h;
+      const dgDelta = favSide === 'HOME' ? laway2h : lhome2h;
       for (const bet of bets) {
-        bet.live = computeLiveOdd(bet.p, bet.k, liveMin, favLine, fgDelta, dgDelta, d.fav_side);
+        bet.live = computeLiveOdd(bet.p, bet.k, liveMin, favLine, fgDelta, dgDelta, favSide);
       }
     }
   }
 
   renderMatchResults({ cfg_n: cfgRows.length, gs_n: stateRows.length, bets, ftrace, min_n: minN });
+}
+
+/* Build cfg from BASIC mode inputs */
+function buildBasicCfg() {
+  const hcRaw = document.getElementById('b_ah_hc').value;
+  const hc    = sf(hcRaw);
+  if (hc === null) return null;
+
+  const favLc   = Math.abs(hc);
+  const favLine = VALID_LINES.find(v => Math.abs(favLc - v) < 0.13);
+  if (favLine === undefined) return null;
+
+  const favOc  = sf(document.getElementById('b_ho_c').value);
+  const dogOc  = sf(document.getElementById('b_ao_c').value);
+  const tlcRaw = document.getElementById('b_tl_c').value;
+  const basicTlC = sf(tlcRaw);
+  const basicTolRaw = document.getElementById('b_odds_tol').value;
+  const basicTol = sf(basicTolRaw);
+
+  // Determine fav_side: fav is the side giving handicap
+  let favSide = 'HOME';
+  if (hc > 0.01) favSide = 'AWAY';
+
+  // Remap fav/dog according to side
+  let favOcVal = favOc, dogOcVal = dogOc;
+  if (favSide === 'AWAY') { favOcVal = dogOc; dogOcVal = favOc; }
+
+  return {
+    fav_line:       favLine.toFixed(2),
+    fav_side:       'ANY',
+    line_move:      'ANY',
+    fav_odds_move:  'ANY',
+    dog_odds_move:  'ANY',
+    over_move:      'ANY',
+    under_move:     'ANY',
+    tl_c:           basicTlC,
+    tl_range:       null,
+    tl_cluster:     null,
+    tl_move:        'ANY',
+    tl_max:         null,
+    odds_tolerance: basicTol,
+    fav_oc:         favSide === 'HOME' ? favOc  : dogOc,
+    fav_oo:         null,
+    dog_oc:         favSide === 'HOME' ? dogOc  : favOc,
+    dog_oo:         null,
+    ov_c:           null,
+    ov_tol:         null,
+    un_c:           null,
+    un_tol:         null,
+  };
+}
+
+/* Build cfg from ADVANCED mode inputs */
+function buildAdvancedCfg() {
+  const hcRaw = document.getElementById('ah_hc').value;
+  const hoRaw = document.getElementById('ah_ho').value;
+  const hc    = sf(hcRaw);
+  if (hc === null) return null;
+
+  const favLc   = Math.abs(hc);
+  const favLine = VALID_LINES.find(v => Math.abs(favLc - v) < 0.13);
+  if (favLine === undefined) return null;
+
+  const favSide = hc < -0.01 ? 'HOME' : hc > 0.01 ? 'AWAY' : 'HOME';
+
+  // AH odds: map home/away to fav/dog
+  const hoc = sf(document.getElementById('ho_c').value);
+  const hoo = sf(document.getElementById('ho_o').value);
+  const aoc = sf(document.getElementById('ao_c').value);
+  const aoo = sf(document.getElementById('ao_o').value);
+  const favOc = favSide === 'HOME' ? hoc : aoc;
+  const favOo = favSide === 'HOME' ? hoo : aoo;
+  const dogOc = favSide === 'HOME' ? aoc : hoc;
+  const dogOo = favSide === 'HOME' ? aoo : hoo;
+
+  // Line movement
+  const ho    = sf(hoRaw);
+  let lineMove = 'UNKNOWN';
+  if (ho !== null) {
+    const favLo = Math.abs(ho);
+    const diff = favLc - favLo;
+    lineMove = diff > LINE_THRESH ? 'DEEPER' : diff < -LINE_THRESH ? 'SHRANK' : 'STABLE';
+  }
+
+  // Home/away odds movement signals (as engine values)
+  const homMoveEngine = oddsDir(hoc, hoo); // home in engine terms
+  const aomMoveEngine = oddsDir(aoc, aoo);
+  // Map to fav/dog
+  const favOddsMove = favSide === 'HOME' ? homMoveEngine : aomMoveEngine;
+  const dogOddsMove = favSide === 'HOME' ? aomMoveEngine : homMoveEngine;
+
+  // Over/under
+  const ovc = sf(document.getElementById('ov_c').value);
+  const ovo = sf(document.getElementById('ov_o').value);
+  const unc = sf(document.getElementById('un_c').value);
+  const uno = sf(document.getElementById('un_o').value);
+  const overMove  = oddsDir(ovc, ovo);
+  const underMove = oddsDir(unc, uno);
+
+  // TL
+  const tlc = sf(document.getElementById('tl_c').value);
+  const tlo = sf(document.getElementById('tl_o').value);
+  const tlMove = moveDir(tlc, tlo, TL_THRESH);
+
+  // Odds tolerance
+  const advOddsToRaw = document.getElementById('adv_odds_tol').value;
+  const advOddsToVal = sf(advOddsToRaw);
+
+  // Over/Under tolerance
+  const ovTolRaw = document.getElementById('adv_ov_tol').value;
+  const ovTolVal = sf(ovTolRaw);
+  const unTolRaw = document.getElementById('adv_un_tol').value;
+  const unTolVal = sf(unTolRaw);
+
+  return {
+    fav_line:       favLine.toFixed(2),
+    fav_side:       favSide,
+    line_move:      state.advLmOn      ? lineMove    : 'ANY',
+    fav_odds_move:  state.advHomOn     ? favOddsMove : 'ANY',
+    dog_odds_move:  state.advAomOn     ? dogOddsMove : 'ANY',
+    over_move:      state.advOvmOn     ? overMove    : 'ANY',
+    under_move:     state.advUnmOn     ? underMove   : 'ANY',
+    tl_range:       ADV_TL_RANGES[state.advTlRange] || null,
+    tl_c:           null,  // overridden by tl_range in advanced mode
+    tl_cluster:     null,
+    tl_move:        state.advTlmOn     ? tlMove      : 'ANY',
+    tl_max:         null,
+    odds_tolerance: state.advOddsTolOn ? advOddsToVal : null,
+    fav_oc:         favOc,
+    fav_oo:         favOo,
+    dog_oc:         dogOc,
+    dog_oo:         dogOo,
+    ov_c:           state.advOvTolOn ? ovc : null,
+    ov_tol:         state.advOvTolOn ? ovTolVal : null,
+    un_c:           state.advUnTolOn ? unc : null,
+    un_tol:         state.advUnTolOn ? unTolVal : null,
+  };
 }
 
 /* ════════════════════════════════════════════════════════════

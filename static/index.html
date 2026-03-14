@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Game State Betting Tool</title>
-  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="./style.css">
 </head>
 <body>
 <div id="app">
@@ -12,7 +12,7 @@
   <!-- ── Header ────────────────────────────────────────── -->
   <header>
     <div class="header-left">
-      <span class="version-pill">v3.0</span>
+      <span class="version-pill">v3.1</span>
       <span class="header-title">GAME STATE BETTING TOOL</span>
     </div>
     <span class="header-sub">Enter match parameters → get best bets + minimum odds</span>
@@ -43,6 +43,18 @@
         </div>
       </div>
 
+      <!-- URL Import -->
+      <div class="card">
+        <div class="card-title">IMPORT FROM URL</div>
+        <div class="url-import-row">
+          <input id="url-import-input" type="text" class="url-import-input"
+                 placeholder="https://www.asianbetsoccer.com/…?id=…"
+                 onkeydown="if(event.key==='Enter')importFromUrl()">
+          <button id="url-import-btn" class="run-btn url-import-btn" onclick="importFromUrl()">Import</button>
+        </div>
+        <div id="url-import-status" class="url-import-status"></div>
+      </div>
+
       <!-- Tabs -->
       <div class="tabs">
         <button class="tab-btn active" onclick="switchTab('match')">MATCH ANALYSIS</button>
@@ -52,140 +64,210 @@
       <!-- ══ MATCH ANALYSIS TAB ═════════════════════════ -->
       <div id="tab-match" class="tab-pane active">
 
-        <!-- AH Line -->
-        <div class="section-label">AH LINE</div>
-        <div class="input-grid cols-4">
-          <div class="col-group-header">HOME</div>
-          <div class="col-group-header">AWAY (auto)</div>
-          <div class="input-wrap"><label>Closing</label>
-            <input id="ah_hc" type="text" placeholder="-0.75" oninput="onInputChange()"></div>
-          <div class="input-wrap"><label>Opening</label>
-            <input id="ah_ho" type="text" placeholder="-0.75" oninput="onInputChange()"></div>
-          <div class="input-wrap"><label>Closing</label>
-            <input id="ah_ac" type="text" readonly></div>
-          <div class="input-wrap"><label>Opening</label>
-            <input id="ah_ao" type="text" readonly></div>
+        <!-- BASIC / ADVANCED mode switcher -->
+        <div class="mode-switcher">
+          <button class="mode-btn active" id="mode-btn-BASIC"    onclick="setFilterMode('BASIC')">BASIC</button>
+          <button class="mode-btn"        id="mode-btn-ADVANCED" onclick="setFilterMode('ADVANCED')">ADVANCED</button>
         </div>
 
-        <!-- AH Odds -->
-        <div class="section-label">AH ODDS</div>
-        <div class="input-grid cols-4">
-          <div class="col-group-header">HOME</div>
-          <div class="col-group-header">AWAY</div>
-          <div class="input-wrap"><label>Closing</label>
-            <input id="ho_c" type="text" placeholder="1.85" oninput="onInputChange()"></div>
-          <div class="input-wrap"><label>Opening</label>
-            <input id="ho_o" type="text" placeholder="1.90" oninput="onInputChange()"></div>
-          <div class="input-wrap"><label>Closing</label>
-            <input id="ao_c" type="text" placeholder="1.90" oninput="onInputChange()"></div>
-          <div class="input-wrap"><label>Opening</label>
-            <input id="ao_o" type="text" placeholder="1.85" oninput="onInputChange()"></div>
-        </div>
+        <!-- ══ BASIC MODE INPUTS ══════════════════════════ -->
+        <div id="basic-inputs">
 
-        <!-- Total Line + Over -->
-        <div class="section-label">TOTAL LINE · OVER / UNDER</div>
-        <div class="input-grid cols-4">
-          <div class="col-group-header">TOTAL LINE</div>
-          <div class="col-group-header">OVER ODDS</div>
-          <div class="input-wrap"><label>Closing</label>
-            <input id="tl_c" type="text" placeholder="2.75" oninput="onInputChange()"></div>
-          <div class="input-wrap"><label>Opening</label>
-            <input id="tl_o" type="text" placeholder="2.75" oninput="onInputChange()"></div>
-          <div class="input-wrap"><label>Closing</label>
-            <input id="ov_c" type="text" placeholder="1.92" oninput="onInputChange()"></div>
-          <div class="input-wrap"><label>Opening</label>
-            <input id="ov_o" type="text" placeholder="1.88" oninput="onInputChange()"></div>
-        </div>
-        <div class="input-grid cols-2" style="margin-top:6px">
-          <div class="col-group-header">UNDER ODDS</div>
-          <div></div>
-          <div class="input-wrap"><label>Closing</label>
-            <input id="un_c" type="text" placeholder="1.88" oninput="onInputChange()"></div>
-          <div class="input-wrap"><label>Opening</label>
-            <input id="un_o" type="text" placeholder="1.92" oninput="onInputChange()"></div>
-        </div>
+          <!-- AH Line (basic) -->
+          <div class="section-label">AH LINE</div>
+          <div class="input-grid cols-2">
+            <div class="col-group-header">HOME CLOSING</div>
+            <div class="col-group-header">AWAY (auto)</div>
+            <div class="input-wrap"><label>Closing</label>
+              <input id="b_ah_hc" type="text" placeholder="-0.75" oninput="onInputChange()"></div>
+            <div class="input-wrap"><label>Closing</label>
+              <input id="b_ah_ac" type="text" readonly></div>
+          </div>
 
-        <!-- TL Cluster -->
-        <div class="section-label">TOTAL LINE CLUSTER</div>
-        <div class="option-box">
-          <div class="option-box-hdr">
-            <span class="option-box-desc">Filter by range — overrides exact TL when ON</span>
-            <button class="toggle-btn" id="tl-cluster-tgl" onclick="toggleOpt('tl-cluster')">OFF</button>
+          <!-- AH Closing Odds (basic) -->
+          <div class="section-label">AH CLOSING ODDS</div>
+          <div class="input-grid cols-2">
+            <div class="col-group-header">HOME</div>
+            <div class="col-group-header">AWAY</div>
+            <div class="input-wrap"><label>Closing</label>
+              <input id="b_ho_c" type="text" placeholder="1.85" oninput="onInputChange()"></div>
+            <div class="input-wrap"><label>Closing</label>
+              <input id="b_ao_c" type="text" placeholder="1.90" oninput="onInputChange()"></div>
           </div>
-          <div class="cluster-btns" id="tl-cluster-btns">
-            <button class="cluster-btn selected" data-v="&lt;2" onclick="setCluster(this,'&lt;2')" disabled>&lt;2</button>
-            <button class="cluster-btn" data-v="2-2.5" onclick="setCluster(this,'2-2.5')" disabled>2–2.5</button>
-            <button class="cluster-btn" data-v="2.5-3" onclick="setCluster(this,'2.5-3')" disabled>2.5–3</button>
-            <button class="cluster-btn" data-v="&gt;3" onclick="setCluster(this,'&gt;3')" disabled>&gt;3</button>
-          </div>
-        </div>
 
-        <!-- Signals -->
-        <div class="section-label">AUTO-DETECTED SIGNALS</div>
-        <div class="signal-panel">
-          <div class="signal-row">
-            <span class="signal-key">FAVOURITE</span>
-            <span class="signal-val" id="sig-fav">—</span>
-          </div>
-          <div class="signal-row">
-            <span class="signal-key">AH LINE</span>
-            <span class="signal-val" id="sig-line">—</span>
-          </div>
-          <div class="signal-row">
-            <span class="signal-key">LINE MOVE</span>
-            <span class="signal-val" id="sig-lm">—</span>
-          </div>
-          <div class="signal-divider"></div>
-          <div class="signal-row">
-            <span class="signal-key">FAV ODDS</span>
-            <span class="signal-val" id="sig-fo" style="flex:1">—</span>
-            <button class="toggle-btn" id="fav-odds-tgl" onclick="toggleSig('fav-odds')">OFF</button>
-          </div>
-          <div class="signal-row">
-            <span class="signal-key">DOG ODDS</span>
-            <span class="signal-val" id="sig-do" style="flex:1">—</span>
-            <button class="toggle-btn" id="dog-odds-tgl" onclick="toggleSig('dog-odds')">OFF</button>
-          </div>
-          <div class="signal-row">
-            <span class="signal-key">TL MOVE</span>
-            <span class="signal-val" id="sig-tlm">—</span>
-          </div>
-          <div class="signal-row">
-            <span class="signal-key">OVER ODDS</span>
-            <span class="signal-val" id="sig-ov" style="flex:1">—</span>
-            <button class="toggle-btn" id="over-odds-tgl" onclick="toggleSig('over-odds')">OFF</button>
-          </div>
-        </div>
-
-        <!-- Odds Tolerance -->
-        <div class="section-label">ODDS TOLERANCE</div>
-        <div class="option-box">
-          <div class="option-box-hdr">
-            <span class="option-box-desc">Match by raw AH odds proximity — replaces IN/STABLE/OUT when ON</span>
-            <button class="toggle-btn" id="odds-tol-tgl" onclick="toggleOpt('odds-tol')">OFF</button>
-          </div>
-          <div class="tol-row" id="tol-row">
+          <!-- Odds Tolerance (basic — always active) -->
+          <div class="section-label">ODDS TOLERANCE</div>
+          <div class="tol-row" style="margin-bottom:8px">
             <span style="color:var(--dim);font-size:14px;font-weight:bold">±</span>
-            <input class="tol-input" id="odds-tol-val" type="text" placeholder="0.02" disabled>
-            <button class="toggle-btn" onclick="setTol('0.01')" id="tol-p01" disabled>0.01</button>
-            <button class="toggle-btn" onclick="setTol('0.02')" id="tol-p02" disabled>0.02</button>
-            <button class="toggle-btn" onclick="setTol('0.03')" id="tol-p03" disabled>0.03</button>
-            <button class="toggle-btn" onclick="setTol('0.05')" id="tol-p05" disabled>0.05</button>
+            <input class="tol-input" id="b_odds_tol" type="text" placeholder="0.02">
+            <button class="toggle-btn" onclick="setBasicTol('0.01')">0.01</button>
+            <button class="toggle-btn" onclick="setBasicTol('0.02')">0.02</button>
+            <button class="toggle-btn" onclick="setBasicTol('0.03')">0.03</button>
+            <button class="toggle-btn" onclick="setBasicTol('0.05')">0.05</button>
           </div>
-        </div>
 
-        <!-- Game State -->
+          <!-- Total Line (basic) -->
+          <div class="section-label">TOTAL LINE</div>
+          <div class="input-grid cols-2" style="margin-bottom:8px">
+            <div class="input-wrap"><label>Closing</label>
+              <input id="b_tl_c" type="text" placeholder="2.75" oninput="onInputChange()"></div>
+            <div></div>
+          </div>
+
+        </div><!-- /basic-inputs -->
+
+        <!-- ══ ADVANCED MODE INPUTS ═══════════════════════ -->
+        <div id="adv-inputs" style="display:none">
+
+          <!-- AH LINE card (ALWAYS ON) -->
+          <div class="adv-card">
+            <div class="adv-card-title">
+              AH LINE
+              <span class="badge-always">ALWAYS ON</span>
+            </div>
+            <div class="input-grid cols-4">
+              <div class="col-group-header">HOME</div>
+              <div class="col-group-header">AWAY (auto)</div>
+              <div class="input-wrap"><label>Closing</label>
+                <input id="ah_hc" type="text" placeholder="-0.75" oninput="onInputChange()"></div>
+              <div class="input-wrap"><label>Opening</label>
+                <input id="ah_ho" type="text" placeholder="-0.75" oninput="onInputChange()"></div>
+              <div class="input-wrap"><label>Closing</label>
+                <input id="ah_ac" type="text" readonly></div>
+              <div class="input-wrap"><label>Opening</label>
+                <input id="ah_ao" type="text" readonly></div>
+            </div>
+            <!-- Line movement -->
+            <div class="signal-detect-row" style="margin-top:8px">
+              <span class="sdrow-key">LINE MOVEMENT</span>
+              <span class="sdrow-val" id="adv-sig-lm">—</span>
+              <button class="toggle-btn" id="adv-lm-tgl" onclick="toggleAdvToggle('lm')">OFF</button>
+            </div>
+          </div>
+
+          <!-- AH ODDS card -->
+          <div class="adv-card">
+            <div class="adv-card-title">AH ODDS</div>
+            <div class="input-grid cols-4">
+              <div class="col-group-header">HOME</div>
+              <div class="col-group-header">AWAY</div>
+              <div class="input-wrap"><label>Closing</label>
+                <input id="ho_c" type="text" placeholder="1.85" oninput="onInputChange()"></div>
+              <div class="input-wrap"><label>Opening</label>
+                <input id="ho_o" type="text" placeholder="1.90" oninput="onInputChange()"></div>
+              <div class="input-wrap"><label>Closing</label>
+                <input id="ao_c" type="text" placeholder="1.90" oninput="onInputChange()"></div>
+              <div class="input-wrap"><label>Opening</label>
+                <input id="ao_o" type="text" placeholder="1.85" oninput="onInputChange()"></div>
+            </div>
+            <!-- Closing odds tolerance -->
+            <div class="signal-detect-row" style="margin-top:8px">
+              <span class="sdrow-key">CLOSING ±</span>
+              <input class="tol-input" id="adv_odds_tol" type="text" placeholder="0.02" style="width:60px">
+              <div style="display:flex;gap:4px">
+                <button class="toggle-btn" onclick="setAdvTol('0.01')">0.01</button>
+                <button class="toggle-btn" onclick="setAdvTol('0.02')">0.02</button>
+                <button class="toggle-btn" onclick="setAdvTol('0.03')">0.03</button>
+                <button class="toggle-btn" onclick="setAdvTol('0.05')">0.05</button>
+              </div>
+              <button class="toggle-btn" id="adv-oddstol-tgl" onclick="toggleAdvToggle('oddsTol')">OFF</button>
+            </div>
+            <!-- Home movement -->
+            <div class="signal-detect-row">
+              <span class="sdrow-key">HOME MOVE</span>
+              <span class="sdrow-val" id="adv-sig-hom">—</span>
+              <button class="toggle-btn" id="adv-hom-tgl" onclick="toggleAdvToggle('hom')">OFF</button>
+            </div>
+            <!-- Away movement -->
+            <div class="signal-detect-row">
+              <span class="sdrow-key">AWAY MOVE</span>
+              <span class="sdrow-val" id="adv-sig-aom">—</span>
+              <button class="toggle-btn" id="adv-aom-tgl" onclick="toggleAdvToggle('aom')">OFF</button>
+            </div>
+          </div>
+
+          <!-- TOTAL LINE card (ALWAYS ON) -->
+          <div class="adv-card">
+            <div class="adv-card-title">
+              TOTAL LINE
+              <span class="badge-always">ALWAYS ON</span>
+            </div>
+            <!-- TL range selector -->
+            <div class="adv-tl-range-btns">
+              <button class="adv-tl-range-btn" id="tl-range-1.5-2"     onclick="setAdvTlRange('1.5-2')">1.5–2</button>
+              <button class="adv-tl-range-btn selected" id="tl-range-2.25-2.75" onclick="setAdvTlRange('2.25-2.75')">2.25–2.75</button>
+              <button class="adv-tl-range-btn" id="tl-range-3-3.5"     onclick="setAdvTlRange('3-3.5')">3–3.5</button>
+            </div>
+            <div class="input-grid cols-2" style="margin-top:8px">
+              <div class="input-wrap"><label>TL Closing</label>
+                <input id="tl_c" type="text" placeholder="2.75" oninput="onInputChange()"></div>
+              <div class="input-wrap"><label>TL Opening</label>
+                <input id="tl_o" type="text" placeholder="2.75" oninput="onInputChange()"></div>
+            </div>
+            <!-- TL movement -->
+            <div class="signal-detect-row" style="margin-top:8px">
+              <span class="sdrow-key">TL MOVEMENT</span>
+              <span class="sdrow-val" id="adv-sig-tlm">—</span>
+              <button class="toggle-btn" id="adv-tlm-tgl" onclick="toggleAdvToggle('tlm')">OFF</button>
+            </div>
+          </div>
+
+          <!-- OVER ODDS card -->
+          <div class="adv-card">
+            <div class="adv-card-title">OVER ODDS</div>
+            <div class="input-grid cols-2">
+              <div class="input-wrap"><label>Closing</label>
+                <input id="ov_c" type="text" placeholder="1.92" oninput="onInputChange()"></div>
+              <div class="input-wrap"><label>Opening</label>
+                <input id="ov_o" type="text" placeholder="1.88" oninput="onInputChange()"></div>
+            </div>
+            <div class="signal-detect-row" style="margin-top:8px">
+              <span class="sdrow-key">CLOSING ±</span>
+              <input class="tol-input" id="adv_ov_tol" type="text" placeholder="0.02" style="width:60px">
+              <button class="toggle-btn" id="adv-ovtol-tgl" onclick="toggleAdvToggle('ovTol')">OFF</button>
+            </div>
+            <div class="signal-detect-row">
+              <span class="sdrow-key">MOVEMENT</span>
+              <span class="sdrow-val" id="adv-sig-ovm">—</span>
+              <button class="toggle-btn" id="adv-ovm-tgl" onclick="toggleAdvToggle('ovm')">OFF</button>
+            </div>
+          </div>
+
+          <!-- UNDER ODDS card -->
+          <div class="adv-card">
+            <div class="adv-card-title">UNDER ODDS</div>
+            <div class="input-grid cols-2">
+              <div class="input-wrap"><label>Closing</label>
+                <input id="un_c" type="text" placeholder="1.88" oninput="onInputChange()"></div>
+              <div class="input-wrap"><label>Opening</label>
+                <input id="un_o" type="text" placeholder="1.92" oninput="onInputChange()"></div>
+            </div>
+            <div class="signal-detect-row" style="margin-top:8px">
+              <span class="sdrow-key">CLOSING ±</span>
+              <input class="tol-input" id="adv_un_tol" type="text" placeholder="0.02" style="width:60px">
+              <button class="toggle-btn" id="adv-untol-tgl" onclick="toggleAdvToggle('unTol')">OFF</button>
+            </div>
+            <div class="signal-detect-row">
+              <span class="sdrow-key">MOVEMENT</span>
+              <span class="sdrow-val" id="adv-sig-unm">—</span>
+              <button class="toggle-btn" id="adv-unm-tgl" onclick="toggleAdvToggle('unm')">OFF</button>
+            </div>
+          </div>
+
+        </div><!-- /adv-inputs -->
+
+        <!-- Game State (shared) -->
         <div class="section-label">LIVE GAME STATE</div>
         <div class="gs-triggers">
-          <button class="gs-trigger-btn active" id="gs-btn-HT" onclick="setGsTrigger('HT')">Half Time</button>
-          <button class="gs-trigger-btn" id="gs-btn-FIRST_GOAL" onclick="setGsTrigger('FIRST_GOAL')">First Goal</button>
-          <button class="gs-trigger-btn" id="gs-btn-INPLAY_2H" onclick="setGsTrigger('INPLAY_2H')">In-play 2H</button>
+          <button class="gs-trigger-btn active" id="gs-btn-HT"          onclick="setGsTrigger('HT')">Half Time</button>
+          <button class="gs-trigger-btn"        id="gs-btn-FIRST_GOAL"  onclick="setGsTrigger('FIRST_GOAL')">First Goal</button>
+          <button class="gs-trigger-btn"        id="gs-btn-INPLAY_2H"   onclick="setGsTrigger('INPLAY_2H')">In-play 2H</button>
         </div>
         <div class="gs-panel" id="gs-panel">
           <!-- filled by renderGsPanel() -->
         </div>
 
-        <!-- Live Odds Estimator -->
+        <!-- Live Odds Estimator (shared) -->
         <div class="section-label">LIVE ODDS ESTIMATOR</div>
         <div class="option-box" id="live-box">
           <div class="option-box-hdr">
@@ -207,7 +289,7 @@
           </div>
         </div>
 
-        <!-- Min N -->
+        <!-- Min N (shared) -->
         <div class="section-label">MINIMUM MATCHING RECORDS</div>
         <div class="min-n-row">
           <button class="min-n-preset" onclick="setMinN(10)">10</button>
@@ -270,9 +352,9 @@
         <!-- Game State (discovery) -->
         <div class="section-label" style="margin-top:14px">LIVE GAME STATE</div>
         <div class="gs-triggers">
-          <button class="gs-trigger-btn active" id="d-gs-btn-HT" onclick="setDGsTrigger('HT')">Half Time</button>
-          <button class="gs-trigger-btn" id="d-gs-btn-FIRST_GOAL" onclick="setDGsTrigger('FIRST_GOAL')">First Goal</button>
-          <button class="gs-trigger-btn" id="d-gs-btn-INPLAY_2H" onclick="setDGsTrigger('INPLAY_2H')">In-play 2H</button>
+          <button class="gs-trigger-btn active" id="d-gs-btn-HT"         onclick="setDGsTrigger('HT')">Half Time</button>
+          <button class="gs-trigger-btn"        id="d-gs-btn-FIRST_GOAL" onclick="setDGsTrigger('FIRST_GOAL')">First Goal</button>
+          <button class="gs-trigger-btn"        id="d-gs-btn-INPLAY_2H"  onclick="setDGsTrigger('INPLAY_2H')">In-play 2H</button>
         </div>
         <div class="gs-panel" id="d-gs-panel"></div>
 
@@ -305,6 +387,6 @@
 </div><!-- /app -->
 
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5/papaparse.min.js"></script>
-<script src="/static/app.js"></script>
+<script src="./app.js"></script>
 </body>
 </html>

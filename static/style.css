@@ -95,6 +95,7 @@ header {
   grid-column: span 2; font-size: 9px; font-weight: bold;
   color: var(--dim); padding: 0 2px; margin-top: 2px;
 }
+.input-grid.cols-2 .col-group-header { grid-column: span 1; }
 
 .input-wrap label {
   display: block; font-size: 10px; color: var(--dim); margin-bottom: 3px;
@@ -124,6 +125,75 @@ header {
 .tab-pane { display: none; }
 .tab-pane.active { display: block; }
 
+/* ── Mode switcher (BASIC / ADVANCED) ───────────────────── */
+.mode-switcher {
+  display: flex; gap: 4px; margin-bottom: 12px;
+  background: var(--bg2); padding: 4px; border-radius: 8px;
+}
+.mode-btn {
+  flex: 1; padding: 7px; border: none; border-radius: 6px;
+  background: transparent; color: var(--dim);
+  font-family: var(--font); font-size: 11px; font-weight: bold;
+  cursor: pointer; transition: all .15s;
+}
+.mode-btn:hover  { background: var(--bg3); color: var(--bright); }
+.mode-btn.active { background: var(--blue); color: #fff; }
+
+/* ── Advanced mode cards ─────────────────────────────────── */
+.adv-card {
+  background: var(--bg1); border: 1px solid var(--border);
+  border-radius: 9px; padding: 12px 14px; margin-bottom: 8px;
+}
+.adv-card-title {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 11px; font-weight: bold; color: var(--blue);
+  margin-bottom: 10px;
+}
+
+/* ── ALWAYS ON badge ──────────────────────────────────────── */
+.badge-always {
+  background: var(--green); color: #000;
+  font-size: 9px; font-weight: bold;
+  padding: 2px 6px; border-radius: 3px;
+  letter-spacing: 0.04em;
+}
+
+/* ── Signal detect row (advanced mode) ──────────────────── */
+.signal-detect-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 5px 0; border-top: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.sdrow-key {
+  width: 90px; font-size: 10px; color: var(--dim); flex-shrink: 0;
+}
+.sdrow-val {
+  flex: 1; font-size: 13px; font-weight: bold; color: var(--dim);
+  min-width: 60px;
+}
+.sdrow-val.IN,
+.sdrow-val.STEAM,
+.sdrow-val.DEEPER  { color: var(--green); }
+.sdrow-val.OUT,
+.sdrow-val.DRIFT,
+.sdrow-val.SHRANK  { color: var(--red); }
+.sdrow-val.STABLE  { color: var(--blue); }
+.sdrow-val.UP,
+.sdrow-val.DOWN    { color: var(--yellow); }
+
+/* ── ADV TL range buttons ────────────────────────────────── */
+.adv-tl-range-btns {
+  display: flex; gap: 6px; margin-bottom: 4px;
+}
+.adv-tl-range-btn {
+  flex: 1; padding: 6px 4px; border: 1px solid var(--border); border-radius: 5px;
+  background: var(--bg2); color: var(--dim);
+  font-family: var(--font); font-size: 10px; font-weight: bold;
+  cursor: pointer; transition: all .15s; text-align: center;
+}
+.adv-tl-range-btn:hover    { background: var(--bg3); color: var(--bright); }
+.adv-tl-range-btn.selected { background: var(--green); color: #000; border-color: var(--green); }
+
 /* ── Toggle buttons ──────────────────────────────────────── */
 .toggle-btn {
   padding: 4px 10px; border-radius: 5px;
@@ -134,26 +204,28 @@ header {
 .toggle-btn.on { background: var(--green); color: #000; border-color: var(--green); }
 .toggle-btn:hover { filter: brightness(1.15); }
 
-/* ── Signal panel ────────────────────────────────────────── */
-.signal-panel {
-  background: var(--bg1); border: 1px solid var(--border);
-  border-radius: 8px; padding: 10px 12px; margin-bottom: 8px;
+/* ── URL import ──────────────────────────────────────────── */
+.url-import-row {
+  display: flex; gap: 6px; margin-bottom: 6px;
 }
-.signal-row {
-  display: flex; align-items: center; padding: 4px 0;
-  border-bottom: 1px solid transparent;
+.url-import-input {
+  flex: 1; background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 6px; color: var(--bright); font-size: 11px;
+  font-family: var(--font); padding: 6px 8px; outline: none;
+  transition: border-color .15s; min-width: 0;
 }
-.signal-row:last-child { border-bottom: none; }
-.signal-divider { border-bottom: 1px solid var(--border); margin: 4px 0; }
-.signal-key  { width: 90px; font-size: 10px; color: var(--dim); flex-shrink: 0; }
-.signal-val  { flex: 1; font-size: 13px; font-weight: bold; color: var(--dim); }
-.signal-val.IN,
-.signal-val.DEEPER   { color: var(--green); }
-.signal-val.OUT,
-.signal-val.SHRANK   { color: var(--red); }
-.signal-val.STABLE   { color: var(--blue); }
-.signal-val.UP,
-.signal-val.DOWN     { color: var(--yellow); }
+.url-import-input::placeholder { color: var(--dim); }
+.url-import-input:focus { border-color: var(--blue); }
+.url-import-btn {
+  padding: 6px 8px; font-size: 11px; white-space: nowrap; flex-shrink: 0; min-width: 54px;
+}
+.url-import-btn:disabled { opacity: 0.5; cursor: wait; }
+.url-import-status {
+  font-size: 11px; min-height: 15px; color: var(--dim);
+}
+.url-import-status.loading { color: var(--dim); }
+.url-import-status.ok      { color: var(--green); }
+.url-import-status.error   { color: var(--red); }
 
 /* ── Game state ──────────────────────────────────────────── */
 .gs-triggers { display: flex; gap: 6px; margin-bottom: 8px; }
@@ -204,7 +276,7 @@ select.gs-select {
 }
 .min-n-input:focus { border-color: var(--green); }
 
-/* ── Cluster / tolerance box ─────────────────────────────── */
+/* ── Option box (Live Odds Estimator) ────────────────────── */
 .option-box {
   background: var(--bg1); border: 1px solid var(--border);
   border-radius: 8px; padding: 10px 12px; margin-bottom: 8px;
@@ -214,16 +286,9 @@ select.gs-select {
   margin-bottom: 6px;
 }
 .option-box-desc { font-size: 10px; color: var(--dim); }
-.cluster-btns { display: flex; gap: 6px; margin-top: 8px; }
-.cluster-btn {
-  flex: 1; padding: 6px; border: 1px solid var(--border); border-radius: 5px;
-  background: var(--bg2); color: var(--dim);
-  font-family: var(--font); font-size: 10px; font-weight: bold;
-  cursor: pointer; transition: all .15s;
-}
-.cluster-btn.selected { background: var(--green); color: #000; border-color: var(--green); }
-.cluster-btn:disabled { opacity: .4; cursor: default; }
-.tol-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+
+/* ── Tolerance row ───────────────────────────────────────── */
+.tol-row { display: flex; align-items: center; gap: 8px; margin-top: 4px; flex-wrap: wrap; }
 .tol-input {
   width: 72px; background: var(--bg2); border: 1px solid var(--border);
   color: var(--bright); text-align: center; padding: 6px;
