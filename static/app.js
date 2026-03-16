@@ -475,7 +475,8 @@ function scoreBets(stateRows, baselineRows, baselineSideRows, minN = DEFAULT_MIN
       ft:        [r.fav_ft, r.dog_ft],
       hit:       !!r[b.k],
     }));
-    results.push({ ...b, n, p, bl, z, edge, lo, hi, stab, mo: minOdds(p), matches });
+    const mo_mid = minOdds((p + lo) / 2);
+    results.push({ ...b, n, p, bl, z, edge, lo, hi, stab, mo: minOdds(p), mo_lo: minOdds(lo), mo_mid, matches });
   }
   results.sort((a, b) => {
     const aPos = a.edge > 0, bPos = b.edge > 0;
@@ -1003,18 +1004,13 @@ function clearDb() {
 
 function updateDbUI(data) {
   const status = document.getElementById('db-status');
-  const list   = document.getElementById('file-list');
 
   if (data.total === 0) {
     status.textContent = 'No database loaded';
     status.className   = 'db-status';
-    list.innerHTML     = '';
   } else {
-    status.textContent = `✓  ${data.total.toLocaleString()} records  ·  ${data.files.length} file${data.files.length !== 1 ? 's' : ''} loaded`;
+    status.textContent = `✓  ${data.total.toLocaleString()} records  ·  ${data.files.length} file${data.files.length !== 1 ? 's' : ''}`;
     status.className   = 'db-status loaded';
-    list.innerHTML     = data.files.slice(-20).map(f =>
-      `<div class="file-row"><span>${f.name}</span><span class="file-count">+${f.loaded}</span></div>`
-    ).join('');
   }
 }
 
@@ -1404,7 +1400,7 @@ function runMatch() {
     }
   }
 
-  renderMatchResults({ cfg_n: cfgRows.length, gs_n: stateRows.length, bets, ftrace, min_n: minN, cfg });
+  renderMatchResults({ cfg_n: cfgRows.length, gs_n: stateRows.length, bets, ftrace, min_n: minN, cfg, filterMode: state.filterMode });
 }
 
 /* Build cfg from BASIC mode inputs */
@@ -1634,7 +1630,7 @@ function barColor(p, bl) {
    RENDER MATCH RESULTS
    ════════════════════════════════════════════════════════════ */
 function renderMatchResults(data) {
-  const { cfg_n, gs_n, bets, ftrace, min_n, cfg } = data;
+  const { cfg_n, gs_n, bets, ftrace, min_n, cfg, filterMode } = data;
   const right = document.getElementById('right-panel');
 
   let cfgSummary = '';
@@ -1644,8 +1640,10 @@ function renderMatchResults(data) {
   }
   let html = `<h2 class="results-title">BEST BETS</h2>${cfgSummary}`;
 
+  const qualBets  = bets.filter(b => b.z >= MIN_Z && b.edge > 0);
+  const valueBets = bets.filter(b => b.z < MIN_Z || b.edge <= 0);
   const gsColor  = gs_n < min_n ? 'var(--yellow)' : 'var(--green)';
-  const betColor = bets.length  ? 'var(--green)'  : 'var(--red)';
+  const betColor = qualBets.length ? 'var(--green)' : 'var(--red)';
   html += `<div class="stat-strip">
     <div class="stat-card"><div class="label">Config matches</div>
       <div class="value">${cfg_n}</div><div class="sub">historical records</div></div>
@@ -1653,7 +1651,7 @@ function renderMatchResults(data) {
       <div class="value" style="color:${gsColor}">${gs_n}</div>
       <div class="sub">${gs_n < min_n ? '⚠ low' : '✓ sufficient'}</div></div>
     <div class="stat-card"><div class="label">Qualifying bets</div>
-      <div class="value" style="color:${betColor}">${bets.length}</div>
+      <div class="value" style="color:${betColor}">${qualBets.length}</div>
       <div class="sub">z≥1.5, n≥${min_n}</div></div>
   </div>`;
 
@@ -1703,8 +1701,23 @@ function renderMatchResults(data) {
     return;
   }
 
-  html += `<p style="font-size:11px;color:var(--dim);margin-bottom:10px">${bets.length} qualifying bet${bets.length !== 1 ? 's' : ''} — sorted by statistical strength</p>`;
-  for (let i = 0; i < bets.length; i++) html += renderBetCard(bets[i], i + 1);
+  if (filterMode === 'BASIC') {
+    html += `<div class="basic-mode-notice">
+      ⚠ Basic mode — all movement signals are ANY. Results show the game state effect only, not conditioned on market direction.
+      Verify the signal in Advanced mode before betting.
+    </div>`;
+  }
+
+  if (qualBets.length) {
+    html += `<p style="font-size:11px;color:var(--dim);margin-bottom:10px">${qualBets.length} qualifying bet${qualBets.length !== 1 ? 's' : ''} — sorted by statistical strength</p>`;
+    for (let i = 0; i < qualBets.length; i++) html += renderBetCard(qualBets[i], i + 1);
+  } else {
+    html += `<div class="no-bets"><div class="warn-icon">⚠️</div>
+      <p>No statistically significant bets found.<br>No edge detected (z &lt; 1.5) on any outcome.<br><br>
+      → Skip this match.<br>→ Use Config Discovery to explore other configurations.</p></div>`;
+  }
+
+  if (valueBets.length) html += renderValueHuntSection(valueBets);
 
   right.innerHTML = html;
   right.querySelectorAll('.odds-check-input').forEach(inp => {
@@ -1811,9 +1824,14 @@ function renderBetCard(bet, rank) {
         ${matchesHtml}
       </div>
       <div class="bet-right">
-        <div class="mo-label">MIN ODDS<br>TO BET</div>
+        <div class="mo-label">MIN ODDS</div>
         <div class="mo-value">${bet.mo}</div>
-        <div class="mo-sub">or higher</div>
+        <div class="mo-sub">face value</div>
+        <div class="mo-divider"></div>
+        <div class="mo-label">SAFE MIN</div>
+        <div class="mo-safe">${bet.mo_mid}</div>
+        <div class="mo-sub">midpoint CI</div>
+        <div class="mo-lo-ref">hard floor: ${bet.mo_lo}</div>
       </div>
     </div>
     ${liveHtml}
@@ -1821,12 +1839,58 @@ function renderBetCard(bet, rank) {
       <label>CHECK LIVE ODDS:</label>
       <span>Betfair</span>
       <input class="odds-check-input" type="text" placeholder="1.85"
-             data-mo="${bet.mo}" data-p="${bet.p}">
+             data-mo="${bet.mo_mid}" data-p="${bet.p}">
       <span class="odds-result"></span>
       <span style="margin-left:10px">Soft book</span>
       <input class="odds-check-input" type="text" placeholder="1.85"
-             data-mo="${bet.mo}" data-p="${bet.p}">
+             data-mo="${bet.mo_mid}" data-p="${bet.p}">
       <span class="odds-result"></span>
+    </div>
+  </div>`;
+}
+
+function renderValueHuntSection(valueBets) {
+  const cards = valueBets.map(bet => renderValueHuntCard(bet)).join('');
+  return `<div class="value-hunt-section">
+    <div class="value-hunt-hdr" onclick="
+      const b = this.nextElementSibling;
+      b.classList.toggle('open');
+      this.querySelector('.vh-toggle').textContent =
+        b.classList.contains('open')
+          ? '▼ VALUE HUNTING  (${valueBets.length} bets)'
+          : '▶ VALUE HUNTING  (${valueBets.length} bets)'">
+      <span class="vh-toggle">▼ VALUE HUNTING  (${valueBets.length} bets)</span>
+      <span class="vh-sub">no edge vs baseline — look for soft books above safe min odds</span>
+    </div>
+    <div class="value-hunt-body open">${cards}</div>
+  </div>`;
+}
+
+function renderValueHuntCard(bet) {
+  const nColor = bet.n >= 50 ? 'var(--green)' : 'var(--yellow)';
+  return `<div class="vh-card">
+    <div class="vh-body">
+      <div class="vh-left">
+        <div class="vh-label">${bet.label}</div>
+        <div class="vh-market">${bet.market}</div>
+        <div class="vh-info">
+          <span class="vh-p">p=${bet.p.toFixed(1)}%</span>
+          <span style="color:${nColor}">  n=${bet.n}</span>
+          <span class="vh-ci">  CI [${bet.lo}%–${bet.hi}%]</span>
+        </div>
+        <div class="vh-checker">
+          <label>BK ODDS:</label>
+          <input class="odds-check-input" type="text" placeholder="2.10"
+                 data-mo="${bet.mo_mid}" data-p="${bet.p}">
+          <span class="odds-result"></span>
+        </div>
+      </div>
+      <div class="vh-right">
+        <div class="mo-label">SAFE MIN ODDS</div>
+        <div class="vh-mo-value">${bet.mo_mid}</div>
+        <div class="mo-sub">midpoint CI</div>
+        <div class="mo-lo-ref">hard floor: ${bet.mo_lo}</div>
+      </div>
     </div>
   </div>`;
 }

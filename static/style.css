@@ -446,9 +446,47 @@ select.gs-select {
   display: flex; flex-direction: column; align-items: center;
   justify-content: center; padding: 12px 8px; gap: 2px;
 }
-.mo-label { font-size: 11px; font-weight: bold; color: var(--dim); text-align: center; }
-.mo-value { font-size: 36px; font-weight: bold; color: var(--yellow); line-height: 1.1; }
-.mo-sub   { font-size: 11px; color: var(--dim); }
+.mo-label   { font-size: 11px; font-weight: bold; color: var(--dim); text-align: center; }
+.mo-value   { font-size: 30px; font-weight: bold; color: var(--yellow); line-height: 1.1; }
+.mo-sub     { font-size: 11px; color: var(--dim); }
+.mo-divider  { width: 80%; height: 1px; background: var(--border); margin: 5px 0; }
+.mo-safe     { font-size: 22px; font-weight: bold; color: var(--green); line-height: 1.1; }
+.mo-lo-ref   { font-size: 10px; color: var(--dim); margin-top: 2px; }
+
+/* Value hunting section */
+.value-hunt-section { margin-top: 14px; background: var(--bg1); border-radius: 6px; }
+.value-hunt-hdr {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 12px; cursor: pointer; user-select: none;
+}
+.value-hunt-hdr:hover { background: var(--bg2); border-radius: 6px 6px 0 0; }
+.vh-toggle { font-size: 11px; font-weight: bold; color: var(--blue); font-family: var(--font); }
+.vh-sub    { font-size: 10px; color: var(--dim); }
+.value-hunt-body { display: none; padding: 4px 8px 8px; }
+.value-hunt-body.open { display: block; }
+.vh-card {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 8px; margin-bottom: 6px;
+}
+.vh-body {
+  display: grid; grid-template-columns: 1fr 130px; gap: 10px; padding: 10px 12px;
+}
+.vh-left { display: flex; flex-direction: column; gap: 4px; }
+.vh-label  { font-size: 12px; font-weight: bold; color: var(--dim); }
+.vh-market { font-size: 10px; color: var(--dim); }
+.vh-info   { font-size: 11px; }
+.vh-p      { font-weight: bold; color: var(--bright); }
+.vh-ci     { color: var(--dim); }
+.vh-checker {
+  display: flex; align-items: center; gap: 6px; margin-top: 4px;
+}
+.vh-checker label { font-size: 10px; color: var(--dim); }
+.vh-right {
+  background: var(--bg1); border-radius: 8px;
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; padding: 10px 6px; gap: 2px;
+}
+.vh-mo-value { font-size: 24px; font-weight: bold; color: var(--green); line-height: 1.1; }
 
 /* Odds checker */
 .odds-checker {
@@ -487,6 +525,13 @@ select.gs-select {
 .disc-right .dp { font-size: 22px; font-weight: bold; color: var(--bright); }
 .disc-right .dl { font-size: 10px; color: var(--dim); margin: 2px 0; }
 .disc-right .dm { font-size: 20px; font-weight: bold; color: var(--yellow); }
+
+/* ── Basic mode notice ───────────────────────────────────── */
+.basic-mode-notice {
+  background: #1a1a08; border: 1px solid #4a4a10;
+  border-radius: 6px; padding: 8px 12px; margin-bottom: 10px;
+  font-size: 11px; color: var(--yellow); line-height: 1.6;
+}
 
 /* ── Warning / no bets ───────────────────────────────────── */
 .no-bets {
