@@ -55,24 +55,24 @@ const BETS = [
   { k: 'favWins2H',     label: 'Fav wins 2nd half',        market: '2H Result — Favourite Win' },
   { k: 'favScored2H',   label: 'Fav scores in 2H',         market: 'Team to Score — Fav 2nd Half' },
   { k: 'draw2H',        label: 'Draw 2nd half',            market: '2H Result — Draw' },
-  // 2H results — home/away
-  { k: 'homeWins2H',    label: 'Home wins 2nd half',       market: '2H Result — Home Win' },
-  { k: 'awayWins2H',    label: 'Away wins 2nd half',       market: '2H Result — Away Win' },
-  { k: 'homeScored2H',  label: 'Home scores in 2H',        market: 'Team to Score — Home 2nd Half' },
-  { k: 'awayScored2H',  label: 'Away scores in 2H',        market: 'Team to Score — Away 2nd Half' },
-  { k: 'homeOver15_2H', label: 'Home Over 1.5 in 2H',     market: 'Home Goals Over 1.5 — 2nd Half' },
-  { k: 'awayOver15_2H', label: 'Away Over 1.5 in 2H',     market: 'Away Goals Over 1.5 — 2nd Half' },
-  // 2H totals
+  // 2H results — home/away (baseline must split by fav_side)
+  { k: 'homeWins2H',    label: 'Home wins 2nd half',       market: '2H Result — Home Win',              favSideBaseline: 'HOME' },
+  { k: 'awayWins2H',    label: 'Away wins 2nd half',       market: '2H Result — Away Win',              favSideBaseline: 'AWAY' },
+  { k: 'homeScored2H',  label: 'Home scores in 2H',        market: 'Team to Score — Home 2nd Half',     favSideBaseline: 'HOME' },
+  { k: 'awayScored2H',  label: 'Away scores in 2H',        market: 'Team to Score — Away 2nd Half',     favSideBaseline: 'AWAY' },
+  { k: 'homeOver15_2H', label: 'Home Over 1.5 in 2H',     market: 'Home Goals Over 1.5 — 2nd Half',    favSideBaseline: 'HOME' },
+  { k: 'awayOver15_2H', label: 'Away Over 1.5 in 2H',     market: 'Away Goals Over 1.5 — 2nd Half',    favSideBaseline: 'AWAY' },
+  // 2H totals (symmetric — no favSideBaseline)
   { k: 'over05_2H',     label: 'Over 0.5 goals in 2H',    market: 'Over/Under 0.5 — 2nd Half' },
   { k: 'over15_2H',     label: 'Over 1.5 goals in 2H',    market: 'Over/Under 1.5 — 2nd Half' },
   { k: 'under05_2H',    label: 'Under 0.5 goals in 2H',   market: 'Over/Under 0.5 — 2nd Half' },
   { k: 'under15_2H',    label: 'Under 1.5 goals in 2H',   market: 'Over/Under 1.5 — 2nd Half' },
   // FT results
-  { k: 'homeWinsFT',    label: 'Home wins full time',      market: 'Match Result — Home Win' },
-  { k: 'awayWinsFT',    label: 'Away wins full time',      market: 'Match Result — Away Win' },
+  { k: 'homeWinsFT',    label: 'Home wins full time',      market: 'Match Result — Home Win',           favSideBaseline: 'HOME' },
+  { k: 'awayWinsFT',    label: 'Away wins full time',      market: 'Match Result — Away Win',           favSideBaseline: 'AWAY' },
   { k: 'drawFT',        label: 'Draw full time',           market: 'Match Result — Draw' },
-  { k: 'dnbHome',       label: 'DNB — Home',               market: 'Draw No Bet — Home' },
-  { k: 'dnbAway',       label: 'DNB — Away',               market: 'Draw No Bet — Away' },
+  { k: 'dnbHome',       label: 'DNB — Home',               market: 'Draw No Bet — Home',                favSideBaseline: 'HOME' },
+  { k: 'dnbAway',       label: 'DNB — Away',               market: 'Draw No Bet — Away',                favSideBaseline: 'AWAY' },
   { k: 'btts',          label: 'BTTS full time',           market: 'Both Teams to Score — FT' },
   // FT totals
   { k: 'over15FT',      label: 'Over 1.5 goals FT',       market: 'Over/Under 1.5 — Full Time' },
@@ -438,15 +438,20 @@ function applyGameState(rows, gs) {
   }
 }
 
-function scoreBets(stateRows, baselineRows, minN = DEFAULT_MIN_N) {
+// baselineSideRows: baseline pre-filtered to the match's fav_side.
+// Used only for home/away-specific bets (those with favSideBaseline set) so
+// their reference rate isn't diluted by the opposite-side population.
+// If null (e.g. fav_side truly unknown), falls back to baselineRows.
+function scoreBets(stateRows, baselineRows, baselineSideRows, minN = DEFAULT_MIN_N) {
   if (!stateRows.length || !baselineRows.length) return [];
   const n = stateRows.length;
   if (n < minN) return [];
   const results = [];
   for (const b of BETS) {
-    const p    = pct(stateRows,    b.k);
-    const bl   = pct(baselineRows, b.k);
-    const z    = zScore(stateRows, baselineRows, b.k);
+    const blRows = (b.favSideBaseline && baselineSideRows) ? baselineSideRows : baselineRows;
+    const p    = pct(stateRows, b.k);
+    const bl   = pct(blRows,   b.k);
+    const z    = zScore(stateRows, blRows, b.k);
     const edge = p - bl;
     const [lo, hi] = wilsonCI(p, n);
     const stab = stability(stateRows, b.k);
@@ -643,8 +648,13 @@ function discover(db, favLine, favSide, inLineMove, inTlMove, gs, minN = DEFAULT
   const baseGs = applyGameState(base, gs);
   if (baseGs.length < minN) return [];
 
+  // Baseline uses baseGs (game-state-filtered) so the reference rate reflects
+  // the same HT/first-goal/in-play condition as the signal rows.
+  // When favSide is ANY, home/away-specific bets also get a side-filtered baseline.
+  const baseHome = favSide === 'ANY' ? baseGs.filter(r => r.fav_side === 'HOME') : null;
+  const baseAway = favSide === 'ANY' ? baseGs.filter(r => r.fav_side === 'AWAY') : null;
+
   const results = [];
-  const BET_KEYS = BETS.map(b => b.k);
   const lmOptions  = inLineMove !== 'ANY' ? [inLineMove] : ['DEEPER', 'STABLE', 'SHRANK'];
   const tlmOptions = inTlMove   !== 'ANY' ? [inTlMove]  : ['UP', 'STABLE', 'DOWN', 'ANY'];
 
@@ -662,20 +672,23 @@ function discover(db, favLine, favSide, inLineMove, inTlMove, gs, minN = DEFAULT
             const cfgR = applyConfig(base, cfg);
             const gsR  = applyGameState(cfgR, gs);
             if (gsR.length < minN) continue;
-            for (const k of BET_KEYS) {
+            for (const b of BETS) {
+              const k = b.k;
+              let blPool = baseGs;
+              if      (b.favSideBaseline === 'HOME' && baseHome) blPool = baseHome;
+              else if (b.favSideBaseline === 'AWAY' && baseAway) blPool = baseAway;
               const p    = pct(gsR, k);
-              const bl   = pct(base, k);
-              const z    = zScore(gsR, base, k);
+              const bl   = pct(blPool, k);
+              const z    = zScore(gsR, blPool, k);
               const edge = p - bl;
               if (Math.abs(z) < MIN_Z || edge <= 0) continue;
               const [lo] = wilsonCI(p, gsR.length);
-              const stab    = stability(gsR, k);
-              const betMeta = BETS.find(b => b.k === k) || {};
+              const stab = stability(gsR, k);
               results.push({
                 cfg, k, n: gsR.length, p, bl, z, edge, lo,
                 mo: minOdds(p), stab,
-                label:  betMeta.label  || k,
-                market: betMeta.market || k,
+                label:  b.label  || k,
+                market: b.market || k,
               });
             }
           }
@@ -1354,8 +1367,16 @@ function runMatch() {
 
   const cfgRows      = applyConfig(_db, cfg);
   const stateRows    = applyGameState(cfgRows, gs);
-  const baselineRows = applyBaselineConfig(_db, cfg);
-  const allBets      = scoreBets(stateRows, baselineRows, minN);
+  // Baseline also gets game state applied so the reference rate reflects the
+  // same HT/first-goal/in-play condition — not all structural matches regardless of score.
+  const baselineRows = applyGameState(applyBaselineConfig(_db, cfg), gs);
+  // For home/away-specific bets, narrow the baseline to the same fav_side so
+  // home-advantage effects don't inflate or deflate the reference rate.
+  const derivedFavSide = cfg.fav_side !== 'ANY' ? cfg.fav_side : cfg.derived_fav_side;
+  const baselineSideRows = (derivedFavSide && derivedFavSide !== 'ANY')
+    ? baselineRows.filter(r => r.fav_side === derivedFavSide)
+    : null;
+  const allBets      = scoreBets(stateRows, baselineRows, baselineSideRows, minN);
   const bets      = allBets.filter(b => Math.abs(b.z) >= MIN_Z);
 
   // Attach live odds if estimator is ON — need fav_line and fav_side from cfg
@@ -1404,9 +1425,10 @@ function buildBasicCfg() {
   if (favSide === 'AWAY') { favOcVal = dogOc; dogOcVal = favOc; }
 
   return {
-    fav_line:       favLine.toFixed(2),
-    fav_side:       'ANY',
-    line_move:      'ANY',
+    fav_line:         favLine.toFixed(2),
+    fav_side:         'ANY',
+    derived_fav_side: favSide,   // actual side inferred from AH closing — used for per-side baseline
+    line_move:        'ANY',
     fav_odds_move:  'ANY',
     dog_odds_move:  'ANY',
     over_move:      'ANY',
