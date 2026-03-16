@@ -304,6 +304,28 @@ function minOdds(p) {
   return p > 0 ? (1 / (p / 100)).toFixed(2) : '—';
 }
 
+// FT result distribution for the matched rows vs baseline.
+// Used to show full-match context alongside 2H bet signals.
+function computeFtDist(stateRows, baselineRows) {
+  if (!stateRows.length || !baselineRows.length) return null;
+  const stat = key => ({ p: pct(stateRows, key), bl: pct(baselineRows, key) });
+  const favWins = stat('favWinsFT');
+  const draw    = stat('drawFT');
+  return {
+    favWins,
+    draw,
+    dogWins: {
+      p:  Math.max(0, 100 - favWins.p  - draw.p),
+      bl: Math.max(0, 100 - favWins.bl - draw.bl),
+    },
+    over15:  stat('over15FT'),
+    over25:  stat('over25FT'),
+    over35:  stat('over35FT'),
+    btts:    stat('btts'),
+    under25: stat('under25FT'),
+  };
+}
+
 /* ════════════════════════════════════════════════════════════
    ENGINE
    ════════════════════════════════════════════════════════════ */
@@ -1400,7 +1422,8 @@ function runMatch() {
     }
   }
 
-  renderMatchResults({ cfg_n: cfgRows.length, gs_n: stateRows.length, bets, ftrace, min_n: minN, cfg, filterMode: state.filterMode });
+  const ftDist = computeFtDist(stateRows, baselineRows);
+  renderMatchResults({ cfg_n: cfgRows.length, gs_n: stateRows.length, bets, ftrace, min_n: minN, cfg, filterMode: state.filterMode, ftDist });
 }
 
 /* Build cfg from BASIC mode inputs */
@@ -1627,10 +1650,61 @@ function barColor(p, bl) {
 }
 
 /* ════════════════════════════════════════════════════════════
+   FT CONTEXT
+   ════════════════════════════════════════════════════════════ */
+function renderFtContext(ftDist, n) {
+  if (!ftDist) return '';
+
+  function delta(p, bl) {
+    const d = p - bl;
+    if (Math.abs(d) < 1) return '';
+    const sign = d >= 0 ? '+' : '';
+    const cls  = d >= 3 ? 'ftc-up' : d <= -3 ? 'ftc-down' : 'ftc-nudge';
+    return `<span class="${cls}"> ${sign}${d.toFixed(0)}pp</span>`;
+  }
+
+  function cell(data, label) {
+    return `<div class="ftc-cell">
+      <div class="ftc-pct">${data.p.toFixed(0)}%${delta(data.p, data.bl)}</div>
+      <div class="ftc-lbl">${label}</div>
+      <div class="ftc-bl">bl ${data.bl.toFixed(0)}%</div>
+    </div>`;
+  }
+
+  function goalStat(label, data) {
+    return `<span class="ftc-goal">${label} ${data.p.toFixed(0)}%${delta(data.p, data.bl)}</span>`;
+  }
+
+  const { favWins, draw, dogWins, over15, over25, over35, btts, under25 } = ftDist;
+
+  return `<div class="ft-context">
+    <div class="ftc-hdr" onclick="this.nextElementSibling.classList.toggle('open'); this.querySelector('.ftc-toggle').textContent = this.nextElementSibling.classList.contains('open') ? '▼' : '▶'">
+      <span class="ftc-toggle">▼</span>
+      <span class="ftc-title">FT RESULT CONTEXT</span>
+      <span class="ftc-n">n=${n} matches · delta vs baseline</span>
+    </div>
+    <div class="ftc-body open">
+      <div class="ftc-3way">
+        ${cell(favWins, 'Fav Wins FT')}
+        ${cell(draw,    'Draw FT')}
+        ${cell(dogWins, 'Dog Wins FT')}
+      </div>
+      <div class="ftc-goals">
+        ${goalStat('O1.5', over15)}
+        ${goalStat('O2.5', over25)}
+        ${goalStat('O3.5', over35)}
+        ${goalStat('BTTS', btts)}
+        ${goalStat('U2.5', under25)}
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ════════════════════════════════════════════════════════════
    RENDER MATCH RESULTS
    ════════════════════════════════════════════════════════════ */
 function renderMatchResults(data) {
-  const { cfg_n, gs_n, bets, ftrace, min_n, cfg, filterMode } = data;
+  const { cfg_n, gs_n, bets, ftrace, min_n, cfg, filterMode, ftDist } = data;
   const right = document.getElementById('right-panel');
 
   let cfgSummary = '';
@@ -1707,6 +1781,8 @@ function renderMatchResults(data) {
       Verify the signal in Advanced mode before betting.
     </div>`;
   }
+
+  html += renderFtContext(ftDist, gs_n);
 
   if (qualBets.length) {
     html += `<p style="font-size:11px;color:var(--dim);margin-bottom:10px">${qualBets.length} qualifying bet${qualBets.length !== 1 ? 's' : ''} — sorted by statistical strength</p>`;
