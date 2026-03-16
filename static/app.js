@@ -1671,8 +1671,12 @@ function renderFtContext(ftDist, n) {
     </div>`;
   }
 
-  function goalStat(label, data) {
-    return `<span class="ftc-goal">${label} ${data.p.toFixed(0)}%${delta(data.p, data.bl)}</span>`;
+  function goalCard(label, data) {
+    return `<div class="ftc-cell ftc-sm">
+      <div class="ftc-pct">${data.p.toFixed(0)}%${delta(data.p, data.bl)}</div>
+      <div class="ftc-lbl">${label}</div>
+      <div class="ftc-bl">bl ${data.bl.toFixed(0)}%</div>
+    </div>`;
   }
 
   const { favWins, draw, dogWins, over15, over25, over35, btts, under25 } = ftDist;
@@ -1689,12 +1693,12 @@ function renderFtContext(ftDist, n) {
         ${cell(draw,    'Draw FT')}
         ${cell(dogWins, 'Dog Wins FT')}
       </div>
-      <div class="ftc-goals">
-        ${goalStat('O1.5', over15)}
-        ${goalStat('O2.5', over25)}
-        ${goalStat('O3.5', over35)}
-        ${goalStat('BTTS', btts)}
-        ${goalStat('U2.5', under25)}
+      <div class="ftc-totals">
+        ${goalCard('O1.5', over15)}
+        ${goalCard('O2.5', over25)}
+        ${goalCard('O3.5', over35)}
+        ${goalCard('BTTS', btts)}
+        ${goalCard('U2.5', under25)}
       </div>
     </div>
   </div>`;

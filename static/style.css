@@ -453,14 +453,17 @@ select.gs-select {
 .ftc-body   { display: none; }
 .ftc-body.open { display: block; }
 .ftc-3way {
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 8px;
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 6px;
+}
+.ftc-totals {
+  display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-bottom: 8px;
 }
 .ftc-cell  { background: var(--bg2); border-radius: 6px; padding: 8px 10px; text-align: center; }
+.ftc-cell.ftc-sm { padding: 6px 4px; }
 .ftc-pct   { font-size: 17px; font-weight: bold; color: var(--bright); margin-bottom: 2px; }
+.ftc-cell.ftc-sm .ftc-pct { font-size: 14px; }
 .ftc-lbl   { font-size: 10px; color: var(--dim); margin-bottom: 1px; }
 .ftc-bl    { font-size: 10px; color: var(--dim); }
-.ftc-goals { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 11px; color: var(--dim); padding: 2px; }
-.ftc-goal  { white-space: nowrap; }
 .ftc-up    { color: var(--green); }
 .ftc-down  { color: var(--red); }
 .ftc-nudge { color: var(--yellow); }
