@@ -5,7 +5,8 @@ const LINE_THRESH   = 0.12;
 const ODDS_THRESH   = 0.06;
 const TL_THRESH     = 0.12;
 const DEFAULT_MIN_N = 15;
-const MIN_Z         = 1.5;
+const MIN_Z         = 1.5;   // Match Analysis
+const MIN_Z_DISC    = 2.0;   // Config Discovery (sweeps ~18k combos — higher bar to control false positives)
 
 const VALID_LINES = [0.00, 0.25, 0.50, 0.75, 1.00, 1.25, 1.50];
 
@@ -159,9 +160,16 @@ function processRow(row, fileLabel) {
     favOc = aoC; favOo = aoO; dogOc = hoC; dogOo = hoO;
     favFt = ftA; dogFt = ftH; favHt = htA; dogHt = htH;
   } else {
-    favSide = 'HOME'; favLc = 0.0; favLo = Math.abs(ahHo);
-    favOc = hoC; favOo = hoO; dogOc = aoC; dogOo = aoO;
-    favFt = ftH; dogFt = ftA; favHt = htH; dogHt = htA;
+    // Level ball — fav is the team with lower closing odds (more likely to win)
+    favSide = hoC <= aoC ? 'HOME' : 'AWAY';
+    favLc = 0.0; favLo = Math.abs(ahHo);
+    if (favSide === 'HOME') {
+      favOc = hoC; favOo = hoO; dogOc = aoC; dogOo = aoO;
+      favFt = ftH; dogFt = ftA; favHt = htH; dogHt = htA;
+    } else {
+      favOc = aoC; favOo = aoO; dogOc = hoC; dogOo = hoO;
+      favFt = ftA; dogFt = ftH; favHt = htA; dogHt = htH;
+    }
   }
 
   const favLine = VALID_LINES.find(v => Math.abs(favLc - v) < 0.13);
@@ -681,7 +689,7 @@ function discover(db, favLine, favSide, inLineMove, inTlMove, gs, minN = DEFAULT
               const bl   = pct(blPool, k);
               const z    = zScore(gsR, blPool, k);
               const edge = p - bl;
-              if (Math.abs(z) < MIN_Z || edge <= 0) continue;
+              if (Math.abs(z) < MIN_Z_DISC || edge <= 0) continue;
               const [lo] = wilsonCI(p, gsR.length);
               const stab = stability(gsR, k);
               results.push({
@@ -1416,9 +1424,11 @@ function buildBasicCfg() {
   const basicTolRaw = document.getElementById('b_odds_tol').value;
   const basicTol = sf(basicTolRaw) ?? 0;
 
-  // Determine fav_side: fav is the side giving handicap
+  // Determine fav_side: fav gives handicap; at 0 line use closing odds (lower = fav)
   let favSide = 'HOME';
-  if (hc > 0.01) favSide = 'AWAY';
+  if      (hc > 0.01)                                    favSide = 'AWAY';
+  else if (Math.abs(hc) <= 0.01 && favOc !== null && dogOc !== null)
+                                                         favSide = favOc <= dogOc ? 'HOME' : 'AWAY';
 
   // Remap fav/dog according to side
   let favOcVal = favOc, dogOcVal = dogOc;
@@ -1461,13 +1471,17 @@ function buildAdvancedCfg() {
   const favLine = VALID_LINES.find(v => Math.abs(favLc - v) < 0.13);
   if (favLine === undefined) return null;
 
-  const favSide = hc < -0.01 ? 'HOME' : hc > 0.01 ? 'AWAY' : 'HOME';
-
   // AH odds: map home/away to fav/dog
   const hoc = sf(document.getElementById('ho_c').value);
   const hoo = sf(document.getElementById('ho_o').value);
   const aoc = sf(document.getElementById('ao_c').value);
   const aoo = sf(document.getElementById('ao_o').value);
+  // Determine fav_side: fav gives handicap; at 0 line use closing odds (lower = fav)
+  let favSide;
+  if      (hc < -0.01)                               favSide = 'HOME';
+  else if (hc >  0.01)                               favSide = 'AWAY';
+  else if (hoc !== null && aoc !== null)              favSide = hoc <= aoc ? 'HOME' : 'AWAY';
+  else                                               favSide = 'HOME';
   const favOc = favSide === 'HOME' ? hoc : aoc;
   const favOo = favSide === 'HOME' ? hoo : aoo;
   const dogOc = favSide === 'HOME' ? aoc : hoc;

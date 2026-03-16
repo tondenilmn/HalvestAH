@@ -528,6 +528,34 @@ select.gs-select {
   .disc-card { grid-template-columns: 1fr; }
 }
 
+/* ── Pinnacle Signal Guide ───────────────────────────────── */
+.sig-guide {
+  background: var(--bg1); border: 1px solid var(--border);
+  border-radius: 8px; margin-bottom: 10px; overflow: hidden;
+}
+.sig-guide-hdr {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 12px; cursor: pointer; user-select: none;
+}
+.sig-guide-hdr:hover { background: var(--bg2); }
+.sig-guide-title { font-size: 10px; font-weight: bold; color: var(--dim); letter-spacing: 0.05em; }
+.sig-guide-toggle { font-size: 10px; color: var(--dim); }
+.sig-guide-body { padding: 0 12px 10px; display: none; }
+.sig-guide-body.open { display: block; }
+.sig-guide-row {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 5px 0; border-top: 1px solid var(--border);
+}
+.sig-tier {
+  font-size: 9px; font-weight: bold; padding: 2px 6px;
+  border-radius: 3px; white-space: nowrap; flex-shrink: 0; margin-top: 1px;
+}
+.sig-tier.t1 { background: var(--green); color: #000; }
+.sig-tier.t2 { background: var(--blue);  color: #fff; }
+.sig-tier.t3 { background: var(--bg3);   color: var(--dim); border: 1px solid var(--border); }
+.sig-guide-name { font-size: 10px; font-weight: bold; color: var(--bright); width: 100px; flex-shrink: 0; }
+.sig-guide-desc { font-size: 10px; color: var(--dim); line-height: 1.5; }
+
 /* ── Live Odds Estimator ─────────────────────────────────── */
 .live-row { display: flex; align-items: center; gap: 12px; margin-bottom: 6px; }
 .live-field-label { font-size: 10px; color: var(--dim); font-weight: bold; width: 110px; flex-shrink: 0; }

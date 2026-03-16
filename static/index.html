@@ -120,6 +120,41 @@
         <!-- ══ ADVANCED MODE INPUTS ═══════════════════════ -->
         <div id="adv-inputs" style="display:none">
 
+          <!-- Pinnacle Signal Guide -->
+          <div class="sig-guide">
+            <div class="sig-guide-hdr" onclick="this.nextElementSibling.classList.toggle('open');this.querySelector('.sig-guide-toggle').textContent=this.nextElementSibling.classList.contains('open')?'▲':'▼'">
+              <span class="sig-guide-title">PINNACLE SIGNAL GUIDE</span>
+              <span class="sig-guide-toggle">▼</span>
+            </div>
+            <div class="sig-guide-body">
+              <div class="sig-guide-row">
+                <span class="sig-tier t1">TIER 1</span>
+                <span class="sig-guide-name">LINE MOVEMENT</span>
+                <span class="sig-guide-desc">Always ON. Pinnacle moves lines with sharp money only — the strongest signal available.</span>
+              </div>
+              <div class="sig-guide-row">
+                <span class="sig-tier t1">TIER 1</span>
+                <span class="sig-guide-name">TL MOVEMENT</span>
+                <span class="sig-guide-desc">Always ON. Sharp totals action — highly reliable for any goal-related bet.</span>
+              </div>
+              <div class="sig-guide-row">
+                <span class="sig-tier t2">TIER 2</span>
+                <span class="sig-guide-name">HOME / AWAY MOVE</span>
+                <span class="sig-guide-desc">Turn ON when Line Movement is STABLE. Odds move without line move means sharp action absorbed via price, not line.</span>
+              </div>
+              <div class="sig-guide-row">
+                <span class="sig-tier t2">TIER 2</span>
+                <span class="sig-guide-name">OVER / UNDER MOVE</span>
+                <span class="sig-guide-desc">Turn ON when TL Movement is STABLE. Same logic — totals sharp action reflected in odds rather than line.</span>
+              </div>
+              <div class="sig-guide-row">
+                <span class="sig-tier t3">TIER 3</span>
+                <span class="sig-guide-name">CLOSING ±</span>
+                <span class="sig-guide-desc">Rarely useful. Closing odds are already implied by the AH line. Adds specificity but kills sample size.</span>
+              </div>
+            </div>
+          </div>
+
           <!-- AH LINE card (ALWAYS ON) -->
           <div class="adv-card">
             <div class="adv-card-title">
