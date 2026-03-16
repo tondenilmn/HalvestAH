@@ -68,6 +68,19 @@ const BETS = [
   { k: 'over15_2H',     label: 'Over 1.5 goals in 2H',    market: 'Over/Under 1.5 — 2nd Half' },
   { k: 'under05_2H',    label: 'Under 0.5 goals in 2H',   market: 'Over/Under 0.5 — 2nd Half' },
   { k: 'under15_2H',    label: 'Under 1.5 goals in 2H',   market: 'Over/Under 1.5 — 2nd Half' },
+  // 1H results — fav-normalised
+  { k: 'favWins1H',     label: 'Fav wins 1st half',        market: '1H Result — Favourite Win' },
+  { k: 'draw1H',        label: 'Draw 1st half',            market: '1H Result — Draw' },
+  { k: 'favScored1H',   label: 'Fav scores in 1H',         market: 'Team to Score — Fav 1st Half' },
+  // 1H results — home/away
+  { k: 'homeWins1H',    label: 'Home wins 1st half',       market: '1H Result — Home Win',   favSideBaseline: 'HOME' },
+  { k: 'awayWins1H',    label: 'Away wins 1st half',       market: '1H Result — Away Win',   favSideBaseline: 'AWAY' },
+  // 1H totals
+  { k: 'over05_1H',     label: 'Over 0.5 goals in 1H',    market: 'Over/Under 0.5 — 1st Half' },
+  { k: 'over15_1H',     label: 'Over 1.5 goals in 1H',    market: 'Over/Under 1.5 — 1st Half' },
+  { k: 'under05_1H',    label: 'Under 0.5 goals in 1H',   market: 'Over/Under 0.5 — 1st Half' },
+  { k: 'under15_1H',    label: 'Under 1.5 goals in 1H',   market: 'Over/Under 1.5 — 1st Half' },
+  { k: 'btts1H',        label: 'BTTS 1st half',           market: 'Both Teams to Score — 1H' },
   // FT results
   { k: 'homeWinsFT',    label: 'Home wins full time',      market: 'Match Result — Home Win',           favSideBaseline: 'HOME' },
   { k: 'awayWinsFT',    label: 'Away wins full time',      market: 'Match Result — Away Win',           favSideBaseline: 'AWAY' },
@@ -253,6 +266,17 @@ function processRow(row, fileLabel) {
     under25FT:     ftH + ftA <= 2,
     drawFT:        ftH === ftA,
     btts:          ftH >= 1 && ftA >= 1,
+    // 1H results
+    favWins1H:     favHt > dogHt,
+    draw1H:        favHt === dogHt,
+    homeWins1H:    htH > htA,
+    awayWins1H:    htA > htH,
+    favScored1H:   favHt >= 1,
+    btts1H:        htH >= 1 && htA >= 1,
+    over05_1H:     htH + htA >= 1,
+    over15_1H:     htH + htA >= 2,
+    under05_1H:    htH + htA === 0,
+    under15_1H:    htH + htA <= 1,
   };
 }
 
@@ -287,18 +311,6 @@ function wilsonCI(p100, n) {
   ];
 }
 
-function stability(rows, key) {
-  const groups = {};
-  for (const r of rows) {
-    if (!groups[r.file_label]) groups[r.file_label] = [];
-    groups[r.file_label].push(r);
-  }
-  const labels = Object.keys(groups);
-  if (labels.length < 2) return null;
-  const pts  = labels.map(lbl => [lbl, pct(groups[lbl], key)]);
-  const vals = pts.map(([, p]) => p);
-  return { pts, delta: Math.max(...vals) - Math.min(...vals) };
-}
 
 function minOdds(p) {
   return p > 0 ? (1 / (p / 100)).toFixed(2) : '—';
@@ -484,7 +496,6 @@ function scoreBets(stateRows, baselineRows, baselineSideRows, minN = DEFAULT_MIN
     const z    = zScore(stateRows, blRows, b.k);
     const edge = p - bl;
     const [lo, hi] = wilsonCI(p, n);
-    const stab = stability(stateRows, b.k);
     const matches = stateRows.map(r => ({
       date:      r.date      || '',
       league:    r.league    || '',
@@ -498,7 +509,7 @@ function scoreBets(stateRows, baselineRows, baselineSideRows, minN = DEFAULT_MIN
       hit:       !!r[b.k],
     }));
     const mo_mid = minOdds((p + lo) / 2);
-    results.push({ ...b, n, p, bl, z, edge, lo, hi, stab, mo: minOdds(p), mo_lo: minOdds(lo), mo_mid, matches });
+    results.push({ ...b, n, p, bl, z, edge, lo, hi, mo: minOdds(p), mo_lo: minOdds(lo), mo_mid, matches });
   }
   results.sort((a, b) => {
     const aPos = a.edge > 0, bPos = b.edge > 0;
@@ -714,10 +725,9 @@ function discover(db, favLine, favSide, inLineMove, inTlMove, gs, minN = DEFAULT
               const edge = p - bl;
               if (Math.abs(z) < MIN_Z_DISC || edge <= 0) continue;
               const [lo] = wilsonCI(p, gsR.length);
-              const stab = stability(gsR, k);
               results.push({
                 cfg, k, n: gsR.length, p, bl, z, edge, lo,
-                mo: minOdds(p), stab,
+                mo: minOdds(p),
                 label:  b.label  || k,
                 market: b.market || k,
               });
@@ -761,6 +771,8 @@ const _2H_BETS_SET = new Set([
 const _FT_BETS_SET = new Set([
   'noDrawFT','favWinsFT','homeWinsFT','awayWinsFT',
   'dnbHome','dnbAway','over25FT','over15FT','over35FT','under25FT','drawFT','btts',
+  'favWins1H','draw1H','favScored1H','homeWins1H','awayWins1H',
+  'over05_1H','over15_1H','under05_1H','under15_1H','btts1H',
 ]);
 const _UNDER_BETS = {'under05_2H':[1,0],'under15_2H':[2,1]};
 const _BET_GOAL_THRESHOLD = {
@@ -1668,6 +1680,7 @@ function renderFtContext(ftDist, n) {
       <div class="ftc-pct">${data.p.toFixed(0)}%${delta(data.p, data.bl)}</div>
       <div class="ftc-lbl">${label}</div>
       <div class="ftc-bl">bl ${data.bl.toFixed(0)}%</div>
+      <div class="ftc-mo">min odds ${minOdds(data.p)}</div>
     </div>`;
   }
 
@@ -1676,6 +1689,7 @@ function renderFtContext(ftDist, n) {
       <div class="ftc-pct">${data.p.toFixed(0)}%${delta(data.p, data.bl)}</div>
       <div class="ftc-lbl">${label}</div>
       <div class="ftc-bl">bl ${data.bl.toFixed(0)}%</div>
+      <div class="ftc-mo">min ${minOdds(data.p)}</div>
     </div>`;
   }
 

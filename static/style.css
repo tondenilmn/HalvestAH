@@ -464,6 +464,7 @@ select.gs-select {
 .ftc-cell.ftc-sm .ftc-pct { font-size: 14px; }
 .ftc-lbl   { font-size: 10px; color: var(--dim); margin-bottom: 1px; }
 .ftc-bl    { font-size: 10px; color: var(--dim); }
+.ftc-mo    { font-size: 10px; color: var(--yellow); margin-top: 3px; }
 .ftc-up    { color: var(--green); }
 .ftc-down  { color: var(--red); }
 .ftc-nudge { color: var(--yellow); }
