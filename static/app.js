@@ -1694,11 +1694,11 @@ function renderFtContext(ftDist, n) {
         ${cell(dogWins, 'Dog Wins FT')}
       </div>
       <div class="ftc-totals">
-        ${goalCard('O1.5', over15)}
-        ${goalCard('O2.5', over25)}
-        ${goalCard('O3.5', over35)}
+        ${goalCard('Over 1.5', over15)}
+        ${goalCard('Over 2.5', over25)}
+        ${goalCard('Over 3.5', over35)}
         ${goalCard('BTTS', btts)}
-        ${goalCard('U2.5', under25)}
+        ${goalCard('Under 2.5', under25)}
       </div>
     </div>
   </div>`;
