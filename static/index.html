@@ -47,7 +47,8 @@
         <div class="url-import-col">
           <input id="url-import-input" type="text" class="url-import-input"
                  placeholder="https://www.asianbetsoccer.com/…?id=…"
-                 onkeydown="if(event.key==='Enter')importFromUrl()">
+                 onkeydown="if(event.key==='Enter')importFromUrl()"
+                 onpaste="setTimeout(importFromUrl,0)">
           <button id="url-import-btn" class="run-btn url-import-btn" onclick="importFromUrl()">Import</button>
         </div>
         <div id="url-import-status" class="url-import-status"></div>
@@ -71,47 +72,109 @@
         <!-- ══ BASIC MODE INPUTS ══════════════════════════ -->
         <div id="basic-inputs">
 
-          <!-- AH Line (basic) -->
-          <div class="section-label">AH LINE</div>
-          <div class="input-grid cols-2">
-            <div class="col-group-header">HOME CLOSING</div>
-            <div class="col-group-header">AWAY (auto)</div>
-            <div class="input-wrap"><label>Closing</label>
-              <input id="b_ah_hc" type="text" placeholder="-0.75" oninput="onInputChange()"></div>
-            <div class="input-wrap"><label>Closing</label>
-              <input id="b_ah_ac" type="text" readonly></div>
+          <!-- Market inputs -->
+          <div class="section-label">MARKET</div>
+          <div class="input-grid cols-4" style="margin-bottom:4px">
+            <div class="input-wrap">
+              <label>AH LINE</label>
+              <input id="b_ah_hc" type="text" placeholder="-0.75" oninput="onInputChange()">
+            </div>
+            <div class="input-wrap">
+              <label>HOME ODDS</label>
+              <input id="b_ho_c" type="text" placeholder="1.85" oninput="onInputChange()">
+            </div>
+            <div class="input-wrap">
+              <label>AWAY ODDS</label>
+              <input id="b_ao_c" type="text" placeholder="1.90" oninput="onInputChange()">
+            </div>
+            <div class="input-wrap">
+              <label>TOTAL LINE</label>
+              <input id="b_tl_c" type="text" placeholder="2.75" oninput="onInputChange()">
+            </div>
           </div>
+          <div class="ah-away-hint">Away AH: <span id="b_ah_ac">—</span></div>
 
-          <!-- AH Closing Odds (basic) -->
-          <div class="section-label">AH CLOSING ODDS</div>
-          <div class="input-grid cols-2">
-            <div class="col-group-header">HOME</div>
-            <div class="col-group-header">AWAY</div>
-            <div class="input-wrap"><label>Closing</label>
-              <input id="b_ho_c" type="text" placeholder="1.85" oninput="onInputChange()"></div>
-            <div class="input-wrap"><label>Closing</label>
-              <input id="b_ao_c" type="text" placeholder="1.90" oninput="onInputChange()"></div>
-          </div>
-
-          <!-- Odds Tolerance (basic — always active) -->
+          <!-- Tolerance + side (single row) -->
           <div class="section-label">ODDS TOLERANCE</div>
-          <div class="tol-row" style="margin-bottom:8px">
+          <div class="tol-row" style="margin-bottom:10px">
             <span style="color:var(--dim);font-size:14px;font-weight:bold">±</span>
-            <input class="tol-input" id="b_odds_tol" type="text" value="0" placeholder="0">
+            <input class="tol-input" id="b_odds_tol" type="text" value="0.05" placeholder="0">
             <button class="toggle-btn" onclick="setBasicTol('0')">EXACT</button>
-            <button class="toggle-btn" onclick="setBasicTol('0.01')">0.01</button>
             <button class="toggle-btn" onclick="setBasicTol('0.02')">0.02</button>
-            <button class="toggle-btn" onclick="setBasicTol('0.03')">0.03</button>
             <button class="toggle-btn" onclick="setBasicTol('0.05')">0.05</button>
+            <span class="tol-sep"></span>
+            <button class="toggle-btn on" id="b-odds-side-fav"  onclick="setBasicOddsSide('FAV')">FAV</button>
+            <button class="toggle-btn"    id="b-odds-side-dog"  onclick="setBasicOddsSide('DOG')">DOG</button>
+            <button class="toggle-btn"    id="b-odds-side-both" onclick="setBasicOddsSide('BOTH')">BOTH</button>
           </div>
 
-          <!-- Total Line (basic) -->
-          <div class="section-label">TOTAL LINE</div>
-          <div class="input-grid cols-2" style="margin-bottom:8px">
-            <div class="input-wrap"><label>Closing</label>
-              <input id="b_tl_c" type="text" placeholder="2.75" oninput="onInputChange()"></div>
-            <div></div>
-          </div>
+          <!-- Signals (2-col grid) -->
+          <div class="section-label">SIGNALS</div>
+          <div class="basic-signals-grid">
+
+            <div class="basic-signal-col">
+              <div class="basic-signal-col-hdr">AH</div>
+              <div class="basic-signal-row">
+                <button class="toggle-btn on" id="b-lm-tgl" onclick="toggleBasicSignal('lm')">ON </button>
+                <span class="basic-signal-label">Line Move</span>
+                <select class="basic-signal-sel" id="b_lm_sel">
+                  <option value="DEEPER">DEEPER</option>
+                  <option value="SHRANK">SHRANK</option>
+                  <option value="STABLE">STABLE</option>
+                </select>
+              </div>
+              <div class="basic-signal-row">
+                <button class="toggle-btn" id="b-fom-tgl" onclick="toggleBasicSignal('fom')">OFF</button>
+                <span class="basic-signal-label">Fav Odds</span>
+                <select class="basic-signal-sel" id="b_fom_sel">
+                  <option value="IN">STEAM</option>
+                  <option value="OUT">DRIFT</option>
+                  <option value="STABLE">STABLE</option>
+                </select>
+              </div>
+              <div class="basic-signal-row">
+                <button class="toggle-btn" id="b-dom-tgl" onclick="toggleBasicSignal('dom')">OFF</button>
+                <span class="basic-signal-label">Dog Odds</span>
+                <select class="basic-signal-sel" id="b_dom_sel">
+                  <option value="IN">STEAM</option>
+                  <option value="OUT">DRIFT</option>
+                  <option value="STABLE">STABLE</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="basic-signal-col">
+              <div class="basic-signal-col-hdr">TL</div>
+              <div class="basic-signal-row">
+                <button class="toggle-btn on" id="b-tlm-tgl" onclick="toggleBasicSignal('tlm')">ON </button>
+                <span class="basic-signal-label">TL Move</span>
+                <select class="basic-signal-sel" id="b_tlm_sel">
+                  <option value="UP">UP</option>
+                  <option value="DOWN">DOWN</option>
+                  <option value="STABLE">STABLE</option>
+                </select>
+              </div>
+              <div class="basic-signal-row">
+                <button class="toggle-btn" id="b-ovm-tgl" onclick="toggleBasicSignal('ovm')">OFF</button>
+                <span class="basic-signal-label">Over Odds</span>
+                <select class="basic-signal-sel" id="b_ovm_sel">
+                  <option value="IN">STEAM</option>
+                  <option value="OUT">DRIFT</option>
+                  <option value="STABLE">STABLE</option>
+                </select>
+              </div>
+              <div class="basic-signal-row">
+                <button class="toggle-btn" id="b-unm-tgl" onclick="toggleBasicSignal('unm')">OFF</button>
+                <span class="basic-signal-label">Under Odds</span>
+                <select class="basic-signal-sel" id="b_unm_sel">
+                  <option value="IN">STEAM</option>
+                  <option value="OUT">DRIFT</option>
+                  <option value="STABLE">STABLE</option>
+                </select>
+              </div>
+            </div>
+
+          </div><!-- /basic-signals-grid -->
 
         </div><!-- /basic-inputs -->
 

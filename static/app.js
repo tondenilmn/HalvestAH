@@ -574,16 +574,18 @@ function traceConfig(db, cfg, gs) {
     steps.push([`TL move ${cfg.tl_move}`, rows.length]);
   }
 
-  const gsRows  = applyGameState(rows, gs);
-  const trigger = gs.trigger || 'HT';
-  let gsLabel;
-  if (trigger === 'HT')
-    gsLabel = `HT ${gs.home_goals || 0}-${gs.away_goals || 0} (Home-Away)`;
-  else if (trigger === 'FIRST_GOAL')
-    gsLabel = `First goal ${gs.goal_team || '?'} min ${gs.minute || '?'}`;
-  else
-    gsLabel = `In-play 2H score ${gs.home_2h || 0}-${gs.away_2h || 0} (Home-Away)`;
-  steps.push([gsLabel, gsRows.length]);
+  if (gs) {
+    const gsRows  = applyGameState(rows, gs);
+    const trigger = gs.trigger || 'HT';
+    let gsStepLabel;
+    if (trigger === 'HT')
+      gsStepLabel = `HT ${gs.home_goals || 0}-${gs.away_goals || 0} (Home-Away)`;
+    else if (trigger === 'FIRST_GOAL')
+      gsStepLabel = `First goal ${gs.goal_team || '?'} min ${gs.minute || '?'}`;
+    else
+      gsStepLabel = `In-play 2H score ${gs.home_2h || 0}-${gs.away_2h || 0} (Home-Away)`;
+    steps.push([gsStepLabel, gsRows.length]);
+  }
 
   return steps;
 }
@@ -891,6 +893,14 @@ const state = {
   advUnTolOn:   false,
   advUnmOn:     false,
   advTlRange:   '2.25-2.75',
+  bOddsSide: 'FAV',   // which side(s) to apply odds tolerance: 'FAV' | 'DOG' | 'BOTH'
+  // Basic signal toggles
+  bLmOn:  true,
+  bFomOn: false,
+  bDomOn: false,
+  bTlmOn: true,
+  bOvmOn: false,
+  bUnmOn: false,
 };
 
 /* ════════════════════════════════════════════════════════════
@@ -1041,8 +1051,8 @@ function onInputChange() {
 function mirrorBasic() {
   const hc = parseFloat(document.getElementById('b_ah_hc').value);
   const el = document.getElementById('b_ah_ac');
-  if (!isNaN(hc)) el.value = (Math.abs(hc) < 0.001 ? 0 : -hc).toFixed(2);
-  else el.value = '';
+  if (!isNaN(hc)) el.textContent = (Math.abs(hc) < 0.001 ? 0 : -hc).toFixed(2);
+  else el.textContent = '—';
 }
 
 function mirrorAdvanced() {
@@ -1161,6 +1171,23 @@ function toggleAdvToggle(name) {
   btn.classList.toggle('on', state[m.key]);
 }
 
+function toggleBasicSignal(name) {
+  const map = {
+    'lm':  { key: 'bLmOn',  tgl: 'b-lm-tgl'  },
+    'fom': { key: 'bFomOn', tgl: 'b-fom-tgl' },
+    'dom': { key: 'bDomOn', tgl: 'b-dom-tgl' },
+    'tlm': { key: 'bTlmOn', tgl: 'b-tlm-tgl' },
+    'ovm': { key: 'bOvmOn', tgl: 'b-ovm-tgl' },
+    'unm': { key: 'bUnmOn', tgl: 'b-unm-tgl' },
+  };
+  const m = map[name]; if (!m) return;
+  state[m.key] = !state[m.key];
+  const btn = document.getElementById(m.tgl);
+  if (!btn) return;
+  btn.textContent = state[m.key] ? 'ON ' : 'OFF';
+  btn.classList.toggle('on', state[m.key]);
+}
+
 function setAdvTlRange(val) {
   state.advTlRange = val;
   Object.keys(ADV_TL_RANGES).forEach(k => {
@@ -1177,6 +1204,14 @@ function setAdvTol(v) {
 function setBasicTol(v) {
   const inp = document.getElementById('b_odds_tol');
   if (inp) inp.value = v;
+}
+
+function setBasicOddsSide(side) {
+  state.bOddsSide = side;
+  ['FAV', 'DOG', 'BOTH'].forEach(s => {
+    const btn = document.getElementById(`b-odds-side-${s.toLowerCase()}`);
+    if (btn) btn.classList.toggle('on', s === side);
+  });
 }
 
 /* ════════════════════════════════════════════════════════════
@@ -1347,6 +1382,12 @@ function getGs(panelId, trigger) {
   return gs;
 }
 
+function gsLabel(gs) {
+  if (gs.trigger === 'HT')         return `HT ${gs.home_goals || 0}–${gs.away_goals || 0}`;
+  if (gs.trigger === 'FIRST_GOAL') return `1st goal ${gs.goal_team} min.${gs.minute}`;
+  return `2H in-play ${gs.home_2h || 0}–${gs.away_2h || 0}`;
+}
+
 /* ════════════════════════════════════════════════════════════
    RUN MATCH ANALYSIS
    ════════════════════════════════════════════════════════════ */
@@ -1365,25 +1406,29 @@ function runMatch() {
 
   showLoader();
 
-  const gs     = getGs('gs-panel', state.gsTrigger);
-  const minN   = getMinN();
-  const ftrace = traceConfig(_db, cfg, gs);
+  const gs   = getGs('gs-panel', state.gsTrigger);
+  const minN = getMinN();
 
-  const cfgRows      = applyConfig(_db, cfg);
-  const stateRows    = applyGameState(cfgRows, gs);
-  // Baseline also gets game state applied so the reference rate reflects the
-  // same HT/first-goal/in-play condition — not all structural matches regardless of score.
-  const baselineRows = applyGameState(applyBaselineConfig(_db, cfg), gs);
-  // For home/away-specific bets, narrow the baseline to the same fav_side so
-  // home-advantage effects don't inflate or deflate the reference rate.
+  const cfgRows = applyConfig(_db, cfg);
   const derivedFavSide = cfg.fav_side !== 'ANY' ? cfg.fav_side : cfg.derived_fav_side;
-  const baselineSideRows = (derivedFavSide && derivedFavSide !== 'ANY')
-    ? baselineRows.filter(r => r.fav_side === derivedFavSide)
-    : null;
-  const allBets      = scoreBets(stateRows, baselineRows, baselineSideRows, minN);
-  const bets      = allBets.filter(b => Math.abs(b.z) >= MIN_Z);
 
-  // Attach live odds if estimator is ON — need fav_line and fav_side from cfg
+  // --- Scenario 1: pre-match (no game state) ---
+  const baselineRows_pre = applyBaselineConfig(_db, cfg);
+  const blSide_pre = (derivedFavSide && derivedFavSide !== 'ANY')
+    ? baselineRows_pre.filter(r => r.fav_side === derivedFavSide) : null;
+  const allBets_pre = scoreBets(cfgRows, baselineRows_pre, blSide_pre, minN);
+  const bets_pre    = allBets_pre.filter(b => Math.abs(b.z) >= MIN_Z);
+  const ftrace_pre  = traceConfig(_db, cfg, null);
+
+  // --- Scenario 2: in-play (with game state) ---
+  const stateRows_gs    = applyGameState(cfgRows, gs);
+  const baselineRows_gs = applyGameState(baselineRows_pre, gs);
+  const blSide_gs       = blSide_pre ? applyGameState(blSide_pre, gs) : null;
+  const allBets_gs      = scoreBets(stateRows_gs, baselineRows_gs, blSide_gs, 1);
+  const bets_gs         = allBets_gs.filter(b => Math.abs(b.z) >= MIN_Z);
+  const ftrace_gs       = traceConfig(_db, cfg, gs);
+
+  // Attach live odds to in-play scenario bets if estimator is ON
   if (state.liveOn) {
     const liveMin  = parseInt(document.getElementById('live-minute').value, 10);
     const lhome2h  = parseInt(document.getElementById('live-home2h').value, 10) || 0;
@@ -1394,13 +1439,17 @@ function runMatch() {
       const favSide = (cfg.fav_side === 'ANY' || !cfg.fav_side) ? 'HOME' : cfg.fav_side;
       const fgDelta = favSide === 'HOME' ? lhome2h : laway2h;
       const dgDelta = favSide === 'HOME' ? laway2h : lhome2h;
-      for (const bet of bets) {
+      for (const bet of bets_gs) {
         bet.live = computeLiveOdd(bet.p, bet.k, liveMin, favLine, fgDelta, dgDelta, favSide);
       }
     }
   }
 
-  renderMatchResults({ cfg_n: cfgRows.length, gs_n: stateRows.length, bets, ftrace, min_n: minN, cfg, filterMode: state.filterMode });
+  renderMatchResults({
+    pre: { cfg_n: cfgRows.length, gs_n: cfgRows.length, allBets: allBets_pre, bets: bets_pre, ftrace: ftrace_pre, min_n: minN, cfg, filterMode: state.filterMode },
+    gs:  { cfg_n: cfgRows.length, gs_n: stateRows_gs.length, allBets: allBets_gs, bets: bets_gs, ftrace: ftrace_gs, min_n: minN, cfg, filterMode: state.filterMode },
+    gsLabel: gsLabel(gs),
+  });
 }
 
 /* Build cfg from BASIC mode inputs */
@@ -1430,24 +1479,32 @@ function buildBasicCfg() {
   let favOcVal = favOc, dogOcVal = dogOc;
   if (favSide === 'AWAY') { favOcVal = dogOc; dogOcVal = favOc; }
 
+  // Read signal dropdowns if their toggle is ON
+  const lineMove    = state.bLmOn  ? document.getElementById('b_lm_sel').value  : 'ANY';
+  const favOddsMove = state.bFomOn ? document.getElementById('b_fom_sel').value : 'ANY';
+  const dogOddsMove = state.bDomOn ? document.getElementById('b_dom_sel').value : 'ANY';
+  const tlMove      = state.bTlmOn ? document.getElementById('b_tlm_sel').value : 'ANY';
+  const overMove    = state.bOvmOn ? document.getElementById('b_ovm_sel').value : 'ANY';
+  const underMove   = state.bUnmOn ? document.getElementById('b_unm_sel').value : 'ANY';
+
   return {
     fav_line:         favLine.toFixed(2),
-    fav_side:         'ANY',
-    derived_fav_side: favSide,   // actual side inferred from AH closing — used for per-side baseline
-    line_move:        'ANY',
-    fav_odds_move:  'ANY',
-    dog_odds_move:  'ANY',
-    over_move:      'ANY',
-    under_move:     'ANY',
-    tl_c:           basicTlC,
-    tl_range:       null,
-    tl_cluster:     null,
-    tl_move:        'ANY',
+    fav_side:         favSide,
+    derived_fav_side: favSide,
+    line_move:        lineMove,
+    fav_odds_move:    favOddsMove,
+    dog_odds_move:    dogOddsMove,
+    over_move:        overMove,
+    under_move:       underMove,
+    tl_c:             basicTlC,
+    tl_range:         null,
+    tl_cluster:       null,
+    tl_move:          tlMove,
     tl_max:         null,
     odds_tolerance: basicTol,
-    fav_oc:         favSide === 'HOME' ? favOc  : dogOc,
+    fav_oc:         state.bOddsSide !== 'DOG'  ? (favSide === 'HOME' ? favOc : dogOc) : null,
     fav_oo:         null,
-    dog_oc:         favSide === 'HOME' ? dogOc  : favOc,
+    dog_oc:         state.bOddsSide !== 'FAV'  ? (favSide === 'HOME' ? dogOc : favOc) : null,
     dog_oo:         null,
     ov_c:           null,
     ov_tol:         null,
@@ -1629,95 +1686,231 @@ function barColor(p, bl) {
 /* ════════════════════════════════════════════════════════════
    RENDER MATCH RESULTS
    ════════════════════════════════════════════════════════════ */
-function renderMatchResults(data) {
-  const { cfg_n, gs_n, bets, ftrace, min_n, cfg, filterMode } = data;
+function buildTraceHtml(ftrace, title) {
+  if (!ftrace || !ftrace.length) return '';
+  const total = ftrace[0][1];
+  const final = ftrace[ftrace.length - 1][1];
+  const esc   = title.replace(/'/g, "\\'");
+  let html = `<div class="ftrace">
+    <div class="ftrace-hdr" onclick="this.nextElementSibling.classList.toggle('open');this.querySelector('.ftrace-toggle').textContent=this.nextElementSibling.classList.contains('open')?'▼ ${esc}':'▶ ${esc}'">
+      <span class="ftrace-toggle">▶ ${title}</span>
+      <span class="ftrace-summary">${total.toLocaleString()} → ${final.toLocaleString()}</span>
+    </div>
+    <div class="ftrace-body">`;
+  let prev = total;
+  for (const [label, count] of ftrace) {
+    const drop = prev - count;
+    let dropHtml = '';
+    if (label !== ftrace[0][0] && drop > 0) {
+      const pctDrop = prev > 0 ? drop / prev * 100 : 0;
+      const cls = pctDrop > 70 ? 'drop-danger' : pctDrop > 35 ? 'drop-warn' : '';
+      dropHtml = `<span class="drop ${cls}">${cls ? '−' + pctDrop.toFixed(0) + '%' : ''}</span>`;
+    }
+    html += `<div class="ftrace-row">
+      <span class="step">${label}</span>
+      <div style="display:flex;gap:20px">${dropHtml}<span class="count">${count.toLocaleString()}</span></div>
+    </div>`;
+    prev = count;
+  }
+  html += `</div></div>`;
+  return html;
+}
+
+function buildBetCol(bet, passes, title, subtitle, rank, colId, minN) {
+  if (!bet) {
+    return `<div class="bet-col bet-col-empty">
+      <div class="col-hdr"><span class="col-title">${title}</span><span class="col-sub">${subtitle}</span></div>
+      <div class="col-na">—</div>
+    </div>`;
+  }
+  const lowN     = minN != null && bet.n < minN;
+  const edgeSign = bet.edge >= 0 ? '+' : '';
+  const edgeCls  = bet.edge >= 0 ? 'pos' : 'neg';
+  const nColor   = bet.n >= 50 ? 'var(--green)' : 'var(--yellow)';
+  const fill     = Math.min(100, Math.max(0, bet.p));
+  const bColor   = barColor(bet.p, bet.bl);
+  const passCls  = (passes && !lowN) ? '' : 'col-weak';
+
+  let matchesHtml = '';
+  if (bet.matches && bet.matches.length) {
+    const nHit = bet.matches.filter(m => m.hit).length;
+    const uid  = `matches-${rank}-${colId}`;
+    const rows = bet.matches.map(m => {
+      const htHome = m.fav_side === 'HOME' ? m.ht[0] : m.ht[1];
+      const htAway = m.fav_side === 'HOME' ? m.ht[1] : m.ht[0];
+      const ftHome = m.fav_side === 'HOME' ? m.ft[0] : m.ft[1];
+      const ftAway = m.fav_side === 'HOME' ? m.ft[1] : m.ft[0];
+      const tl = m.tl_c != null ? m.tl_c.toFixed(2) : '—';
+      const d  = (m.date      || '—').slice(0, 10);
+      const lg = (m.league    || '—').slice(0, 14);
+      const hm = (m.home_team || '—').slice(0, 14);
+      const aw = (m.away_team || '—').slice(0, 14);
+      const icon = m.hit ? '<span class="match-hit">✓</span>' : '<span class="match-miss">✗</span>';
+      return `<div class="match-row">${icon}
+        <span class="match-score">HT${htHome}-${htAway} FT${ftHome}-${ftAway}</span>
+        <span class="match-meta">${d}  ${lg}  ${hm} v ${aw}  AH-${m.fav_lc.toFixed(2)}  TL${tl}</span>
+      </div>`;
+    }).join('');
+    matchesHtml = `
+      <button class="matches-toggle" onclick="toggleMatches('${uid}')">▶ ${bet.matches.length} matches  (${nHit} hits)</button>
+      <div class="matches-box" id="${uid}">${rows}</div>`;
+  }
+
+  return `<div class="bet-col ${passCls}">
+    <div class="col-hdr">
+      <span class="col-title">${title}</span>
+      <span class="col-sub">${subtitle}</span>
+      ${lowN ? '<span class="col-badge-lown">⚠ low n</span>' : passes ? '<span class="col-badge-pass">✓</span>' : '<span class="col-badge-weak">z&lt;1.5</span>'}
+    </div>
+    <div class="col-prob">
+      <span class="prob-pct">${bet.p.toFixed(1)}%</span>
+      <span class="prob-edge ${edgeCls}">${edgeSign}${bet.edge.toFixed(1)}pp</span>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" style="width:${fill}%;background:${bColor}"></div></div>
+    <div class="col-stats">
+      <span style="color:${nColor}">n=${bet.n}</span>
+      <span class="badge-z">z=${bet.z.toFixed(2)}</span>
+      <span class="col-baseline">bl ${bet.bl.toFixed(1)}%</span>
+    </div>
+    <div class="bet-ci">CI [${bet.lo}%–${bet.hi}%]</div>
+    <div class="col-min-odds">
+      <span class="col-min-odds-label">MIN ODDS</span>
+      <span class="col-min-odds-value">${bet.mo_mid}</span>
+      <span class="col-min-odds-floor">floor ${bet.mo_lo}</span>
+    </div>
+    ${matchesHtml}
+  </div>`;
+}
+
+function renderMergedBetCard(merged, rank, label) {
+  const { pre, gs, prePass, gsPass } = merged;
+  const anchor = (gsPass && gs) ? gs : pre;
+  const tier = tierClass(anchor.z);
+  const tl   = tierLabel(tier);
+
+  const preColHtml = buildBetCol(pre, prePass, 'PRE-MATCH', 'no score filter', rank, 'pre', merged.minN);
+  const gsColHtml  = buildBetCol(gs,  gsPass,  'IN-PLAY',   label,             rank, 'gs',  merged.minN);
+
+  // Odds checker uses in-play if it passes (more specific), else pre-match
+  const ocBet = (gsPass && gs) ? gs : pre;
+
+  let liveHtml = '';
+  const liveBet = gs?.live ? gs : (pre?.live ? pre : null);
+  if (liveBet?.live) {
+    const live = liveBet.live;
+    if (live.live_p === null) {
+      liveHtml = `<div class="live-ft-note">LIVE: ${live.note}</div>`;
+    } else if (live.live_p === 100) {
+      liveHtml = `<div class="live-odds-strip"><span class="live-odds-label">LIVE</span><span class="live-odds-hit">✓ Already hit</span><span class="live-odds-note">${live.note}</span></div>`;
+    } else if (live.live_p === 0) {
+      liveHtml = `<div class="live-odds-strip"><span class="live-odds-label">LIVE</span><span class="live-odds-bust">✗ Busted</span><span class="live-odds-note">${live.note}</span></div>`;
+    } else {
+      liveHtml = `<div class="live-odds-strip"><span class="live-odds-label">LIVE</span><span class="live-odds-p">${live.live_p.toFixed(1)}%</span><span class="live-odds-fair">fair: ${live.fair_odd.toFixed(2)}</span><span class="live-odds-note">${live.note}</span></div>`;
+    }
+  }
+
+  return `<div class="bet-card tier-${tier}">
+    <div class="bet-stripe">
+      <span class="tier-label">BET #${rank}  ·  ${tl}</span>
+      <div class="badges">
+        ${prePass ? '<span class="badge-scenario-pass">PRE ✓</span>' : '<span class="badge-scenario-miss">PRE —</span>'}
+        ${gsPass  ? '<span class="badge-scenario-pass">GS ✓</span>'  : '<span class="badge-scenario-miss">GS —</span>'}
+      </div>
+    </div>
+    <div class="bet-merged-header">
+      <h3>${anchor.label}</h3>
+      <div class="market">${anchor.market}</div>
+    </div>
+    <div class="bet-scenarios">
+      ${preColHtml}
+      ${gsColHtml}
+    </div>
+    ${liveHtml}
+    <div class="odds-checker">
+      <label>CHECK LIVE ODDS:</label>
+      <span>Betfair</span>
+      <input class="odds-check-input" type="text" placeholder="1.85"
+             data-mo="${ocBet.mo_mid}" data-p="${ocBet.p}">
+      <span class="odds-result"></span>
+      <span style="margin-left:10px">Soft book</span>
+      <input class="odds-check-input" type="text" placeholder="1.85"
+             data-mo="${ocBet.mo_mid}" data-p="${ocBet.p}">
+      <span class="odds-result"></span>
+    </div>
+  </div>`;
+}
+
+function renderMatchResults({ pre, gs, gsLabel: label }) {
   const right = document.getElementById('right-panel');
 
   let cfgSummary = '';
-  if (cfg) {
-    const ahSide = cfg.fav_side === 'AWAY' ? 'Away' : 'Home';
-    cfgSummary = `<div class="cfg-summary">${ahSide} AH −${cfg.fav_line}</div>`;
+  if (pre.cfg) {
+    const ahSide = pre.cfg.fav_side === 'AWAY' ? 'Away' : 'Home';
+    cfgSummary = `<div class="cfg-summary">${ahSide} AH −${pre.cfg.fav_line}</div>`;
   }
+
+  // Build union of bets passing MIN_Z in at least one scenario
+  const preMap = new Map(pre.allBets.map(b => [b.k, b]));
+  const gsMap  = new Map(gs.allBets.map(b => [b.k, b]));
+  const unionKeys = new Set([...pre.bets.map(b => b.k), ...gs.bets.map(b => b.k)]);
+
+  const mergedBets = Array.from(unionKeys).map(k => ({
+    k,
+    pre:     preMap.get(k) || null,
+    gs:      gsMap.get(k)  || null,
+    prePass: pre.bets.some(b => b.k === k),
+    gsPass:  gs.bets.some(b => b.k === k),
+    minN:    pre.min_n,
+  }));
+
+  // Sort: both pass first, then by combined z
+  mergedBets.sort((a, b) => {
+    const aBoth = a.prePass && a.gsPass, bBoth = b.prePass && b.gsPass;
+    if (aBoth !== bBoth) return aBoth ? -1 : 1;
+    return ((b.pre?.z || 0) + (b.gs?.z || 0)) - ((a.pre?.z || 0) + (a.gs?.z || 0));
+  });
+
+  const qualPre = pre.bets.filter(b => b.edge > 0).length;
+  const qualGs  = gs.bets.filter(b => b.edge > 0).length;
+  const gsLow   = gs.gs_n < pre.min_n;
+
   let html = `<h2 class="results-title">BEST BETS</h2>${cfgSummary}`;
 
-  const qualBets  = bets.filter(b => b.z >= MIN_Z && b.edge > 0);
-  const valueBets = bets.filter(b => b.z < MIN_Z || b.edge <= 0);
-  const gsColor  = gs_n < min_n ? 'var(--yellow)' : 'var(--green)';
-  const betColor = qualBets.length ? 'var(--green)' : 'var(--red)';
-  html += `<div class="stat-strip">
-    <div class="stat-card"><div class="label">Config matches</div>
-      <div class="value">${cfg_n}</div><div class="sub">historical records</div></div>
-    <div class="stat-card"><div class="label">After game state</div>
-      <div class="value" style="color:${gsColor}">${gs_n}</div>
-      <div class="sub">${gs_n < min_n ? '⚠ low' : '✓ sufficient'}</div></div>
-    <div class="stat-card"><div class="label">Qualifying bets</div>
-      <div class="value" style="color:${betColor}">${qualBets.length}</div>
-      <div class="sub">z≥1.5, n≥${min_n}</div></div>
+  html += `<div class="scenarios-summary">
+    <div class="sc-stat"><span class="sc-label">Config</span><span class="sc-val">${pre.cfg_n}</span><span class="sc-sub">matches</span></div>
+    <div class="sc-sep">·</div>
+    <div class="sc-stat"><span class="sc-label">Pre-match</span><span class="sc-val" style="color:${qualPre ? 'var(--green)' : 'var(--dim)'}">${qualPre}</span><span class="sc-sub">qualifying</span></div>
+    <div class="sc-sep">·</div>
+    <div class="sc-stat"><span class="sc-label">In-play ${label}</span><span class="sc-val" style="color:${gsLow ? 'var(--yellow)' : qualGs ? 'var(--green)' : 'var(--dim)'}">${gsLow ? gs.gs_n + ' ⚠' : qualGs}</span><span class="sc-sub">${gsLow ? 'records — low' : 'qualifying'}</span></div>
   </div>`;
 
-  if (ftrace && ftrace.length) {
-    const total = ftrace[0][1];
-    const final = ftrace[ftrace.length - 1][1];
-    html += `<div class="ftrace">
-      <div class="ftrace-hdr" onclick="this.nextElementSibling.classList.toggle('open');this.querySelector('.ftrace-toggle').textContent=this.nextElementSibling.classList.contains('open')?'▼ FILTER TRACE':'▶ FILTER TRACE'">
-        <span class="ftrace-toggle">▶ FILTER TRACE</span>
-        <span class="ftrace-summary">${total.toLocaleString()} → ${final.toLocaleString()}</span>
-      </div>
-      <div class="ftrace-body">`;
-    let prev = total;
-    for (const [label, count] of ftrace) {
-      const drop = prev - count;
-      let dropHtml = '';
-      if (label !== ftrace[0][0] && drop > 0) {
-        const pctDrop = prev > 0 ? drop / prev * 100 : 0;
-        const cls = pctDrop > 70 ? 'drop-danger' : pctDrop > 35 ? 'drop-warn' : '';
-        dropHtml = `<span class="drop ${cls}">${cls ? '−' + pctDrop.toFixed(0) + '%' : ''}</span>`;
-      }
-      html += `<div class="ftrace-row">
-        <span class="step">${label}</span>
-        <div style="display:flex;gap:20px">
-          ${dropHtml}
-          <span class="count">${count.toLocaleString()}</span>
-        </div>
+  html += buildTraceHtml(pre.ftrace, 'PRE-MATCH FILTER TRACE');
+  html += buildTraceHtml(gs.ftrace,  `IN-PLAY FILTER TRACE  (${label})`);
+
+  if (pre.filterMode === 'BASIC') {
+    const anySignalOn = state.bLmOn || state.bFomOn || state.bDomOn || state.bTlmOn || state.bOvmOn || state.bUnmOn;
+    if (!anySignalOn) {
+      html += `<div class="basic-mode-notice">
+        ⚠ Basic mode — no movement signals active. Results reflect game state only, not conditioned on market direction.
+        Activate AH or TL signal groups for meaningful edge detection.
       </div>`;
-      prev = count;
     }
-    html += `</div></div>`;
   }
 
-  if (gs_n < min_n) {
+  if (!mergedBets.length) {
     html += `<div class="no-bets"><div class="warn-icon">⚠️</div>
-      <p>Only ${gs_n} matching records — below your minimum of ${min_n}.<br>
-      Lower the minimum N, or try Config Discovery to find<br>which parameter combinations have more data.</p></div>`;
-    right.innerHTML = html;
-    return;
-  }
-
-  if (!bets.length) {
-    html += `<div class="no-bets"><div class="warn-icon">⚠️</div>
-      <p>No statistically significant bets found.<br>No edge detected (z &lt; 1.5) on any outcome.<br><br>
+      <p>No statistically significant bets found.<br>No edge detected (z ≥ 1.5) on any outcome.<br><br>
       → Skip this match.<br>→ Use Config Discovery to explore other configurations.</p></div>`;
     right.innerHTML = html;
     return;
   }
 
-  if (filterMode === 'BASIC') {
-    html += `<div class="basic-mode-notice">
-      ⚠ Basic mode — all movement signals are ANY. Results show the game state effect only, not conditioned on market direction.
-      Verify the signal in Advanced mode before betting.
-    </div>`;
-  }
+  html += `<p style="font-size:11px;color:var(--dim);margin-bottom:10px">${mergedBets.length} bet${mergedBets.length !== 1 ? 's' : ''} — sorted by strength · both-pass first</p>`;
+  for (let i = 0; i < mergedBets.length; i++) html += renderMergedBetCard(mergedBets[i], i + 1, label);
 
-  if (qualBets.length) {
-    html += `<p style="font-size:11px;color:var(--dim);margin-bottom:10px">${qualBets.length} qualifying bet${qualBets.length !== 1 ? 's' : ''} — sorted by statistical strength</p>`;
-    for (let i = 0; i < qualBets.length; i++) html += renderBetCard(qualBets[i], i + 1);
-  } else {
-    html += `<div class="no-bets"><div class="warn-icon">⚠️</div>
-      <p>No statistically significant bets found.<br>No edge detected (z &lt; 1.5) on any outcome.<br><br>
-      → Skip this match.<br>→ Use Config Discovery to explore other configurations.</p></div>`;
-  }
-
-  if (valueBets.length) html += renderValueHuntSection(valueBets);
+  // Value hunt from pre-match allBets (bets with positive edge but z < MIN_Z)
+  const vhBets = pre.allBets.filter(b => Math.abs(b.z) < MIN_Z && b.edge > 0 && b.n >= pre.min_n);
+  if (vhBets.length) html += renderValueHuntSection(vhBets);
 
   right.innerHTML = html;
   right.querySelectorAll('.odds-check-input').forEach(inp => {

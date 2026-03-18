@@ -204,6 +204,35 @@ header {
 .toggle-btn.on { background: var(--green); color: #000; border-color: var(--green); }
 .toggle-btn:hover { filter: brightness(1.15); }
 
+/* ── Market hint (away AH) ───────────────────────────────── */
+.ah-away-hint { font-size: 10px; color: var(--dim); margin-bottom: 8px; padding-left: 2px; }
+.ah-away-hint span { color: var(--bright); }
+
+/* ── Tolerance separator ─────────────────────────────────── */
+.tol-sep { width: 1px; height: 16px; background: var(--border); flex-shrink: 0; }
+
+/* ── Basic signals grid (2-col) ──────────────────────────── */
+.basic-signals-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 8px; }
+.basic-signal-col { display: flex; flex-direction: column; gap: 6px; }
+.basic-signal-col-hdr {
+  font-size: 10px; font-weight: bold; letter-spacing: .06em;
+  color: var(--dim); text-transform: uppercase;
+  border-bottom: 1px solid var(--border); padding-bottom: 3px; margin-bottom: 2px;
+}
+.basic-signal-row   { display: flex; align-items: center; gap: 6px; }
+.basic-signal-label { font-size: 11px; color: var(--dim); flex: 1; min-width: 0; }
+.basic-signal-sel {
+  background: var(--bg2);
+  color: var(--bright);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 3px 6px;
+  font-size: 12px;
+  font-family: var(--font);
+  outline: none;
+  flex: 1;
+}
+
 /* ── URL import ──────────────────────────────────────────── */
 .url-import-col {
   display: flex; flex-direction: column; gap: 6px; margin-bottom: 6px;
@@ -351,6 +380,58 @@ select.gs-select {
   font-size: 11px; color: var(--green); margin-bottom: 8px;
   font-weight: bold; letter-spacing: 0.5px;
 }
+/* ── Scenarios summary bar ───────────────────────────────── */
+.scenarios-summary {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 12px; font-size: 11px; flex-wrap: wrap;
+}
+.sc-stat { display: flex; align-items: baseline; gap: 4px; }
+.sc-label { color: var(--dim); }
+.sc-val   { font-weight: bold; font-size: 14px; color: var(--bright); }
+.sc-sub   { color: var(--dim); font-size: 10px; }
+.sc-sep   { color: var(--border); }
+
+/* ── Merged bet card ─────────────────────────────────────── */
+.bet-merged-header { padding: 6px 12px 8px; }
+.bet-merged-header h3 { font-size: 13px; font-weight: bold; color: var(--bright); margin-bottom: 2px; }
+.bet-scenarios {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 1px; background: var(--border); margin-bottom: 8px;
+}
+.bet-col { background: var(--bg1); padding: 10px 12px; }
+.bet-col-empty { background: var(--bg2); display: flex; flex-direction: column; justify-content: center; align-items: center; opacity: 0.5; }
+.col-na { color: var(--dim); font-size: 20px; margin-top: 6px; }
+.col-weak { opacity: 0.55; }
+.col-hdr { display: flex; align-items: center; gap: 4px; margin-bottom: 6px; }
+.col-title { font-size: 10px; font-weight: bold; letter-spacing: .06em; color: var(--bright); text-transform: uppercase; }
+.col-sub   { font-size: 10px; color: var(--dim); }
+.col-badge-pass { font-size: 10px; color: var(--green); margin-left: auto; }
+.col-badge-weak { font-size: 10px; color: var(--dim); margin-left: auto; }
+.col-badge-lown { font-size: 10px; color: var(--yellow); margin-left: auto; }
+
+.col-min-odds {
+  display: flex; align-items: baseline; gap: 6px;
+  margin-top: 8px; padding-top: 7px; border-top: 1px solid var(--border);
+}
+.col-min-odds-label { font-size: 10px; color: var(--dim); letter-spacing: .05em; }
+.col-min-odds-value { font-size: 20px; font-weight: bold; color: var(--yellow); letter-spacing: .02em; }
+.col-min-odds-floor { font-size: 10px; color: var(--dim); margin-left: auto; }
+.col-prob { display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px; }
+.col-stats { display: flex; gap: 10px; font-size: 11px; margin: 4px 0; }
+.col-baseline { color: var(--dim); }
+
+/* Pass/fail scenario badges in bet-stripe */
+.badge-scenario-pass {
+  background: rgba(0,229,170,.12); color: var(--green);
+  border: 1px solid rgba(0,229,170,.4); padding: 1px 5px;
+  font-size: 10px; border-radius: 3px;
+}
+.badge-scenario-miss {
+  background: transparent; color: var(--dim);
+  border: 1px solid var(--border); padding: 1px 5px;
+  font-size: 10px; border-radius: 3px;
+}
+
 .stat-strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 12px; }
 .stat-card {
   background: var(--bg2); border-radius: 8px; padding: 10px;
