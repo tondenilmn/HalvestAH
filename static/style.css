@@ -521,6 +521,35 @@ select.gs-select {
 .match-score { color: var(--bright); min-width: 80px; }
 .match-meta  { color: var(--dim); }
 
+/* ── FT Context ──────────────────────────────────────────── */
+.ft-context  { margin-bottom: 14px; }
+.ftc-hdr {
+  display: flex; align-items: center; gap: 8px; cursor: pointer;
+  padding: 5px 0; user-select: none;
+}
+.ftc-hdr:hover .ftc-title { color: var(--bright); }
+.ftc-toggle { font-size: 10px; color: var(--dim); }
+.ftc-title  { font-size: 11px; font-weight: bold; color: var(--bright); letter-spacing: 0.5px; }
+.ftc-n      { font-size: 10px; color: var(--dim); }
+.ftc-body   { display: none; }
+.ftc-body.open { display: block; }
+.ftc-3way {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 6px;
+}
+.ftc-totals {
+  display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-bottom: 8px;
+}
+.ftc-cell  { background: var(--bg2); border-radius: 6px; padding: 8px 10px; text-align: center; }
+.ftc-cell.ftc-sm { padding: 6px 4px; }
+.ftc-pct   { font-size: 17px; font-weight: bold; color: var(--bright); margin-bottom: 2px; }
+.ftc-cell.ftc-sm .ftc-pct { font-size: 14px; }
+.ftc-lbl   { font-size: 10px; color: var(--dim); margin-bottom: 1px; }
+.ftc-bl    { font-size: 10px; color: var(--dim); }
+.ftc-mo    { font-size: 10px; color: var(--yellow); margin-top: 3px; }
+.ftc-up    { color: var(--green); }
+.ftc-down  { color: var(--red); }
+.ftc-nudge { color: var(--yellow); }
+
 /* Min odds panel */
 .bet-right {
   background: var(--bg2); border-radius: 8px;

@@ -68,6 +68,19 @@ const BETS = [
   { k: 'over15_2H',     label: 'Over 1.5 goals in 2H',    market: 'Over/Under 1.5 — 2nd Half' },
   { k: 'under05_2H',    label: 'Under 0.5 goals in 2H',   market: 'Over/Under 0.5 — 2nd Half' },
   { k: 'under15_2H',    label: 'Under 1.5 goals in 2H',   market: 'Over/Under 1.5 — 2nd Half' },
+  // 1H results — fav-normalised
+  { k: 'favWins1H',     label: 'Fav wins 1st half',        market: '1H Result — Favourite Win' },
+  { k: 'draw1H',        label: 'Draw 1st half',            market: '1H Result — Draw' },
+  { k: 'favScored1H',   label: 'Fav scores in 1H',         market: 'Team to Score — Fav 1st Half' },
+  // 1H results — home/away
+  { k: 'homeWins1H',    label: 'Home wins 1st half',       market: '1H Result — Home Win',   favSideBaseline: 'HOME' },
+  { k: 'awayWins1H',    label: 'Away wins 1st half',       market: '1H Result — Away Win',   favSideBaseline: 'AWAY' },
+  // 1H totals
+  { k: 'over05_1H',     label: 'Over 0.5 goals in 1H',    market: 'Over/Under 0.5 — 1st Half' },
+  { k: 'over15_1H',     label: 'Over 1.5 goals in 1H',    market: 'Over/Under 1.5 — 1st Half' },
+  { k: 'under05_1H',    label: 'Under 0.5 goals in 1H',   market: 'Over/Under 0.5 — 1st Half' },
+  { k: 'under15_1H',    label: 'Under 1.5 goals in 1H',   market: 'Over/Under 1.5 — 1st Half' },
+  { k: 'btts1H',        label: 'BTTS 1st half',           market: 'Both Teams to Score — 1H' },
   // FT results
   { k: 'homeWinsFT',    label: 'Home wins full time',      market: 'Match Result — Home Win',           favSideBaseline: 'HOME' },
   { k: 'awayWinsFT',    label: 'Away wins full time',      market: 'Match Result — Away Win',           favSideBaseline: 'AWAY' },
@@ -253,6 +266,17 @@ function processRow(row, fileLabel) {
     under25FT:     ftH + ftA <= 2,
     drawFT:        ftH === ftA,
     btts:          ftH >= 1 && ftA >= 1,
+    // 1H results
+    favWins1H:     favHt > dogHt,
+    draw1H:        favHt === dogHt,
+    homeWins1H:    htH > htA,
+    awayWins1H:    htA > htH,
+    favScored1H:   favHt >= 1,
+    btts1H:        htH >= 1 && htA >= 1,
+    over05_1H:     htH + htA >= 1,
+    over15_1H:     htH + htA >= 2,
+    under05_1H:    htH + htA === 0,
+    under15_1H:    htH + htA <= 1,
   };
 }
 
@@ -287,21 +311,31 @@ function wilsonCI(p100, n) {
   ];
 }
 
-function stability(rows, key) {
-  const groups = {};
-  for (const r of rows) {
-    if (!groups[r.file_label]) groups[r.file_label] = [];
-    groups[r.file_label].push(r);
-  }
-  const labels = Object.keys(groups);
-  if (labels.length < 2) return null;
-  const pts  = labels.map(lbl => [lbl, pct(groups[lbl], key)]);
-  const vals = pts.map(([, p]) => p);
-  return { pts, delta: Math.max(...vals) - Math.min(...vals) };
-}
 
 function minOdds(p) {
   return p > 0 ? (1 / (p / 100)).toFixed(2) : '—';
+}
+
+// FT result distribution for the matched rows vs baseline.
+// Used to show full-match context alongside 2H bet signals.
+function computeFtDist(stateRows, baselineRows) {
+  if (!stateRows.length || !baselineRows.length) return null;
+  const stat = key => ({ p: pct(stateRows, key), bl: pct(baselineRows, key) });
+  const favWins = stat('favWinsFT');
+  const draw    = stat('drawFT');
+  return {
+    favWins,
+    draw,
+    dogWins: {
+      p:  Math.max(0, 100 - favWins.p  - draw.p),
+      bl: Math.max(0, 100 - favWins.bl - draw.bl),
+    },
+    over15:  stat('over15FT'),
+    over25:  stat('over25FT'),
+    over35:  stat('over35FT'),
+    btts:    stat('btts'),
+    under25: stat('under25FT'),
+  };
 }
 
 /* ════════════════════════════════════════════════════════════
@@ -462,7 +496,6 @@ function scoreBets(stateRows, baselineRows, baselineSideRows, minN = DEFAULT_MIN
     const z    = zScore(stateRows, blRows, b.k);
     const edge = p - bl;
     const [lo, hi] = wilsonCI(p, n);
-    const stab = stability(stateRows, b.k);
     const matches = stateRows.map(r => ({
       date:      r.date      || '',
       league:    r.league    || '',
@@ -476,7 +509,7 @@ function scoreBets(stateRows, baselineRows, baselineSideRows, minN = DEFAULT_MIN
       hit:       !!r[b.k],
     }));
     const mo_mid = minOdds((p + lo) / 2);
-    results.push({ ...b, n, p, bl, z, edge, lo, hi, stab, mo: minOdds(p), mo_lo: minOdds(lo), mo_mid, matches });
+    results.push({ ...b, n, p, bl, z, edge, lo, hi, mo: minOdds(p), mo_lo: minOdds(lo), mo_mid, matches });
   }
   results.sort((a, b) => {
     const aPos = a.edge > 0, bPos = b.edge > 0;
@@ -694,10 +727,9 @@ function discover(db, favLine, favSide, inLineMove, inTlMove, gs, minN = DEFAULT
               const edge = p - bl;
               if (Math.abs(z) < MIN_Z_DISC || edge <= 0) continue;
               const [lo] = wilsonCI(p, gsR.length);
-              const stab = stability(gsR, k);
               results.push({
                 cfg, k, n: gsR.length, p, bl, z, edge, lo,
-                mo: minOdds(p), stab,
+                mo: minOdds(p),
                 label:  b.label  || k,
                 market: b.market || k,
               });
@@ -741,6 +773,8 @@ const _2H_BETS_SET = new Set([
 const _FT_BETS_SET = new Set([
   'noDrawFT','favWinsFT','homeWinsFT','awayWinsFT',
   'dnbHome','dnbAway','over25FT','over15FT','over35FT','under25FT','drawFT','btts',
+  'favWins1H','draw1H','favScored1H','homeWins1H','awayWins1H',
+  'over05_1H','over15_1H','under05_1H','under15_1H','btts1H',
 ]);
 const _UNDER_BETS = {'under05_2H':[1,0],'under15_2H':[2,1]};
 const _BET_GOAL_THRESHOLD = {
@@ -1445,11 +1479,16 @@ function runMatch() {
     }
   }
 
+<<<<<<< HEAD
   renderMatchResults({
     pre: { cfg_n: cfgRows.length, gs_n: cfgRows.length, allBets: allBets_pre, bets: bets_pre, ftrace: ftrace_pre, min_n: minN, cfg, filterMode: state.filterMode },
     gs:  { cfg_n: cfgRows.length, gs_n: stateRows_gs.length, allBets: allBets_gs, bets: bets_gs, ftrace: ftrace_gs, min_n: minN, cfg, filterMode: state.filterMode },
     gsLabel: gsLabel(gs),
   });
+=======
+  const ftDist = computeFtDist(stateRows, baselineRows);
+  renderMatchResults({ cfg_n: cfgRows.length, gs_n: stateRows.length, bets, ftrace, min_n: minN, cfg, filterMode: state.filterMode, ftDist });
+>>>>>>> 4509f886a7f77e1f6f2160b65dfa9553e6beabbc
 }
 
 /* Build cfg from BASIC mode inputs */
@@ -1684,8 +1723,66 @@ function barColor(p, bl) {
 }
 
 /* ════════════════════════════════════════════════════════════
+   FT CONTEXT
+   ════════════════════════════════════════════════════════════ */
+function renderFtContext(ftDist, n) {
+  if (!ftDist) return '';
+
+  function delta(p, bl) {
+    const d = p - bl;
+    if (Math.abs(d) < 1) return '';
+    const sign = d >= 0 ? '+' : '';
+    const cls  = d >= 3 ? 'ftc-up' : d <= -3 ? 'ftc-down' : 'ftc-nudge';
+    return `<span class="${cls}"> ${sign}${d.toFixed(0)}pp</span>`;
+  }
+
+  function cell(data, label) {
+    return `<div class="ftc-cell">
+      <div class="ftc-pct">${data.p.toFixed(0)}%${delta(data.p, data.bl)}</div>
+      <div class="ftc-lbl">${label}</div>
+      <div class="ftc-bl">bl ${data.bl.toFixed(0)}%</div>
+      <div class="ftc-mo">min odds ${minOdds(data.p)}</div>
+    </div>`;
+  }
+
+  function goalCard(label, data) {
+    return `<div class="ftc-cell ftc-sm">
+      <div class="ftc-pct">${data.p.toFixed(0)}%${delta(data.p, data.bl)}</div>
+      <div class="ftc-lbl">${label}</div>
+      <div class="ftc-bl">bl ${data.bl.toFixed(0)}%</div>
+      <div class="ftc-mo">min ${minOdds(data.p)}</div>
+    </div>`;
+  }
+
+  const { favWins, draw, dogWins, over15, over25, over35, btts, under25 } = ftDist;
+
+  return `<div class="ft-context">
+    <div class="ftc-hdr" onclick="this.nextElementSibling.classList.toggle('open'); this.querySelector('.ftc-toggle').textContent = this.nextElementSibling.classList.contains('open') ? '▼' : '▶'">
+      <span class="ftc-toggle">▼</span>
+      <span class="ftc-title">FT RESULT CONTEXT</span>
+      <span class="ftc-n">n=${n} matches · delta vs baseline</span>
+    </div>
+    <div class="ftc-body open">
+      <div class="ftc-3way">
+        ${cell(favWins, 'Fav Wins FT')}
+        ${cell(draw,    'Draw FT')}
+        ${cell(dogWins, 'Dog Wins FT')}
+      </div>
+      <div class="ftc-totals">
+        ${goalCard('Over 1.5', over15)}
+        ${goalCard('Over 2.5', over25)}
+        ${goalCard('Over 3.5', over35)}
+        ${goalCard('BTTS', btts)}
+        ${goalCard('Under 2.5', under25)}
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ════════════════════════════════════════════════════════════
    RENDER MATCH RESULTS
    ════════════════════════════════════════════════════════════ */
+<<<<<<< HEAD
 function buildTraceHtml(ftrace, title) {
   if (!ftrace || !ftrace.length) return '';
   const total = ftrace[0][1];
@@ -1841,6 +1938,10 @@ function renderMergedBetCard(merged, rank, label) {
 }
 
 function renderMatchResults({ pre, gs, gsLabel: label }) {
+=======
+function renderMatchResults(data) {
+  const { cfg_n, gs_n, bets, ftrace, min_n, cfg, filterMode, ftDist } = data;
+>>>>>>> 4509f886a7f77e1f6f2160b65dfa9553e6beabbc
   const right = document.getElementById('right-panel');
 
   let cfgSummary = '';
@@ -1908,9 +2009,24 @@ function renderMatchResults({ pre, gs, gsLabel: label }) {
   html += `<p style="font-size:11px;color:var(--dim);margin-bottom:10px">${mergedBets.length} bet${mergedBets.length !== 1 ? 's' : ''} — sorted by strength · both-pass first</p>`;
   for (let i = 0; i < mergedBets.length; i++) html += renderMergedBetCard(mergedBets[i], i + 1, label);
 
+<<<<<<< HEAD
   // Value hunt from pre-match allBets (bets with positive edge but z < MIN_Z)
   const vhBets = pre.allBets.filter(b => Math.abs(b.z) < MIN_Z && b.edge > 0 && b.n >= pre.min_n);
   if (vhBets.length) html += renderValueHuntSection(vhBets);
+=======
+  html += renderFtContext(ftDist, gs_n);
+
+  if (qualBets.length) {
+    html += `<p style="font-size:11px;color:var(--dim);margin-bottom:10px">${qualBets.length} qualifying bet${qualBets.length !== 1 ? 's' : ''} — sorted by statistical strength</p>`;
+    for (let i = 0; i < qualBets.length; i++) html += renderBetCard(qualBets[i], i + 1);
+  } else {
+    html += `<div class="no-bets"><div class="warn-icon">⚠️</div>
+      <p>No statistically significant bets found.<br>No edge detected (z &lt; 1.5) on any outcome.<br><br>
+      → Skip this match.<br>→ Use Config Discovery to explore other configurations.</p></div>`;
+  }
+
+  if (valueBets.length) html += renderValueHuntSection(valueBets);
+>>>>>>> 4509f886a7f77e1f6f2160b65dfa9553e6beabbc
 
   right.innerHTML = html;
   right.querySelectorAll('.odds-check-input').forEach(inp => {
