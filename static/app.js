@@ -348,6 +348,10 @@ function applyConfig(db, cfg) {
     const fl = parseFloat(cfg.fav_line);
     rows = rows.filter(r => Math.abs(r.fav_line - fl) < 0.13);
   }
+  if (cfg.fav_lo != null) {
+    const flo = parseFloat(cfg.fav_lo);
+    rows = rows.filter(r => r.fav_lo != null && Math.abs(r.fav_lo - flo) < 0.13);
+  }
   if (cfg.fav_side != null && cfg.fav_side !== 'ANY') {
     rows = rows.filter(r => r.fav_side === cfg.fav_side);
   }
@@ -364,6 +368,12 @@ function applyConfig(db, cfg) {
   }
   if (cfg.fav_odds_move != null && cfg.fav_odds_move !== 'ANY' && cfg.fav_odds_move !== 'UNKNOWN')
     rows = rows.filter(r => r.fav_odds_move === cfg.fav_odds_move);
+  if (cfg.fav_odds_min_delta != null) {
+    rows = rows.filter(r =>
+      r.fav_oo != null && r.fav_oc != null &&
+      Math.abs(r.fav_oo - r.fav_oc) >= cfg.fav_odds_min_delta
+    );
+  }
   if (cfg.dog_odds_move != null && cfg.dog_odds_move !== 'ANY' && cfg.dog_odds_move !== 'UNKNOWN')
     rows = rows.filter(r => r.dog_odds_move === cfg.dog_odds_move);
 
@@ -528,6 +538,11 @@ function traceConfig(db, cfg, gs) {
     rows = rows.filter(r => Math.abs(r.fav_line - fl) < 0.13);
     steps.push([`AH line ${cfg.fav_line}`, rows.length]);
   }
+  if (cfg.fav_lo != null) {
+    const flo = parseFloat(cfg.fav_lo);
+    rows = rows.filter(r => r.fav_lo != null && Math.abs(r.fav_lo - flo) < 0.13);
+    steps.push([`AH opening line ${cfg.fav_lo}`, rows.length]);
+  }
   if (cfg.fav_side != null && cfg.fav_side !== 'ANY') {
     rows = rows.filter(r => r.fav_side === cfg.fav_side);
     steps.push([`Fav side ${cfg.fav_side}`, rows.length]);
@@ -548,6 +563,13 @@ function traceConfig(db, cfg, gs) {
   if (cfg.fav_odds_move != null && cfg.fav_odds_move !== 'ANY' && cfg.fav_odds_move !== 'UNKNOWN') {
     rows = rows.filter(r => r.fav_odds_move === cfg.fav_odds_move);
     steps.push([`Fav odds ${cfg.fav_odds_move}`, rows.length]);
+  }
+  if (cfg.fav_odds_min_delta != null) {
+    rows = rows.filter(r =>
+      r.fav_oo != null && r.fav_oc != null &&
+      Math.abs(r.fav_oo - r.fav_oc) >= cfg.fav_odds_min_delta
+    );
+    steps.push([`Fav odds Δ ≥${cfg.fav_odds_min_delta}`, rows.length]);
   }
   if (cfg.dog_odds_move != null && cfg.dog_odds_move !== 'ANY' && cfg.dog_odds_move !== 'UNKNOWN') {
     rows = rows.filter(r => r.dog_odds_move === cfg.dog_odds_move);
@@ -919,6 +941,7 @@ const state = {
   // Advanced toggles
   advLmOn:      false,
   advOddsTolOn: false,
+  advOddsDeltaOn: false,
   advHomOn:     false,
   advAomOn:     false,
   advTlmOn:     false,
@@ -1188,7 +1211,8 @@ function setAdvSig(id, text, colorClass) {
 function toggleAdvToggle(name) {
   const map = {
     'lm':      { key: 'advLmOn',      tgl: 'adv-lm-tgl'      },
-    'oddsTol': { key: 'advOddsTolOn', tgl: 'adv-oddstol-tgl'  },
+    'oddsTol':   { key: 'advOddsTolOn',   tgl: 'adv-oddstol-tgl'  },
+    'oddsDelta': { key: 'advOddsDeltaOn', tgl: 'adv-delta-tgl'    },
     'hom':     { key: 'advHomOn',     tgl: 'adv-hom-tgl'      },
     'aom':     { key: 'advAomOn',     tgl: 'adv-aom-tgl'      },
     'tlm':     { key: 'advTlmOn',     tgl: 'adv-tlm-tgl'      },
@@ -1479,16 +1503,11 @@ function runMatch() {
     }
   }
 
-<<<<<<< HEAD
   renderMatchResults({
     pre: { cfg_n: cfgRows.length, gs_n: cfgRows.length, allBets: allBets_pre, bets: bets_pre, ftrace: ftrace_pre, min_n: minN, cfg, filterMode: state.filterMode },
     gs:  { cfg_n: cfgRows.length, gs_n: stateRows_gs.length, allBets: allBets_gs, bets: bets_gs, ftrace: ftrace_gs, min_n: minN, cfg, filterMode: state.filterMode },
     gsLabel: gsLabel(gs),
   });
-=======
-  const ftDist = computeFtDist(stateRows, baselineRows);
-  renderMatchResults({ cfg_n: cfgRows.length, gs_n: stateRows.length, bets, ftrace, min_n: minN, cfg, filterMode: state.filterMode, ftDist });
->>>>>>> 4509f886a7f77e1f6f2160b65dfa9553e6beabbc
 }
 
 /* Build cfg from BASIC mode inputs */
@@ -1581,9 +1600,9 @@ function buildAdvancedCfg() {
 
   // Line movement
   const ho    = sf(hoRaw);
+  const favLo = ho !== null ? Math.abs(ho) : null;
   let lineMove = 'UNKNOWN';
-  if (ho !== null) {
-    const favLo = Math.abs(ho);
+  if (favLo !== null) {
     const diff = favLc - favLo;
     lineMove = diff > LINE_THRESH ? 'DEEPER' : diff < -LINE_THRESH ? 'SHRANK' : 'STABLE';
   }
@@ -1612,6 +1631,10 @@ function buildAdvancedCfg() {
   const advOddsToRaw = document.getElementById('adv_odds_tol').value;
   const advOddsToVal = sf(advOddsToRaw);
 
+  // Odds delta
+  const oddsDeltaRaw = document.getElementById('adv_odds_delta').value;
+  const oddsDeltaVal = sf(oddsDeltaRaw);
+
   // Over/Under tolerance
   const ovTolRaw = document.getElementById('adv_ov_tol').value;
   const ovTolVal = sf(ovTolRaw);
@@ -1619,10 +1642,12 @@ function buildAdvancedCfg() {
   const unTolVal = sf(unTolRaw);
 
   return {
-    fav_line:       favLine.toFixed(2),
-    fav_side:       favSide,
-    line_move:      state.advLmOn      ? lineMove    : 'ANY',
-    fav_odds_move:  state.advHomOn     ? favOddsMove : 'ANY',
+    fav_line:           favLine.toFixed(2),
+    fav_lo:             favLo,
+    fav_side:           favSide,
+    line_move:          state.advLmOn        ? lineMove      : 'ANY',
+    fav_odds_move:      state.advHomOn       ? favOddsMove   : 'ANY',
+    fav_odds_min_delta: state.advOddsDeltaOn ? oddsDeltaVal  : null,
     dog_odds_move:  state.advAomOn     ? dogOddsMove : 'ANY',
     over_move:      state.advOvmOn     ? overMove    : 'ANY',
     under_move:     state.advUnmOn     ? underMove   : 'ANY',
@@ -1782,7 +1807,6 @@ function renderFtContext(ftDist, n) {
 /* ════════════════════════════════════════════════════════════
    RENDER MATCH RESULTS
    ════════════════════════════════════════════════════════════ */
-<<<<<<< HEAD
 function buildTraceHtml(ftrace, title) {
   if (!ftrace || !ftrace.length) return '';
   const total = ftrace[0][1];
@@ -1938,10 +1962,6 @@ function renderMergedBetCard(merged, rank, label) {
 }
 
 function renderMatchResults({ pre, gs, gsLabel: label }) {
-=======
-function renderMatchResults(data) {
-  const { cfg_n, gs_n, bets, ftrace, min_n, cfg, filterMode, ftDist } = data;
->>>>>>> 4509f886a7f77e1f6f2160b65dfa9553e6beabbc
   const right = document.getElementById('right-panel');
 
   let cfgSummary = '';
@@ -2009,24 +2029,9 @@ function renderMatchResults(data) {
   html += `<p style="font-size:11px;color:var(--dim);margin-bottom:10px">${mergedBets.length} bet${mergedBets.length !== 1 ? 's' : ''} — sorted by strength · both-pass first</p>`;
   for (let i = 0; i < mergedBets.length; i++) html += renderMergedBetCard(mergedBets[i], i + 1, label);
 
-<<<<<<< HEAD
   // Value hunt from pre-match allBets (bets with positive edge but z < MIN_Z)
   const vhBets = pre.allBets.filter(b => Math.abs(b.z) < MIN_Z && b.edge > 0 && b.n >= pre.min_n);
   if (vhBets.length) html += renderValueHuntSection(vhBets);
-=======
-  html += renderFtContext(ftDist, gs_n);
-
-  if (qualBets.length) {
-    html += `<p style="font-size:11px;color:var(--dim);margin-bottom:10px">${qualBets.length} qualifying bet${qualBets.length !== 1 ? 's' : ''} — sorted by statistical strength</p>`;
-    for (let i = 0; i < qualBets.length; i++) html += renderBetCard(qualBets[i], i + 1);
-  } else {
-    html += `<div class="no-bets"><div class="warn-icon">⚠️</div>
-      <p>No statistically significant bets found.<br>No edge detected (z &lt; 1.5) on any outcome.<br><br>
-      → Skip this match.<br>→ Use Config Discovery to explore other configurations.</p></div>`;
-  }
-
-  if (valueBets.length) html += renderValueHuntSection(valueBets);
->>>>>>> 4509f886a7f77e1f6f2160b65dfa9553e6beabbc
 
   right.innerHTML = html;
   right.querySelectorAll('.odds-check-input').forEach(inp => {
