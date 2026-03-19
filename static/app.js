@@ -1361,8 +1361,33 @@ function fillFromScraped(data) {
   set('un_c',  data.un_c);
   set('un_o',  data.un_o);
 
-  // Recompute mirrored fields and signal previews
-  onInputChange();
+  // Auto-set Basic signal selects from computed directions
+  const sel = (id, v) => { if (v && v !== 'UNKNOWN') { const el = document.getElementById(id); if (el) el.value = v; } };
+
+  const hc = data.ah_hc;
+  if (hc != null) {
+    const favSide = hc < -0.01 ? 'HOME' : hc > 0.01 ? 'AWAY'
+                  : (data.ho_c != null && data.ao_c != null && data.ho_c <= data.ao_c) ? 'HOME' : 'AWAY';
+    const favOc = favSide === 'HOME' ? data.ho_c : data.ao_c;
+    const favOo = favSide === 'HOME' ? data.ho_o : data.ao_o;
+    const dogOc = favSide === 'HOME' ? data.ao_c : data.ho_c;
+    const dogOo = favSide === 'HOME' ? data.ao_o : data.ho_o;
+
+    if (data.ah_ho != null) {
+      const diff = Math.abs(hc) - Math.abs(data.ah_ho);
+      sel('b_lm_sel', diff > LINE_THRESH ? 'DEEPER' : diff < -LINE_THRESH ? 'SHRANK' : 'STABLE');
+    }
+    if (favOc != null && favOo != null) sel('b_fom_sel', oddsDir(favOc, favOo));
+    if (dogOc != null && dogOo != null) sel('b_dom_sel', oddsDir(dogOc, dogOo));
+  }
+  if (data.tl_c != null && data.tl_o != null) sel('b_tlm_sel', moveDir(data.tl_c, data.tl_o, TL_THRESH));
+  if (data.ov_c != null && data.ov_o != null) sel('b_ovm_sel', oddsDir(data.ov_c, data.ov_o));
+  if (data.un_c != null && data.un_o != null) sel('b_unm_sel', oddsDir(data.un_c, data.un_o));
+
+  // Recompute mirrored fields and signal previews for both modes
+  mirrorBasic();
+  mirrorAdvanced();
+  refreshAdvSignals();
 }
 
 /* ════════════════════════════════════════════════════════════
@@ -1852,6 +1877,11 @@ function buildBetCol(bet, passes, title, subtitle, rank, colId, minN) {
   const bColor   = barColor(bet.p, bet.bl);
   const passCls  = (passes && !lowN) ? '' : 'col-weak';
 
+  const hasLive  = bet.live && bet.live.live_p != null && bet.live.live_p > 0 && bet.live.live_p < 100;
+  const dispMo   = hasLive ? bet.live.fair_odd.toFixed(2) : bet.mo_mid;
+  const moLabel  = hasLive ? 'LIVE MIN ODDS' : 'MIN ODDS';
+  const moFloor  = hasLive ? `hist. ${bet.mo_mid}` : `floor ${bet.mo_lo}`;
+
   let matchesHtml = '';
   if (bet.matches && bet.matches.length) {
     const nHit = bet.matches.filter(m => m.hit).length;
@@ -1895,9 +1925,9 @@ function buildBetCol(bet, passes, title, subtitle, rank, colId, minN) {
     </div>
     <div class="bet-ci">CI [${bet.lo}%–${bet.hi}%]</div>
     <div class="col-min-odds">
-      <span class="col-min-odds-label">MIN ODDS</span>
-      <span class="col-min-odds-value">${bet.mo_mid}</span>
-      <span class="col-min-odds-floor">floor ${bet.mo_lo}</span>
+      <span class="col-min-odds-label">${moLabel}</span>
+      <span class="col-min-odds-value">${dispMo}</span>
+      <span class="col-min-odds-floor">${moFloor}</span>
     </div>
     ${matchesHtml}
   </div>`;
@@ -1913,7 +1943,10 @@ function renderMergedBetCard(merged, rank, label) {
   const gsColHtml  = buildBetCol(gs,  gsPass,  'IN-PLAY',   label,             rank, 'gs',  merged.minN);
 
   // Odds checker uses in-play if it passes (more specific), else pre-match
-  const ocBet = (gsPass && gs) ? gs : pre;
+  const ocBet  = (gsPass && gs) ? gs : pre;
+  const ocLive = ocBet?.live?.live_p != null && ocBet.live.live_p > 0 && ocBet.live.live_p < 100;
+  const ocMo   = ocLive ? ocBet.live.fair_odd.toFixed(2) : ocBet.mo_mid;
+  const ocP    = ocLive ? ocBet.live.live_p              : ocBet.p;
 
   let liveHtml = '';
   const liveBet = gs?.live ? gs : (pre?.live ? pre : null);
@@ -1951,11 +1984,11 @@ function renderMergedBetCard(merged, rank, label) {
       <label>CHECK LIVE ODDS:</label>
       <span>Betfair</span>
       <input class="odds-check-input" type="text" placeholder="1.85"
-             data-mo="${ocBet.mo_mid}" data-p="${ocBet.p}">
+             data-mo="${ocMo}" data-p="${ocP}">
       <span class="odds-result"></span>
       <span style="margin-left:10px">Soft book</span>
       <input class="odds-check-input" type="text" placeholder="1.85"
-             data-mo="${ocBet.mo_mid}" data-p="${ocBet.p}">
+             data-mo="${ocMo}" data-p="${ocP}">
       <span class="odds-result"></span>
     </div>
   </div>`;
