@@ -95,6 +95,85 @@ const BETS = [
   { k: 'under25FT',     label: 'Under 2.5 goals FT',      market: 'Over/Under 2.5 — Full Time' },
 ];
 
+/* ── League tier classification ─────────────────────────────────────────
+   TOP   = Top 5 European leagues + main UEFA club competitions
+   MAJOR = Other strong national/continental leagues
+   OTHER = Regional, amateur, youth, women's, lower divisions, etc.
+   ───────────────────────────────────────────────────────────────────── */
+const _T1_RULES = [
+  { inc: 'english premier league',  exc: ['u21','women','reserve','international club'] },
+  { inc: 'spanish la liga',         exc: ['la liga 2','segunda','ladies','women','youth','supercopa','rfef'] },
+  { inc: 'german bundesliga',       exc: ['bundesliga 2','2. bundesliga','junioren','frauen','women'] },
+  { inc: 'italy serie a',           exc: ['serie b','serie c','serie d','women','primavera'] },
+  { inc: 'italian serie a',         exc: ['serie b','serie c','women','primavera'] },
+  { inc: 'france ligue 1',          exc: ['ligue 2','ligue 3','ligue 5','women','youth'] },
+  { inc: 'uefa champions league',   exc: ['afc','qualification','women','youth','u19','u21'] },
+  { inc: 'uefa europa league',      exc: ['conference','qualification','women'] },
+  { inc: 'uefa conference league',  exc: ['qualification','women'] },
+];
+const _T2_KEYS = [
+  'england championship','england league 1','england league 2',
+  'german bundesliga 2','german 3.liga',
+  'spanish la liga 2','spain segunda','spain primera division rfef',
+  'italy serie b','italian serie b','italy serie c','italian serie c','coppa italia',
+  'france ligue 2',
+  'liga portugal 1','liga portugal 2',
+  'belgian pro league',
+  'holland eredivisie',
+  'turkey super lig',
+  'russia premier league','russian premier league','russian national football league',
+  'scottish premiership',
+  'brazil serie a','brazil serie b','copa do brasil',
+  'argentina primera','argentine division 1',
+  'copa libertadores','copa sudamericana','recopa sudamericana',
+  'usa major league soccer','major league soccer','mls next pro',
+  'concacaf champions league',
+  'j1 league','j2 league','j-league cup',
+  'k league 1','k league 2','korean fa cup',
+  'chinese super league','chinese fa cup',
+  'saudi professional league','saudi kings cup',
+  'swiss super league',
+  'austrian bundesliga',
+  'norway eliteserien','norwegian tippeligaen',
+  'swedish allsvenskan',
+  'denmark superliga','denmark superligaen',
+  'greece super league a','greek super league',
+  'ekstraklasa',
+  'romania liga i','romania liga 1',
+  'ukrainian premier league','ukraine premier league',
+  'serbia superliga','serbian superliga',
+  'croatia 1.division','croatia first league',
+  'persian gulf pro league',
+  'qatar stars league',
+  'uae pro-league',
+  'afc champions league elite',
+  'caf champions league','caf confederation cup',
+  'fifa world cup qualification',
+  'uefa nations league','uefa european',
+  'concacaf nations league','concacaf gold',
+  'israel premier league',
+  'primera division liga mx',
+  'liga pro ecuador serie a',
+  'peru liga 1','peru primera division',
+  'uruguay primera division',
+  'colombia primera',
+  'chile primera division',
+  'thai league 1',
+  'australia a-league',
+  'finland veikkausliga',
+  'indonesia liga 1',
+];
+
+function classifyLeague(name) {
+  if (!name) return 'OTHER';
+  const n = name.toLowerCase();
+  for (const { inc, exc } of _T1_RULES) {
+    if (n.includes(inc) && !exc.some(e => n.includes(e))) return 'TOP';
+  }
+  if (_T2_KEYS.some(k => n.includes(k))) return 'MAJOR';
+  return 'OTHER';
+}
+
 /* ════════════════════════════════════════════════════════════
    DATA PROCESSING
    ════════════════════════════════════════════════════════════ */
@@ -207,6 +286,7 @@ function processRow(row, fileLabel) {
 
   return {
     file_label:    fileLabel,
+    league_tier:   classifyLeague(league),
     date, league,
     home_team:     homeTeam,
     away_team:     awayTeam,
@@ -932,6 +1012,7 @@ function computeLiveOdd(pHtPct,betKey,matchMinute,favLine=0.75,
    ════════════════════════════════════════════════════════════ */
 let _db       = [];
 let _fileInfo = [];
+let _scanDataCache = new Map();   // id → scraped data; populated by runBatchScan
 
 const state = {
   gsTrigger:    'HT',
@@ -958,7 +1039,14 @@ const state = {
   bTlmOn: true,
   bOvmOn: false,
   bUnmOn: false,
+  leagueTier: 'ALL',
 };
+
+function getDb() {
+  if (state.leagueTier === 'TOP')   return _db.filter(r => r.league_tier === 'TOP');
+  if (state.leagueTier === 'MAJOR') return _db.filter(r => r.league_tier === 'TOP' || r.league_tier === 'MAJOR');
+  return _db;
+}
 
 /* ════════════════════════════════════════════════════════════
    INIT
@@ -1011,11 +1099,12 @@ async function autoLoadData() {
    TAB SWITCHING
    ════════════════════════════════════════════════════════════ */
 function switchTab(name) {
-  document.querySelectorAll('.tab-btn').forEach((b, i) => {
-    b.classList.toggle('active', (i === 0 ? 'match' : 'disc') === name);
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.tab === name);
   });
-  document.getElementById('tab-match').classList.toggle('active', name === 'match');
-  document.getElementById('tab-disc').classList.toggle('active', name === 'disc');
+  ['match', 'disc', 'scan'].forEach(t =>
+    document.getElementById(`tab-${t}`).classList.toggle('active', t === name)
+  );
 }
 
 /* ════════════════════════════════════════════════════════════
@@ -1069,15 +1158,30 @@ function clearDb() {
   updateDbUI({ total: 0, files: [] });
 }
 
+function setLeagueTier(tier) {
+  state.leagueTier = tier;
+  ['ALL','MAJOR','TOP'].forEach(t => {
+    document.getElementById(`tier-btn-${t}`)?.classList.toggle('active', t === tier);
+  });
+}
+
 function updateDbUI(data) {
   const status = document.getElementById('db-status');
+  const breakdown = document.getElementById('tier-breakdown');
 
   if (data.total === 0) {
     status.textContent = 'No database loaded';
     status.className   = 'db-status';
+    if (breakdown) breakdown.textContent = '';
   } else {
     status.textContent = `✓  ${data.total.toLocaleString()} records  ·  ${data.files.length} file${data.files.length !== 1 ? 's' : ''}`;
     status.className   = 'db-status loaded';
+    if (breakdown) {
+      const nTop   = _db.filter(r => r.league_tier === 'TOP').length;
+      const nMajor = _db.filter(r => r.league_tier === 'MAJOR').length;
+      const nOther = data.total - nTop - nMajor;
+      breakdown.textContent = `TOP 5+UCL: ${nTop.toLocaleString()}  ·  MAJOR: ${nMajor.toLocaleString()}  ·  Other: ${nOther.toLocaleString()}`;
+    }
   }
 }
 
@@ -1492,16 +1596,17 @@ function runMatch() {
   const gs   = getGs('gs-panel', state.gsTrigger);
   const minN = getMinN();
 
-  const cfgRows = applyConfig(_db, cfg);
+  const _activeDb = getDb();
+  const cfgRows = applyConfig(_activeDb, cfg);
   const derivedFavSide = cfg.fav_side !== 'ANY' ? cfg.fav_side : cfg.derived_fav_side;
 
   // --- Scenario 1: pre-match (no game state) ---
-  const baselineRows_pre = applyBaselineConfig(_db, cfg);
+  const baselineRows_pre = applyBaselineConfig(_activeDb, cfg);
   const blSide_pre = (derivedFavSide && derivedFavSide !== 'ANY')
     ? baselineRows_pre.filter(r => r.fav_side === derivedFavSide) : null;
   const allBets_pre = scoreBets(cfgRows, baselineRows_pre, blSide_pre, minN);
   const bets_pre    = allBets_pre.filter(b => Math.abs(b.z) >= MIN_Z);
-  const ftrace_pre  = traceConfig(_db, cfg, null);
+  const ftrace_pre  = traceConfig(_activeDb, cfg, null);
 
   // --- Scenario 2: in-play (with game state) ---
   const stateRows_gs    = applyGameState(cfgRows, gs);
@@ -1509,7 +1614,7 @@ function runMatch() {
   const blSide_gs       = blSide_pre ? applyGameState(blSide_pre, gs) : null;
   const allBets_gs      = scoreBets(stateRows_gs, baselineRows_gs, blSide_gs, 1);
   const bets_gs         = allBets_gs.filter(b => Math.abs(b.z) >= MIN_Z);
-  const ftrace_gs       = traceConfig(_db, cfg, gs);
+  const ftrace_gs       = traceConfig(_activeDb, cfg, gs);
 
   // Attach live odds to in-play scenario bets if estimator is ON
   if (state.liveOn) {
@@ -1712,17 +1817,17 @@ function runDisc() {
   // Diagnostic check for TL data
   let diagMsg = null;
   if (tlRaw && tlRaw !== 'ANY') {
-    const totalWithTl = _db.filter(r => r.tl_c != null).length;
+    const totalWithTl = getDb().filter(r => r.tl_c != null).length;
     if (totalWithTl === 0) {
       diagMsg = 'No Total Line data found in the loaded CSV files. Your CSVs must include a "Total Line Closing" column for TL filtering.';
     } else {
       let tlN;
       if (TL_CLUSTERS[tlRaw]) {
         const [lo, hi] = TL_CLUSTERS[tlRaw];
-        tlN = _db.filter(r => r.tl_c != null && (lo == null || r.tl_c >= lo) && (hi == null || r.tl_c < hi)).length;
+        tlN = getDb().filter(r => r.tl_c != null && (lo == null || r.tl_c >= lo) && (hi == null || r.tl_c < hi)).length;
       } else {
         const tlv = parseFloat(tlRaw);
-        tlN = isNaN(tlv) ? 0 : _db.filter(r => r.tl_c != null && Math.abs(r.tl_c - tlv) < 0.13).length;
+        tlN = isNaN(tlv) ? 0 : getDb().filter(r => r.tl_c != null && Math.abs(r.tl_c - tlv) < 0.13).length;
       }
       if (tlN < minN) diagMsg = `TL filter "${tlRaw}" matches only ${tlN} records (minimum is ${minN}). Try a broader range.`;
     }
@@ -1731,7 +1836,7 @@ function runDisc() {
   // Yield to browser so loader renders before heavy computation
   setTimeout(() => {
     try {
-      const results = discover(_db, favLine, favSide, lineMoveI, tlMoveI, gs, minN, tlRaw);
+      const results = discover(getDb(), favLine, favSide, lineMoveI, tlMoveI, gs, minN, tlRaw);
       renderDiscResults({ results, diag_msg: diagMsg });
     } catch (e) {
       showError(e.message);
@@ -2300,4 +2405,221 @@ function renderDiscResults(data) {
   }
 
   right.innerHTML = html;
+}
+
+/* ════════════════════════════════════════════════════════════
+   LIVE SCAN — batch match processing
+   ════════════════════════════════════════════════════════════ */
+
+function buildCfgFromMatchData(data) {
+  const hc = data.ah_hc != null ? data.ah_hc : null;
+  if (hc === null) return null;
+  const favLc   = Math.abs(hc);
+  const favLine = VALID_LINES.find(v => Math.abs(favLc - v) < 0.13);
+  if (favLine === undefined) return null;
+
+  const favSide = hc < -0.01 ? 'HOME' : hc > 0.01 ? 'AWAY'
+                : (data.ho_c != null && data.ao_c != null && data.ho_c <= data.ao_c) ? 'HOME' : 'AWAY';
+
+  const favOc = favSide === 'HOME' ? data.ho_c : data.ao_c;
+  const favOo = favSide === 'HOME' ? data.ho_o : data.ao_o;
+  const dogOc = favSide === 'HOME' ? data.ao_c : data.ho_c;
+  const dogOo = favSide === 'HOME' ? data.ao_o : data.ho_o;
+
+  let lineMove = 'UNKNOWN';
+  if (data.ah_ho != null) {
+    const diff = favLc - Math.abs(data.ah_ho);
+    lineMove = diff > LINE_THRESH ? 'DEEPER' : diff < -LINE_THRESH ? 'SHRANK' : 'STABLE';
+  }
+  const favOddsMove = oddsDir(favOc, favOo);
+  const dogOddsMove = oddsDir(dogOc, dogOo);
+  const tlMove      = moveDir(data.tl_c, data.tl_o, TL_THRESH);
+  const overMove    = oddsDir(data.ov_c, data.ov_o);
+  const underMove   = oddsDir(data.un_c, data.un_o);
+
+  return {
+    fav_line: favLine.toFixed(2), fav_side: favSide, derived_fav_side: favSide,
+    line_move:     state.bLmOn  ? lineMove     : 'ANY',
+    fav_odds_move: state.bFomOn ? favOddsMove  : 'ANY',
+    dog_odds_move: state.bDomOn ? dogOddsMove  : 'ANY',
+    over_move:     state.bOvmOn ? overMove     : 'ANY',
+    under_move:    state.bUnmOn ? underMove    : 'ANY',
+    tl_c: data.tl_c, tl_range: null, tl_cluster: null,
+    tl_move: state.bTlmOn ? tlMove : 'ANY', tl_max: null,
+    odds_tolerance: 0, fav_oc: null, fav_oo: null, dog_oc: null, dog_oo: null,
+    ov_c: null, ov_tol: null, un_c: null, un_tol: null,
+    // passthrough for display only (not used by applyConfig):
+    _signals: { lineMove, favOddsMove, dogOddsMove, tlMove, overMove, underMove, favSide, favLine },
+  };
+}
+
+async function runBatchScan() {
+  if (!_db.length) { showScanError('No database loaded.'); return; }
+
+  const minN = getScanMinN();
+  const gs   = getGs('gs-panel', state.gsTrigger);
+
+  // Phase 1: fetch match list
+  setScanProgress('Fetching live match list…', 0, 0);
+  let matchList;
+  try {
+    const resp = await fetch('/api/livescore');
+    const data = await resp.json();
+    if (data.error) { showScanError(data.error); return; }
+    matchList = data.matches || [];
+    if (data.note && !matchList.length) { showScanError(data.note); return; }
+  } catch (e) { showScanError('Network error: ' + e.message); return; }
+
+  if (!matchList.length) { showScanError('No live matches found.'); return; }
+
+  // Phase 2: fetch odds per match (6 concurrent)
+  const BATCH = 6;
+  const total = matchList.length;
+  let done = 0;
+  const scraped = [];
+  _scanDataCache.clear();
+
+  for (let i = 0; i < total; i += BATCH) {
+    const chunk = matchList.slice(i, i + BATCH);
+    const results = await Promise.all(chunk.map(async match => {
+      try {
+        const r = await fetch('/api/scrape?url=' + encodeURIComponent(match.url));
+        const d = await r.json();
+        return { match, data: d.error ? null : d };
+      } catch { return { match, data: null }; }
+    }));
+    scraped.push(...results);
+    done += chunk.length;
+    setScanProgress(`Fetched ${done} / ${total} matches…`, done, total);
+  }
+
+  // Phase 3: score each match
+  const qualifying = [];
+  for (const { match, data } of scraped) {
+    if (!data) continue;
+    const cfg = buildCfgFromMatchData(data);
+    if (!cfg) continue;
+
+    const cfgRows  = applyConfig(getDb(), cfg);
+    const blRows   = applyBaselineConfig(getDb(), cfg);
+    const blSide   = blRows.filter(r => r.fav_side === cfg.fav_side);
+    const stateRows = applyGameState(cfgRows, gs);
+    const blGs      = applyGameState(blRows,  gs);
+    const blSideGs  = applyGameState(blSide,  gs);
+
+    if (stateRows.length < minN) continue;
+
+    const bets     = scoreBets(stateRows, blGs, blSideGs, minN);
+    const qualBets = bets.filter(b => Math.abs(b.z) >= MIN_Z && b.edge > 0);
+    if (!qualBets.length) continue;
+
+    _scanDataCache.set(match.id, data);
+    const bestZ = Math.max(...qualBets.map(b => Math.abs(b.z)));
+    qualifying.push({ match, cfg, bets: qualBets, bestZ, n: stateRows.length });
+  }
+
+  qualifying.sort((a, b) => b.bestZ - a.bestZ);
+  setScanProgress(`Done — ${qualifying.length} qualifying match${qualifying.length !== 1 ? 'es' : ''} from ${total} live`, total, total);
+  renderBatchResults(qualifying, total, gs);
+}
+
+async function startBatchScan() {
+  const btn  = document.getElementById('scan-run-btn');
+  const wrap = document.getElementById('scan-progress-wrap');
+  btn.disabled = true;
+  btn.textContent = 'Scanning…';
+  wrap.style.display = '';
+  document.getElementById('scan-results').innerHTML = '';
+  try { await runBatchScan(); } finally {
+    btn.disabled = false;
+    btn.textContent = 'SCAN LIVE MATCHES →';
+  }
+}
+
+function setScanProgress(msg, done, total) {
+  document.getElementById('scan-progress-text').textContent = msg;
+  document.getElementById('scan-progress-bar').style.width =
+    total > 0 ? `${Math.round(done / total * 100)}%` : '0%';
+}
+
+function showScanError(msg) {
+  document.getElementById('scan-results').innerHTML =
+    `<div class="no-bets"><div class="warn-icon">⚠️</div><p>${msg}</p></div>`;
+  setScanProgress('', 0, 0);
+}
+
+function getScanMinN() {
+  const v = parseInt(document.getElementById('scan-min-n')?.value, 10);
+  return isNaN(v) || v < 1 ? 15 : v;
+}
+
+function useScanMatch(id) {
+  const data = _scanDataCache.get(id);
+  if (!data) return;
+  fillFromScraped(data);
+  switchTab('match');
+}
+
+function renderBatchResults(results, totalScanned, gs) {
+  const container = document.getElementById('scan-results');
+  if (!results.length) {
+    container.innerHTML = `<div class="no-bets"><div class="warn-icon">⚠️</div>
+      <p>No qualifying matches.<br>Scanned ${totalScanned} live matches.<br>
+      Adjust signal filters or min N.</p></div>`;
+    return;
+  }
+  let html = `<h2 class="results-title">LIVE SCAN — ${results.length} match${results.length !== 1 ? 'es' : ''} qualify</h2>
+    <p style="font-size:11px;color:var(--dim);margin-bottom:12px">
+      GS: ${gsLabel(gs)} · ${totalScanned} live scanned · sorted by z-score</p>`;
+  for (const item of results) html += renderScanMatchCard(item);
+  container.innerHTML = html;
+}
+
+function renderScanMatchCard({ match, cfg, bets, bestZ, n }) {
+  const sig  = cfg._signals;
+  const tier = tierClass(bestZ);
+
+  const badges = [
+    state.bLmOn  && sig.lineMove    !== 'UNKNOWN' ? sigBadge('LM',    sig.lineMove)    : '',
+    state.bFomOn && sig.favOddsMove !== 'UNKNOWN' ? sigBadge('FAV',   sig.favOddsMove) : '',
+    state.bDomOn && sig.dogOddsMove !== 'UNKNOWN' ? sigBadge('DOG',   sig.dogOddsMove) : '',
+    state.bTlmOn && sig.tlMove      !== 'UNKNOWN' ? sigBadge('TLM',   sig.tlMove)      : '',
+    state.bOvmOn && sig.overMove    !== 'UNKNOWN' ? sigBadge('OVER',  sig.overMove)    : '',
+    state.bUnmOn && sig.underMove   !== 'UNKNOWN' ? sigBadge('UNDER', sig.underMove)   : '',
+  ].join('');
+
+  const topBets = bets.slice(0, 3).map(b =>
+    `<div class="scan-bet-row">
+      <span class="scan-bet-label">${b.label}</span>
+      <span class="badge-z">z=${b.z.toFixed(2)}</span>
+      <span class="scan-bet-p">${b.p.toFixed(1)}%</span>
+      <span class="scan-bet-mo">min ${b.mo_mid}</span>
+    </div>`).join('');
+
+  const scoreStr = match.score ? `<span class="scan-score">${match.score}</span>` : '';
+  const ahStr = `AH ${sig.favSide === 'HOME' ? '−' : '+'}${sig.favLine}`;
+
+  return `<div class="scan-card tier-${tier}">
+    <div class="scan-card-header">
+      <div class="scan-match-name">
+        <span class="scan-home">${match.home_team || 'Home'}</span>
+        <span class="scan-vs"> vs </span>
+        <span class="scan-away">${match.away_team || 'Away'}</span>
+        ${scoreStr}
+      </div>
+      <div class="scan-meta">${ahStr} · n=${n}</div>
+    </div>
+    <div class="scan-signals">${badges}</div>
+    <div class="scan-bets">${topBets}</div>
+    <button class="scan-use-btn" onclick="useScanMatch('${match.id}')">Use this match →</button>
+  </div>`;
+}
+
+function sigBadge(label, direction) {
+  const pos = ['IN', 'DEEPER', 'UP'].includes(direction);
+  const neg = ['OUT', 'SHRANK', 'DOWN'].includes(direction);
+  const cls = pos ? 'sig-badge-pos' : neg ? 'sig-badge-neg' : 'sig-badge-stable';
+  const lbl = { IN:'STEAM', OUT:'DRIFT', DEEPER:'DEEPER', SHRANK:'SHRANK',
+                UP:'UP', DOWN:'DOWN', STABLE:'STABLE' }[direction] || direction;
+  return `<span class="sig-badge ${cls}">${label}: ${lbl}</span>`;
 }

@@ -54,10 +54,22 @@
         <div id="url-import-status" class="url-import-status"></div>
       </div>
 
+      <!-- League Tier Filter -->
+      <div class="tier-filter-card">
+        <div class="section-label">LEAGUE TIER</div>
+        <div class="gs-triggers">
+          <button class="gs-trigger-btn active" id="tier-btn-ALL"   onclick="setLeagueTier('ALL')">ALL</button>
+          <button class="gs-trigger-btn"        id="tier-btn-MAJOR" onclick="setLeagueTier('MAJOR')">MAJOR</button>
+          <button class="gs-trigger-btn"        id="tier-btn-TOP"   onclick="setLeagueTier('TOP')">TOP 5 + UCL</button>
+        </div>
+        <div id="tier-breakdown" class="tier-breakdown"></div>
+      </div>
+
       <!-- Tabs -->
       <div class="tabs">
-        <button class="tab-btn active" onclick="switchTab('match')">MATCH ANALYSIS</button>
-        <button class="tab-btn"        onclick="switchTab('disc')">CONFIG DISCOVERY</button>
+        <button class="tab-btn active" data-tab="match" onclick="switchTab('match')">MATCH ANALYSIS</button>
+        <button class="tab-btn"        data-tab="disc"  onclick="switchTab('disc')">CONFIG DISCOVERY</button>
+        <button class="tab-btn"        data-tab="scan"  onclick="switchTab('scan')">LIVE SCAN</button>
       </div>
 
       <!-- ══ MATCH ANALYSIS TAB ═════════════════════════ -->
@@ -470,6 +482,35 @@
         <!-- Run -->
         <button class="run-btn" onclick="runDisc()">FIND BEST CONFIGURATIONS →</button>
       </div><!-- /tab-disc -->
+
+      <!-- ══ LIVE SCAN TAB ═══════════════════════════════════ -->
+      <div id="tab-scan" class="tab-pane">
+        <p style="color:var(--dim);font-size:11px;margin-bottom:12px;line-height:1.6">
+          Scans all live matches on asianbetsoccer.com and applies the
+          <strong style="color:var(--bright)">Basic mode signal filters</strong>.
+          Shows only matches with qualifying bets (z ≥ 1.5, edge &gt; 0).
+        </p>
+        <div class="section-label">GAME STATE</div>
+        <p style="color:var(--dim);font-size:10px;margin-bottom:10px">
+          Uses the HT / First Goal / In-play 2H setting from the Match Analysis tab.
+        </p>
+        <div class="section-label">MINIMUM MATCHING RECORDS</div>
+        <div class="min-n-row">
+          <button class="min-n-preset" onclick="document.getElementById('scan-min-n').value=10">10</button>
+          <button class="min-n-preset" onclick="document.getElementById('scan-min-n').value=15">15</button>
+          <button class="min-n-preset" onclick="document.getElementById('scan-min-n').value=20">20</button>
+          <button class="min-n-preset" onclick="document.getElementById('scan-min-n').value=30">30</button>
+          <input class="min-n-input" id="scan-min-n" type="text" value="15">
+        </div>
+        <div id="scan-progress-wrap" style="display:none;margin:10px 0">
+          <div class="scan-progress-track">
+            <div class="scan-progress-bar" id="scan-progress-bar" style="width:0%"></div>
+          </div>
+          <div id="scan-progress-text" class="scan-progress-text"></div>
+        </div>
+        <button class="run-btn" id="scan-run-btn" onclick="startBatchScan()">SCAN LIVE MATCHES →</button>
+        <div id="scan-results"></div>
+      </div><!-- /tab-scan -->
 
     </div><!-- /left-panel -->
 

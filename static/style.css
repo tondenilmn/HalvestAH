@@ -727,3 +727,38 @@ select.gs-select {
 .live-odds-hit  { font-size: 13px; font-weight: bold; color: var(--green); }
 .live-odds-bust { font-size: 13px; font-weight: bold; color: var(--red); }
 .live-ft-note   { font-size: 10px; color: var(--dim); padding: 6px 14px; border-top: 1px solid var(--border); }
+
+/* ── Live Scan ──────────────────────────────────────────── */
+.scan-progress-track { height:6px; background:var(--bg3); border-radius:3px; overflow:hidden; margin-bottom:5px; }
+.scan-progress-bar   { height:100%; background:var(--green); border-radius:3px; transition:width .3s; }
+.scan-progress-text  { font-size:11px; color:var(--dim); }
+
+.scan-card { background:var(--bg1); border:1px solid var(--border); border-radius:9px; padding:12px 14px; margin-bottom:10px; }
+.scan-card.tier-strong   { border-left:3px solid var(--green); }
+.scan-card.tier-good     { border-left:3px solid var(--blue);  }
+.scan-card.tier-marginal { border-left:3px solid var(--dim);   }
+
+.scan-card-header { margin-bottom:8px; }
+.scan-match-name  { font-size:13px; font-weight:bold; color:var(--bright); margin-bottom:3px; }
+.scan-vs          { color:var(--dim); margin:0 4px; }
+.scan-score       { margin-left:8px; background:var(--bg3); border-radius:4px; padding:1px 6px; font-size:12px; color:var(--green); }
+.scan-meta        { font-size:10px; color:var(--dim); }
+
+.scan-signals { display:flex; flex-wrap:wrap; gap:4px; margin-bottom:8px; }
+.sig-badge    { font-size:10px; font-weight:bold; padding:2px 7px; border-radius:4px; border:1px solid transparent; }
+.sig-badge-pos    { background:rgba(0,229,170,0.12); color:var(--green); border-color:var(--green); }
+.sig-badge-neg    { background:rgba(255,77,94,0.12);  color:var(--red);   border-color:var(--red);   }
+.sig-badge-stable { background:var(--bg3); color:var(--dim); }
+
+.scan-bets    { margin-bottom:10px; }
+.scan-bet-row { display:flex; align-items:center; gap:8px; font-size:11px; padding:3px 0; border-bottom:1px solid var(--bg3); }
+.scan-bet-label { flex:1; color:var(--text); }
+.scan-bet-p   { color:var(--dim); }
+.scan-bet-mo  { color:var(--green); font-weight:bold; }
+
+.scan-use-btn { width:100%; padding:7px; border:none; border-radius:6px; background:var(--bg3); color:var(--dim); font-family:var(--font); font-size:11px; font-weight:bold; cursor:pointer; transition:all .15s; }
+.scan-use-btn:hover { background:var(--green); color:#000; }
+
+/* ── League Tier Filter ──────────────────────────────────── */
+.tier-filter-card { margin-bottom: 8px; }
+.tier-breakdown   { font-size: 10px; color: var(--dim); margin-top: 5px; line-height: 1.5; }
