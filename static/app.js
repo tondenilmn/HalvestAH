@@ -2459,11 +2459,13 @@ async function runBatchScan() {
   const minN = getScanMinN();
   const gs   = getGs('gs-panel', state.gsTrigger);
 
-  // Phase 1: fetch match list
+  // Phase 1: fetch match list (with embedded Pinnacle odds from botbot3.space)
   setScanProgress('Fetching live match list…', 0, 0);
   let matchList;
   try {
-    const resp = await fetch('/api/livescore');
+    const scanUrl = document.getElementById('scan-url-input')?.value.trim() || '';
+    const apiUrl  = '/api/livescore' + (scanUrl ? '?url=' + encodeURIComponent(scanUrl) : '');
+    const resp = await fetch(apiUrl);
     const data = await resp.json();
     if (data.error) { showScanError(data.error); return; }
     matchList = data.matches || [];
@@ -2472,25 +2474,38 @@ async function runBatchScan() {
 
   if (!matchList.length) { showScanError('No live matches found.'); return; }
 
-  // Phase 2: fetch odds per match (6 concurrent)
+  // Phase 2: fetch odds per match — skipped when livescore already returns embedded odds
   const BATCH = 6;
   const total = matchList.length;
   let done = 0;
   const scraped = [];
   _scanDataCache.clear();
 
-  for (let i = 0; i < total; i += BATCH) {
-    const chunk = matchList.slice(i, i + BATCH);
-    const results = await Promise.all(chunk.map(async match => {
-      try {
-        const r = await fetch('/api/scrape?url=' + encodeURIComponent(match.url));
-        const d = await r.json();
-        return { match, data: d.error ? null : d };
-      } catch { return { match, data: null }; }
-    }));
-    scraped.push(...results);
-    done += chunk.length;
-    setScanProgress(`Fetched ${done} / ${total} matches…`, done, total);
+  // Separate matches that already have odds (new livescore endpoint) from those that don't
+  const needsScrape = matchList.filter(m => !m.odds);
+  const hasOdds     = matchList.filter(m =>  m.odds);
+
+  // Matches with embedded odds go straight to scored list
+  for (const match of hasOdds) {
+    scraped.push({ match, data: match.odds });
+  }
+
+  // Only scrape individually for matches that came without odds (fallback path)
+  if (needsScrape.length > 0) {
+    setScanProgress(`Fetching odds for ${needsScrape.length} matches…`, 0, needsScrape.length);
+    for (let i = 0; i < needsScrape.length; i += BATCH) {
+      const chunk = needsScrape.slice(i, i + BATCH);
+      const results = await Promise.all(chunk.map(async match => {
+        try {
+          const r = await fetch('/api/scrape?url=' + encodeURIComponent(match.url));
+          const d = await r.json();
+          return { match, data: d.error ? null : d };
+        } catch { return { match, data: null }; }
+      }));
+      scraped.push(...results);
+      done += chunk.length;
+      setScanProgress(`Fetched ${done} / ${needsScrape.length} matches…`, done, needsScrape.length);
+    }
   }
 
   // Phase 3: score each match
@@ -2596,7 +2611,9 @@ function renderScanMatchCard({ match, cfg, bets, bestZ, n }) {
       <span class="scan-bet-mo">min ${b.mo_mid}</span>
     </div>`).join('');
 
-  const scoreStr = match.score ? `<span class="scan-score">${match.score}</span>` : '';
+  const scoreStr  = match.score  ? `<span class="scan-score">${match.score}</span>`   : '';
+  const minuteStr = match.minute ? `<span class="scan-minute">${match.minute}</span>` : '';
+  const leagueStr = match.league ? `<span class="scan-league">${match.league}</span>` : '';
   const ahStr = `AH ${sig.favSide === 'HOME' ? '−' : '+'}${sig.favLine}`;
 
   return `<div class="scan-card tier-${tier}">
@@ -2605,9 +2622,9 @@ function renderScanMatchCard({ match, cfg, bets, bestZ, n }) {
         <span class="scan-home">${match.home_team || 'Home'}</span>
         <span class="scan-vs"> vs </span>
         <span class="scan-away">${match.away_team || 'Away'}</span>
-        ${scoreStr}
+        ${scoreStr}${minuteStr}
       </div>
-      <div class="scan-meta">${ahStr} · n=${n}</div>
+      <div class="scan-meta">${leagueStr}${leagueStr ? ' · ' : ''}${ahStr} · n=${n}</div>
     </div>
     <div class="scan-signals">${badges}</div>
     <div class="scan-bets">${topBets}</div>

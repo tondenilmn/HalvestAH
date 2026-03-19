@@ -742,6 +742,8 @@ select.gs-select {
 .scan-match-name  { font-size:13px; font-weight:bold; color:var(--bright); margin-bottom:3px; }
 .scan-vs          { color:var(--dim); margin:0 4px; }
 .scan-score       { margin-left:8px; background:var(--bg3); border-radius:4px; padding:1px 6px; font-size:12px; color:var(--green); }
+.scan-minute      { margin-left:6px; font-size:11px; color:var(--yellow); }
+.scan-league      { color:var(--blue); }
 .scan-meta        { font-size:10px; color:var(--dim); }
 
 .scan-signals { display:flex; flex-wrap:wrap; gap:4px; margin-bottom:8px; }

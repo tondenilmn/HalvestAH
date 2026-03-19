@@ -33,10 +33,11 @@ Or connect the repo to Cloudflare Pages with build command `node build.js` and o
 build.js                  # Scans static/data/**/*.csv recursively → writes static/data/manifest.json
 functions/
   api/
-    scrape.js             # Cloudflare Pages Function: GET /api/scrape?url=<asianbetsoccer URL>
+    scrape.js             # GET /api/scrape?url=<asianbetsoccer URL> — individual match odds (CORS bypass)
+    livescore.js          # GET /api/livescore[?debug=1] — all live/upcoming Pinnacle odds in one request
 static/
   index.html              # App shell
-  app.js                  # All logic: CSV processing, engine, UI (~1950 lines)
+  app.js                  # All logic: CSV processing, engine, UI (~2500 lines)
   style.css               # Dark theme
   data/
     manifest.json         # Auto-generated — do not edit by hand
@@ -68,15 +69,23 @@ Everything in the Python desktop app (`constants.py`, `data.py`, `engine.py`, `s
 
 When `ahHc ≈ 0`, the favourite is determined by lower closing odds (more likely to win). `favLc = 0.0`, `favLo = |ahHo|`.
 
-## Bet Set (24 bets)
+## Bet Set (34 bets)
 
-Fav-normalised: `ahCover`, `favWins2H`, `favScored2H`, `draw2H`
-Home/Away 2H: `homeWins2H`, `awayWins2H`, `homeScored2H`, `awayScored2H`, `homeOver15_2H`, `awayOver15_2H`
+Fav-normalised AH: `ahCover`
+2H fav-normalised: `favWins2H`, `favScored2H`, `draw2H`
+2H home/away: `homeWins2H`, `awayWins2H`, `homeScored2H`, `awayScored2H`, `homeOver15_2H`, `awayOver15_2H`
 2H totals: `over05_2H`, `over15_2H`, `under05_2H`, `under15_2H`
+1H fav-normalised: `favWins1H`, `draw1H`, `favScored1H`
+1H home/away: `homeWins1H`, `awayWins1H`
+1H totals: `over05_1H`, `over15_1H`, `under05_1H`, `under15_1H`, `btts1H`
 FT results: `homeWinsFT`, `awayWinsFT`, `drawFT`, `dnbHome`, `dnbAway`, `btts`
 FT totals: `over15FT`, `over25FT`, `over35FT`, `under25FT`
 
 Bets with `favSideBaseline` use a side-filtered baseline pool (e.g. only HOME fav rows as baseline for `homeWins2H`).
+
+## League Tier Classification
+
+Rows are tagged `TOP` / `MAJOR` / `OTHER` at load time via `_T1_RULES` / `_T2_KEYS` in `app.js`. The UI exposes a tier filter (All / TOP / MAJOR / OTHER) that restricts the entire database before analysis. `TOP` = top 5 European leagues + main UEFA club competitions; `MAJOR` = other strong national/continental leagues; `OTHER` = everything else.
 
 ## Filter Modes (applyConfig)
 
@@ -91,6 +100,49 @@ Bets with `favSideBaseline` use a side-filtered baseline pool (e.g. only HOME fa
 4. `cfg.tl_o` (opening TL exact match ±0.13)
 
 `over_move` and `under_move` are tracked per row and filterable independently.
+
+## The Livescore Function (`functions/api/livescore.js`)
+
+Fetches all live/upcoming matches with embedded Pinnacle odds in a single request.
+
+**Confirmed botbot3.space endpoint:**
+```
+https://botbot3.space/tables/v4/Q/livegame/43fe2ceaef3c97c30c1653416175a8a5a73865ff.js?date={timestamp}&_={timestamp+1}
+```
+- `Q` = stats filter code (`gS` from `CookieStats()` on the livescore page)
+- `43fe2ceaef3c97c30c1653416175a8a5a73865ff` = Pinnacle's static book hash (confirmed from `#book_filter` option values)
+
+**JS file format** — the livegame file does NOT embed HTML strings. It builds tables via repeated function calls:
+- `match2text += getData2(rowIdx, 1, leagueId, enc, matchId, ah_hc, ah_ho, ...)` — odds data
+- `match1text += getDatalive1(...)` — currently live matches (minute like `'5\''` at `[10]`)
+- `match1text += getDatalast1(...)` — upcoming/finishing matches (ISO datetime at `[10]`)
+
+**Confirmed `getData2()` param indices:**
+```
+[4]=matchId  [5]=ah_hc  [6]=ah_ho  [11]=ho_c  [12]=ho_o
+[16]=ao_c    [17]=ao_o  [21]=tl_c  [22]=tl_o
+[24]=ov_c    [25]=ov_o  [29]=un_c  [30]=un_o
+```
+
+**`getDatalive1` / `getDatalast1` param indices (same layout for both):**
+```
+[5]=matchId  [6]=leagueName  [9]=homeTeam  [10]=timeOrMinute  [22]=awayTeam
+[4]=statusCode — encodes live score as 'Q{half}_FD{homeGoals}{awayGoals}' (e.g. 'Q2_FD24' → 2-4)
+```
+
+**Parsing strategy in `livescore.js`:**
+1. `parseGetData2Calls()` — extracts odds from `getData2()` args using confirmed indices
+2. `parseGetData1Calls()` — regex matches both `getDatalive1` and `getDatalast1`; extracts teams, league, minute, score
+3. `mergeMatchData()` — merges by `matchId`; falls back to array index
+4. HTML string fallback (`parseLivegameTables`) kept for older botbot3 format (jQuery `.html("…")`)
+
+**Returns:**
+```json
+{ matches: [{ id, url, home_team, away_team, league, minute, score, odds: {ah_hc, ah_ho, ho_c, ho_o, ao_c, ao_o, tl_c, tl_o, ov_c, ov_o, un_c, un_o} }] }
+```
+`app.js` `runBatchScan()` uses embedded odds directly, skipping per-match `/api/scrape` calls. Scan cards display league (blue), live minute (yellow), and score.
+
+**Debug endpoint:** `GET /api/livescore?debug=1` — returns `getData2_count`, `getData1_count`, `matches_preview`, `getData1_sample`, `getData2_sample` for diagnosing format changes.
 
 ## The Scrape Function (`functions/api/scrape.js`)
 
@@ -108,11 +160,7 @@ Returns JSON: `ah_hc`, `ah_ho`, `ho_c`, `ho_o`, `ao_c`, `ao_o`, `tl_c`, `tl_o`, 
 
 ## CSV Workflow
 
-<<<<<<< HEAD
-1. Drop Pinnacle export CSVs into `static/data/` (nested folders OK, e.g. `data/Pinnacle/Jan25/file.csv`).
-=======
-1. Drop Pinnacle export CSVs into `static/data/` (nested folders like `data/League/Season/file.csv` are supported).
->>>>>>> 4509f886a7f77e1f6f2160b65dfa9553e6beabbc
+1. Drop Pinnacle export CSVs into `static/data/` (nested folders OK, e.g. `data/League/Season/file.csv`).
 2. Run `node build.js` to regenerate `manifest.json`.
 3. Commit and push — Cloudflare auto-redeploys.
 
