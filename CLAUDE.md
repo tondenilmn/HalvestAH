@@ -108,7 +108,11 @@ Returns JSON: `ah_hc`, `ah_ho`, `ho_c`, `ho_o`, `ao_c`, `ao_o`, `tl_c`, `tl_o`, 
 
 ## CSV Workflow
 
+<<<<<<< HEAD
+1. Drop Pinnacle export CSVs into `static/data/` (nested folders OK, e.g. `data/Pinnacle/Jan25/file.csv`).
+=======
 1. Drop Pinnacle export CSVs into `static/data/` (nested folders like `data/League/Season/file.csv` are supported).
+>>>>>>> 4509f886a7f77e1f6f2160b65dfa9553e6beabbc
 2. Run `node build.js` to regenerate `manifest.json`.
 3. Commit and push — Cloudflare auto-redeploys.
 
