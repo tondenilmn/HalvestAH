@@ -2528,7 +2528,7 @@ async function runBatchScan() {
     const qualBets = bets.filter(b => Math.abs(b.z) >= MIN_Z && b.edge > 0);
     if (!qualBets.length) continue;
 
-    _scanDataCache.set(match.id, data);
+    _scanDataCache.set(match.id, { odds: data, match });
     const bestZ = Math.max(...qualBets.map(b => Math.abs(b.z)));
     qualifying.push({ match, cfg, bets: qualBets, bestZ, n: stateRows.length });
   }
@@ -2569,10 +2569,42 @@ function getScanMinN() {
 }
 
 function useScanMatch(id) {
-  const data = _scanDataCache.get(id);
-  if (!data) return;
-  fillFromScraped(data);
+  const entry = _scanDataCache.get(id);
+  if (!entry) return;
+  fillFromScraped(entry.odds);
+  fillLiveMatchState(entry.match);
   switchTab('match');
+}
+
+function fillLiveMatchState(match) {
+  if (!match) return;
+
+  // Live minute — strip apostrophe ("7'" → 7) and populate the estimator field
+  const rawMin = match.minute ? String(match.minute).replace(/'/g, '').trim() : null;
+  const minNum = rawMin ? parseInt(rawMin, 10) : NaN;
+  if (!isNaN(minNum)) {
+    const el = document.getElementById('live-minute');
+    if (el) el.value = minNum;
+  }
+
+  // Score — only populate when explicitly known; never assume 0-0 (score=null may mean parse failed)
+  if (!match.score) return;
+  const parts = match.score.split('-');
+  const homeG = parseInt(parts[0], 10) || 0;
+  const awayG = parseInt(parts[1], 10) || 0;
+
+  const setField = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+
+  // Populate HT score fields (best proxy for current state; user adjusts if they know the actual HT)
+  setField('gs-panel-home', homeG);
+  setField('gs-panel-away', awayG);
+
+  // If we're in 2H (minute > 45), also pre-fill the 2H in-play fields with 0-0
+  // (we can't split total score into HT + 2H without HT data — user fills 2H goals manually)
+  if (!isNaN(minNum) && minNum > 45) {
+    setField('gs-panel-home2h', 0);
+    setField('gs-panel-away2h', 0);
+  }
 }
 
 function renderBatchResults(results, totalScanned, gs) {
@@ -2611,9 +2643,8 @@ function renderScanMatchCard({ match, cfg, bets, bestZ, n }) {
       <span class="scan-bet-mo">min ${b.mo_mid}</span>
     </div>`).join('');
 
-  const displayScore = match.score || (match.minute ? '0-0' : null);
-  const scoreStr  = displayScore  ? `<span class="scan-score">${displayScore}</span>`  : '';
-  const minuteStr = match.minute  ? `<span class="scan-minute">${match.minute}</span>` : '';
+  const scoreStr  = match.score  ? `<span class="scan-score">${match.score}</span>`   : '';
+  const minuteStr = match.minute ? `<span class="scan-minute">${match.minute}</span>` : '';
   const leagueStr = match.league ? `<span class="scan-league">${match.league}</span>` : '';
   const ahStr = `AH ${sig.favSide === 'HOME' ? '−' : '+'}${sig.favLine}`;
 

@@ -370,11 +370,14 @@ function parseGetData1Calls(jsText) {
     const rawTime  = typeof args[10] === 'string' ? args[10].replace(/\\'/g, "'") : null;
     const minute   = rawTime && !rawTime.includes('T') ? rawTime : null;
 
-    // Score from [4]: 'Q2_FD24' → 2-4, '' → null
+    // Score: scan all early string args for 'Q{half}_FD{home}{away}' pattern.
+    // Confirmed at args[4] but index may shift across botbot3 versions — scanning is safer.
     let score = null;
-    const statusCode = typeof args[4] === 'string' ? args[4] : '';
-    const scoreM = statusCode.match(/FD(\d{1,2})(\d{1,2})/);
-    if (scoreM) score = `${scoreM[1]}-${scoreM[2]}`;
+    for (let ai = 0; ai < Math.min(args.length, 12); ai++) {
+      if (typeof args[ai] !== 'string') continue;
+      const scoreM = args[ai].match(/FD(\d{1,2})(\d{1,2})/);
+      if (scoreM) { score = `${scoreM[1]}-${scoreM[2]}`; break; }
+    }
 
     results.push({ matchId, homeTeam, awayTeam, league, minute, score });
   }
