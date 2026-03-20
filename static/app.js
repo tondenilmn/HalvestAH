@@ -2611,8 +2611,9 @@ function renderScanMatchCard({ match, cfg, bets, bestZ, n }) {
       <span class="scan-bet-mo">min ${b.mo_mid}</span>
     </div>`).join('');
 
-  const scoreStr  = match.score  ? `<span class="scan-score">${match.score}</span>`   : '';
-  const minuteStr = match.minute ? `<span class="scan-minute">${match.minute}</span>` : '';
+  const displayScore = match.score || (match.minute ? '0-0' : null);
+  const scoreStr  = displayScore  ? `<span class="scan-score">${displayScore}</span>`  : '';
+  const minuteStr = match.minute  ? `<span class="scan-minute">${match.minute}</span>` : '';
   const leagueStr = match.league ? `<span class="scan-league">${match.league}</span>` : '';
   const ahStr = `AH ${sig.favSide === 'HOME' ? '−' : '+'}${sig.favLine}`;
 
