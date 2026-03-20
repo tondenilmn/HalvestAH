@@ -112,26 +112,26 @@ export async function onRequest(context) {
     }
     const matches  = mergeMatchData(oddsRows, metaRows);
 
-    const findSample = pattern => {
-      const m = new RegExp(pattern).exec(body);
-      return m ? body.slice(m.index, m.index + 500) : null;
-    };
+    // Collect all getData1 call argument arrays for inspection
+    const getData1Parsed = [];
+    const re1 = /\bmatch1text\s*\+=\s*getData(?:live|last)1\s*\(/g;
+    let rm1;
+    while ((rm1 = re1.exec(body)) !== null) {
+      const args = extractCallArgs(body, rm1.index + rm1[0].length);
+      getData1Parsed.push(args);
+    }
 
     return new Response(
       JSON.stringify({
-        status:          r.status,
-        ok:              r.ok,
+        status:           r.status,
+        ok:               r.ok,
         url,
-        raw_len:         body.length,
-        getData2_count:  oddsRows.length,
-        getData1_count:  metaRows.length,
-        meta_count:      metaRows.length,
-        match_count:     matches.length,
-        matches_preview: matches.slice(0, 3),
-        getData1_sample: findSample('\\bmatch1text\\s*\\+=\\s*getDatalive1\\s*\\('),
-        getData2_sample: findSample('\\bmatch2text\\s*\\+=\\s*getData2\\s*\\('),
-        m1_assigns_n:    (body.match(/match1text\s*\+=/g) || []).length,
-        m2_assigns_n:    (body.match(/match2text\s*\+=/g) || []).length,
+        raw_len:          body.length,
+        getData2_count:   oddsRows.length,
+        getData1_count:   metaRows.length,
+        match_count:      matches.length,
+        matches_preview:  matches,
+        getData1_parsed:  getData1Parsed,
       }),
       { headers: cors }
     );
@@ -349,8 +349,10 @@ function parseGetData2Calls(jsText) {
  *   [9]=homeTeam  [10]=timeOrMinute (ISO datetime for upcoming, "N'" for live)
  *   [22]=awayTeam
  *
- * Score is encoded in [4]: 'Q2_FD24' → home=2, away=4 (FD prefix + single digits).
- * Empty [4] or no FD pattern → score is 0-0 or match not started.
+ * Score: args[11]=home goals, args[23]=away goals (confirmed by cross-referencing live matches).
+ * Corner kicks: args[24]=home, args[25]=away.
+ * args[4] statusCode contains match stats like 'Q1_FA3-SB1-FC2' — NOT the score.
+ * Score is only read for live matches (minute present); upcoming matches also have 0s here.
  */
 function parseGetData1Calls(jsText) {
   const re = /\bmatch1text\s*\+=\s*getData(?:live|last)1\s*\(/g;
@@ -370,13 +372,14 @@ function parseGetData1Calls(jsText) {
     const rawTime  = typeof args[10] === 'string' ? args[10].replace(/\\'/g, "'") : null;
     const minute   = rawTime && !rawTime.includes('T') ? rawTime : null;
 
-    // Score: scan all early string args for 'Q{half}_FD{home}{away}' pattern.
-    // Confirmed at args[4] but index may shift across botbot3 versions — scanning is safer.
+    // Score: args[11] = home goals, args[23] = away goals (confirmed by cross-referencing
+    // multiple live matches with known scores — corner kicks are at [24]/[25]).
+    // Only set score for live matches (minute present); upcoming matches have 0s here too.
     let score = null;
-    for (let ai = 0; ai < Math.min(args.length, 12); ai++) {
-      if (typeof args[ai] !== 'string') continue;
-      const scoreM = args[ai].match(/FD(\d{1,2})(\d{1,2})/);
-      if (scoreM) { score = `${scoreM[1]}-${scoreM[2]}`; break; }
+    if (minute && args.length > 23) {
+      const hg = typeof args[11] === 'number' ? args[11] : parseInt(args[11], 10);
+      const ag = typeof args[23] === 'number' ? args[23] : parseInt(args[23], 10);
+      if (!isNaN(hg) && !isNaN(ag) && hg >= 0 && ag >= 0) score = `${hg}-${ag}`;
     }
 
     results.push({ matchId, homeTeam, awayTeam, league, minute, score });

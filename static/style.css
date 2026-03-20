@@ -485,6 +485,8 @@ select.gs-select {
 .tier-strong  .badge-z { color: var(--green); }
 .tier-good    .badge-z { color: var(--blue); }
 .tier-marginal .badge-z { color: var(--yellow); }
+.badge-z-pos { color: var(--green) !important; }
+.badge-z-neg { color: var(--red)   !important; }
 
 .bet-body { display: grid; grid-template-columns: 1fr 130px; gap: 14px; padding: 12px 14px; }
 .bet-left h3 { font-size: 14px; font-weight: bold; color: var(--bright); margin-bottom: 2px; }
@@ -755,7 +757,8 @@ select.gs-select {
 .scan-bets    { margin-bottom:10px; }
 .scan-bet-row { display:flex; align-items:center; gap:8px; font-size:11px; padding:3px 0; border-bottom:1px solid var(--bg3); }
 .scan-bet-label { flex:1; color:var(--text); }
-.scan-bet-p   { color:var(--dim); }
+.scan-bet-p   { color:var(--bright); }
+.scan-bet-bl  { color:var(--dim); font-size:10px; }
 .scan-bet-mo  { color:var(--green); font-weight:bold; }
 
 .scan-use-btn { width:100%; padding:7px; border:none; border-radius:6px; background:var(--bg3); color:var(--dim); font-family:var(--font); font-size:11px; font-weight:bold; cursor:pointer; transition:all .15s; }

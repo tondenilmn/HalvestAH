@@ -2457,7 +2457,6 @@ async function runBatchScan() {
   if (!_db.length) { showScanError('No database loaded.'); return; }
 
   const minN = getScanMinN();
-  const gs   = getGs('gs-panel', state.gsTrigger);
 
   // Phase 1: fetch match list (with embedded Pinnacle odds from botbot3.space)
   setScanProgress('Fetching live match list…', 0, 0);
@@ -2515,27 +2514,26 @@ async function runBatchScan() {
     const cfg = buildCfgFromMatchData(data);
     if (!cfg) continue;
 
-    const cfgRows  = applyConfig(getDb(), cfg);
-    const blRows   = applyBaselineConfig(getDb(), cfg);
-    const blSide   = blRows.filter(r => r.fav_side === cfg.fav_side);
-    const stateRows = applyGameState(cfgRows, gs);
-    const blGs      = applyGameState(blRows,  gs);
-    const blSideGs  = applyGameState(blSide,  gs);
+    const cfgRows = applyConfig(getDb(), cfg);
+    const blRows  = applyBaselineConfig(getDb(), cfg);
+    const blSide  = blRows.filter(r => r.fav_side === cfg.fav_side);
 
-    if (stateRows.length < minN) continue;
+    if (cfgRows.length < minN) continue;
 
-    const bets     = scoreBets(stateRows, blGs, blSideGs, minN);
+    // Scan card always shows pre-match bets (no GS filter) for a clean signal
+    const bets     = scoreBets(cfgRows, blRows, blSide, minN);
     const qualBets = bets.filter(b => Math.abs(b.z) >= MIN_Z && b.edge > 0);
     if (!qualBets.length) continue;
 
     _scanDataCache.set(match.id, { odds: data, match });
     const bestZ = Math.max(...qualBets.map(b => Math.abs(b.z)));
-    qualifying.push({ match, cfg, bets: qualBets, bestZ, n: stateRows.length });
+    qualifying.push({ match, cfg, bets: qualBets, bestZ, n: cfgRows.length });
   }
 
-  qualifying.sort((a, b) => b.bestZ - a.bestZ);
+  const parseMin = m => parseInt(String(m?.minute || '999').replace(/'/g, ''), 10) || 999;
+  qualifying.sort((a, b) => parseMin(a.match) - parseMin(b.match));
   setScanProgress(`Done — ${qualifying.length} qualifying match${qualifying.length !== 1 ? 'es' : ''} from ${total} live`, total, total);
-  renderBatchResults(qualifying, total, gs);
+  renderBatchResults(qualifying, total);
 }
 
 async function startBatchScan() {
@@ -2607,7 +2605,7 @@ function fillLiveMatchState(match) {
   }
 }
 
-function renderBatchResults(results, totalScanned, gs) {
+function renderBatchResults(results, totalScanned) {
   const container = document.getElementById('scan-results');
   if (!results.length) {
     container.innerHTML = `<div class="no-bets"><div class="warn-icon">⚠️</div>
@@ -2617,7 +2615,7 @@ function renderBatchResults(results, totalScanned, gs) {
   }
   let html = `<h2 class="results-title">LIVE SCAN — ${results.length} match${results.length !== 1 ? 'es' : ''} qualify</h2>
     <p style="font-size:11px;color:var(--dim);margin-bottom:12px">
-      GS: ${gsLabel(gs)} · ${totalScanned} live scanned · sorted by z-score</p>`;
+      Pre-match · ${totalScanned} live scanned · sorted by minute</p>`;
   for (const item of results) html += renderScanMatchCard(item);
   container.innerHTML = html;
 }
@@ -2635,13 +2633,16 @@ function renderScanMatchCard({ match, cfg, bets, bestZ, n }) {
     state.bUnmOn && sig.underMove   !== 'UNKNOWN' ? sigBadge('UNDER', sig.underMove)   : '',
   ].join('');
 
-  const topBets = bets.slice(0, 3).map(b =>
-    `<div class="scan-bet-row">
+  const topBets = bets.slice(0, 3).map(b => {
+    const above = b.edge > 0;
+    const zCls  = above ? 'badge-z badge-z-pos' : 'badge-z badge-z-neg';
+    return `<div class="scan-bet-row">
       <span class="scan-bet-label">${b.label}</span>
-      <span class="badge-z">z=${b.z.toFixed(2)}</span>
-      <span class="scan-bet-p">${b.p.toFixed(1)}%</span>
+      <span class="${zCls}">z=${b.z.toFixed(2)}</span>
+      <span class="scan-bet-p">${b.p.toFixed(1)}% <span class="scan-bet-bl">vs ${b.bl.toFixed(1)}%</span></span>
       <span class="scan-bet-mo">min ${b.mo_mid}</span>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 
   const scoreStr  = match.score  ? `<span class="scan-score">${match.score}</span>`   : '';
   const minuteStr = match.minute ? `<span class="scan-minute">${match.minute}</span>` : '';
