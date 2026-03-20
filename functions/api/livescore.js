@@ -2,7 +2,7 @@
  * Cloudflare Pages Function: GET /api/livescore[?debug=1]
  *
  * Fetches live Pinnacle odds from botbot3.space livegame endpoint:
- *   botbot3.space/tables/v4/Q/livegame/43fe2ceaef3c97c30c1653416175a8a5a73865ff.js?date={ts}
+ *   botbot3.space/tables/v4/Q/livegame/555a04df41c008dbb9fae7894ff184cfe09692ec.js?date={ts}
  *
  * The livegame JS file does NOT embed HTML strings. Instead it builds match tables
  * by calling getData1() and getData2() repeatedly:
@@ -30,7 +30,7 @@
  *   { matches: [], note: "…" }  — when no live data found
  */
 
-const PINNACLE_HASH   = '43fe2ceaef3c97c30c1653416175a8a5a73865ff';
+const PINNACLE_HASH   = '555a04df41c008dbb9fae7894ff184cfe09692ec';
 // Keep candidate lists short — Cloudflare free tier caps Workers at 50 subrequests/invocation.
 // Total attempts = BOOK_CANDIDATES.length × GS_CANDIDATES.length; must stay well under 50.
 const BOOK_CANDIDATES = [
