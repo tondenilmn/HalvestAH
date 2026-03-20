@@ -30,14 +30,44 @@
  *   { matches: [], note: "…" }  — when no live data found
  */
 
-const PINNACLE_HASH   = '555a04df41c008dbb9fae7894ff184cfe09692ec';
-// Keep candidate lists short — Cloudflare free tier caps Workers at 50 subrequests/invocation.
-// Total attempts = BOOK_CANDIDATES.length × GS_CANDIDATES.length; must stay well under 50.
-const BOOK_CANDIDATES = [
-  PINNACLE_HASH,           // confirmed Pinnacle hash
-  'pinnacle',
-];
-const GS_CANDIDATES = ['Q', '1', '2', '3', 'AH', 'S', 'EU', 'A'];
+let PINNACLE_HASH = '555a04df41c008dbb9fae7894ff184cfe09692ec';
+// gS candidates — 'Q' is the confirmed primary value; rest are fallbacks.
+// Auto-discovery (fetchPinnacleHash) is tried before the sweep when the primary hash fails.
+// Worst-case subrequest budget: 1 (fast path) + 1 (page fetch) + 1 (Q+discovered) + 18 (sweep) = 21, well under 50.
+const GS_PRIMARY    = 'Q';
+const GS_CANDIDATES = ['Q', '1', '2', '3', 'AH', 'S', 'EU', 'A', 'ah', 's', '4', '5', '10', '6', '7', '8', 'B', 'F'];
+
+/**
+ * Fetch the asianbetsoccer livescore page and extract Pinnacle's current book hash
+ * from the #book_filter <select> options (e.g. <option value="<40-hex>">Pinnacle</option>).
+ * Falls back to scanning for botbot3.space URLs embedded in any inline scripts.
+ * Returns the hash string, or null if not found.
+ */
+async function fetchPinnacleHash() {
+  try {
+    const resp = await fetch('https://www.asianbetsoccer.com/it/livescore.html', {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'it-IT,it;q=0.9,en-US;q=0.8,en;q=0.7',
+      },
+    });
+    if (!resp.ok) return null;
+    const html = await resp.text();
+
+    // Primary: #book_filter option with 40-char hex value near "Pinnacle" label
+    const m1 = html.match(/value="([a-f0-9]{40})"[^>]*>\s*Pinnacle/i);
+    if (m1) return m1[1];
+
+    // Fallback: any botbot3.space livegame URL embedded in the page
+    const m2 = html.match(/botbot3\.space\/tables\/v4\/[^/]+\/livegame\/([a-f0-9]{40})\.js/);
+    if (m2) return m2[1];
+
+    return null;
+  } catch {
+    return null;
+  }
+}
 
 function makeBotbotHeaders(gS, book) {
   return {
@@ -110,62 +140,81 @@ export async function onRequest(context) {
   const timestamp = Date.now();
   let lastError   = '';
 
-  for (const book of BOOK_CANDIDATES) {
+  /**
+   * Try a single (hash, gS) combination.
+   * Returns a Response if successful, null otherwise.
+   * Updates lastError on failure.
+   */
+  async function tryCombo(hash, gS) {
+    const dataUrl = `https://botbot3.space/tables/v4/${gS}/livegame/${hash}.js?date=${timestamp}&_=${timestamp + 1}`;
+    let jsText;
+    try {
+      const resp = await fetch(dataUrl, { headers: makeBotbotHeaders(gS, hash) });
+      if (!resp.ok) {
+        lastError = `HTTP ${resp.status} (gS=${gS}, book=${hash.slice(0, 8)}…)`;
+        return null;
+      }
+      jsText = await resp.text();
+    } catch (e) {
+      lastError = e.message;
+      return null;
+    }
+
+    const oddsRows = parseGetData2Calls(jsText);
+
+    if (oddsRows.length === 0) {
+      const tm1Html = extractHtmlFromJs(jsText, 'tablematch1') ?? extractVarFromJs(jsText, 'match1text');
+      const tm2Html = extractHtmlFromJs(jsText, 'tablematch2') ?? extractVarFromJs(jsText, 'match2text');
+      if (tm1Html && tm2Html) {
+        const matches = parseLivegameTables(tm1Html, tm2Html);
+        if (matches.length > 0) {
+          return new Response(JSON.stringify({ matches, gS, book: hash, method: 'html' }), { headers: cors });
+        }
+        return new Response(
+          JSON.stringify({ matches: [], note: `No live matches right now (gS=${gS}, book=${hash})` }),
+          { headers: cors }
+        );
+      }
+      lastError = `200 OK but no getData2() calls or HTML tables (gS=${gS}, book=${hash.slice(0, 8)}…)`;
+      return null;
+    }
+
+    let metaRows = parseGetData1Calls(jsText);
+    if (metaRows.length === 0) {
+      const tm1Html = extractHtmlFromJs(jsText, 'tablematch1') ?? extractVarFromJs(jsText, 'match1text');
+      if (tm1Html) metaRows = parseMatch1HtmlForMeta(tm1Html);
+    }
+
+    const matches = mergeMatchData(oddsRows, metaRows);
+    if (matches.length > 0) {
+      return new Response(JSON.stringify({ matches, gS, book: hash, method: 'args' }), { headers: cors });
+    }
+    return new Response(
+      JSON.stringify({ matches: [], note: `No live matches right now (gS=${gS}, book=${hash})` }),
+      { headers: cors }
+    );
+  }
+
+  // ── Step 1: fast path — confirmed combo (1 subrequest) ──────────────────
+  const fast = await tryCombo(PINNACLE_HASH, GS_PRIMARY);
+  if (fast) return fast;
+
+  // ── Step 2: auto-discover hash from asianbetsoccer livescore page ────────
+  // Only runs when the hardcoded hash returns 404, costing 1 extra subrequest.
+  const discovered = await fetchPinnacleHash();
+  if (discovered && discovered !== PINNACLE_HASH) {
+    PINNACLE_HASH = discovered; // update for the sweep below
+    const found = await tryCombo(discovered, GS_PRIMARY);
+    if (found) return found;
+  }
+
+  // ── Step 3: sweep all gS candidates with both hashes ────────────────────
+  const hashesToTry = [...new Set([PINNACLE_HASH, ...(discovered ? [discovered] : [])])];
+  for (const hash of hashesToTry) {
     for (const gS of GS_CANDIDATES) {
-      const dataUrl = `https://botbot3.space/tables/v4/${gS}/livegame/${book}.js?date=${timestamp}&_=${timestamp + 1}`;
-
-      let jsText;
-      try {
-        const resp = await fetch(dataUrl, { headers: makeBotbotHeaders(gS, book) });
-        if (!resp.ok) {
-          lastError = `HTTP ${resp.status} (gS=${gS}, book=${book.slice(0, 8)}…)`;
-          continue;
-        }
-        jsText = await resp.text();
-      } catch (e) {
-        lastError = e.message;
-        continue;
-      }
-
-      // Primary: getData2() argument extraction for odds
-      const oddsRows = parseGetData2Calls(jsText);
-
-      if (oddsRows.length === 0) {
-        // Fallback: try full HTML string extraction (older botbot3 format)
-        const tm1Html = extractHtmlFromJs(jsText, 'tablematch1') ?? extractVarFromJs(jsText, 'match1text');
-        const tm2Html = extractHtmlFromJs(jsText, 'tablematch2') ?? extractVarFromJs(jsText, 'match2text');
-        if (tm1Html && tm2Html) {
-          const matches = parseLivegameTables(tm1Html, tm2Html);
-          if (matches.length > 0) {
-            return new Response(JSON.stringify({ matches, gS, book, method: 'html' }), { headers: cors });
-          }
-          return new Response(
-            JSON.stringify({ matches: [], note: `No live matches right now (gS=${gS}, book=${book})` }),
-            { headers: cors }
-          );
-        }
-        lastError = `200 OK but no getData2() calls or HTML tables (gS=${gS}, book=${book})`;
-        continue;
-      }
-
-      // Metadata: prefer getData1() calls; fall back to match1text HTML string
-      let metaRows = parseGetData1Calls(jsText);
-      if (metaRows.length === 0) {
-        const tm1Html = extractHtmlFromJs(jsText, 'tablematch1') ?? extractVarFromJs(jsText, 'match1text');
-        if (tm1Html) metaRows = parseMatch1HtmlForMeta(tm1Html);
-      }
-
-      const matches  = mergeMatchData(oddsRows, metaRows);
-
-      if (matches.length > 0) {
-        return new Response(JSON.stringify({ matches, gS, book, method: 'args' }), { headers: cors });
-      }
-
-      // Got getData2 calls but all rows filtered out (no odds) → likely no live games
-      return new Response(
-        JSON.stringify({ matches: [], note: `No live matches right now (gS=${gS}, book=${book})` }),
-        { headers: cors }
-      );
+      if (gS === GS_PRIMARY && hash === PINNACLE_HASH) continue; // already tried in step 1
+      const result = await tryCombo(hash, gS);
+      if (result) return result;
     }
   }
 
