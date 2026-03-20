@@ -105,14 +105,19 @@ Rows are tagged `TOP` / `MAJOR` / `OTHER` at load time via `_T1_RULES` / `_T2_KE
 
 Fetches all live/upcoming matches with embedded Pinnacle odds in a single request.
 
+**Pinnacle book hash** rotates periodically (sometimes multiple times per day). The code auto-discovers it:
+1. Fast path: try `GS_PRIMARY` (`Q`) + `PINNACLE_HASH` (1 subrequest)
+2. On 404: fetch `https://www.asianbetsoccer.com/it/livescore.html`, extract new hash from `#book_filter` option values (1 subrequest), retry
+3. Fall through: sweep all `GS_CANDIDATES` × hashes (max ~21 subrequests total, well under Cloudflare's 50 cap)
+
+To manually update the hash: open DevTools → Network on the asianbetsoccer livescore page, find a request to `botbot3.space/tables/v4/*/livegame/*.js`, copy the 40-char hex filename.
+
 **Confirmed botbot3.space endpoint:**
 ```
-https://botbot3.space/tables/v4/Q/livegame/43fe2ceaef3c97c30c1653416175a8a5a73865ff.js?date={timestamp}&_={timestamp+1}
+https://botbot3.space/tables/v4/Q/livegame/{PINNACLE_HASH}.js?date={timestamp}&_={timestamp+1}
 ```
-- `Q` = stats filter code (`gS` from `CookieStats()` on the livescore page)
-- `43fe2ceaef3c97c30c1653416175a8a5a73865ff` = Pinnacle's static book hash (confirmed from `#book_filter` option values)
 
-**JS file format** — the livegame file does NOT embed HTML strings. It builds tables via repeated function calls:
+**JS file format** — builds tables via repeated function calls:
 - `match2text += getData2(rowIdx, 1, leagueId, enc, matchId, ah_hc, ah_ho, ...)` — odds data
 - `match1text += getDatalive1(...)` — currently live matches (minute like `'5\''` at `[10]`)
 - `match1text += getDatalast1(...)` — upcoming/finishing matches (ISO datetime at `[10]`)
@@ -124,25 +129,44 @@ https://botbot3.space/tables/v4/Q/livegame/43fe2ceaef3c97c30c1653416175a8a5a7386
 [24]=ov_c    [25]=ov_o  [29]=un_c  [30]=un_o
 ```
 
-**`getDatalive1` / `getDatalast1` param indices (same layout for both):**
+**`getDatalive1` / `getDatalast1` confirmed param indices:**
 ```
-[5]=matchId  [6]=leagueName  [9]=homeTeam  [10]=timeOrMinute  [22]=awayTeam
-[4]=statusCode — encodes live score as 'Q{half}_FD{homeGoals}{awayGoals}' (e.g. 'Q2_FD24' → 2-4)
+[5]=matchId   [6]=leagueName   [9]=homeTeam   [10]=timeOrMinute   [22]=awayTeam
+[11]=home goals (integer)      [23]=away goals (integer)
+[24]=home corners (integer)    [25]=away corners (integer)
+[4]=statusCode — contains match stats like 'Q1_FA3-SB1-FC2' (NOT the score)
 ```
+Score is NOT encoded in the statusCode `FD` pattern (old format). Goals are at args[11]/[23].
+Score is only extracted for live matches (those with a minute field); upcoming matches also have 0s there.
 
 **Parsing strategy in `livescore.js`:**
 1. `parseGetData2Calls()` — extracts odds from `getData2()` args using confirmed indices
-2. `parseGetData1Calls()` — regex matches both `getDatalive1` and `getDatalast1`; extracts teams, league, minute, score
+2. `parseGetData1Calls()` — regex matches both `getDatalive1` and `getDatalast1`; extracts teams, league, minute, score (from args[11]/[23])
 3. `mergeMatchData()` — merges by `matchId`; falls back to array index
-4. HTML string fallback (`parseLivegameTables`) kept for older botbot3 format (jQuery `.html("…")`)
+4. `fetchPinnacleHash()` — auto-discovers current Pinnacle hash from asianbetsoccer livescore page
+5. HTML string fallback (`parseLivegameTables`) kept for older botbot3 format (jQuery `.html("…")`)
 
 **Returns:**
 ```json
 { matches: [{ id, url, home_team, away_team, league, minute, score, odds: {ah_hc, ah_ho, ho_c, ho_o, ao_c, ao_o, tl_c, tl_o, ov_c, ov_o, un_c, un_o} }] }
 ```
-`app.js` `runBatchScan()` uses embedded odds directly, skipping per-match `/api/scrape` calls. Scan cards display league (blue), live minute (yellow), and score.
+`app.js` `runBatchScan()` uses embedded odds directly, skipping per-match `/api/scrape` calls. Scan cards display league (blue), live minute (yellow), and score (green).
 
-**Debug endpoint:** `GET /api/livescore?debug=1` — returns `getData2_count`, `getData1_count`, `matches_preview`, `getData1_sample`, `getData2_sample` for diagnosing format changes.
+**Debug endpoint:** `GET /api/livescore?debug=1` — returns `match_count`, `matches_preview` (all matches), `getData1_parsed` (every getDatalive1 call as a clean arg array) for diagnosing format changes.
+
+## Live Scan Behaviour (`runBatchScan` in `app.js`)
+
+- Fetches all live matches from `/api/livescore` (embedded odds, no per-match scrape needed).
+- Scores each match on **pre-match bets only** (no game state filter applied) — cleaner signal, consistent across all matches.
+- Scan cards show: league (blue), score (green, e.g. `1-0`), minute (yellow, e.g. `14'`), signal badges, top 3 bets.
+- Each bet row shows: label · z-score (green=above baseline, red=below) · hit% `vs` baseline% · min odds.
+- Results sorted by **match minute ascending** (earliest = most time left to act).
+- `_scanDataCache` stores `{ odds, match }` per match id for use when clicking "Use this match →".
+- `useScanMatch(id)` calls `fillFromScraped(entry.odds)` + `fillLiveMatchState(entry.match)`:
+  - `fillLiveMatchState` sets the live minute estimator field and pre-fills HT score fields from `match.score` (only when score is explicitly known — never defaults to 0-0 to avoid masking parse failures).
+  - If minute > 45 (2H), 2H in-play fields are reset to 0-0 (HT breakdown unknown without HT data).
+
+**Odds tolerance quick buttons (Basic mode):** EXACT · 0.02 · 0.05 · 0.07 · 0.10
 
 ## The Scrape Function (`functions/api/scrape.js`)
 
