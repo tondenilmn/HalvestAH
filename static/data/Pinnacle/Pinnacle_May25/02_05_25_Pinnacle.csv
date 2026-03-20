@@ -1,0 +1,406 @@
+Date,Time,League,Home Team,Away Team,Home AH Closing,Home AH Opening,Away AH Closing,Away AH Opening,Home Odds Closing,Home Odds Opening,Away Odds Closing,Away Odds Opening,Total Line Closing,Total Line Opening,Over Odds Closing,Over Odds Opening,Under Odds Closing,Under Odds Opening,HT Result,FT Result
+02-05,13:45,Singapore League,Hougang United FC,Tampines Rovers FC,2,1.75,-2,-1.75,1.98,1.88,1.83,1.88,4.25,4,1.97,1.80,1.83,1.98,1-1,1-4
+02-05,14:15,Singapore League,DPMM FC,Tanjong Pagar Utd,-1,-1.5,1,1.5,1.82,1.91,2.01,1.83,3.5,4.25,1.84,1.88,1.99,1.86,2-0,2-1
+02-05,18:00,Croatia 1.Division,NK Varteks Varazdin,HNK Sibenik,-0.5,-0.75,0.5,0.75,1.88,1.94,1.97,1.82,2,2,1.77,1.77,2.09,2.00,0-1,1-1
+02-05,19:00,Poland Liga 1,Gornik Leczna,Pogon Siedlce,-0.25,-0.5,0.25,0.5,1.82,1.81,2.04,1.97,2.5,2.5,1.96,1.97,1.88,1.78,1-0,2-3
+02-05,20:30,Poland Liga 1,Wisla Krakow,Wisla Plock,-1,-0.75,1,0.75,1.98,1.83,1.88,1.95,3,2.75,1.99,1.79,1.85,1.97,1-2,1-3
+02-05,21:00,English Premier League,Manchester City,Wolves,-1.5,-1.5,1.5,1.5,1.95,1.93,1.97,1.89,3,3.25,1.93,1.90,1.97,1.90,1-0,1-0
+02-05,20:00,Holland Eerste Divisie,De Graafschap,SC Telstar,-0.25,-0.5,0.25,0.5,1.99,1.86,1.86,1.94,3,3.25,1.88,1.87,1.95,1.92,1-1,2-1
+02-05,20:00,Holland Eerste Divisie,Den Bosch,Helmond Sport,-0.5,-0.25,0.5,0.25,1.98,1.98,1.87,1.83,3,2.75,2.04,1.83,1.81,1.96,0-0,1-0
+02-05,20:00,Holland Eerste Divisie,ADO Den Haag,SC Cambuur,-0.5,0,0.5,0,2.06,1.81,1.79,2.00,3,3,2.03,1.92,1.82,1.87,2-2,3-4
+02-05,20:00,Holland Eerste Divisie,FC Eindhoven,AZ Alkmaar (Youth),0,-0.25,0,0.25,1.79,1.88,2.08,1.93,3,3.25,1.86,1.97,1.98,1.82,1-2,2-4
+02-05,20:00,Holland Eerste Divisie,Excelsior SBV,Jong PSV Eindhoven (Youth),-2.25,-2.5,2.25,2.5,2.03,1.96,1.82,1.83,4,4.25,1.94,1.93,1.88,1.85,2-0,5-0
+02-05,20:00,Holland Eerste Divisie,Emmen,VVV Venlo,-0.75,-0.75,0.75,0.75,1.86,1.81,1.99,1.99,3,3,1.93,1.88,1.91,1.91,1-0,2-1
+02-05,20:00,Holland Eerste Divisie,Volendam,Roda JC,-0.75,-1,0.75,1,2.01,1.93,1.85,1.86,3.5,3.5,2.00,1.91,1.84,1.88,1-1,3-2
+02-05,20:00,Holland Eerste Divisie,FC Utrecht (Youth),Dordrecht,0.75,0.75,-0.75,-0.75,2.03,2.01,1.83,1.80,3.25,3.25,1.90,1.95,1.93,1.84,0-0,1-0
+02-05,20:00,Holland Eerste Divisie,MVV Maastricht,Jong Ajax (Youth),-0.25,-0.5,0.25,0.5,1.89,1.94,1.96,1.85,3.5,3.5,2.00,1.84,1.84,1.94,0-0,1-0
+02-05,20:00,Holland Eerste Divisie,FC Oss,Vitesse Arnhem,0.5,0.25,-0.5,-0.25,1.88,1.83,1.97,1.98,3.25,2.75,2.00,1.86,1.84,1.93,1-2,2-2
+02-05,19:00,Poland Division 2,LKS Lodz II,Hutnik Krakow,-0.25,0,0.25,0,1.86,1.74,1.96,2.03,2.75,2.75,1.81,1.89,2.03,1.85,1-0,1-0
+02-05,17:00,Russia Premier League,Akron Togliatti,FK Makhachkala,-0.25,-0.25,0.25,0.25,1.91,1.96,1.99,1.85,2.25,2.25,1.98,1.86,1.91,1.94,0-0,1-0
+02-05,20:45,France Ligue 1,Nice,Reims,-1.5,-1,1.5,1,2.07,1.81,1.86,2.01,3,3,1.90,2.00,2.01,1.81,1-0,1-0
+02-05,21:00,Spanish La Liga,Rayo Vallecano,Getafe,-0.25,-0.25,0.25,0.25,2.05,1.88,1.88,1.94,2,2,2.11,1.93,1.81,1.88,1-0,1-0
+02-05,20:45,Scottish Championship,Airdrie United,Ayr United,0.5,0.25,-0.5,-0.25,1.91,1.99,1.91,1.79,2.75,2.5,1.96,1.78,1.84,1.98,0-1,0-1
+02-05,20:45,Scottish Championship,Falkirk,Hamilton Academical,-2.25,-1.5,2.25,1.5,1.94,1.80,1.86,1.98,3.5,3,1.93,1.79,1.86,1.97,1-1,3-1
+02-05,20:45,Scottish Championship,Livingston,Partick Thistle,-1,-1,1,1,1.95,2.02,1.87,1.76,2.5,2.5,1.88,1.88,1.92,1.87,0-1,0-1
+02-05,20:45,Scottish Championship,Greenock Morton,Dunfermline Athletic,0,0,0,0,1.98,1.94,1.85,1.83,2,2.25,1.79,1.93,2.03,1.83,2-0,2-0
+02-05,20:45,Scottish Championship,Queens Park,Raith Rovers,1.5,0.5,-1.5,-0.5,1.92,1.78,1.90,2.00,2.75,2.5,1.96,1.95,1.84,1.81,0-2,1-5
+02-05,20:30,Spanish La Liga 2,Cordoba,Cadiz,-0.5,-0.25,0.5,0.25,1.92,1.83,1.98,2.00,2.5,2.25,2.04,1.92,1.85,1.88,2-0,4-2
+02-05,19:00,Austrian 3.Liga,ASV Siegendorf,Neusiedl,1.5,1.25,-1.5,-1.25,1.89,1.97,1.88,1.79,3,3,1.92,1.93,1.87,1.83,0-0,0-1
+02-05,19:00,Austrian 3.Liga,SV Gloggnitz,Favoritner AC,-0.5,-0.25,0.5,0.25,1.85,2.00,1.94,1.77,3,3,1.99,1.88,1.81,1.87,1-2,2-2
+02-05,19:00,Austrian 3.Liga,Mauerwerk,SC Mannsdorf,1.5,1.5,-1.5,-1.5,1.81,1.82,1.98,1.94,3,2.75,2.00,1.86,1.79,1.89,0-2,0-2
+02-05,19:30,Austrian 3.Liga,Traiskirchen,SR Donaufeld Wien,0.5,0.5,-0.5,-0.5,1.99,1.81,1.81,1.95,3,3,1.88,1.93,1.91,1.83,0-2,1-3
+02-05,19:30,Austrian 3.Liga,Team Wiener Linien,SV Oberwart,0.25,0,-0.25,0,1.85,1.88,1.94,1.88,2.75,2.75,1.93,1.97,1.85,1.79,0-0,0-0
+02-05,19:00,Austrian 3.Liga,St. Johann,Bischofshofen,0,0,0,0,1.93,1.92,1.85,1.84,2.75,3,1.87,1.91,1.92,1.85,0-0,1-0
+02-05,19:00,Austrian 3.Liga,SV Wals-Grunau,FC Kitzbuhel,-0.75,-0.5,0.75,0.5,1.81,1.94,1.98,1.81,2.75,3,1.88,1.85,1.91,1.90,3-1,6-1
+02-05,18:00,Austria Erste Division,SKU Amstetten,Austria Lustenau,0,-0.25,0,0.25,1.83,2.00,2.04,1.78,2.75,2.5,1.90,1.87,1.93,1.88,0-0,0-1
+02-05,18:00,Austria Erste Division,SC Bregenz,Rapid Vienna (Youth),0.25,0,-0.25,0,2.00,1.85,1.86,1.91,3.75,3.5,1.94,1.93,1.89,1.83,0-2,1-5
+02-05,18:00,Austria Erste Division,SV Horn,Lafnitz,-0.5,0,0.5,0,2.04,1.76,1.83,2.03,3.25,2.75,2.03,1.83,1.82,1.93,1-0,4-1
+02-05,18:00,Austria Erste Division,FC Liefering,ASK Voitsberg,0,0,0,0,2.05,1.97,1.82,1.81,3,2.75,1.81,1.90,2.04,1.85,0-2,1-2
+02-05,20:30,Austria Erste Division,SV Ried,Trenkwalder Admira Wacker,-0.5,-0.5,0.5,0.5,1.85,1.85,2.00,1.93,2.5,2.25,1.93,1.85,1.90,1.90,2-0,2-0
+02-05,18:00,Austria Erste Division,SV Stripfing Weiden,Floridsdorfer AC,0,0,0,0,1.81,1.92,2.06,1.85,2.25,2.25,1.91,1.87,1.93,1.88,0-1,1-2
+02-05,14:30,Ukrainian Premier League,FC Livyi Bereh,FC Karpaty Lviv,0.5,0.5,-0.5,-0.5,1.83,2.03,2.04,1.81,2,2,1.93,1.95,1.91,1.85,1-1,2-3
+02-05,17:00,Ukrainian Premier League,Rukh Vynnyky,Kryvbas,0.5,0.25,-0.5,-0.25,1.79,1.75,2.09,2.04,2,2,1.78,1.81,2.08,1.94,0-0,0-0
+02-05,20:45,Italian Serie A,Torino,Venezia,-0.25,-0.75,0.25,0.75,2.18,1.94,1.78,1.88,2.25,2.25,1.99,1.93,1.91,1.87,0-1,1-1
+02-05,20:30,German Bundesliga,Heidenheimer,VfL Bochum,-0.25,-0.25,0.25,0.25,2.07,1.87,1.86,1.95,2.5,2.75,1.93,1.85,1.97,1.95,0-0,0-0
+02-05,18:30,German Bundesliga 2,Magdeburg,Preuben Munster,-1.25,-1,1.25,1,1.97,2.04,1.92,1.79,3.25,3,1.93,1.85,1.95,1.95,0-3,0-5
+02-05,18:30,German Bundesliga 2,Schalke,SC Paderborn,0.75,0,-0.75,0,1.86,2.04,2.04,1.79,3.25,3,2.04,1.95,1.85,1.85,0-1,0-2
+02-05,20:30,Switzerland Promotion League,Lausanne SportsU,FC Naters,-1.5,-1.25,1.5,1.25,1.87,1.88,1.92,1.87,3.5,3.25,1.86,1.96,1.93,1.81,1-1,5-1
+02-05,19:00,Liga Portugal 2,Uniao Leiria,Oliveirense,-0.5,-0.75,0.5,0.75,1.93,1.81,1.96,2.00,2.75,2.75,1.88,1.90,1.99,1.88,2-0,5-0
+02-05,21:15,Liga Portugal 1,FC Porto,Moreirense,-1.5,-1.5,1.5,1.5,2.00,2.00,1.90,1.82,2.75,2.5,1.92,1.84,1.97,1.96,1-1,3-1
+02-05,20:15,Slovenia 1.Liga,NK Nafta,NK Bravo,0.25,0,-0.25,0,1.83,1.98,2.03,1.80,2.5,2.25,2.02,1.85,1.82,1.90,0-1,0-1
+02-05,17:45,Slovenia 2.Liga,NK Aluminij,ND Gorica,0,0,0,0,1.81,1.76,1.98,2.01,2,2.5,1.94,1.88,1.85,1.88,0-0,0-0
+02-05,17:30,Slovenia 2.Liga,Dravinja,ND Beltinci,0,-0.25,0,0.25,1.82,1.97,1.97,1.79,2.5,2.25,2.01,1.79,1.79,1.97,0-1,2-1
+02-05,19:00,Turkey Super Lig,Antalyaspor,Konyaspor,0,0,0,0,1.90,1.77,2.01,2.07,2.25,2.5,1.84,1.93,2.06,1.87,0-0,1-0
+02-05,14:00,POL WD1,Skra Czestochowa (W),APLG Gdansk (W),1.5,1.75,-1.5,-1.75,1.85,1.79,1.85,1.91,3,3.25,1.78,1.96,1.93,1.75,0-0,0-3
+02-05,19:00,Czech Republic 2.Liga,Vysocina jihlava,Banik Ostrava B,-0.25,0.25,0.25,-0.25,2.07,1.88,1.80,1.89,2.5,2.5,1.89,1.87,1.94,1.88,0-1,2-1
+02-05,18:00,Czech Republic 2.Liga,FK Graffin Vlasim,Brno,0.5,0.25,-0.5,-0.25,1.88,1.83,1.97,1.95,2.75,2.5,1.86,1.94,1.98,1.81,1-1,1-2
+02-05,17:30,Czech Republic 2.Liga,Tescoma Zlin,SK Slovan Varnsdorf,-1,-0.75,1,0.75,2.08,1.75,1.79,2.04,2.5,2.5,1.93,1.90,1.91,1.85,0-0,2-0
+02-05,19:00,Germany Regionalliga,TSV Buchbach,FC Augsburg II,0,0,0,0,1.83,1.85,1.99,1.93,3.5,3,2.02,1.81,1.81,1.98,2-2,5-2
+02-05,19:00,Germany Regionalliga,Wacker Burghausen,SpVgg Bayreuth,0.25,0.25,-0.25,-0.25,1.94,1.89,1.88,1.89,2.75,2.75,1.88,1.96,1.93,1.83,1-1,3-1
+02-05,18:30,Germany Regionalliga,SpVgg Hankofen-Hailing,TSV Aubstadt,0.5,0.25,-0.5,-0.25,1.87,1.97,1.95,1.82,2.75,2.5,1.93,1.82,1.88,1.97,1-0,1-0
+02-05,19:00,Germany Regionalliga,Schweinfurt  FC,Wurzburger Kickers,-0.25,0,0.25,0,1.83,1.90,1.99,1.88,2.75,2.75,1.88,1.97,1.94,1.82,1-0,2-1
+02-05,19:00,Germany Regionalliga,Berliner FC Dynamo,Hallescher FC,0.25,0.5,-0.25,-0.5,1.79,1.93,2.04,1.85,2.25,2.5,1.79,1.84,2.05,1.95,1-2,1-2
+02-05,19:00,Germany Regionalliga,Hertha Zehlendorf,BFC Viktoria,-0.5,-0.25,0.5,0.25,1.85,1.81,1.98,1.98,3.25,3,2.04,1.89,1.79,1.89,2-0,5-1
+02-05,19:00,German 3.Liga,VfL Osnabruck,Viktoria koln,-0.25,-0.5,0.25,0.5,1.88,2.03,2.00,1.79,2.5,2.75,1.86,1.88,2.02,1.91,2-0,2-0
+02-05,19:00,Germany Regionalliga,TSG Hoffenheim (Youth),FC  Hombrug,-1,-0.75,1,0.75,2.02,1.97,1.81,1.82,3,3,1.83,1.85,1.99,1.94,1-0,3-2
+02-05,14:00,Armenia Premier League,Alashkert,Gandzasar Kapan,-1.25,-1.25,1.25,1.25,1.98,1.93,1.84,1.85,3.25,2.75,1.99,1.82,1.83,1.98,0-0,1-0
+02-05,14:00,Germany Regionalliga,SC Paderborn  II,Schalke  (Youth),-0.25,0,0.25,0,1.82,1.91,2.01,1.88,3,3,1.88,1.86,1.93,1.93,2-0,2-0
+02-05,19:00,French Championnat Amateur,Istres,GFA Rumilly Vallieres,0,0,0,0,1.79,2.02,2.01,1.75,2.75,2.25,1.99,1.77,1.80,2.00,0-0,0-0
+02-05,19:00,French Championnat Amateur,Stade Briochin,Avranches,-1,-0.75,1,0.75,1.98,1.86,1.81,1.89,2.75,2.75,1.95,1.90,1.83,1.85,2-0,3-2
+02-05,19:00,Germany Regionalliga,Havelse,Kickers Emden,-0.5,-0.5,0.5,0.5,2.02,1.82,1.81,1.97,3.5,3,1.85,1.90,1.97,1.88,0-0,0-1
+02-05,19:30,Germany Regionalliga,VFB Lubeck,TuS Blau-Weiss Lohne,-0.5,-0.5,0.5,0.5,1.88,1.76,1.93,1.97,3.5,3,1.98,1.93,1.84,1.85,2-0,2-1
+02-05,17:00,Slovakia 2. Liga,FK Pohronie,Humenne,-0.5,-0.25,0.5,0.25,2.00,1.90,1.83,1.84,2.75,2.75,1.80,1.91,2.03,1.83,0-0,1-1
+02-05,17:00,Slovakia 2. Liga,OFK Malzenice,Zlate Moravce,1,0.75,-1,-0.75,1.93,1.86,1.88,1.93,2.5,2.5,1.96,1.98,1.86,1.81,1-3,1-5
+02-05,17:00,Slovakia 2. Liga,STK Samorin,Tatran Presov,0.75,0.75,-0.75,-0.75,1.85,1.92,1.98,1.87,2.5,2.25,1.90,1.92,1.92,1.87,1-0,1-2
+02-05,20:30,Spain Primera Division RFEF,G. Segoviana,Real Sociedad B,0.25,0.25,-0.25,-0.25,2.05,1.95,1.81,1.93,2.25,2.25,1.82,1.88,2.03,1.87,0-0,0-0
+02-05,20:30,Spain Primera Division RFEF,Algeciras,Real Betis B,-0.25,-0.25,0.25,0.25,2.13,1.85,1.76,1.93,2.25,2.25,1.97,1.93,1.86,1.83,1-0,2-2
+02-05,18:00,Azerbaijan Premier League,Zira FK,Turan Tovuz,-0.75,-0.75,0.75,0.75,1.96,1.74,1.86,2.03,2,2.25,2.03,2.01,1.80,1.75,0-0,1-0
+02-05,18:30,German Frauen Bundesliga,SG Essen-Schonebeck (W),SC Freiburg (W),-0.25,-0.5,0.25,0.5,1.95,1.93,1.87,1.81,2.5,2.75,1.86,1.86,1.95,1.88,0-0,0-0
+02-05,17:50,Saudi Professional League,Al-Ettifaq,Al-Khaleej,-0.5,-0.5,0.5,0.5,1.87,1.91,1.99,1.86,3,2.5,1.99,1.78,1.85,1.98,1-1,2-1
+02-05,18:05,Saudi Professional League,Al-Feiha,Damac FC,-0.5,-0.25,0.5,0.25,1.95,1.92,1.90,1.85,2.25,2.25,1.91,1.88,1.93,1.88,0-1,2-1
+02-05,20:00,Saudi Professional League,Al Qadsiah,Al Kholood,-1.5,-1.5,1.5,1.5,1.88,1.92,1.97,1.85,3.25,3,1.98,1.96,1.85,1.80,3-0,4-1
+02-05,15:00,England U21 Professional Development League 2,Cardiff City U,Watford U,-0.25,-0.25,0.25,0.25,1.89,1.84,1.93,1.89,3.75,3.5,1.96,1.82,1.85,1.90,2-0,3-1
+02-05,15:00,England U21 Professional Development League 2,Peterborough U,Birmingham U,0.75,0,-0.75,0,1.89,1.96,1.93,1.79,4,4,1.85,1.92,1.93,1.81,1-2,2-4
+02-05,14:00,England U21 Professional Development League 2,Fleetwood Town U,Sheffield Utd U,1.25,2,-1.25,-2,1.94,1.82,1.88,1.91,4,4,2.02,1.76,1.80,1.96,2-0,3-1
+02-05,20:00,England U21 Professional Development League 2,Bournemouth AFC U,Wigan U,-2.25,-2,2.25,2,1.99,1.93,1.82,1.79,4.5,4.25,1.96,1.93,1.83,1.78,3-2,5-2
+02-05,15:00,England U21 Professional Development League 2,Millwall U,Hull U,-2,-1.25,2,1.25,1.92,1.95,1.88,1.79,4,3.75,1.90,1.87,1.88,1.85,1-0,2-0
+02-05,18:00,Austrian 3.Liga,LASK (Youth),SK Treibach,-1,-1,1,1,2.02,1.90,1.79,1.85,3.25,3,1.94,1.87,1.84,1.88,2-0,2-0
+02-05,19:00,Austrian 3.Liga,Leoben,Wolfsberger AC Amateure,1.25,0.5,-1.25,-0.5,1.79,1.92,2.01,1.84,3,3,1.96,1.81,1.83,1.94,0-1,0-3
+02-05,19:00,Austrian 3.Liga,SK Vorwarts Steyr,Vocklamarkt,-0.75,-0.75,0.75,0.75,1.83,1.75,1.95,2.03,2.75,2.5,1.85,1.78,1.94,1.98,0-3,1-5
+02-05,20:00,France Ligue 2,Metz,Rodez Aveyron,-1,-0.75,1,0.75,1.96,1.87,1.89,1.93,3.25,2.75,1.98,1.92,1.86,1.87,0-0,3-3
+02-05,20:00,France Ligue 2,Martigues,Paris FC,0.75,1.25,-0.75,-1.25,1.96,1.77,1.89,2.04,3,2.75,2.03,1.89,1.82,1.89,0-0,1-1
+02-05,20:00,France Ligue 2,Amiens,Pau FC,0,0,0,0,1.99,2.05,1.86,1.77,2.75,2.5,1.85,1.90,1.99,1.88,3-1,4-2
+02-05,20:00,France Ligue 2,Guingamp,Bastia,-0.75,-0.25,0.75,0.25,1.94,1.99,1.91,1.82,2.5,2.25,1.94,1.89,1.89,1.89,1-1,2-2
+02-05,20:00,France Ligue 2,Clermont,FC Annecy,-0.25,-0.25,0.25,0.25,1.84,1.96,2.02,1.84,2.25,2.5,1.81,1.99,2.03,1.80,2-0,3-2
+02-05,20:00,France Ligue 2,Caen,Red Star FC,0,-0.25,0,0.25,2.09,1.78,1.79,2.04,2.5,2.5,1.98,1.83,1.86,1.96,0-1,1-1
+02-05,20:00,France Ligue 2,USL Dunkerque,Stade Lavallois MFC,-0.5,-0.75,0.5,0.75,1.84,2.02,2.02,1.79,2.5,2.5,1.91,1.96,1.93,1.83,0-0,0-0
+02-05,20:00,France Ligue 2,Ajaccio,Lorient,0.75,1,-0.75,-1,1.95,1.81,1.90,2.00,2.5,2.5,2.03,1.99,1.82,1.80,1-0,2-1
+02-05,20:00,France Ligue 2,Grenoble,Troyes,0.25,0.25,-0.25,-0.25,1.91,1.75,1.94,2.07,2.5,2.25,1.92,1.83,1.92,1.95,2-0,3-1
+02-05,19:30,France Ligue 3,Aubagne,Orleans US,0,0.25,0,-0.25,2.01,1.83,1.85,1.94,2.5,2.25,1.89,1.89,1.94,1.86,1-0,1-0
+02-05,19:30,France Ligue 3,Boulogne,Sochaux,-0.5,-0.25,0.5,0.25,1.90,1.91,1.95,1.86,2.25,2.25,1.94,1.86,1.89,1.89,0-2,2-3
+02-05,19:30,France Ligue 3,Bourg Peronnas,Villefranche,0,-0.25,0,0.25,1.74,1.85,2.16,1.93,2,2,1.97,1.85,1.87,1.90,0-0,0-0
+02-05,19:30,France Ligue 3,Quevilly,Versailles,0,-0.25,0,0.25,1.82,2.04,2.01,1.76,2.25,2.25,1.91,1.93,1.89,1.83,0-3,1-3
+02-05,19:30,France Ligue 3,Chateauroux,Dijon,0.5,0.25,-0.5,-0.25,1.85,2.01,2.01,1.77,2.25,2.25,1.81,1.91,2.04,1.85,3-2,3-3
+02-05,19:30,France Ligue 3,Le Mans,FC Rouen,-1.25,-0.5,1.25,0.5,2.08,1.78,1.79,2.00,2.5,2.25,1.93,1.84,1.90,1.92,1-2,2-2
+02-05,19:30,France Ligue 3,Nancy,Nimes,-1,-0.75,1,0.75,1.94,1.85,1.91,1.93,2.5,2.25,1.89,1.83,1.93,1.93,0-0,1-0
+02-05,19:30,France Ligue 3,Paris  Atletico,Valenciennes,-0.5,0,0.5,0,2.01,1.78,1.85,2.00,2,2,1.92,1.86,1.92,1.89,1-0,1-1
+02-05,14:00,Indonesia Liga 1,Malut United,Persib Bandung,0,0,0,0,1.86,2.04,2.00,1.75,2.5,2.25,1.94,1.83,1.89,1.93,0-0,1-0
+02-05,10:30,Indonesia Liga 1,Barito Putera,Dewa United FC,0.5,0.5,-0.5,-0.5,1.80,1.81,2.07,1.97,2.75,3.25,1.89,1.98,1.85,1.79,1-0,1-1
+02-05,20:00,Ghana Premier League,Medeama SC,Vision FC,-1,-1.25,1,1.25,1.89,1.84,1.84,1.87,1.75,2,1.74,1.90,2.03,1.81,1-1,3-1
+02-05,19:30,South Africa Premier Soccer League,AmaZulu,Polokwane City FC,-0.5,-0.25,0.5,0.25,2.11,2.01,1.77,1.77,1.75,1.75,1.93,1.79,1.90,1.96,1-0,1-1
+02-05,15:00,South Africa First League,Highbury,Venda,0.25,0,-0.25,0,1.77,1.72,1.98,2.04,2,2,1.78,1.75,1.97,2.01,0-1,1-1
+02-05,19:30,South Africa First League,Cape Town Spurs,Pretoria Univ,-0.5,-0.25,0.5,0.25,1.89,1.83,1.93,1.91,2,2,1.94,1.98,1.87,1.77,0-1,0-1
+02-05,11:35,Australia A-League,Central Coast Mariners,Brisbane Roar,0.5,-0.25,-0.5,0.25,1.90,2.06,2.00,1.78,3,2.75,1.98,1.86,1.91,1.94,1-1,1-2
+02-05,14:00,Turkiye Lig3,Hekimoglu Trabzon,Kepez Belediyespor,-1.5,-0.5,1.5,0.5,1.90,1.81,1.84,1.90,3,2.5,1.95,1.81,1.79,1.91,0-0,0-0
+02-05,12:00,Victorian State League Division 1,Brunswick City,Moreland City,-1.25,-1,1.25,1,1.92,1.85,1.90,1.88,4,3.75,1.93,1.94,1.89,1.77,1-2,3-2
+02-05,12:30,Victorian State League Division 1,Bentleigh greens,North Sunshine Eagles,-1.25,-1,1.25,1,1.95,1.93,1.87,1.82,3.25,3,1.99,1.76,1.84,2.00,0-1,3-1
+02-05,12:15,VIC Premier League,Oakleigh Cannons,Heidelberg United,-0.25,-0.25,0.25,0.25,2.06,1.88,1.81,1.88,2.75,3,1.86,1.98,1.86,1.78,0-0,1-2
+02-05,12:15,VIC Premier League,Port Melbourne,Altona Magic,0.75,0.5,-0.75,-0.5,2.03,1.98,1.83,1.80,3,2.5,1.86,1.80,1.97,1.96,1-2,3-3
+02-05,12:30,VIC Premier League,Preston Lions,Green Gully Cavaliers,-0.25,-0.5,0.25,0.5,1.93,1.85,1.93,1.93,2.75,3,1.89,1.97,1.94,1.79,2-1,3-2
+02-05,20:45,Ireland Premier Division,Bohemians,Waterford United,-1,-1,1,1,1.94,2.00,1.94,1.81,2.5,2.5,1.93,1.89,1.94,1.89,0-1,1-2
+02-05,20:45,Ireland Premier Division,Cork City,Shamrock Rovers,0.75,1,-0.75,-1,1.84,1.84,2.06,1.96,2.25,2.25,1.91,1.79,1.95,2.01,0-1,1-1
+02-05,20:45,Ireland Premier Division,Derry City,Shelbourne,-0.25,-0.5,0.25,0.5,1.97,1.95,1.92,1.84,2,2,1.96,1.93,1.91,1.86,2-0,2-0
+02-05,20:45,Ireland Premier Division,Sligo Rovers,Drogheda United,0,0.25,0,-0.25,1.87,1.85,2.02,1.94,2.25,2.25,1.95,1.84,1.92,1.95,0-1,2-2
+02-05,20:45,Ireland Premier Division,St. Patricks Athletic,Galway United,-0.5,-0.5,0.5,0.5,1.92,1.85,1.97,1.95,2.25,2.25,1.93,1.97,1.93,1.82,2-0,2-0
+02-05,20:45,Ireland First Division,Athlone Town,Dundalk,1.25,0.75,-1.25,-0.75,1.79,2.04,2.08,1.75,2.5,2.5,1.83,1.90,2.01,1.85,0-0,0-0
+02-05,20:45,Ireland First Division,Cobh Ramblers,Bray Wanderers,-0.75,-1,0.75,1,1.84,1.94,2.02,1.83,2.75,2.5,2.00,1.86,1.84,1.89,1-1,2-1
+02-05,20:45,Ireland First Division,Finn Harps,Treaty United,0.25,-0.25,-0.25,0.25,1.84,2.00,2.02,1.79,2.25,2.25,1.81,1.82,2.05,1.93,0-1,0-2
+02-05,20:45,Ireland First Division,UC Dublin,Kerry FC,-0.5,-0.5,0.5,0.5,1.96,1.81,1.89,1.96,2.5,2.25,2.04,1.88,1.81,1.88,0-0,0-1
+02-05,11:40,NSW Premier League,Manly United,Marconi Stallions,0.5,0.75,-0.5,-0.75,2.01,2.02,1.84,1.77,2.75,2.75,1.85,1.93,1.98,1.83,0-1,0-3
+02-05,20:30,Argentine Division 1,Argentinos Juniors,Estudiantes La Plata,-0.5,-0.25,0.5,0.25,2.01,1.77,1.90,2.06,2,2,1.97,1.81,1.91,2.01,2-0,4-0
+02-05,20:30,Argentine Division 1,Banfield,Central Cordoba SDE,-0.5,0,0.5,0,1.97,1.77,1.93,2.07,2,2,1.92,1.85,1.97,1.95,2-0,3-1
+02-05,20:30,Argentine Division 1,Independiente Rivadavia,Defensa Y Justicia,-0.25,0,0.25,0,1.99,1.86,1.92,1.96,2,2,1.81,1.77,2.10,2.05,1-2,3-2
+02-05,20:30,Argentine Division 1,Racing Club,Newells Old Boys,-0.75,-0.5,0.75,0.5,1.84,1.92,2.08,1.89,2.5,2.25,1.98,1.80,1.91,2.02,0-0,1-0
+02-05,23:00,Argentine Division 1,Club Atlético Unión,Belgrano,-0.25,-0.25,0.25,0.25,1.92,1.91,1.99,1.91,2.25,2,2.05,1.82,1.85,1.99,1-1,1-1
+02-05,18:00,Norway Division 4,Sola,Hinna,0.5,0,-0.5,0,1.81,1.80,1.93,1.92,4.5,4.5,1.79,1.91,1.95,1.81,0-2,0-2
+02-05,18:00,Women Norwegian Toppserien,Bodo Glimt (W),Kolbotn (W),-0.75,-0.75,0.75,0.75,1.85,1.99,1.97,1.80,2.75,2.5,1.97,1.99,1.85,1.80,0-1,3-1
+02-05,18:00,Women Norwegian Toppserien,SK Brann (W),Honefoss (W),-3.5,-3,3.5,3,1.90,1.96,1.88,1.74,4.25,3.75,1.97,1.95,1.83,1.77,2-0,2-0
+02-05,12:15,Australia New South Wales Super League,Blacktown Spartans,Mounties Wanderers,-0.75,-0.5,0.75,0.5,2.00,1.91,1.80,1.85,3,3,1.83,1.97,1.96,1.79,0-0,2-1
+02-05,12:00,South Australian Premier League,Adelaide Panthers,The Cove FC,-0.25,-0.75,0.25,0.75,1.89,1.95,1.89,1.76,3.75,3.5,1.88,1.91,1.90,1.84,0-2,2-4
+02-05,10:15,Australia NPL Victoria U23,Oakleigh Cannons U,Heidelberg United U,-0.75,-0.75,0.75,0.75,1.88,1.86,1.86,1.85,4.25,4,1.97,1.91,1.78,1.81,2-0,3-2
+02-05,10:15,VIC Women’s Premier League,Bentleigh Greens (W),FC Bulleen Lions (W),1,1.25,-1,-1.25,1.82,1.85,1.98,1.90,3.25,4,1.83,1.90,1.97,1.85,0-0,0-1
+03-05,01:10,Argentine Division 2,San Martin Tucuman,Colegiales,-0.75,-0.5,0.75,0.5,2.02,1.85,1.84,1.92,1.5,2,1.89,2.02,1.94,1.75,0-0,2-0
+02-05,20:00,Iceland Division 1,Thor Akureyri,HK Kopavogs,0,0.25,0,-0.25,1.92,1.81,1.93,2.03,3.25,3.25,1.94,1.98,1.89,1.83,1-1,1-1
+02-05,20:30,Iceland Division 1,Fjolnir,Keflavik,1,1,-1,-1,1.94,1.93,1.91,1.85,3.25,3,1.95,1.78,1.88,1.98,1-1,1-3
+02-05,20:30,Iceland Division 1,UMF Njardvik,Fylkir,0.25,0.75,-0.25,-0.75,1.99,1.86,1.86,1.96,3,3,1.87,1.85,1.97,1.95,1-0,1-1
+02-05,20:00,Iceland Division 1,UMF Selfoss,Grindavik,-0.25,-0.25,0.25,0.25,1.92,1.96,1.93,1.85,3.5,3.25,1.93,1.77,1.81,1.94,1-0,2-1
+02-05,21:15,Iceland Division 1,Throttur Reykjavik,Leiknir Reykjavik,-0.5,-0.25,0.5,0.25,1.85,1.85,2.00,1.93,3.5,3.25,1.85,1.99,1.98,1.77,1-0,1-1
+02-05,12:50,FFSA Premier League,Adelaide Comets FC,White City Woodville,0,0,0,0,1.88,1.88,1.96,1.89,3,2.75,1.87,1.81,1.96,1.94,0-2,1-2
+02-05,11:30,QLD Premier League,Gold Coast Knights,Moreton Bay United,-0.25,-0.25,0.25,0.25,2.01,1.94,1.85,1.83,3.5,3,2.02,1.93,1.83,1.83,0-0,1-0
+02-05,19:00,Norwegian Tippeligaen,Ham-Kam,KFUM Oslo,0.25,0,-0.25,0,1.83,2.04,2.09,1.79,2,2.25,1.88,1.79,2.02,2.02,0-0,0-0
+02-05,18:00,Norway 2.Liga,FK Arendal,Sotra,-0.5,0,0.5,0,2.05,1.76,1.79,1.99,2.5,2.75,1.90,1.90,1.92,1.84,1-1,1-1
+02-05,21:15,Iceland Division 2,KF Gardabaer,KFR Aegir,0,-0.25,0,0.25,1.81,1.90,1.93,1.81,3.25,3.25,1.83,1.83,1.92,1.88,0-0,0-0
+02-05,23:00,Primera Division de Paraguay,de Mayo PJC,Sportivo Luqueno,-0.25,-0.25,0.25,0.25,1.81,1.77,2.05,2.02,2.25,2,2.07,1.85,1.78,1.91,1-0,1-1
+03-05,01:15,Primera Division de Paraguay,Deportivo Recoleta,Guarani CA,0.25,0,-0.25,0,1.78,1.96,2.10,1.81,2.25,2.25,2.03,1.97,1.82,1.79,0-1,0-3
+02-05,02:00,USL Championship,Louisville City FC,Lexington,-1,-1.25,1,1.25,1.88,2.00,1.97,1.78,2.75,2.75,1.89,1.93,1.94,1.82,0-0,2-0
+03-05,01:00,USL League One,Richmond Kickers,Greenville Triumph,-0.25,0,0.25,0,1.89,1.83,1.93,1.96,2.5,2.5,1.99,1.94,1.83,1.85,2-2,3-3
+02-05,20:30,Argentina Primera C Metropolitana,Defensores de Cambaceres,Ituzaingo,0.25,0.5,-0.25,-0.5,1.99,1.76,1.76,1.96,1.5,1.75,1.76,1.76,1.99,1.96,0-0,0-0
+02-05,20:05,Argentina Primera C Metropolitana,Leandro N Alem,Berazategui,-0.25,-0.25,0.25,0.25,2.06,2.05,1.71,1.70,2,2,1.88,1.86,1.86,1.85,0-0,0-1
+02-05,20:30,Argentina Primera C Metropolitana,Mercedes,CA Lugano,0.25,0,-0.25,0,1.79,1.87,1.95,1.84,1.75,2,1.85,1.91,1.88,1.81,1-0,1-1
+02-05,20:30,Argentina Primera C Metropolitana,Centro Espanol,Canuelas FC,-0.25,-0.25,0.25,0.25,1.93,1.92,1.81,1.80,2,2,2.01,1.99,1.75,1.74,0-0,1-1
+02-05,17:00,Argentina Primera C Metropolitana,Yupanqui,Club Lujan,0.5,0.25,-0.5,-0.25,1.97,1.99,1.77,1.74,2,1.75,1.93,1.76,1.81,1.96,1-2,1-2
+02-05,12:30,K League 1,Ulsan HD FC,Gwangju Football Club,-0.75,-0.5,0.75,0.5,2.01,1.88,1.90,1.94,2.25,2.25,1.93,1.91,1.95,1.89,1-0,3-0
+02-05,12:30,K League 1,Pohang Steelers,Gimcheon Sangmu FC,0.25,0.25,-0.25,-0.25,1.99,1.76,1.92,2.08,2.75,2.5,2.06,1.90,1.84,1.90,0-0,1-2
+02-05,17:00,Finland Veikkausliga,FC Haka,Jaro,-0.5,-0.75,0.5,0.75,1.98,1.97,1.93,1.85,2.5,2.5,1.98,2.02,1.91,1.79,0-0,0-1
+02-05,17:00,Finland Veikkausliga,KTP Kotka,AC Oulu,-0.25,0,0.25,0,2.13,1.84,1.80,1.99,2.5,3,1.99,1.90,1.90,1.90,0-1,1-3
+02-05,17:00,Finland Veikkausliga,Vaasa VPS,Ilves Tampere,0.25,0.75,-0.25,-0.75,1.99,1.81,1.91,2.03,3,3,1.93,1.90,1.96,1.90,0-0,1-0
+02-05,19:00,Finland Veikkausliga,KuPs,SJK Seinajoen,-0.5,-0.25,0.5,0.25,1.88,1.81,2.04,2.01,3,2.75,2.01,2.01,1.88,1.80,1-0,1-0
+02-05,20:15,Switzerland Challenge League,Etoile Carouge,Stade Ouchy,-0.5,-0.25,0.5,0.25,1.96,1.84,1.88,1.93,3,2.75,2.01,1.90,1.83,1.85,1-0,1-2
+02-05,19:30,Switzerland Challenge League,Stade Nyonnais,Vaduz,-0.25,-0.25,0.25,0.25,2.01,1.81,1.85,1.96,3.25,3,1.92,1.99,1.92,1.78,1-0,1-0
+02-05,20:15,Switzerland Challenge League,Thun,Aarau,-0.5,-0.25,0.5,0.25,1.97,1.88,1.88,1.88,3,2.75,1.85,1.87,1.98,1.88,1-1,2-1
+02-05,19:00,Sweden Div 3 Mellersta,Nosaby IF,IFK Trelleborg,1,0.75,-1,-0.75,1.79,1.79,1.96,1.93,3,3,1.81,1.79,1.93,1.93,1-2,1-2
+02-05,19:15,Sweden Div 3 Mellersta,Rappe GOIF,Solvesborgs GoIF,-0.75,-1,0.75,1,1.83,1.97,1.92,1.75,3,3,1.76,1.88,1.99,1.83,0-0,1-1
+02-05,19:00,Sweden Div 3 Mellersta,IFK Hassleholm,Kristianstads FF,0.5,0.5,-0.5,-0.5,1.92,1.85,1.83,1.86,3,3.25,1.85,1.95,1.89,1.76,1-2,1-2
+02-05,19:30,Sweden Div 3 Mellersta,Lindome GIF,IF Boljan,-1.25,-1.5,1.25,1.5,1.85,1.92,1.89,1.80,3.5,3.5,1.79,1.93,1.96,1.79,2-1,3-2
+02-05,19:00,Sweden Div 3 Mellersta,Tvaakers IF,Qviding FIF,-0.5,-0.75,0.5,0.75,1.82,1.82,1.93,1.89,3,3.25,1.79,1.95,1.96,1.77,0-1,0-1
+02-05,17:30,Finland Ykkonen,JaPS,TPS Turku,0.75,0.5,-0.75,-0.5,1.86,1.92,1.99,1.85,3.25,3,1.85,1.85,2.00,1.90,0-5,0-6
+02-05,17:30,Finland Ykkonen,PK- Vantaa,Ekenas IF Fotboll,0.25,0,-0.25,0,1.79,1.97,2.08,1.81,2.5,2.75,1.99,1.89,1.85,1.86,1-2,1-2
+02-05,22:00,Chile Primera Division,Deportes Limache,Colo Colo,0.75,0.75,-0.75,-0.75,2.03,1.84,1.87,1.95,2.5,2.25,1.87,1.79,2.00,2.01,1-0,1-0
+02-05,19:00,Sweden Div 3 Mellersta,Bodens BK,Pitea IF,0.5,0.5,-0.5,-0.5,1.81,1.86,1.93,1.85,2.75,3.25,1.89,1.95,1.85,1.77,0-1,0-3
+02-05,19:00,Sweden Div 3 Mellersta,Friska Viljor FC,Umea FC Academy,-1.25,-1.25,1.25,1.25,1.93,1.85,1.81,1.85,3.5,3.25,1.83,1.91,1.91,1.80,0-3,1-6
+02-05,13:00,Chinese Super League,Qingdao Youth Island,Meizhou Hakka,-0.5,-0.5,0.5,0.5,1.90,1.81,1.99,2.00,3.25,3,2.02,1.86,1.85,1.93,1-0,3-1
+02-05,13:35,Chinese Super League,Chengdu Rongcheng FC,Shanghai Shenhua,-0.5,-0.25,0.5,0.25,2.09,2.01,1.82,1.81,2.75,2.75,1.88,1.95,1.98,1.83,1-0,1-0
+02-05,18:00,Estonia Champions League,Parnu JK Vaprus,FC Flora Tallinn,1.25,1.25,-1.25,-1.25,1.94,1.87,1.91,1.90,2.75,2.75,1.96,1.86,1.88,1.89,0-2,0-3
+02-05,21:00,Chile Primera B,Universidad de Concepcion,Rangers Talca,0.25,0,-0.25,0,1.77,2.00,2.06,1.76,2.25,2.25,2.07,1.99,1.77,1.77,0-0,0-0
+02-05,14:00,Latvian Higher League,Metta/LU Riga,FK Liepaja,0.75,0.5,-0.75,-0.5,1.85,1.81,2.00,1.96,2.5,2.5,1.98,1.97,1.86,1.79,0-2,2-4
+02-05,11:45,Bangladesh Premier League,Mohammedan Dhaka,Bangladesh Police Club,-1.5,-1.25,1.5,1.25,1.88,1.98,1.85,1.75,3,2.75,1.92,1.93,1.83,1.79,0-0,3-1
+02-05,13:30,Bangladesh Premier League,Bashundhara Kings,Abahani Limited,-0.25,-0.75,0.25,0.75,1.92,1.92,1.83,1.79,2.25,2.5,1.97,1.86,1.77,1.85,1-0,2-0
+02-05,18:00,Lithuania - 1.Division,Siauliai,Hegelmann Litauen,0.5,0.25,-0.5,-0.25,1.80,1.93,2.07,1.83,2.5,2.25,2.02,1.77,1.83,1.99,0-0,0-3
+02-05,17:30,Uzbek League,Kuruvchi Bunyodkor,Kuruvchi Kokand Qoqon,-1,-0.75,1,0.75,2.08,1.83,1.79,1.95,2.25,2,1.81,1.79,2.05,1.98,1-0,1-2
+02-05,15:15,Uzbek League,Xorazm Urganch,Nasaf Qarshi,1,1.25,-1,-1.25,1.94,1.75,1.91,2.05,2.25,2.25,2.03,2.03,1.82,1.75,0-1,1-1
+02-05,10:00,Korea Challengers League,Daejeon Korail,Changwon City,-0.25,-0.25,0.25,0.25,1.99,1.98,1.87,1.80,2.25,2.25,1.95,1.91,1.88,1.85,1-1,1-1
+02-05,12:00,Korea Challengers League,Busan Transportation Corporation,Yangpyeong,-0.25,0,0.25,0,2.09,1.83,1.74,1.94,2.25,2.25,2.01,1.88,1.83,1.87,0-0,0-0
+02-05,19:00,Belarusian Premier League,Arsenal Dzyarzhynsk,BATE Borisov,0.25,0.25,-0.25,-0.25,1.94,1.84,1.91,1.93,2.25,2.25,2.06,2.00,1.79,1.77,0-0,0-1
+02-05,17:00,Belarusian Premier League,FC Molodechno,Naftan Novopolock,0.25,0.25,-0.25,-0.25,1.93,1.75,1.92,2.04,2.25,2.25,1.86,1.88,1.98,1.88,0-0,0-2
+03-05,00:00,Uruguay Primera Division,Boston River,Wanderers FC,-0.25,-0.25,0.25,0.25,2.04,1.95,1.85,1.85,2,2.25,1.85,1.99,2.03,1.80,1-0,1-0
+02-05,22:30,Peru Primera Division,Sport Huancayo,Atletico Grau,-1,-0.5,1,0.5,1.88,1.84,1.97,1.98,2.5,2.5,1.86,1.98,1.98,1.83,0-0,3-0
+02-05,02:30,Peru Primera Division,FBC Melgar,Comerciantes Unidos,-2,-1.75,2,1.75,2.00,1.90,1.84,1.85,3,3.25,1.81,1.88,2.02,1.86,1-1,1-1
+02-05,18:00,Georgia Primera Division,FC Saburtalo Tbilisi,Dila Gori,-0.25,-0.25,0.25,0.25,1.85,1.99,1.97,1.76,2.25,2.25,1.93,1.97,1.89,1.78,0-0,1-0
+02-05,18:00,Czech Republic Ceska Fotbalova Liga,Sokol Hostoun,Marila Pribram,0.5,0.75,-0.5,-0.75,1.95,1.81,1.83,1.95,2.5,2.5,1.83,1.80,1.96,1.96,1-0,3-0
+02-05,17:00,Lithuania - 2.Division,NFA Kaunas,Nevezis Kedainiai,0.5,-0.25,-0.5,0.25,1.92,1.92,1.83,1.79,2.75,2.75,1.85,1.94,1.88,1.77,0-2,1-3
+02-05,14:15,V.League 1,Viettel FC,Da Nang,-1,-0.75,1,0.75,2.06,1.79,1.81,1.98,2.25,2.25,1.90,2.01,1.93,1.76,5-0,6-0
+02-05,16:00,Georgia Division,Dinamo Tbilisi II,Spaeri FC,0.75,0.75,-0.75,-0.75,1.89,1.96,1.85,1.76,3,2.75,1.93,1.81,1.82,1.91,0-1,0-1
+02-05,15:00,Georgia Division,FC Gonio,Lokomotiv Tbilisi,-0.25,0,0.25,0,1.77,1.88,1.98,1.83,2.75,2.5,1.88,1.95,1.85,1.71,0-0,2-1
+02-05,15:00,Georgia Division,Sabutaroti billisse B,Samtredia,0.25,0.25,-0.25,-0.25,1.72,1.90,2.04,1.81,2.25,2.25,1.83,1.85,1.91,1.86,1-1,2-1
+02-05,15:00,Georgia Division,Merani Martvili,FC Metalurgi Rustavi,0.25,0.5,-0.25,-0.5,1.74,1.86,2.02,1.85,2.25,2.25,1.88,1.86,1.86,1.85,1-0,2-1
+02-05,16:00,Egyptian Premier League,Smouha SC,Ismaily,0,-0.5,0,0.5,1.74,2.06,2.17,1.75,1.5,1.75,1.84,1.81,2.00,1.95,1-0,1-1
+02-05,19:00,Egyptian Premier League,ZED FC,Talaea EI-Gaish,0,-0.25,0,0.25,2.07,1.83,1.82,1.95,1.75,1.75,1.80,1.78,2.05,1.98,0-0,0-0
+02-05,16:00,Russia Youth Championship League,Baltika Kaliningrad Youth,Krylya Sovetov Samara Youth,0.5,0.5,-0.5,-0.5,1.93,1.82,1.81,1.89,3.5,3.75,1.92,1.93,1.83,1.79,0-3,1-4
+02-05,12:00,Russia Youth Championship League,Lokomotiv Moscow Youth,Konopliev Youth,-1.5,-1.5,1.5,1.5,1.95,1.95,1.77,1.77,3.5,3.5,1.80,1.80,1.92,1.92,2-0,2-0
+02-05,12:00,Russia Youth Championship League,FK Nizhny Novgorod Youth,Fakel Youth,0.25,0.25,-0.25,-0.25,1.93,1.93,1.78,1.78,2.75,2.75,1.78,1.78,1.93,1.93,1-0,3-2
+02-05,14:00,Russia Youth Championship League,Rubin Kazan (R),CSKA Moscow  (R),1.25,1,-1.25,-1,1.87,1.94,1.87,1.77,3,3.25,1.85,1.81,1.89,1.91,0-1,0-4
+02-05,16:00,Russia Youth Championship League,PFC Sochi Youth,Dinamo Moscow Youth,1,1.5,-1,-1.5,1.92,1.87,1.83,1.84,3,3,1.89,1.92,1.85,1.79,0-0,1-1
+02-05,16:00,Russia Youth Championship League,Spartak Moscow Youth,FK Krasnodar Youth,0.25,0.25,-0.25,-0.25,1.92,1.89,1.83,1.82,2.75,2.75,1.81,1.82,1.93,1.89,0-0,0-1
+02-05,10:00,Russia Youth Championship League,FK Ural Youth,FC Terek Groznyi Youth,-1.25,-1.25,1.25,1.25,1.88,1.77,1.86,1.95,3.75,3.75,1.96,1.93,1.79,1.78,3-1,5-1
+02-05,14:00,Russia Youth Championship League,Zenit St.Petersburg Youth,FK Rostov Youth,-1.25,-1.5,1.25,1.5,1.88,1.77,1.86,1.95,3.5,3.5,1.95,1.85,1.80,1.85,1-0,3-0
+02-05,14:00,Tajikistan Vysshaya Liga,Vakhsh Bokhtar,Barkchi Hisor,-0.75,-0.75,0.75,0.75,1.74,1.73,2.02,2.00,2.25,2.25,1.77,1.76,1.98,1.96,2-1,2-2
+02-05,19:30,Romania Liga I,CS Universitatea Craiova,Rapid Bucuresti,-1,-0.75,1,0.75,2.02,1.98,1.86,1.82,2.75,2.5,1.90,1.98,1.93,1.77,0-0,1-2
+02-05,16:30,Romania Liga I,CSM Politehnica Iasi,Sepsi OSK Sfantul Gheorghe,0.25,0,-0.25,0,1.89,2.02,1.98,1.77,2.25,2.25,1.81,1.80,2.04,1.96,0-0,0-0
+02-05,10:00,Chinese Football Association Yi League,Kunming City Star,Shenzhen,0,0.25,0,-0.25,1.95,1.91,1.84,1.85,2,2,1.94,1.91,1.84,1.85,0-1,0-1
+02-05,10:30,Chinese Football Association Yi League,Quanzhou Yassin,Chengdu Rongcheng B,0.75,1,-0.75,-1,1.95,1.76,1.84,2.00,2,2,1.90,1.95,1.88,1.81,0-2,1-4
+02-05,13:30,Chinese Football Association Yi League,Guangxi Lanhang,Wuhan Three Towns B,1.25,0.5,-1.25,-0.5,1.77,1.92,2.03,1.84,2.25,1.75,1.90,1.81,1.88,1.95,0-2,0-4
+02-05,13:30,Chinese Football Association Yi League,Guizhou Zhucheng Jingji FC,Guangzhou dandelion FC,-0.25,-0.25,0.25,0.25,1.81,1.90,1.98,1.85,1.75,2,1.77,1.85,2.04,1.90,0-1,2-1
+02-05,09:00,Chinese Football Association Yi League,Yan An Ronghai,Wuxi Wugou,0.75,1,-0.75,-1,1.79,1.74,2.01,2.03,2.25,2,1.98,1.83,1.81,1.93,0-1,0-3
+02-05,10:00,Chinese Football Association Yi League,Hubei Istar,Shanghai Port B,0.5,0.25,-0.5,-0.25,1.86,1.83,1.93,1.93,2,2,1.81,1.92,1.99,1.83,0-1,0-2
+02-05,13:00,Chinese Football Association Yi League,Lanzhou Longyuan Athletics,Changchun XIdu Football Club,0.75,0.75,-0.75,-0.75,1.82,1.77,1.98,1.98,2,2,2.02,1.79,1.78,1.96,0-0,0-1
+02-05,15:50,Croatia 2.HNL,NK Opatija,NK Orijent Rijeka,-0.75,-0.5,0.75,0.5,1.82,1.93,1.97,1.83,2.25,2,2.02,1.85,1.78,1.90,0-1,2-3
+02-05,19:30,Austrian Bundesliga,Grazer AK,SK Austria Klagenfurt,-0.5,-0.25,0.5,0.25,1.82,1.84,2.08,1.97,2.5,2.5,2.00,1.91,1.89,1.89,1-1,1-1
+02-05,20:45,Belgian Pro League,Westerlo,FCV Dender EH,-0.75,-0.5,0.75,0.5,1.89,1.96,2.02,1.86,3.5,3,2.04,1.91,1.86,1.89,1-1,4-2
+02-05,19:00,Denmark Superligaen,Randers FC,Nordsjaelland,0,0,0,0,1.96,2.02,1.94,1.81,2.75,2.75,1.87,1.92,2.03,1.88,2-1,3-2
+02-05,11:00,Romania - Liga 2 Seria,Universitatea Craiova,FC Bihor Oradea,-0.5,-0.5,0.5,0.5,1.93,1.89,1.86,1.86,2.5,2.25,1.90,1.81,1.88,1.94,0-0,0-3
+02-05,16:00,Latvia Division 2,JDFS Alberts,Marupe,-1.5,-1.75,1.5,1.75,1.81,1.86,1.93,1.83,3.25,3.25,1.87,1.82,1.87,1.88,0-0,1-0
+02-05,20:15,Bosnia and Herzegovina Premier League,Posusje,FK Igman Konjic,-0.75,-0.5,0.75,0.5,1.91,1.77,1.83,1.94,2.25,2.25,1.94,1.87,1.80,1.84,2-0,2-1
+02-05,14:00,Ukraine Division 2,UCSA,FK Epitsentr Dunayivtsi,0.25,0.25,-0.25,-0.25,1.91,1.79,1.83,1.93,2.5,2.75,1.79,1.88,1.95,1.83,0-1,0-1
+02-05,11:30,Ukraine Division 2,Podillya Khmelnytskyi,Metalurh Zaporizhya,-0.5,-0.5,0.5,0.5,1.93,1.81,1.82,1.91,2.25,2,1.98,1.77,1.77,1.94,1-2,2-3
+02-05,19:00,Danish 1st Division,B Copenhagen,Vendsyssel,0.25,0.5,-0.25,-0.5,1.85,1.90,2.02,1.88,3,2.75,1.85,1.93,1.99,1.83,1-0,2-2
+02-05,18:30,Danish 1st Division,Hobro,Hillerod Fodbold,0.25,0.25,-0.25,-0.25,2.02,1.76,1.85,2.05,2.5,2.5,1.89,1.93,1.94,1.83,0-0,0-0
+02-05,11:30,Australia Capital Gatorade Premier League,Gungahlin United,Canberra FC,1.25,1.75,-1.25,-1.75,1.90,1.79,1.88,1.96,3.75,3.75,1.86,1.87,1.93,1.87,0-1,0-4
+02-05,15:00,Israel Leumit League,Hapoel Kfar Shalem,Bnei Yehuda Tel Aviv,-0.25,-0.25,0.25,0.25,1.91,1.91,1.83,1.77,2.75,2.75,1.85,1.92,1.89,1.76,0-1,0-4
+02-05,15:00,Israel Leumit League,Ironi Nir Ramat HaSharon,Hapoel Acre FC,0.25,0,-0.25,0,1.85,1.97,1.88,1.71,3,2.75,1.89,1.89,1.85,1.77,1-0,1-2
+02-05,15:00,Israel Leumit League,Hapoel Natzrat Illit,Hapoel Afula,-0.25,-0.25,0.25,0.25,1.88,1.76,1.85,1.92,2.25,2.5,1.99,1.95,1.76,1.72,1-1,2-1
+02-05,15:00,Israel Leumit League,Hapoel Raanana,Maccabi Kabilio Jaffa,0.25,0,-0.25,0,1.96,2.00,1.79,1.69,2.25,2.25,1.79,1.77,1.96,1.90,1-1,1-2
+02-05,15:00,Israel Leumit League,Hapoel Umm Al Fahm,Kafr Qasim,0.5,0.5,-0.5,-0.5,1.83,1.73,1.92,1.95,2.5,2.25,1.98,1.74,1.77,1.93,1-0,1-0
+02-05,17:30,Finland - Kakkonen Lohko,Lahden Reipas,HAPK,-2.75,-2.25,2.75,2.25,1.86,1.92,1.89,1.83,4.25,4.25,1.79,1.98,1.97,1.77,0-1,0-2
+02-05,18:00,Finland - Kakkonen Lohko,Kiffen Helsinki,Ilves Tampere II,0.25,0.25,-0.25,-0.25,1.90,1.76,1.88,2.01,3.5,3.75,1.82,1.85,1.98,1.90,0-1,1-2
+02-05,18:00,Finland - Kakkonen Lohko,NJS,P-Iirot,1.25,1,-1.25,-1,1.79,1.88,2.01,1.87,4,4,1.84,1.86,1.94,1.89,0-2,1-2
+02-05,17:30,Finland - Kakkonen Lohko,OsPa,GBK Kokkola,0.25,0,-0.25,0,1.75,1.98,2.02,1.73,3.25,3.5,1.85,1.85,1.93,1.90,3-0,6-1
+02-05,18:00,Finland - Kakkonen Lohko,Atlantis,PK Keski Uusimaa,0,-0.25,0,0.25,1.99,1.86,1.87,1.91,3.25,3.25,1.84,1.87,2.00,1.88,1-1,2-3
+02-05,18:00,Finland - Kakkonen Lohko,Tampere United,Jyvaskyla JK,-0.75,0,0.75,0,1.95,1.81,1.90,1.96,3,3,1.85,1.78,2.00,1.99,0-0,1-0
+02-05,04:00,CONCACAF Champions League,CDSyC Cruz Azul,Tigres UANL,-0.25,-0.75,0.25,0.75,1.91,1.95,1.98,1.85,2.25,2.25,2.07,1.79,1.82,2.02,0-0,1-0
+02-05,18:30,Serbian Superliga,OFK Beograd,Vojvodina Novi Sad,0,0.25,0,-0.25,1.83,1.91,2.00,1.91,2.75,2.75,1.98,1.99,1.84,1.83,0-2,1-2
+02-05,18:30,Sweden Div 3 Mellersta,FBK Karlstad,Kumla,-1.5,-1.25,1.5,1.25,1.92,1.81,1.82,1.91,3.5,3.25,1.90,1.85,1.84,1.85,2-0,4-1
+02-05,19:30,Sweden Div 3 Mellersta,Vanersborg FK,Skara FC,-0.5,-0.75,0.5,0.75,1.91,1.80,1.83,1.92,3.25,3.25,1.85,1.77,1.89,1.94,0-2,2-3
+02-05,12:00,Kenya Premier League,Sofapaka FC,Mathare United,-0.5,-0.5,0.5,0.5,1.89,1.78,1.85,1.94,2.25,2,2.03,1.81,1.74,1.90,0-0,1-1
+02-05,02:30,Copa do Brasil,Cruzeiro,Vila Nova,-1,-1,1,1,2.09,1.78,1.81,2.00,2,2.75,1.91,1.97,1.95,1.79,2-0,2-0
+02-05,21:00,Bolivia Primera Division,San Antonio Bulo Bulo,Independiente Petrolero,-0.25,-0.75,0.25,0.75,1.93,1.91,1.92,1.86,2.75,2.75,1.86,1.83,1.97,1.93,3-1,4-2
+02-05,18:30,Denmark - 2.Liga,Middelfart G og,Fremad Amager,-0.25,-0.25,0.25,0.25,2.04,1.99,1.79,1.76,2.25,2.25,2.05,1.80,1.79,1.95,2-1,3-1
+02-05,19:00,Denmark - 2.Liga,AB Copenhagen,Skive IK,-0.5,-0.5,0.5,0.5,1.83,1.84,2.00,1.90,2.5,2.5,1.95,1.93,1.87,1.81,3-1,5-1
+02-05,19:00,Denmark - 2.Liga,HIK Hellerup,BK Frem,0.25,0.25,-0.25,-0.25,1.84,1.98,1.99,1.77,2.25,2.25,1.85,1.81,1.96,1.93,4-1,4-1
+02-05,19:00,Denmark - 2.Liga,Nykobing FC,Ishoj IF,0,0.25,0,-0.25,2.01,1.93,1.82,1.81,2.75,2.5,1.94,1.93,1.88,1.81,0-1,1-2
+02-05,19:00,Bulgaria Premier League,Lokomotiv Plovdiv,Lokomotiv Sofia,-0.5,-0.5,0.5,0.5,1.90,1.82,1.95,1.96,2.25,2.5,1.81,1.94,2.04,1.82,1-0,1-1
+02-05,14:00,Bulgaria Premier League,Botev Vratsa,Septemvri Sofia,-0.25,-0.25,0.25,0.25,1.94,1.96,1.91,1.81,2.5,2.25,2.01,1.87,1.83,1.88,2-0,3-2
+02-05,16:30,Bulgaria Premier League,Slavia Sofia,CSKA  Sofia,-0.5,0,0.5,0,1.85,1.91,2.01,1.86,2.5,2.5,1.88,1.95,1.95,1.81,0-0,0-1
+02-05,23:00,Paraguayan Division 2,Guarani de Fram,River Plate (PAR),-0.5,-0.5,0.5,0.5,1.90,1.88,1.83,1.82,2,2,1.83,1.81,1.92,1.90,1-0,2-2
+03-05,01:30,Paraguayan Division 2,de Junio VH,Sol de America Pastoreo,-0.5,-0.25,0.5,0.25,1.94,2.02,1.80,1.71,2.25,2.25,1.89,2.01,1.85,1.72,0-1,1-1
+02-05,17:00,African Youth Championship,Senegal U,Central African Republic U,-1.5,-1,1.5,1,2.00,1.77,1.79,1.94,2.25,2.25,1.79,1.92,2.02,1.79,0-0,1-1
+02-05,20:00,African Youth Championship,Democratic Rep Congo U,Ghana U,0,0.5,0,-0.5,1.83,1.79,1.96,1.93,2,2,1.99,1.91,1.81,1.81,1-1,1-1
+02-05,16:00,Argentina Reserve League,Atletico Tucuman Reserve,Instituto AC Cordoba II,0,0,0,0,1.88,1.95,1.93,1.87,2,2,1.92,1.95,1.90,1.87,1-0,1-0
+02-05,16:45,Persian Gulf Pro League,Esteghlal Tehran,Aluminium Arak,-0.75,-0.25,0.75,0.25,2.01,1.85,1.75,1.85,1.75,1.75,1.75,1.79,2.00,1.92,1-0,5-1
+02-05,17:00,Persian Gulf Pro League,Malavan,Zob Ahan,-0.25,-0.25,0.25,0.25,1.75,1.95,2.01,1.77,1.75,1.75,1.96,1.83,1.78,1.88,1-2,3-3
+02-05,18:00,Persian Gulf Pro League,Sepahan,Gol Gohar FC,-1,-1,1,1,1.85,1.72,1.89,2.02,2,2,1.98,1.83,1.77,1.88,0-1,1-2
+02-05,18:00,Persian Gulf Pro League,Shams Azar Qazvin,Tractor S.C.,1.25,1,-1.25,-1,1.98,1.83,1.77,1.88,2.25,2,1.79,1.74,1.95,1.99,0-3,0-4
+02-05,14:00,Lebanese Premier League,Al-Nejmeh,Al-Hikma,-0.75,-0.75,0.75,0.75,1.78,1.76,1.97,1.96,2.25,2.25,1.85,1.83,1.89,1.88,1-0,1-0
+02-05,19:00,Slovakia 3.Liga,TJ Spartak Myjava,FK Podkonice,-1,-1,1,1,1.92,1.77,1.82,1.95,2.75,2.75,1.95,1.88,1.79,1.83,1-0,1-1
+02-05,14:00,Poland III Liga,Sokol Aleksandrow Lodzki,Wisla II Plock,1.25,1.25,-1.25,-1.25,1.76,1.85,2.00,1.85,3,3,1.88,1.88,1.85,1.83,0-1,2-3
+02-05,20:00,Poland III Liga,Odra Bytom Odrzanski,GKP Gorzow,0.75,0,-0.75,0,1.87,1.78,1.87,1.93,3.25,3,1.88,1.96,1.85,1.76,0-1,2-4
+02-05,15:00,Poland III Liga,Gornik II Zabrze,LKS Goczalkowice Zdroj,0,0,0,0,1.85,1.84,1.88,1.87,2.75,2.75,1.94,1.94,1.75,1.75,1-0,1-0
+02-05,17:00,Poland III Liga,LGKS  Podlesianka,Polonia Slubice,-1.75,-1.75,1.75,1.75,1.76,1.83,1.97,1.87,3.5,3.25,1.88,1.79,1.85,1.91,1-1,5-1
+02-05,16:00,Poland III Liga,Gornik Polkowice,Miedz Legnica II,0,0,0,0,1.79,1.85,1.96,1.85,3,2.75,1.94,1.87,1.81,1.84,0-2,0-2
+02-05,16:00,Poland III Liga,KSS Kotwica Kornik,Gryf Slupsk,-0.5,-0.5,0.5,0.5,1.97,1.93,1.78,1.78,2.75,2.75,1.83,1.81,1.91,1.90,1-1,2-1
+02-05,12:00,Poland III Liga,Lech II Poznan,KS Polonia Sroda Wlkp,-0.5,-0.75,0.5,0.75,1.79,1.96,1.95,1.76,2.75,3,1.92,1.92,1.82,1.79,0-0,1-1
+02-05,13:30,Poland III Liga,Unia Tarnow,KSZO Ostrowiec,3.25,2.75,-3.25,-2.75,1.88,1.86,1.83,1.82,4.25,3.75,1.91,1.79,1.80,1.89,1-1,2-1
+02-05,17:30,Poland III Liga,Wislanie Jaskowice,KS Wiazownica,-0.75,-0.25,0.75,0.25,1.91,1.79,1.83,1.93,2.75,3,1.77,1.93,1.98,1.78,1-0,1-1
+02-05,16:05,United Arab Emirates U21,Al-Jazira(UAE) U,Al-Nasr(KSA) U,-1.75,-1.75,1.75,1.75,1.96,1.96,1.81,1.78,3,3,1.79,1.77,1.99,1.98,1-1,1-1
+02-05,16:05,United Arab Emirates U21,Wasl Dubai U,Hatta Dubai U,0.5,1,-0.5,-1,1.99,1.92,1.81,1.84,3,3.25,1.81,1.99,1.99,1.77,2-1,2-2
+02-05,16:05,United Arab Emirates U21,Shabab Dubai U,Al Fujairah U,-3,-3,3,3,1.90,1.83,1.85,1.89,4.25,4.25,1.97,1.88,1.79,1.84,1-0,1-0
+02-05,16:05,United Arab Emirates U21,Al Arabi Umm Al Quwain U,Al-Dhafra U,-0.5,-0.5,0.5,0.5,1.85,1.75,1.94,1.95,3,3.25,1.93,1.86,1.85,1.89,2-1,2-2
+02-05,16:05,United Arab Emirates U21,Emirates Club U,Al Ain U,2,2.75,-2,-2.75,1.88,1.78,1.89,1.95,3.5,3.75,1.85,1.84,1.92,1.88,0-1,1-3
+02-05,22:00,USA MLS Next Pro League,MINNESOTA United B,North Texas SC,-1,-0.5,1,0.5,2.02,1.81,1.78,1.94,3.5,3.25,2.01,1.79,1.82,1.95,0-1,0-1
+02-05,09:30,Northern NSW U20 League,Manly United U,Marconi Stallions U,-0.25,-0.25,0.25,0.25,1.79,1.76,1.95,1.95,3,3.25,1.75,1.87,1.97,1.84,1-0,2-0
+02-05,05:10,Fiji National League,Rewa FC,Navua FC,-0.5,-0.5,0.5,0.5,1.76,1.81,1.97,1.90,2.75,2.75,1.85,1.88,1.88,1.83,1-0,2-0
+02-05,10:45,Australia New South Wales NPL Women,Adelaide University (W),West Torrens Birkalla (W),0.5,0.5,-0.5,-0.5,1.79,1.76,1.95,1.95,3.5,3.25,1.79,1.77,1.96,1.94,1-0,1-2
+02-05,12:45,Australia New South Wales NPL Women,Adelaide City (W),Metropolis United (W),-0.25,0.25,0.25,-0.25,1.84,1.77,1.90,1.94,3.5,3.75,1.93,1.93,1.81,1.78,1-1,2-3
+02-05,10:45,Australia New South Wales NPL Women,Adelaide Comets (W),Salisbury Inter (W),-2,-1.5,2,1.5,1.94,1.94,1.79,1.77,3.5,3.75,1.81,1.81,1.92,1.91,0-0,0-1
+02-05,12:45,Australia New South Wales NPL Women,Flinders United (W),West Adelaide (W),2.25,3,-2.25,-3,1.81,1.76,1.92,1.93,4.25,4,1.92,1.77,1.81,1.91,2-1,3-5
+02-05,21:00,Gibraltar Premier Division,Manchester  FC,Lincoln Red Imps FC,2.25,2.5,-2.25,-2.5,1.83,1.88,1.89,1.78,3.25,3,1.92,1.72,1.81,1.95,0-1,0-2
+03-05,00:30,Peru B League,FC San Marcos,FC Cajamarca,-0.5,-0.25,0.5,0.25,1.83,1.81,1.91,1.90,2.25,2.25,1.79,1.73,1.95,1.96,1-0,2-0
+03-05,01:00,Paraguay Women League,Sportivo Trinidense (W),Club Atletico Tembetary (W),0.25,0,-0.25,0,1.94,1.84,1.80,1.87,3,2.75,1.99,1.84,1.76,1.87,0-2,2-3
+02-05,15:00,Liga de Elite,Shao Jiang,Lun Lok,-5,-2.25,5,2.25,1.80,1.82,1.84,1.83,5.75,4,1.83,1.87,1.81,1.78,5-0,9-0
+02-05,16:00,Poland Cup,Pogon Szczecin,Legia Warszawa,0.25,0.25,-0.25,-0.25,1.94,1.79,1.94,1.99,2.75,2.75,2.04,1.83,1.84,1.93,1-1,3-4
+02-05,16:35,Kuwaiti Premier League,Al Kuwait SC,Al-Salmiyah,-1.5,-1.75,1.5,1.75,1.89,1.97,1.87,1.78,3.5,3.25,1.93,1.88,1.85,1.85,3-0,5-0
+02-05,19:00,Kuwaiti Premier League,Al-Arabi Club (KUW),Al-Qadsia SC,-0.5,-0.5,0.5,0.5,1.85,1.90,1.93,1.85,2.5,2.75,2.02,1.96,1.77,1.81,1-0,1-0
+02-05,20:45,Northern Ireland IFA Championship,Carrick Rangers,Annagh United,-1,-1.5,1,1.5,1.79,1.92,2.05,1.93,3,3.25,1.82,1.88,1.99,1.87,1-1,3-1
+02-05,20:30,Argentina Regional Federal Championships,Club Ciudad de Bolivar,San Martin Mendoza,-1.5,-1,1.5,1,1.91,1.88,1.83,1.83,2.75,2,1.83,1.89,1.91,1.82,1-0,2-1
+03-05,01:15,Argentina Regional Federal Championships,Sportivo Belgrano,Gimnasia C. Uruguay,-1.25,-1,1.25,1,2.06,1.81,1.71,1.91,2,2.5,1.85,1.79,1.88,1.93,1-0,4-0
+02-05,16:00,Jordan Premier League,Al-Ahly,AL-Sareeh,0.25,-0.25,-0.25,0.25,1.75,2.06,2.06,1.73,2.5,2.25,1.99,1.80,1.81,1.96,2-1,3-3
+02-05,18:45,Jordan Premier League,Al Faisaly Amman,Moghayer Al Sarhan,-2.25,-1.75,2.25,1.75,1.99,1.85,1.79,1.88,3.75,3,1.88,1.82,1.88,1.92,0-0,3-0
+02-05,20:00,Brazil Campeonato Paulista Youth,Gremio Novorizontin (Youth),EC Sao Bernardo U,-1,-1.75,1,1.75,2.04,1.90,1.72,1.80,2.5,3,1.79,1.85,1.96,1.85,0-1,1-2
+02-05,20:00,Brazil Campeonato Paulista Youth,Sao Caetano (Youth),Velo Clube Youth,-0.5,-0.25,0.5,0.25,1.83,1.92,1.92,1.80,2.5,2.25,2.00,1.76,1.76,1.97,1-0,2-0
+02-05,20:00,Brazil Campeonato Paulista Youth,Ferroviaria SP (Youth),Itapirense Youth,-2,-2.25,2,2.25,1.72,1.88,1.95,1.81,3.25,3.25,1.80,1.79,1.93,1.91,2-1,5-1
+02-05,20:00,Brazil Campeonato Paulista Youth,Inter de Limeira (Youth),Sfera Youth,-0.25,-0.25,0.25,0.25,1.88,1.83,1.85,1.88,2.75,3,1.95,1.85,1.79,1.86,2-1,2-1
+02-05,20:00,Brazil Campeonato Paulista Youth,Taubate (Youth),Sao Jose AP (Youth),-0.25,0,0.25,0,1.82,1.80,1.93,1.91,2.5,2.75,1.89,1.77,1.85,1.94,0-0,1-1
+02-05,20:00,Brazil Campeonato Paulista Youth,Portuguesa (Youth),Jabaquara SP U,-1,-1.25,1,1.25,1.81,1.83,1.94,1.88,3,2.75,1.91,1.85,1.83,1.85,0-0,1-0
+02-05,20:00,Brazil Campeonato Paulista Youth,Sao Bento SP (Youth),Aracatuba SP Youth,-1,-1.25,1,1.25,1.87,1.79,1.87,1.93,2.5,2.75,1.79,1.84,1.96,1.87,1-1,1-1
+02-05,20:00,Brazil Campeonato Paulista Youth,Guarani SP (Youth),Gremio Prudente SP (Youth),-1,-0.5,1,0.5,1.88,1.77,1.86,1.94,2.75,2.5,1.88,1.93,1.86,1.78,2-0,2-1
+02-05,20:00,Brazil Campeonato Paulista Youth,Desportivo Brasil Youth,Portuguesa Santista SP Youth,-1,-1.25,1,1.25,1.88,1.92,1.86,1.79,2.75,3.25,1.81,1.86,1.94,1.85,2-0,2-3
+02-05,20:00,Brazil Campeonato Paulista Youth,Capivariano FC SP Youth,Comercial Tiete SP Youth,-0.5,-0.75,0.5,0.75,1.93,1.77,1.81,1.95,3,3.25,1.79,1.79,1.96,1.92,1-0,1-0
+02-05,20:00,Brazil Campeonato Paulista Youth,Tanabi SP (Youth),XV de Piracicaba (Youth),-0.25,-0.25,0.25,0.25,1.91,1.83,1.83,1.88,2.5,3,1.85,1.97,1.88,1.75,0-0,0-0
+02-05,20:00,Brazil Campeonato Paulista Youth,Ibrachina Youth,Guaratingueta U,-2,-1.5,2,1.5,1.93,1.88,1.80,1.83,3.25,3.25,1.79,1.95,1.94,1.72,1-0,2-0
+02-05,18:00,Bahraini Premier League,Al-Ahli(BHR),Al-Riffa,0.5,0.75,-0.5,-0.75,2.02,1.77,1.81,1.98,2.75,2.5,1.87,1.86,1.95,1.88,1-0,1-2
+02-05,18:00,Bahraini Premier League,Al-Shabbab,Al Khaldiya,1,1,-1,-1,1.81,1.93,2.02,1.82,2.75,2.5,1.85,1.86,1.97,1.88,0-0,1-1
+02-05,18:00,Bahraini Premier League,East Riffa,Manama Club,-0.25,-0.25,0.25,0.25,1.81,1.95,2.02,1.79,2.5,2.25,1.95,1.82,1.87,1.93,1-0,1-1
+02-05,16:30,Iraqi Premier League,Al Karkh,Al Talaba,0.5,0.5,-0.5,-0.5,1.77,1.76,2.02,1.95,2,2,2.04,1.93,1.77,1.77,1-2,1-4
+02-05,16:30,Iraqi Premier League,Dyala,AL Najaf,0,0.25,0,-0.25,1.90,1.84,1.88,1.91,2,2,2.05,2.00,1.76,1.77,0-0,0-0
+02-05,19:30,Iraqi Premier League,Karbalaa,Arbil,0.25,0,-0.25,0,1.84,2.02,1.95,1.76,2.25,2,1.96,1.81,1.83,1.94,0-1,0-2
+02-05,19:30,Iraqi Premier League,Zakho,Al Zawraa,0.25,0.25,-0.25,-0.25,1.77,1.76,2.03,2.00,2,2,1.86,1.86,1.93,1.89,0-0,0-0
+02-05,21:00,Iraqi Premier League,Al-Naft,Al-Hudod,-1,-1,1,1,1.94,1.93,1.85,1.83,2.25,2.25,2.03,2.01,1.77,1.76,2-0,2-0
+02-05,20:00,Brazil Campeonato Paulista Youth,Mirassol FC Youth,Juventus-AC (Youth),-0.75,-1.25,0.75,1.25,1.87,1.88,1.87,1.83,2.75,2.5,1.95,1.78,1.75,1.93,0-1,0-1
+02-05,20:00,Brazil Campeonato Paulista Youth,Agua Santa SP Youth,Rio Claro (Youth),-1.25,-0.75,1.25,0.75,1.92,1.85,1.83,1.85,2.75,2.75,1.80,1.88,1.94,1.83,2-1,4-1
+02-05,13:00,Australia FFA Cup,Bayswater City,Quinns FC,-3.25,-3.25,3.25,3.25,1.84,1.84,1.84,1.84,4.5,4.5,1.80,1.80,1.88,1.88,3-0,7-0
+02-05,03:00,Mexico Liga MX Femenil,Chivas Guadalajara (W),Club America (W),1.25,0.75,-1.25,-0.75,1.92,2.03,1.93,1.81,2.75,2.75,1.84,1.93,2.00,1.88,0-1,2-2
+02-05,11:30,Australia Queensland State Womens Premier League,Sunshine Coast Wanderers (W),Mitchelton (W),-2,-1.25,2,1.25,1.89,1.82,1.88,1.94,3.25,3.75,2.00,1.75,1.79,1.95,2-0,3-0
+02-05,20:00,England U21 Premier League,Crystal Palace U,Chelsea U,0.5,0.25,-0.5,-0.25,1.79,1.83,2.00,1.91,3.5,3.75,1.93,1.88,1.86,1.85,2-0,6-0
+02-05,02:00,Nicaragua Apertura league,Walter Ferretti,Managua FC,0,0.25,0,-0.25,1.94,1.94,1.85,1.82,2.25,2.25,1.85,1.88,1.93,1.87,0-1,2-1
+02-05,02:00,Nicaragua Apertura league,UNAN Managua,Real Esteli,1,1.25,-1,-1.25,1.82,1.86,1.98,1.89,3,2.5,2.01,1.85,1.79,1.90,1-1,1-2
+02-05,15:00,Cameroon Elite One,Fauve Azur Elite,Stade Renard de Melong,0,0,0,0,1.79,1.85,1.92,1.85,1.75,1.75,1.85,1.85,1.86,1.86,1-0,1-0
+02-05,17:00,Cameroon Elite One,AS Fortuna Mfou,Victoria Utd Limbe,0,0,0,0,1.94,1.71,1.81,2.03,2.25,2,1.99,1.90,1.76,1.81,4-0,5-0
+02-05,18:30,Denmark - 4.Liga,Tarnby FF,Ledoje-Smorum Fodbold,0,0,0,0,1.85,1.83,1.93,1.92,2.75,2.75,1.98,1.77,1.81,1.99,1-0,2-3
+02-05,13:00,Australia Darwin Premier League,Port Darwin FC,Hellenic AC,0.75,0.25,-0.75,-0.25,1.83,1.90,1.99,1.84,4.25,3.25,2.01,1.86,1.82,1.88,1-0,2-0
+02-05,11:00,Australia Darwin Premier League,Garuda FC,Mindil Aces,0.5,0,-0.5,0,1.88,1.91,1.93,1.83,3.5,3,1.86,1.82,1.96,1.93,1-1,1-5
+02-05,19:00,Austria Landesliga,ATSV Wolfsberg,St. Veit/Glan,-0.75,-0.75,0.75,0.75,1.87,1.94,1.87,1.77,3.25,3.25,1.88,1.88,1.85,1.83,1-3,1-3
+02-05,18:30,Austria Landesliga,SV Schwechat,FC  Wien,0,-0.25,0,0.25,1.87,1.77,1.87,1.94,3,3,1.99,1.94,1.76,1.77,2-1,3-1
+02-05,19:00,Austria Landesliga,TUS Heiligenkreuz,SV Lafnitz II,1,0.75,-1,-0.75,1.93,1.96,1.82,1.76,3.5,3,1.83,1.79,1.91,1.93,2-3,3-6
+02-05,18:00,Austria Landesliga,SC Mannsworth,SV Gerasdorf Stammer,0.75,0.75,-0.75,-0.75,1.80,1.81,1.94,1.90,3,2.75,1.77,1.83,1.99,1.88,1-0,1-0
+02-05,19:20,Austria Landesliga,SV Spittal,KAC,-0.75,-0.5,0.75,0.5,1.81,1.79,1.94,1.92,3,3.25,1.79,1.88,1.95,1.83,0-0,1-2
+02-05,22:00,Spain Youth League,AD Huracan U,Las Palmas U,2.5,2.25,-2.5,-2.25,1.91,1.79,1.85,1.90,3.75,3.5,1.94,1.92,1.83,1.78,0-3,1-5
+02-05,12:00,Australia Northern NSW Women’s Premier League,Lake Macquarie (W),Charlestown Azzuri (W),2.25,2.5,-2.25,-2.5,1.94,1.79,1.77,1.95,4,4,1.82,1.90,1.96,1.84,1-1,2-4
+02-05,12:30,Australia Queensland State Womens Premier League,Brisbane Olympic (W),Peninsula Power (W),-1.25,0,1.25,0,1.78,1.80,1.97,1.87,4,4,1.93,1.85,1.74,1.82,3-0,5-0
+03-05,00:00,Primera Division de Venezuela,Metropolitanos FC,Carabobo FC,0.25,0,-0.25,0,1.81,1.78,2.05,2.00,2,2,1.88,1.88,1.95,1.88,1-1,1-3
+03-05,01:00,Venezuela Segunda Division,Dynamo Puerto FC,AC Minerven FC Bolivar,-0.75,-0.5,0.75,0.5,1.95,1.84,1.79,1.87,2,2,1.76,1.80,1.99,1.92,0-1,0-2
+02-05,14:00,Ethiopia Premier League,Bahir Dar Kenema FC,Ethio Electric FC,-0.75,-0.75,0.75,0.75,1.79,1.93,2.00,1.83,2,2,1.79,1.99,2.01,1.78,1-0,2-0
+02-05,17:00,Ethiopia Premier League,Ethiopia Nigd Bank,Mekelakeya,0.25,0,-0.25,0,1.81,1.74,1.98,2.04,1.75,1.75,1.85,1.89,1.94,1.86,0-0,0-0
+02-05,20:00,Faroe Islands Division 1,Skala Itrottarfelag,EB/Streymur II,-2.75,-2.25,2.75,2.25,1.77,1.79,1.95,1.91,4,3.5,1.80,1.88,1.92,1.82,6-0,8-0
+02-05,19:30,Mauritania Division 1,Al-Hilal Omdurman,ASC Snim,-1.75,-1.5,1.75,1.5,1.85,1.83,1.87,1.88,2.5,2.25,1.82,1.90,1.91,1.81,1-0,2-1
+02-05,12:15,Australia Tasmania Super League Women,Glenorchy Knights (W),Taroona (W),-2,-2.5,2,2.5,1.88,1.86,1.85,1.79,3.75,3.75,1.85,1.90,1.88,1.76,1-0,2-0
+02-05,11:30,Australia Victoria State League,Essendon Royals,Whittlesea United,-0.25,-0.75,0.25,0.75,1.87,1.80,1.87,1.91,3.25,3.25,1.82,1.90,1.93,1.81,1-0,2-1
+02-05,12:30,Australia Victoria State League,Brunswick Juventus,Eltham Redbacks,0,0,0,0,1.76,1.86,2.00,1.85,3.25,3.25,1.88,1.86,1.86,1.85,1-1,2-2
+02-05,11:30,Australia Victoria State League,Pascoe Vale SC,Nunawading City,0,0,0,0,1.87,1.95,1.87,1.77,3.25,3.25,1.80,1.83,1.94,1.88,1-1,1-2
+02-05,11:30,Australia Victoria State League,Box Hill United SC,Boroondara,0,-0.5,0,0.5,1.77,1.93,1.99,1.79,3,3,1.92,1.88,1.83,1.83,0-1,1-2
+02-05,18:15,Finland Kolmonen,EsPa,Valtti,0,-0.75,0,0.75,1.83,1.88,1.92,1.78,3,3.25,1.91,1.83,1.83,1.84,0-2,0-4
+02-05,18:00,Finland Kolmonen,FC Jyvaskyla Blackbird,KeuPa,-2.25,-1.25,2.25,1.25,1.83,1.75,1.89,1.93,4.75,4,1.92,1.88,1.76,1.78,4-0,5-0
+02-05,18:00,Finland Kolmonen,JJK/,Komeetat,-1.5,-0.5,1.5,0.5,1.88,1.86,1.86,1.81,4,3.25,1.78,1.89,1.97,1.78,1-1,1-3
+02-05,18:00,Finland Kolmonen,ViPa,Kyparamaki,-0.25,-0.75,0.25,0.75,1.83,1.85,1.91,1.82,4,3.75,1.89,1.76,1.85,1.91,2-1,3-1
+02-05,18:00,Finland Kolmonen,MPS Helsinki,PPJ/Ruoholahti,0.75,0.5,-0.75,-0.5,1.95,1.90,1.79,1.77,3.5,3.25,1.94,1.88,1.80,1.79,2-0,3-3
+02-05,18:30,Finland Kolmonen,NiemU,Kings,-2.25,-2.25,2.25,2.25,1.88,1.89,1.85,1.76,4.5,4.25,1.91,1.79,1.81,1.86,1-2,1-3
+02-05,18:00,Finland Kolmonen,LAUTP,PeKa,-0.25,0,0.25,0,1.88,1.90,1.86,1.77,3.75,4,1.88,1.90,1.85,1.77,1-0,1-0
+02-05,18:30,Finland Kolmonen,OTP,PonPa,1,0,-1,0,1.77,1.69,1.97,1.94,3.75,3.5,1.92,1.83,1.83,1.83,1-0,3-1
+02-05,20:00,Colombia U20 League,Aguilas Doradas U,Total Soccer FC U,-0.75,-0.75,0.75,0.75,1.96,1.94,1.79,1.77,2.25,2.25,1.77,1.76,1.98,1.96,1-0,1-0
+02-05,20:30,Northern Ireland Womens Super,Mid Ulster (W),Bangor (W),0.5,0,-0.5,0,1.81,1.88,1.93,1.83,4.5,5,1.82,1.83,1.93,1.88,0-2,0-2
+02-05,20:30,Northern Ireland Womens Super,St. Oliver Plunkett FC (W),Ballymena Allstars (W),6.5,7.25,-6.5,-7.25,1.89,1.78,1.76,1.90,7,7.75,1.75,1.86,1.90,1.82,0-3,0-8
+02-05,15:00,Tanzania Ligue 1,Simba Sports Club,Mashujaa FC,-2.5,-1.75,2.5,1.75,1.92,1.83,1.81,1.87,3.25,2.75,1.85,1.87,1.88,1.81,0-1,1-1
+02-05,10:50,Myanmar League Women,Ayeyawady Utd (W),Ispe FC (W),0.25,1.25,-0.25,-1.25,1.80,1.88,1.93,1.83,3.5,3.5,1.95,1.81,1.78,1.90,1-2,3-3
+02-05,11:30,Myanmar League Women,Shan Utd (W),Thitsar Arman FC (W),1.5,1.75,-1.5,-1.75,1.80,1.77,1.94,1.93,3.25,3.5,1.93,1.88,1.81,1.82,0-0,0-0
+02-05,11:30,Myanmar League Women,Yangon United FC (W),Myawady FC (W),-2.75,-2.75,2.75,2.75,1.74,1.79,1.95,1.89,3.5,3.5,1.90,1.77,1.81,1.91,4-0,6-0
+02-05,17:00,Chile Primera Division Women,Nublense (W),Deportes Concepcion (W),-0.25,-0.25,0.25,0.25,1.90,1.88,1.84,1.83,2.25,2.25,1.88,1.89,1.86,1.82,0-1,1-1
+02-05,16:00,Panama Liga Prom,Plaza Amador Reserves,Potros Del Este Reserves,-1.75,-1.75,1.75,1.75,1.81,1.86,1.91,1.83,3.75,3.5,1.76,1.82,1.97,1.88,2-0,3-0
+02-05,23:00,Panama Liga Prom,CD Universitario Reserves,CD Bocas Junior,0.25,0.25,-0.25,-0.25,1.93,1.96,1.78,1.76,3.25,3.25,1.88,1.94,1.85,1.77,0-0,0-1
+03-05,00:00,Panama Liga Prom,SD Atletico Nacional,Udelas FC,-2.5,-3.5,2.5,3.5,1.93,1.79,1.79,1.88,3.75,4.25,1.88,1.82,1.85,1.86,1-1,5-1
+02-05,19:00,Croatia 3.Division,Karlovac,Jadran Porec,-2.5,-1.75,2.5,1.75,1.96,1.77,1.77,1.93,3.5,3.25,1.92,1.93,1.81,1.77,1-0,2-0
+02-05,12:50,Paraguay reserve team league,Deportivo Recoleta Reserves,Club Guarani Reserve,0.5,0.75,-0.5,-0.75,1.85,1.98,1.88,1.74,2.75,2.75,1.84,1.77,1.89,1.94,1-0,1-3
+02-05,17:00,Croatia 3.Division,Jadran LP,Kustosija,-0.25,-0.5,0.25,0.5,1.84,1.97,1.90,1.75,2.75,2.75,1.90,1.88,1.84,1.83,2-1,4-1
+03-05,01:30,Paraguay reserve team league,Mayo Reserves,Sportivo Luqueno Reserves,-1,-0.25,1,0.25,1.84,1.78,1.90,1.93,3.75,3.5,1.91,1.88,1.83,1.83,1-0,3-0
+02-05,17:00,Croatia 3.Division,Hrvatski dragovoljac,NK Marsonia,-1.25,-1,1.25,1,1.89,1.75,1.85,1.97,3.25,2.75,1.98,1.79,1.77,1.93,3-0,5-1
+02-05,20:45,Ireland Leinster Senior League,St. Marys AFC,Douglas Hall,-0.25,-0.25,0.25,0.25,1.77,1.74,1.98,1.98,2.5,2.5,1.94,1.85,1.80,1.86,0-0,0-1
+02-05,20:00,The womens league of Argentina,Ferro Carril Oeste (W),CA Independiente (W),-1,-1,1,1,2.03,1.86,1.77,1.89,2.25,2.25,1.93,1.83,1.85,1.93,2-2,5-2
+02-05,19:00,The womens league of Argentina,River Plate (W),Social Atletico Television (W),-0.5,-0.5,0.5,0.5,1.82,2.00,1.97,1.77,2,2,1.85,1.78,1.94,1.99,1-0,1-0
+02-05,20:10,The womens league of Argentina,Banfield (W),Rosario Central (W),-1.25,-1.25,1.25,1.25,1.85,1.85,1.93,1.90,2.25,2.25,1.92,1.77,1.87,1.99,0-0,1-0
+02-05,20:30,Ireland Leinster Senior League,Usher Celtic,Lucan United,0.25,0,-0.25,0,1.94,1.94,1.80,1.77,2.75,3,1.89,1.85,1.85,1.85,1-1,2-1
+02-05,16:00,The womens league of Argentina,Racing Club (W),Velez Sarsfield (W),-1.5,-1.25,1.5,1.25,1.91,1.84,1.88,1.92,2.5,2.25,1.91,1.93,1.88,1.82,1-1,1-1
+02-05,20:45,Ireland Leinster Senior League,Malahide United,St Francis FC,-1,-1.25,1,1.25,1.80,1.97,1.95,1.75,2.75,2.75,1.81,1.87,1.93,1.84,0-1,1-1
+02-05,20:30,Ireland Leinster Senior League,Kilbarrack United,Killester Donnycarne,-1.25,-1.25,1.25,1.25,2.00,1.98,1.75,1.75,3,3,1.85,1.85,1.88,1.86,0-0,6-0
+02-05,16:00,The womens league of Argentina,Gimnasia LP (W),Belgrano (W),0.25,0,-0.25,0,2.01,2.00,1.79,1.77,2,2,2.04,1.98,1.77,1.79,1-1,1-2
+02-05,20:00,Argentina Reserve League,Victoriano Arenas Reserves,Estrella del Sur Reserves,-0.25,-0.5,0.25,0.5,1.76,1.92,1.99,1.79,2,2.5,1.73,1.79,2.00,1.92,0-0,0-1
+02-05,16:00,Argentina Reserve League,Deportivo Laferrere Reserves,Villa San Carlos Reserves,0.25,0.25,-0.25,-0.25,1.77,1.75,1.98,1.97,2.25,2.25,1.98,1.97,1.77,1.75,1-0,1-0
+02-05,19:00,Argentina Reserve League,Argentino Merlo Reserves,CSD Flandria Reserves,-0.25,-0.25,0.25,0.25,1.89,1.99,1.84,1.74,3,2.25,1.96,1.77,1.79,1.94,0-1,0-2
+02-05,14:15,Brunei FA Cup,Indera FC,MS PDB,-1.25,-1.25,1.25,1.25,1.85,1.88,1.89,1.83,3.5,3.5,1.86,1.85,1.88,1.85,3-0,4-1
+02-05,21:30,Argentina Regional League,CS  de Julio San Juan,Atenas De Pocito,-0.5,-0.25,0.5,0.25,1.95,2.03,1.79,1.71,2.25,2,1.77,1.97,1.98,1.75,0-0,1-0
+02-05,23:00,Ecuador Primera Women,CD Espuce (W),EL Nacional (W),-1.25,-1.75,1.25,1.75,1.91,1.85,1.83,1.84,3,3.25,1.82,1.83,1.93,1.87,3-1,4-2
+02-05,22:00,Ecuador Primera Women,Barcelona Guayaquil (W),Universidad Catolica del Ecuador (W),-0.75,-0.75,0.75,0.75,1.90,1.79,1.84,1.93,2.5,2.75,1.99,1.88,1.76,1.83,1-0,1-0
+02-05,20:00,The womens league of Argentina,Newells Old Boys (W),Platense (W),-1.75,-1.75,1.75,1.75,1.81,1.98,1.97,1.77,2.25,2.5,1.79,1.85,1.99,1.88,2-0,4-0
+02-05,20:00,Norwegian Junior U19,Kongsvinger U,KFUM U,-1,-0.5,1,0.5,1.90,1.81,1.84,1.90,4.5,3.75,1.91,1.89,1.83,1.82,0-0,1-4
+02-05,15:00,Kenya Premier League,FC Talanta,KCB SC,0,0.25,0,-0.25,1.88,1.98,1.86,1.70,2,2,1.88,1.90,1.86,1.81,1-0,1-0
+02-05,20:30,Brazil national youth (U20) Football Championship,Patriotas PR Youth,Atletico Paranaense (Youth),0.75,0.75,-0.75,-0.75,1.89,1.93,1.85,1.78,2.75,2.75,1.92,1.77,1.82,1.94,0-0,0-1
+02-05,21:50,Iceland 3 Deild,Hviti Riddarinn,KV Reykjavik,-0.25,-0.25,0.25,0.25,1.89,1.88,1.85,1.83,4,3.75,1.89,1.81,1.85,1.91,0-1,3-2
+03-05,01:20,Brazil Campeonato Maranhense,Serra,Rio Branco-ES,-0.5,-0.5,0.5,0.5,1.93,1.81,1.81,1.90,2.75,2.25,1.94,1.75,1.79,1.97,0-0,0-1
+02-05,21:00,Colombia U20 League,Bogota FC U,La Equidad U,0.5,0.5,-0.5,-0.5,1.96,1.94,1.79,1.77,2.25,2.25,1.77,1.76,1.98,1.96,1-0,2-1
+02-05,14:00,Turkey A2 League U19,Isparta  Spor U,Alanyaspor U,0.75,0.5,-0.75,-0.5,1.79,1.78,1.96,1.93,3.25,3.5,1.83,1.91,1.91,1.80,0-0,0-2
