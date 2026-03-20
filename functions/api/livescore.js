@@ -31,11 +31,13 @@
  */
 
 const PINNACLE_HASH   = '43fe2ceaef3c97c30c1653416175a8a5a73865ff';
+// Keep candidate lists short — Cloudflare free tier caps Workers at 50 subrequests/invocation.
+// Total attempts = BOOK_CANDIDATES.length × GS_CANDIDATES.length; must stay well under 50.
 const BOOK_CANDIDATES = [
   PINNACLE_HASH,           // confirmed Pinnacle hash
-  'pinnacle', 'pin', 'p55', 'ps3838',
+  'pinnacle',
 ];
-const GS_CANDIDATES = ['Q', '1', '2', '3', 'AH', 'S', 'EU', 'A', 'ah', 's', '4', '5', '10', '6', '7', '8', 'B', 'F'];
+const GS_CANDIDATES = ['Q', '1', '2', '3', 'AH', 'S', 'EU', 'A'];
 
 function makeBotbotHeaders(gS, book) {
   return {
