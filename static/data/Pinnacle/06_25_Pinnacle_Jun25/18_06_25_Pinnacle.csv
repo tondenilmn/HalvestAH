@@ -1,0 +1,199 @@
+Date,Time,League,Home Team,Away Team,Home AH Closing,Home AH Opening,Away AH Closing,Away AH Opening,Home Odds Closing,Home Odds Opening,Away Odds Closing,Away Odds Opening,Total Line Closing,Total Line Opening,Over Odds Closing,Over Odds Opening,Under Odds Closing,Under Odds Opening,HT Result,FT Result
+2025-06-18,01:00,FIFA Club World Cup,Monterrey,Inter Milan,1.0,1.25,-1.0,-1.25,1.95,1.88,1.95,1.93,2.5,2.75,1.85,1.85,2.05,1.96,1-1,1-1
+2025-06-18,16:00,FIFA Club World Cup,Manchester City,Wydad Casablanca,-2.5,-2.5,2.5,2.5,1.87,1.92,2.02,1.9,3.25,3.25,1.84,1.88,2.06,1.92,2-0,2-0
+2025-06-18,19:00,FIFA Club World Cup,Real Madrid,Al Hilal,-1.25,-1.75,1.25,1.75,1.92,1.93,1.99,1.88,3.25,3.0,1.9,1.84,1.99,1.95,1-1,1-1
+2025-06-18,22:00,FIFA Club World Cup,Pachuca,Red Bull Salzburg,0.0,0.75,0.0,-0.75,1.96,1.88,1.94,1.93,2.75,2.5,1.86,1.95,2.03,1.85,0-1,1-2
+2025-06-18,19:00,UEFA European U-21 Football Championship,Slovenia U21,Czech Republic U21,0.25,-0.25,-0.25,0.25,1.89,2.07,2.02,1.77,3.0,2.75,2.03,1.98,1.87,1.83,0-0,0-2
+2025-06-18,19:00,UEFA European U-21 Football Championship,England U21,Germany U21,-0.25,-0.25,0.25,0.25,1.88,2.07,2.04,1.77,3.0,2.5,1.85,1.83,2.05,1.97,0-2,1-2
+2025-06-18,16:00,UEFA European U-21 Football Championship,Denmark U21,Finland U21,-0.75,-1.0,0.75,1.0,2.04,2.01,1.87,1.82,3.0,2.75,1.85,1.83,2.04,1.97,1-0,2-2
+2025-06-18,16:00,UEFA European U-21 Football Championship,Netherlands U21,Ukraine U21,-1.25,-1.25,1.25,1.25,1.95,2.04,1.95,1.79,3.25,3.0,1.86,1.81,2.04,2.01,1-0,2-0
+2025-06-18,16:00,Norway Division 4,Lyngbo,Bjarg,2.75,2.75,-2.75,-2.75,1.95,1.86,1.77,1.82,4.25,4.25,1.77,1.94,1.94,1.75,1-1,1-2
+2025-06-18,16:30,Swden Women Divi.1,Gamla Upsala SK (W),Bollstanas Sk (W),0.25,0.5,-0.25,-0.5,1.85,1.76,1.89,1.91,2.75,3.0,1.77,1.8,1.97,1.87,0-0,1-0
+2025-06-18,13:00,Swden Women Divi.1,Jitex DFF  (W),Team TG FF (W),-0.75,-0.75,0.75,0.75,1.84,1.75,1.9,1.93,3.0,3.0,1.94,1.83,1.81,1.83,3-0,5-0
+2025-06-18,09:00,Australia New South Wales Super League,Bonnyrigg White Eagles,Inter Lions,0.75,0.5,-0.75,-0.5,1.78,1.82,1.97,1.89,3.25,3.0,1.88,1.85,1.86,1.86,0-0,0-3
+2025-06-18,17:00,Norway Adeccoligaen,Kongsvinger,Aalesund FK,-0.5,-0.5,0.5,0.5,1.88,1.96,1.98,1.82,3.25,2.75,1.92,1.83,1.92,1.93,1-0,3-0
+2025-06-18,17:00,Norway Adeccoligaen,Lillestrom,Asane Fotball,-2.0,-1.75,2.0,1.75,1.97,1.88,1.87,1.88,3.25,3.25,1.88,1.88,1.94,1.88,2-1,2-2
+2025-06-18,17:00,Norway Adeccoligaen,Lyn Oslo,Raufoss,-0.5,-0.25,0.5,0.25,1.99,1.8,1.86,1.98,2.75,2.75,1.92,1.94,1.92,1.83,0-1,3-2
+2025-06-18,17:00,Norway Adeccoligaen,Moss,Hodd,-0.5,-0.25,0.5,0.25,2.04,1.79,1.83,2.0,2.75,2.5,1.86,1.82,1.97,1.95,2-0,3-1
+2025-06-18,17:00,Norway Adeccoligaen,Odd Grenland,Mjondalen IF,-1.0,-1.25,1.0,1.25,1.9,2.01,1.95,1.77,3.0,3.0,1.89,1.91,1.94,1.85,1-1,1-1
+2025-06-18,17:00,Norway Adeccoligaen,Ranheim IL,Start Kristiansand,0.0,0.0,0.0,0.0,2.0,2.03,1.86,1.77,3.0,2.75,1.92,1.82,1.92,1.95,0-0,0-1
+2025-06-18,17:00,Norway Adeccoligaen,Skeid Oslo,Sogndal,0.25,0.5,-0.25,-0.5,2.01,1.84,1.85,1.93,3.0,2.75,2.04,1.83,1.81,1.93,0-1,1-4
+2025-06-18,17:00,Norway Adeccoligaen,Stabaek,Egersunds IK,-1.0,-0.75,1.0,0.75,2.04,1.92,1.82,1.85,3.5,3.25,1.95,1.95,1.88,1.81,1-0,1-3
+2025-06-18,23:00,USL Championship,Miami FC,Charleston Battery,1.0,1.0,-1.0,-1.0,1.82,2.01,2.04,1.82,3.0,3.0,1.99,1.91,1.85,1.89,0-0,1-0
+2025-06-18,17:00,Sweden Division 1,Torslanda IK,Ljungskile,0.5,0.25,-0.5,-0.25,1.98,1.8,1.88,1.98,2.75,3.0,1.9,1.99,1.93,1.77,1-1,1-1
+2025-06-18,10:30,K League 1,Jeju SK FC,Gwangju Football Club,0.0,0.0,0.0,0.0,1.92,1.98,1.99,1.83,2.25,2.0,2.01,1.79,1.88,2.02,0-0,0-1
+2025-06-18,10:30,K League 1,Daejeon Citizen,Gimcheon Sangmu FC,0.0,0.25,0.0,-0.25,1.87,1.84,2.04,1.98,2.5,2.5,1.89,1.93,1.99,1.88,0-0,0-0
+2025-06-18,14:00,Finland Veikkausliga,Ilves Tampere,SJK Seinajoen,-0.75,-0.75,0.75,0.75,1.89,1.88,2.02,1.94,3.5,3.25,1.99,2.0,1.89,1.81,0-1,2-3
+2025-06-18,18:00,Finland Veikkausliga,HJK Helsinki,FC Haka,-1.25,-1.25,1.25,1.25,2.04,2.02,1.87,1.81,3.25,3.0,2.06,1.85,1.84,1.95,2-1,3-1
+2025-06-18,14:00,Finland Veikkausliga,IFK Mariehamn,KuPs,1.0,1.25,-1.0,-1.25,1.97,1.81,1.93,2.02,3.0,2.75,2.01,1.9,1.88,1.9,0-0,1-0
+2025-06-18,18:00,Finland Veikkausliga,Vaasa VPS,Gnistan Helsinki,-0.25,-0.25,0.25,0.25,1.92,1.96,1.99,1.86,2.5,2.75,1.86,1.94,2.03,1.85,0-0,0-0
+2025-06-18,18:00,Finland Veikkausliga,Jaro,AC Oulu,0.0,0.0,0.0,0.0,2.02,1.9,1.88,1.92,2.5,2.25,2.08,1.79,1.82,2.03,0-0,2-1
+2025-06-18,17:30,Sweden Div 3 Mellersta,Hogaborgs BK,Osterlen FF,0.5,0.5,-0.5,-0.5,1.83,1.79,1.92,1.93,3.0,3.25,1.78,1.96,1.97,1.76,2-0,3-2
+2025-06-18,17:00,Sweden Div 3 Mellersta,IFK Trelleborg,Torns IF,-0.25,-0.25,0.25,0.25,1.93,1.97,1.81,1.75,3.0,3.0,1.81,1.8,1.93,1.92,0-2,2-4
+2025-06-18,17:00,Sweden Div 3 Mellersta,Lileluo,Vaxjo Norra IF,-0.25,0.25,0.25,-0.25,1.94,1.75,1.8,1.98,3.0,2.75,1.96,1.77,1.79,1.94,1-0,2-0
+2025-06-18,17:00,Sweden Div 3 Mellersta,Nosaby IF,IFK Karlshamn,-0.25,-0.25,0.25,0.25,1.85,1.8,1.88,1.92,2.75,3.0,1.77,1.88,1.98,1.79,1-0,4-0
+2025-06-18,17:30,Sweden Div 3 Mellersta,Qviding FIF,Landvetter IS,-0.5,-1.0,0.5,1.0,1.86,1.85,1.88,1.85,3.5,3.5,1.83,1.77,1.91,1.94,1-1,1-1
+2025-06-18,16:00,Sweden Div 3 Mellersta,FC Gute,Viggbyholms,0.75,0.75,-0.75,-0.75,1.89,1.92,1.85,1.79,3.5,4.0,1.93,1.83,1.81,1.88,0-0,1-1
+2025-06-18,14:00,Finland Ykkonen,SJK Akatemia,KaPa,-0.5,-0.75,0.5,0.75,1.9,1.99,1.95,1.79,4.0,3.75,2.02,1.93,1.83,1.82,2-1,5-3
+2025-06-18,15:30,Finland Ykkonen,PK-35 Vantaa,SalPa,-1.25,-1.0,1.25,1.0,2.02,1.92,1.84,1.85,2.75,2.5,1.83,1.82,2.01,1.94,2-0,3-1
+2025-06-18,17:30,Sweden Div 3 Mellersta,Bergnasets AIK,IFK Lulea,0.5,0.25,-0.5,-0.25,1.82,1.84,1.93,1.87,2.75,2.75,1.85,1.88,1.88,1.83,1-1,2-2
+2025-06-18,11:35,Chinese Super League,Henan Football Club,Shanghai Port,0.25,0.0,-0.25,0.0,1.85,2.0,2.05,1.81,3.25,3.25,1.96,1.97,1.91,1.83,0-3,1-3
+2025-06-18,12:00,Chinese Super League,Shenzhen Xinpengcheng,Wuhan Three Towns,0.0,0.0,0.0,0.0,1.98,2.02,1.91,1.79,2.5,2.5,2.04,1.8,1.84,2.0,0-0,1-2
+2025-06-18,15:00,Estonia Champions League,Levadia Tallinn,JK Tallinna Kalev,-3.5,-2.75,3.5,2.75,1.95,1.81,1.87,1.93,4.5,4.0,1.97,1.95,1.83,1.78,2-0,4-0
+2025-06-18,15:00,Estonia Champions League,Trans Narva,FC Flora Tallinn,0.25,0.75,-0.25,-0.75,2.01,1.85,1.85,1.92,2.75,2.75,1.88,1.84,1.95,1.92,1-0,1-2
+2025-06-18,16:00,Estonia Champions League,Parnu JK Vaprus,Paide Linnameeskond,1.0,1.0,-1.0,-1.0,1.89,1.81,1.96,1.97,2.75,2.75,1.87,1.87,1.97,1.88,1-2,1-2
+2025-06-18,17:00,Estonia Champions League,Nomme JK Kalju,Harju JK Laagri,-1.5,-1.5,1.5,1.5,1.85,1.95,2.01,1.82,3.25,3.25,1.84,1.97,2.0,1.79,0-0,1-0
+2025-06-18,15:00,Latvian Higher League,Grobina,FK Auda Riga,1.25,1.5,-1.25,-1.5,1.87,1.86,1.8,1.91,3.0,2.75,1.85,1.78,1.8,1.99,1-1,1-2
+2025-06-18,17:00,Latvian Higher League,Riga FC,FK Rigas Futbola skola,-0.5,-0.25,0.5,0.25,1.92,1.79,1.93,1.98,2.5,2.5,1.88,1.9,1.95,1.85,0-0,3-1
+2025-06-18,17:30,Belarusian Premier League,Dinamo Minsk,Neman Grodno,-0.25,-0.25,0.25,0.25,2.07,1.93,1.81,1.84,1.5,2.0,1.8,1.74,2.05,2.04,0-0,0-1
+2025-06-18,18:00,Ecuador Campeonato Serie B,CD Independiente Juniors,Atletico Vinotinto,0.0,-0.25,0.0,0.25,1.81,1.96,2.02,1.78,2.0,2.25,1.89,2.0,1.93,1.7,1-0,3-0
+2025-06-18,00:00,Ecuador Campeonato Serie B,San Antonio(ECU),Chacaritas SC,-1.25,-1.0,1.25,1.0,1.79,1.76,1.96,1.99,2.5,2.25,1.77,1.82,1.97,1.92,1-0,2-0
+2025-06-18,14:00,Lithuania - 2.Division,Vilniaus Baltijos Futbolo Akademija,FK Tauras Taurage,0.25,0.75,-0.25,-0.75,1.85,1.77,1.89,1.94,2.75,2.75,1.81,1.77,1.93,1.94,1-0,2-2
+2025-06-18,15:00,Lithuania - 2.Division,Siauliai B,TransINVEST Vilnius,2.75,2.0,-2.75,-2.0,1.9,1.93,1.81,1.78,4.0,3.5,1.8,1.93,1.91,1.76,0-2,0-4
+2025-06-18,16:00,Lithuania - 2.Division,Ekranas Panevezys,Nevezis Kedainiai,0.0,-0.25,0.0,0.25,1.97,1.94,1.77,1.77,2.75,2.75,1.79,1.77,1.96,1.95,0-0,0-1
+2025-06-18,12:00,Chinese Football Association Yi League,Chengdu Rongcheng B,Guangxi Hengchen,0.5,0.25,-0.5,-0.25,1.85,1.91,1.94,1.85,2.0,2.0,1.77,1.86,2.03,1.89,0-1,1-3
+2025-06-18,15:30,Finland - Kakkonen Lohko,Vantaa,JPS,-4.5,-4.25,4.5,4.25,1.86,1.83,1.89,1.9,5.75,5.25,1.94,1.82,1.81,1.91,4-0,6-0
+2025-06-18,16:00,Finland - Kakkonen Lohko,P-Iirot,MuSa,-0.75,-0.75,0.75,0.75,1.8,1.92,2.0,1.84,3.5,3.5,1.81,1.8,1.98,1.96,0-2,0-3
+2025-06-18,15:30,Finland - Kakkonen Lohko,JS Hercules,Narpes Kraft,-0.25,-0.25,0.25,0.25,1.88,1.81,1.91,1.95,4.0,4.0,1.83,1.9,1.96,1.85,2-2,2-3
+2025-06-18,15:30,Finland - Kakkonen Lohko,Jyvaskyla JK,KuPS (Youth),-1.25,-0.5,1.25,0.5,1.85,1.8,2.01,1.98,3.5,3.0,1.9,1.83,1.93,1.93,0-1,2-1
+2025-06-18,17:10,Sweden Div 3 Mellersta,Lidkopings FK,IF Haga,-0.75,-1.0,0.75,1.0,1.76,1.96,1.99,1.76,2.75,3.0,1.85,1.97,1.89,1.75,0-0,4-0
+2025-06-18,16:00,European Women,Poland (W) U19,France (W) U19,2.5,1.75,-2.5,-1.75,1.86,1.8,1.91,1.9,3.75,3.25,1.9,1.96,1.87,1.75,0-3,0-6
+2025-06-18,17:00,European Women,Sweden (W) U19,Italy (W) U19,0.5,0.5,-0.5,-0.5,1.98,1.76,1.81,1.96,2.5,2.75,1.85,1.93,1.94,1.79,0-1,0-1
+2025-06-18,15:00,European Women,Netherlands (W) U19,Spain (W) U19,1.0,1.5,-1.0,-1.5,1.88,1.76,1.9,1.95,2.75,3.0,1.84,1.96,1.94,1.76,1-0,1-0
+2025-06-18,15:00,European Women,Portugal (W) U19,England (W) U19,1.0,0.5,-1.0,-0.5,1.79,1.94,2.02,1.77,2.75,2.75,1.93,1.94,1.86,1.77,0-1,4-1
+2025-06-18,08:15,Mongolia Premier League,Tuv Buganuud,Khovd,-1.25,-0.5,1.25,0.5,1.86,1.91,1.88,1.8,5.5,3.75,1.9,1.9,1.84,1.81,1-3,2-5
+2025-06-18,11:15,Mongolia Premier League,Deren FC,Bayanzurkh Sporting Ilch,-4.0,-3.0,4.0,3.0,1.77,1.77,1.94,1.92,5.75,4.25,1.86,1.87,1.85,1.81,4-1,8-1
+2025-06-18,20:30,Uruguay Primera Division,Montevideo City Torque,Miramar Misiones FC,-1.0,-0.75,1.0,0.75,2.06,2.01,1.84,1.8,2.25,2.25,1.88,1.85,2.0,1.93,0-0,0-0
+2025-06-18,18:00,Uruguay Primera Division,Danubio FC,Racing Club Montevideo,0.0,0.0,0.0,0.0,1.99,1.93,1.89,1.88,2.0,2.0,2.11,2.0,1.79,1.8,1-0,1-2
+2025-06-18,23:30,Uruguay Primera Division,Nacional Montevideo,CA Juventud,-1.0,-1.0,1.0,1.0,1.81,1.8,2.09,2.01,2.75,2.75,2.02,1.9,1.85,1.88,2-0,4-1
+2025-06-18,17:30,Iceland Cup,Vestri,Thor Akureyri,-1.25,-1.25,1.25,1.25,1.95,1.91,1.89,1.83,3.0,3.0,2.04,1.92,1.81,1.82,2-0,2-0
+2025-06-18,20:00,Iceland Cup,Stjarnan Gardabaer,Keflavik,-1.25,-1.0,1.25,1.0,1.96,1.85,1.89,1.89,3.5,3.0,1.96,1.97,1.88,1.78,3-2,4-2
+2025-06-18,23:00,Concacaf Gold,Costa Rica,Dominican Republic,-1.25,-1.5,1.25,1.5,1.93,1.97,1.95,1.83,3.25,2.75,1.93,1.81,1.93,1.98,1-1,2-1
+2025-06-18,00:15,Concacaf Gold,Curacao,El Salvador,-0.5,0.25,0.5,-0.25,2.02,1.9,1.88,1.9,2.25,2.0,1.83,1.88,2.05,1.9,0-0,0-0
+2025-06-18,02:30,Concacaf Gold,Canada,Honduras,-1.25,-1.5,1.25,1.5,1.93,1.95,1.96,1.85,2.75,2.75,1.96,1.98,1.91,1.81,2-0,6-0
+2025-06-18,17:00,Sweden Cupen,Korsnas IF FK,Gefle IF,0.75,1.5,-0.75,-1.5,1.9,1.78,1.84,1.88,2.75,3.25,1.91,1.92,1.83,1.76,0-0,1-0
+2025-06-18,14:30,Uzbekistan Cup,Kuruvchi Kokand Qoqon,Kuruvchi Bunyodkor,0.25,0.25,-0.25,-0.25,1.77,1.88,1.97,1.79,2.25,2.0,1.77,1.68,1.9,1.96,1-0,1-1
+2025-06-18,14:30,Uzbekistan Cup,Shurtan Guzor,Aral Nukus,-1.0,-0.25,1.0,0.25,1.89,1.77,1.85,1.94,2.0,1.75,1.81,1.78,1.93,1.93,2-0,4-1
+2025-06-18,09:30,Japan Emperors Cup,Yokohama FC,Grulla Morioka,-1.75,-1.75,1.75,1.75,1.83,1.91,1.94,1.79,3.25,3.0,1.92,1.8,1.85,1.89,0-0,2-1
+2025-06-18,10:00,Japan Emperors Cup,Consadole Sapporo,Oita Trinita,-0.5,-0.25,0.5,0.25,1.97,1.9,1.88,1.87,2.5,2.25,2.02,1.85,1.84,1.93,2-1,2-2
+2025-06-18,10:00,Japan Emperors Cup,FC Tokyo,Zweigen Kanazawa FC,-1.25,-1.0,1.25,1.0,1.87,1.83,1.95,1.88,2.75,2.5,1.81,1.87,2.03,1.84,2-0,3-1
+2025-06-18,10:00,Japan Emperors Cup,Gamba Osaka,Veertien Kuwana,-2.0,-1.75,2.0,1.75,1.82,1.91,1.96,1.79,3.0,3.0,1.79,1.8,1.98,1.89,0-0,2-1
+2025-06-18,20:00,Venezuela Cup,Aragua FC,Caracas FC,0.75,0.25,-0.75,-0.25,1.87,1.98,1.87,1.74,2.25,2.25,1.87,1.93,1.87,1.78,0-1,2-1
+2025-06-18,23:30,Venezuela Cup,Dynamo Puerto FC,Deportivo Miranda,-0.25,-0.25,0.25,0.25,1.79,1.83,1.95,1.88,2.25,2.25,2.01,1.99,1.75,1.74,1-0,2-0
+2025-06-18,19:30,Venezuela Cup,Urena SC,Atletico El Vigia,0.0,0.25,0.0,-0.25,1.95,1.93,1.79,1.79,2.5,2.5,1.83,1.88,1.91,1.83,0-2,1-2
+2025-06-18,19:00,Venezuela Cup,Real Frontera,Estudiantes Merida FC,0.75,0.75,-0.75,-0.75,1.94,1.89,1.74,1.82,3.25,2.5,1.81,1.83,1.86,1.88,0-0,0-0
+2025-06-18,21:00,Venezuela Cup,Maritimo de La Guaira,Zamora Barinas,0.0,-0.25,0.0,0.25,1.87,2.02,1.87,1.71,2.0,2.25,1.88,1.91,1.86,1.8,1-0,2-1
+2025-06-18,19:00,Venezuela Cup,AC Minerven FC Bolivar,Mineros de Guayana,-0.25,-0.25,0.25,0.25,1.82,1.81,1.92,1.9,2.25,2.25,1.88,1.87,1.85,1.84,1-1,2-1
+2025-06-18,20:00,Venezuela Cup,Angostura FC,Monagas SC,0.0,0.75,0.0,-0.75,1.87,1.79,1.87,1.93,2.5,2.25,1.96,1.75,1.79,1.97,0-3,2-5
+2025-06-18,19:00,Venezuela Cup,Trujillanos,Deportivo Rayo Zuliano,1.5,0.25,-1.5,-0.25,1.74,1.98,1.99,1.75,2.5,2.25,1.95,1.96,1.79,1.76,1-2,1-3
+2025-06-18,21:00,Venezuela Cup,Barquisimeto,Heroes de Falcon,-0.25,-0.5,0.25,0.5,1.95,1.93,1.79,1.78,2.75,2.25,1.98,2.0,1.77,1.73,3-0,4-0
+2025-06-18,16:00,Paraguay Cup,10 de Mayo,Deportivo Minga Guazu,0.25,0.25,-0.25,-0.25,1.75,1.74,2.01,1.99,2.25,2.25,2.0,1.98,1.76,1.75,0-3,0-3
+2025-06-18,18:30,Paraguay Cup,1º de Marzo FDM,Clube Oriental,-1.5,0.0,1.5,0.0,1.8,1.89,1.81,1.82,5.0,2.5,1.77,1.79,1.84,1.93,0-1,2-2
+2025-06-18,18:00,Brazil Youth,America MG (Youth),Juventude (Youth),-0.75,-1.0,0.75,1.0,1.93,1.76,1.92,2.03,2.25,2.5,1.83,1.96,2.01,1.8,1-0,2-0
+2025-06-18,18:00,Brazil Youth,Atletico Paranaense (Youth),Sao Paulo Youth,-0.25,-0.5,0.25,0.5,1.95,2.0,1.9,1.79,2.75,2.75,1.88,1.83,1.95,1.93,1-2,2-3
+2025-06-18,18:00,Brazil Youth,Atletico GO U20,CR Flamengo (RJ) (Youth),0.75,0.5,-0.75,-0.5,1.9,1.93,1.95,1.83,3.0,2.75,2.0,1.79,1.84,1.97,0-2,1-3
+2025-06-18,18:00,Brazil Youth,Atletico Mineiro Youth,Palmeiras (Youth),0.5,0.5,-0.5,-0.5,2.03,1.83,1.83,1.94,3.0,3.0,1.88,1.96,1.96,1.8,0-1,0-3
+2025-06-18,18:00,Brazil Youth,Bahia (Youth),Gremio (Youth),-0.75,-0.5,0.75,0.5,1.96,1.84,1.89,1.93,2.75,2.75,1.93,1.91,1.89,1.85,0-2,1-2
+2025-06-18,18:00,Brazil Youth,Santos (Youth),Fortaleza U20,-0.5,-0.5,0.5,0.5,1.95,1.82,1.9,1.95,2.75,2.75,1.88,1.77,1.95,2.0,2-0,4-0
+2025-06-18,13:00,South Africa Premier Soccer League,Casric Stars,Cape Town City,0.0,0.0,0.0,0.0,2.11,2.08,1.74,1.74,1.75,1.75,2.02,1.82,1.8,1.95,0-1,1-1
+2025-06-18,18:00,BRA SPC,Monte Azul SP,Atletico Aracatuba,-0.75,-0.75,0.75,0.75,1.76,1.91,2.04,1.85,2.25,2.5,1.83,1.98,1.97,1.74,0-0,1-0
+2025-06-18,22:00,BRA SPC,Inter de Limeira,Botafogo B SP,-0.5,-0.5,0.5,0.5,1.9,1.98,1.88,1.78,2.0,2.25,1.86,1.98,1.93,1.79,2-0,3-0
+2025-06-18,00:30,USA USL League Two,West Chester United,LVU Rush,-1.5,-1.25,1.5,1.25,1.88,1.96,1.86,1.74,3.75,3.5,1.87,1.78,1.87,1.93,0-0,3-1
+2025-06-18,15:30,Belarus Cup,FK Bumprom,FC Torpedo Zhodino,2.25,2.75,-2.25,-2.75,1.85,1.76,1.87,1.93,3.75,3.75,1.89,1.89,1.83,1.79,0-0,0-2
+2025-06-18,11:00,Australia FFA Cup,Balcatta FC,Olympic Kingsway SC,0.75,1.0,-0.75,-1.0,1.88,1.91,1.85,1.75,3.0,3.0,1.9,1.83,1.84,1.84,2-1,2-2
+2025-06-18,23:00,USA USL League Two,AC Connecticut,New England,0.0,-0.25,0.0,0.25,1.93,1.93,1.81,1.78,2.75,2.5,1.78,1.86,1.96,1.85,0-1,0-1
+2025-06-18,23:00,USA USL League Two,Boston City FC (USA）,Black Rock FC,1.75,2.25,-1.75,-2.25,1.87,1.79,1.85,1.9,3.25,3.25,1.94,1.79,1.79,1.91,2-2,3-3
+2025-06-18,23:50,USA USL League Two,Fort Wayne FC,Lexington 2,-0.5,-0.25,0.5,0.25,1.94,1.79,1.8,1.92,2.5,2.5,1.89,1.83,1.85,1.88,1-0,2-0
+2025-06-18,22:00,USA USL League Two,Long Island Rough Riders,New Jersey Copa,-0.75,0.5,0.75,-0.5,1.83,1.83,1.92,1.88,3.0,2.5,1.93,1.88,1.82,1.83,2-0,4-0
+2025-06-18,23:00,USA USL League Two,NONA FC,Brooke House FC,-1.25,-0.75,1.25,0.75,1.94,1.79,1.8,1.93,2.75,2.5,1.82,1.88,1.93,1.83,0-0,1-0
+2025-06-18,23:00,USA USL League Two,Sporting Jax,Inter Gainesville KF,-1.0,-0.5,1.0,0.5,1.87,1.86,1.87,1.85,3.0,2.75,1.77,1.8,1.97,1.91,2-0,3-0
+2025-06-18,23:00,USA USL League Two,Tobacco Road,Charlotte Independ B,0.25,0.25,-0.25,-0.25,1.77,1.76,1.98,1.96,3.0,3.0,1.85,1.89,1.89,1.82,1-3,2-5
+2025-06-18,23:30,USA USL League Two,Annapolis Blues,Virginia Beach United,-0.25,0.0,0.25,0.0,1.94,1.74,1.81,1.99,2.75,2.75,1.86,1.86,1.88,1.85,0-1,0-2
+2025-06-18,18:00,Brasil Womens Cup,America Mineiro (W),Ferroviaria SP (W),1.0,0.5,-1.0,-0.5,1.86,1.86,1.96,1.88,2.75,2.5,1.96,1.79,1.86,1.95,0-0,1-0
+2025-06-18,18:00,Brasil Womens Cup,EC Bahia (W),EC Juventude (W),-1.5,-1.0,1.5,1.0,1.97,1.95,1.85,1.79,3.0,3.0,1.83,1.93,2.0,1.81,1-0,2-2
+2025-06-18,18:00,Brasil Womens Cup,Bragantino (W),3B Sport AM (W),-1.5,-1.75,1.5,1.75,1.81,1.79,2.02,1.93,3.0,3.0,2.01,1.81,1.82,1.91,3-1,5-1
+2025-06-18,18:00,Brasil Womens Cup,SC Corinthians Paulista (W),Cruzeiro MG (W),-1.5,-1.5,1.5,1.5,1.98,1.89,1.84,1.84,3.25,3.0,1.83,1.77,1.99,1.98,1-1,4-2
+2025-06-18,18:00,Brasil Womens Cup,Fluminense RJ (W),Real Brasilia FC (W),-1.25,-1.5,1.25,1.5,1.97,1.91,1.85,1.83,2.5,2.75,1.96,1.79,1.86,1.95,1-1,2-1
+2025-06-18,18:00,Brasil Womens Cup,Gremio (W),Flamengo/RJ (W),0.5,0.5,-0.5,-0.5,1.79,1.81,2.04,1.93,2.75,2.75,1.97,1.95,1.85,1.79,1-0,1-1
+2025-06-18,18:00,Brasil Womens Cup,Sao Paulo/SP (W),Internacional(W),-1.25,-1.5,1.25,1.5,1.8,1.8,2.04,1.94,3.0,3.0,2.0,1.92,1.83,1.82,1-0,1-0
+2025-06-18,18:00,Brasil Womens Cup,Sport Recife (W),Palmeiras SP (W),3.0,2.75,-3.0,-2.75,1.92,1.91,1.87,1.8,3.75,3.5,1.89,1.95,1.89,1.77,0-2,1-5
+2025-06-18,15:50,Chile Primera Division Women,Deportes Recoleta(W),Union Espanola (W),1.75,1.75,-1.75,-1.75,1.96,1.94,1.81,1.8,3.25,3.25,2.0,1.98,1.79,1.77,0-1,1-1
+2025-06-18,16:00,Chile Primera Division Women,Coquimbo Unido (W),Colo Colo (W),2.5,2.5,-2.5,-2.5,1.97,1.84,1.81,1.9,4.25,3.75,1.93,1.8,1.84,1.94,0-1,0-2
+2025-06-18,16:30,Chile Primera Division Women,Universidad Catolica (W),Deportes Iquique (W),-0.5,-0.5,0.5,0.5,1.93,1.96,1.86,1.8,3.0,3.25,1.79,1.81,2.0,1.95,0-0,0-0
+2025-06-18,18:20,Chile Primera Division Women,Huachipato (W),Palestino (W),0.0,-0.25,0.0,0.25,1.79,1.81,2.01,1.95,3.0,3.5,1.93,1.83,1.86,1.93,0-1,1-1
+2025-06-18,17:30,Chile Primera Division Women,Everton de Vina (W),Universidad de Concepcion (W),0.0,-0.5,0.0,0.5,1.86,1.93,1.93,1.83,2.75,2.75,1.82,1.77,1.97,2.0,1-1,2-2
+2025-06-18,15:30,Poland Division 2,Olimpia Grudziadz,Stargard Szczecinski,-1.0,-0.75,1.0,0.75,1.99,1.83,1.83,1.95,3.0,3.0,1.79,2.0,2.04,1.77,0-0,2-0
+2025-06-18,10:00,Poland Division 2,Zaglebie Lubin B,Podhale Nowy Targ,-0.25,-0.25,0.25,0.25,1.93,1.94,1.89,1.84,2.75,2.75,1.79,1.88,2.04,1.9,1-2,1-3
+2025-06-18,14:30,Cameroon Elite One,Stade Renard de Melong,Bamboutos de,0.5,-0.25,-0.5,0.25,1.81,1.77,1.93,1.95,2.25,1.75,2.0,1.74,1.76,1.98,0-1,0-1
+2025-06-18,09:30,Australia FFA Cup,Logan Lightning,Brisbane City,1.25,1.5,-1.25,-1.5,1.9,1.84,1.84,1.83,3.75,4.0,1.83,1.88,1.91,1.79,0-0,0-1
+2025-06-18,09:30,Australia FFA Cup,Brisbane Olympic United FC,Taringa Rovers,-3.25,-2.25,3.25,2.25,1.93,1.92,1.78,1.74,5.0,4.0,1.91,1.87,1.8,1.78,1-0,1-0
+2025-06-18,10:00,Australia FFA Cup,Adelaide Raiders SC,White City Woodville,0.25,0.25,-0.25,-0.25,1.85,1.89,1.88,1.77,3.25,3.0,1.99,1.93,1.76,1.75,0-0,1-0
+2025-06-18,17:00,Denmark - 4.Liga,ASA Aarhus,Horsholm-Usserod IK,0.5,0.25,-0.5,-0.25,1.88,1.71,1.85,1.96,3.0,3.25,1.89,1.89,1.85,1.82,0-1,0-1
+2025-06-18,02:45,USA USL Super League Women,SoCal Dutch Lions (W),San Diego Dons (W),1.5,1.25,-1.5,-1.25,1.79,1.86,1.96,1.85,3.25,3.0,1.92,1.94,1.83,1.77,0-0,2-2
+2025-06-18,10:20,Australia Queensland State Womens Premier League,Virginia United SC (W),Peninsula Power (W),-0.75,-0.75,0.75,0.75,1.93,1.89,1.81,1.77,4.0,4.0,1.85,1.83,1.88,1.83,0-1,0-2
+2025-06-18,10:00,Bhutan Thimphu League,Ugyen Academy,Transport United FC,1.75,1.5,-1.75,-1.5,1.8,1.87,1.93,1.84,4.0,4.0,1.83,1.89,1.9,1.82,2-2,2-3
+2025-06-18,08:00,International Friendly,Indonesia (W) U19,Myanmar (W) U19,1.5,1.0,-1.5,-1.0,1.88,1.92,1.86,1.8,3.0,3.0,1.75,1.81,1.98,1.91,0-0,0-0
+2025-06-18,09:00,International Club Friendly,Spartak Trnava,Zlate Moravce,-1.5,-2.0,1.5,2.0,1.89,1.91,1.85,1.79,4.0,3.25,1.88,1.94,1.85,1.76,1-0,4-1
+2025-06-18,11:30,International Friendly,Vietnam (W) U19,Thailand (W) U19,0.5,0.5,-0.5,-0.5,1.81,1.83,1.93,1.88,2.0,2.5,1.76,1.79,1.99,1.93,0-1,1-3
+2025-06-18,15:00,International Friendly,Tajikistan U23,India U23,-1.0,-1.25,1.0,1.25,1.87,1.93,1.87,1.85,2.25,2.75,1.84,1.96,1.9,1.83,0-1,3-2
+2025-06-18,16:00,Finland Kolmonen,Yllatys,PK-37 Iisalmi,0.25,0.25,-0.25,-0.25,1.86,1.85,1.88,1.85,4.0,3.25,1.95,1.77,1.79,1.94,1-0,1-0
+2025-06-18,16:00,Finland Kolmonen,Komeetat,JJK/2,1.0,0.75,-1.0,-0.75,1.86,1.83,1.88,1.88,4.0,4.0,1.85,1.94,1.89,1.77,1-1,1-7
+2025-06-18,15:30,Finland Kolmonen,Toolon Taisto,JäPS/47,1.25,1.0,-1.25,-1.0,1.8,1.77,1.95,1.95,3.75,3.5,1.83,1.83,1.9,1.88,1-1,2-3
+2025-06-18,17:00,Finland Kolmonen,Kings,NiemU,-0.5,0.0,0.5,0.0,1.95,1.79,1.79,1.93,3.75,3.25,1.88,1.82,1.86,1.89,0-0,0-2
+2025-06-18,15:30,Finland Kolmonen,MP II,MiPK,1.0,1.75,-1.0,-1.75,1.8,1.8,1.94,1.89,3.75,4.0,1.8,1.77,1.94,1.93,1-1,3-3
+2025-06-18,17:00,Finland Kolmonen,Kultsu Lappeenranta,LAUTP,-1.25,-1.25,1.25,1.25,1.86,1.76,1.88,1.96,3.75,3.75,1.91,1.93,1.83,1.78,1-0,1-0
+2025-06-18,16:00,Finland Kolmonen,Tampereen Peli Toverit,Pato,-3.5,-3.0,3.5,3.0,1.81,1.76,1.9,1.93,5.0,4.5,1.75,1.92,1.94,1.77,1-0,3-1
+2025-06-18,15:00,Finland Kolmonen,VPV Pallo-Veikot,Korsnas FF,0.5,0.0,-0.5,0.0,1.95,1.88,1.79,1.83,4.5,4.25,1.89,1.93,1.85,1.79,2-1,6-1
+2025-06-18,16:30,Finland Kolmonen,YPA Ylivieska,SJK-j Apollo,-1.5,-1.75,1.5,1.75,1.81,1.88,1.93,1.81,4.75,4.5,1.86,1.79,1.88,1.91,0-0,0-3
+2025-06-18,16:00,Finland Kolmonen,Seinajoen Sisu,Kiisto Vaasa,2.25,2.0,-2.25,-2.0,1.79,1.79,1.94,1.9,4.25,4.0,1.83,1.88,1.9,1.82,0-0,0-1
+2025-06-18,15:30,Finland Kolmonen,ToVe Pori,MaPS Masku,1.75,3.0,-1.75,-3.0,1.92,1.79,1.81,1.89,4.0,4.75,1.81,1.79,1.92,1.88,0-1,1-2
+2025-06-18,16:00,Finland Kolmonen,VG 62,EuPa,1.0,1.0,-1.0,-1.0,1.85,1.9,1.88,1.81,4.0,3.75,1.77,1.77,1.97,1.94,1-0,1-2
+2025-06-18,15:15,Finland Kolmonen,Aifk Turku,Peimari United,-1.75,-2.25,1.75,2.25,1.85,1.94,1.88,1.76,4.0,4.0,1.89,1.88,1.83,1.82,1-0,2-0
+2025-06-18,18:00,Iceland U19 League,Stjarnan SkinandiU19,Throttur Reykjavik U19,-2.0,-1.75,2.0,1.75,1.95,1.86,1.75,1.83,4.75,4.25,1.87,1.89,1.85,1.81,3-0,5-0
+2025-06-18,20:00,Iceland U19 League,Breidablik Augnablik Smari U19,Valur/KH/Falkar U19,-1.25,-1.5,1.25,1.5,1.84,1.95,1.89,1.76,4.75,4.5,1.85,1.93,1.89,1.79,0-0,0-1
+2025-06-18,19:00,USA USL Super League Women,Internacional CA (W),Erie FC (W),-4.75,-5.0,4.75,5.0,1.81,1.88,1.91,1.81,5.5,5.5,1.88,1.8,1.83,1.88,2-1,5-1
+2025-06-18,20:00,Morocco Excellence Cup,UTS Union Touarga Sport Rabat,Wydad Fes,-0.5,-0.75,0.5,0.75,1.91,1.78,1.83,1.93,2.25,2.5,1.93,1.96,1.81,1.76,0-0,1-0
+2025-06-18,09:00,Myanmar U21 League,Mahar United U21,Ispe FC U21,3.25,3.0,-3.25,-3.0,1.79,1.89,1.93,1.79,4.0,4.0,1.85,1.88,1.86,1.79,1-2,1-2
+2025-06-18,09:00,Myanmar U21 League,Rakhine United U21,Yangon United FC U21,2.5,2.25,-2.5,-2.25,1.79,1.79,1.93,1.91,3.5,3.0,1.8,1.9,1.93,1.8,0-0,1-3
+2025-06-18,08:45,Malaysia President Cup,Terengganu U20,PDRM U20,-2.5,-2.0,2.5,2.0,1.88,1.93,1.84,1.77,3.0,2.5,1.91,1.78,1.82,1.93,2-0,5-1
+2025-06-18,08:45,Malaysia President Cup,Selangor FA U20,Sabah U20,-1.0,-1.0,1.0,1.0,1.88,1.96,1.85,1.76,2.75,2.75,1.93,1.96,1.81,1.76,0-0,1-0
+2025-06-18,20:00,Iceland 4 Deild,KM Reykjavik,Skallagrimur,0.5,0.0,-0.5,0.0,1.92,1.81,1.83,1.9,4.25,3.75,1.89,1.81,1.85,1.9,0-1,1-2
+2025-06-18,18:30,Northern Ireland Womens Super,Ballymoney United (W),Ballymena Allstars (W),1.25,1.25,-1.25,-1.25,1.84,1.78,1.9,1.93,4.0,4.25,1.94,1.77,1.8,1.94,1-1,3-1
+2025-06-18,18:30,Northern Ireland Womens Super,Camlough Rovers (W),Ballyclare Comrades（w）,3.25,3.5,-3.25,-3.5,1.89,1.88,1.82,1.81,4.75,5.5,1.77,1.87,1.94,1.81,3-3,3-8
+2025-06-18,09:00,Myanmar Cup,Mawyawadi,Shan United,2.75,2.5,-2.75,-2.5,1.83,1.93,1.88,1.77,3.5,3.5,1.81,1.9,1.91,1.8,0-2,0-2
+2025-06-18,13:00,Tanzania Ligue 1,Coastal Union,Fountain Gate FC,-0.5,-0.5,0.5,0.5,1.77,1.79,1.98,1.93,2.25,2.25,1.99,1.83,1.76,1.87,0-0,1-0
+2025-06-18,13:00,Tanzania Ligue 1,Tanzania Prisons,Young Africans,1.75,1.75,-1.75,-1.75,1.94,1.86,1.79,1.83,2.75,2.75,1.79,1.94,1.94,1.76,0-2,0-5
+2025-06-18,09:00,Myanmar Cup,Dagon FC,Yadanabon FC,0.75,0.5,-0.75,-0.5,1.93,1.79,1.82,1.93,2.75,3.5,1.84,1.9,1.9,1.81,0-0,0-0
+2025-06-18,16:00,Poland III Liga,Barycz Sulow,Polonia Nysa,-1.0,-1.25,1.0,1.25,1.77,1.79,1.98,1.93,3.5,4.0,1.82,1.87,1.93,1.84,0-1,0-1
+2025-06-18,16:50,Poland III Liga,Zabkovia Zabki,RKS Radomsko,-1.25,-1.25,1.25,1.25,1.95,1.88,1.79,1.83,4.25,4.5,1.92,1.92,1.83,1.79,3-0,4-0
+2025-06-18,15:00,Poland III Liga,Start Nidzica,Olimpia Zambrow,0.25,0.0,-0.25,0.0,1.91,1.9,1.83,1.81,4.0,4.25,1.83,1.92,1.91,1.79,1-1,2-2
+2025-06-18,23:30,USA USL Super League Women,Brooklyn City (W),New York Athletic Club (W),-1.0,-1.0,1.0,1.0,1.81,1.83,1.93,1.87,3.25,3.25,1.94,1.93,1.8,1.78,1-2,1-3
+2025-06-18,23:00,USA National Premier Soccer League,Pennsylvania Classics,Electric City Shock,-1.75,-1.75,1.75,1.75,1.83,1.88,1.89,1.82,3.5,3.5,1.86,1.88,1.86,1.82,0-0,0-0
+2025-06-18,22:30,Brazil national youth (U20) Football Championship,Nacional de Patos U20,Sabugy FC U20,-2.0,-2.0,2.0,2.0,1.83,1.88,1.9,1.81,4.25,4.25,1.92,1.93,1.81,1.77,5-0,6-0
+2025-06-18,18:00,Brazil national youth (U20) Football Championship,Avai (Youth),Figueirense SC (Youth),-0.5,-0.75,0.5,0.75,1.9,1.95,1.84,1.77,2.75,3.0,1.92,1.93,1.83,1.79,0-1,0-2
+2025-06-18,22:00,Brazil Copa Espirito Santo,Rio Branco-ES,Real Noroeste,0.0,-0.5,0.0,0.5,1.74,1.96,2.02,1.76,2.25,2.25,2.0,1.81,1.75,1.91,2-3,2-3
+2025-06-18,22:30,Brazil Campeonato Goiano 2,Trindade AC,Rio Verde GO,0.0,-0.25,0.0,0.25,1.82,1.85,1.93,1.85,1.75,2.0,1.81,1.83,1.93,1.88,1-0,3-0
+2025-06-18,14:00,Argentina Reserve League,Deportivo Armenio Reserves,Villa Dalmine Reserves,0.0,0.0,0.0,0.0,1.79,1.77,1.96,1.94,2.25,2.25,1.96,1.94,1.79,1.78,1-0,2-0
+2025-06-18,17:30,Argentina Reserve League,Sportivo Italiano Reserves,Sacachispas Reserves,1.25,1.0,-1.25,-1.0,1.83,1.82,1.92,1.89,2.75,2.5,1.83,1.83,1.91,1.88,2-2,3-4
+2025-06-18,23:20,USA National Premier Soccer League,New Haven United,Osners FC,-1.0,-0.75,1.0,0.75,1.75,1.79,2.0,1.93,3.25,3.0,1.96,1.79,1.79,1.93,1-3,2-4
+2025-06-18,23:00,Brazil Campeonato Maranhense,AD Uirapuru,Acao SAFC,0.0,0.0,0.0,0.0,2.01,1.94,1.75,1.77,2.25,2.25,1.85,1.84,1.88,1.87,2-2,4-3
+2025-06-18,17:45,Switzerland Regional Cup,FC Bosporus Bern,Zug 94,0.25,0.25,-0.25,-0.25,1.93,1.92,1.81,1.79,3.5,3.5,1.9,1.88,1.84,1.83,0-1,1-2
+2025-06-18,18:30,Switzerland Regional Cup,Signal,FC Amical Saint-Prex,0.5,0.5,-0.5,-0.5,1.85,1.83,1.89,1.88,3.25,3.25,1.94,1.93,1.8,1.79,0-0,2-0
+2025-06-18,16:00,Norway NM Cupen,SK Trygg Lade,Melhus,-0.5,-0.75,0.5,0.75,1.83,1.81,1.9,1.88,3.0,3.25,1.93,1.88,1.81,1.79,1-1,2-2
+2025-06-18,16:00,Norway NM Cupen,Byasen Toppfot,Nardo FK,-0.25,0.0,0.25,0.0,1.88,1.74,1.86,1.94,2.75,3.5,1.82,1.88,1.92,1.79,0-1,2-2
+2025-06-18,16:00,Norway NM Cupen,Vidar,Brodd,-1.25,-1.5,1.25,1.5,1.88,1.88,1.86,1.79,3.25,3.75,1.8,1.88,1.94,1.79,0-0,0-0
+2025-06-18,17:00,Norway NM Cupen,Oppsal,Baerum SK,0.75,1.25,-0.75,-1.25,1.79,1.74,1.95,1.94,3.75,3.75,1.92,1.81,1.82,1.86,1-1,2-3
+2025-06-18,16:00,Norway NM Cupen,Skedsmo,Gamle Oslo,0.75,0.5,-0.75,-0.5,1.85,1.85,1.88,1.85,3.75,3.5,1.93,1.8,1.81,1.91,0-1,2-2
+2025-06-18,20:00,Iceland U19 League,Leiknir/Arbaer/KB U19,Vikingur U19,-0.5,-1.25,0.5,1.25,1.79,1.92,1.95,1.8,4.25,4.25,1.95,1.93,1.79,1.78,1-2,2-2
+2025-06-18,13:00,Tanzania Ligue 1,Pamba SC,JKT Tanzania,-0.75,-0.25,0.75,0.25,1.99,2.02,1.76,1.72,1.75,2.0,1.81,2.01,1.94,1.72,1-0,1-0
+2025-06-18,13:00,Tanzania Ligue 1,Azam,Tabora United FC,-2.25,-2.0,2.25,2.0,1.86,1.93,1.86,1.77,3.25,3.0,1.9,1.92,1.83,1.78,4-0,5-0
+2025-06-18,13:00,Tanzania Ligue 1,Dodoma Jiji FC,Singida Black Stars,1.0,0.5,-1.0,-0.5,1.75,1.95,2.01,1.72,2.5,2.25,1.81,1.85,1.94,1.85,1-2,1-2
+2025-06-18,12:30,Cameroon Elite two,Aigle Royal Menoua,Bafmeng United,-0.5,0.0,0.5,0.0,1.79,1.88,1.96,1.83,2.0,2.0,1.88,2.01,1.86,1.72,2-1,4-1
+2025-06-18,12:30,Cameroon Elite two,Atlantic FC de Kribi,Avion Academy,-0.5,-0.25,0.5,0.25,2.0,2.01,1.76,1.72,2.5,2.25,1.92,2.01,1.82,1.72,1-0,3-0
+2025-06-18,12:10,Argentina Youth League,CA Atlanta U20,CD Moron U20,-0.5,-0.25,0.5,0.25,1.96,1.8,1.76,1.92,2.75,2.75,1.76,1.77,1.96,1.94,0-0,2-2
+2025-06-18,14:30,Cameroon Elite two,Eding Sport FC,Unisport Bafang,0.0,0.25,0.0,-0.25,1.71,2.0,2.06,1.73,2.0,2.0,1.95,1.88,1.8,1.83,0-3,0-5
+2025-06-18,14:30,International Club Friendly,Farul Constanta,Cherno More Varna,0.0,0.25,0.0,-0.25,1.97,1.79,1.78,1.92,2.75,2.75,1.88,1.94,1.85,1.77,1-0,1-2
+2025-06-18,14:30,Cameroon Elite two,Ngoketunjia United FA,Tonnerre Yaounde,-0.25,-0.25,0.25,0.25,1.98,1.93,1.77,1.78,2.25,2.25,1.81,1.93,1.93,1.79,0-0,0-1
+2025-06-18,20:00,Iceland U19 League,Grindavik Sindri U19,Fram/Ulfarnir U19,-0.5,-0.5,0.5,0.5,1.88,1.84,1.85,1.87,5.0,4.5,1.95,1.93,1.8,1.79,1-1,3-3
+2025-06-18,20:00,Iceland U19 League,Afturelding Hviti U19,Selfoss Hamar Aegir Arborg U19,-1.0,-0.5,1.0,0.5,1.95,1.75,1.79,1.92,4.75,4.25,1.95,1.8,1.79,1.91,1-0,3-1
+2025-06-18,16:30,Argentina Youth League,Nueva Chicago U20,Almirante Brown U20,-1.75,-1.75,1.75,1.75,1.85,1.85,1.87,1.84,3.25,3.25,1.8,1.79,1.93,1.9,1-0,1-0

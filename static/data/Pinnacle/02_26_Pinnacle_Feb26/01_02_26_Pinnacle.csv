@@ -1,0 +1,730 @@
+Date,Time,League,Home Team,Away Team,Home AH Closing,Home AH Opening,Away AH Closing,Away AH Opening,Home Odds Closing,Home Odds Opening,Away Odds Closing,Away Odds Opening,Total Line Closing,Total Line Opening,Over Odds Closing,Over Odds Opening,Under Odds Closing,Under Odds Opening,HT Result,FT Result
+2026-02-01,23:45,Brazil Campeonato Carioca,Botafogo RJ,Fluminense RJ,0.25,0.0,-0.25,0.0,1.74,1.67,2.11,2.13,2.25,2.25,2.01,1.89,1.82,1.85,0-0,0-1
+2026-02-01,23:30,Argentina Regional Federal Championships,Colon Chivilcoy,Escobar FC,0.5,0.0,-0.5,0.0,1.85,1.77,1.89,1.94,2.25,2.25,1.79,1.97,1.96,1.76,0-1,0-3
+2026-02-01,23:30,Brazil Campeonato Paulista,Botafogo SP,Palmeiras,0.75,1.25,-0.75,-1.25,1.98,1.79,1.87,1.99,2.25,2.5,1.81,1.95,2.03,1.81,0-0,1-0
+2026-02-01,23:30,Chile Cup,Curico Unido,Rangers Talca,-0.5,0.0,0.5,0.0,1.98,1.85,1.85,1.88,2.25,2.25,1.79,1.78,2.04,1.96,0-1,0-1
+2026-02-01,23:30,Chile Primera Division,Palestino,Nublense,-0.25,-0.5,0.25,0.5,1.82,1.81,2.09,2.0,2.25,2.75,1.97,1.91,1.9,1.88,1-0,1-1
+2026-02-01,23:30,International Club Friendly,Real Oruro,San Jose de Oruro,-0.25,-0.25,0.25,0.25,1.96,1.95,1.79,1.77,3.5,3.25,1.97,1.83,1.78,1.88,0-0,1-1
+2026-02-01,23:30,Mexico Liga TDP,Jaguares de Chiapas FC II,Deportivo Yautepec FC,2.25,2.25,-2.25,-2.25,1.91,1.95,1.82,1.75,3.25,3.25,1.89,1.79,1.83,1.91,1-1,1-2
+2026-02-01,23:20,Categoria Primera A,Deportiva Once Caldas,Jaguares de Cordoba,-1.0,-0.75,1.0,0.75,1.89,1.78,1.96,2.01,2.5,2.25,2.01,1.91,1.84,1.86,1-1,1-1
+2026-02-01,23:15,Liga Nacional de Honduras,Real Espana,CD Motagua,-0.5,-0.5,0.5,0.5,1.99,1.85,1.8,1.9,2.25,2.5,1.93,1.97,1.86,1.79,1-1,2-2
+2026-02-01,23:15,Panama Liga Nacional de Ascenso,Sporting San Miguelito,CD Arabe Unido,-0.25,-0.25,0.25,0.25,2.01,2.07,1.81,1.71,2.0,2.0,1.88,1.85,1.93,1.89,0-1,0-2
+2026-02-01,23:15,Primera Division de Paraguay,Guarani CA,Rubio nu,-0.5,-0.5,0.5,0.5,1.96,1.79,1.89,1.99,2.25,2.25,1.99,1.91,1.85,1.85,1-0,4-0
+2026-02-01,23:00,Brazil Campeonato Amazonense,Princesa AM,Manaus (AM),0.0,0.0,0.0,0.0,1.75,2.03,2.01,1.71,2.0,2.0,1.89,1.72,1.85,2.01,0-0,0-0
+2026-02-01,23:00,Peru Liga 1,Universitario De Deportes,AD Tarma,-1.75,-1.5,1.75,1.5,1.86,1.93,1.98,1.83,2.75,2.75,1.95,1.98,1.87,1.79,0-0,2-0
+2026-02-01,23:00,Primera Division Liga MX,Queretaro FC,Pachuca,0.25,0.5,-0.25,-0.5,1.92,1.81,1.99,2.01,2.25,2.5,1.89,1.96,2.0,1.85,0-0,0-0
+2026-02-01,23:00,Primera Division de Venezuela,Universidad Central de Venezuela,Trujillanos,-0.75,-1.0,0.75,1.0,1.85,1.98,1.98,1.81,2.0,2.25,1.79,1.88,2.05,1.9,1-0,2-0
+2026-02-01,23:00,Uruguay Super Cup,CA Penarol,Nacional Montevideo,0.25,0.0,-0.25,0.0,1.78,1.93,2.1,1.85,2.0,2.0,1.92,1.81,1.92,1.95,0-0,0-0
+2026-02-01,22:30,Brazil Campeonato Paulista,Noroeste,AE Velo Clube SP,-0.25,-0.25,0.25,0.25,2.09,1.91,1.78,1.86,2.0,2.0,1.99,1.87,1.85,1.88,1-0,2-0
+2026-02-01,22:15,Argentine Division 1,Boca Juniors,Newells Old Boys,-1.0,-1.0,1.0,1.0,1.84,1.8,2.08,2.03,2.0,2.5,1.83,1.98,2.07,1.83,1-0,2-0
+2026-02-01,22:00,Barbados Premier League,St Andrew Lions,Wotton FC,-0.5,-0.25,0.5,0.25,1.89,1.77,1.85,1.94,3.0,3.0,1.82,1.82,1.93,1.89,3-0,3-0
+2026-02-01,22:00,Brazil Paraibano,Sousa PB,EC de Patos,-1.5,-1.25,1.5,1.25,1.98,1.88,1.77,1.83,2.5,2.5,1.83,1.85,1.92,1.86,0-1,0-1
+2026-02-01,22:00,Guatemala D2,Santa Lucia Cotzumalguapa,CSD Chiquimulilla,-0.5,-0.5,0.5,0.5,1.83,1.85,1.91,1.85,2.5,2.25,1.85,1.78,1.88,1.94,0-1,1-1
+2026-02-01,22:00,Mexico Liga Premier Serie A,Acatlan,Tritones Vallarta MFC,0.75,0.5,-0.75,-0.5,1.81,1.85,1.93,1.86,3.25,2.75,1.83,1.75,1.92,1.97,3-1,3-2
+2026-02-01,22:00,Saint Kitts Nevis Premier League,Old Road Jets,Flow 4G Cayon Rockets,-1.5,-1.5,1.5,1.5,1.92,1.87,1.76,1.84,2.75,3.0,1.86,1.96,1.81,1.72,0-2,2-2
+2026-02-01,21:40,BRA CGD,Goias,Vila Nova,-0.25,-0.25,0.25,0.25,1.78,1.82,1.98,1.89,2.0,2.0,1.95,1.98,1.79,1.75,1-0,1-0
+2026-02-01,21:30,Brazil Campeonato Baiano Division,Bahia,Porto BA,-1.75,-1.5,1.75,1.5,1.94,1.87,1.83,1.88,3.0,2.75,1.81,1.76,1.97,2.0,3-1,3-1
+2026-02-01,21:30,Brazil Paraibano,Atletico Cajazeirense PB,Nacional de Patos PB,0.0,-0.5,0.0,0.5,1.86,1.79,1.88,1.93,2.25,2.5,1.83,1.95,1.91,1.72,1-0,1-0
+2026-02-01,21:30,Campeonato Paranaense,Galo Maringa,Maringa FC,1.0,1.0,-1.0,-1.0,1.91,1.79,1.88,1.97,2.5,2.5,1.9,1.94,1.88,1.81,0-4,0-5
+2026-02-01,21:30,Campeonato Paranaense,Operario Ferroviario PR,Azuriz FC,-1.25,-0.75,1.25,0.75,1.86,1.76,1.93,2.02,2.25,2.0,1.88,1.8,1.91,1.96,2-0,2-0
+2026-02-01,21:30,Mexico Liga TDP,CEFOR Chiapas,Lechuzas UPGCH,1.5,0.75,-1.5,-0.75,1.88,1.81,1.85,1.9,3.25,3.0,1.78,1.97,1.97,1.75,0-0,1-1
+2026-02-01,21:15,Brazil Campeonato Paulista,Bragantino,Sao Bernardo,-0.75,-0.75,0.75,0.75,1.93,1.9,1.93,1.87,2.25,2.25,1.88,1.82,1.96,1.94,0-1,1-1
+2026-02-01,21:15,International Club Friendly,Real Potosi,Nacional Potosi,0.5,0.75,-0.5,-0.75,1.85,1.79,1.89,1.92,3.0,3.0,1.97,1.83,1.78,1.88,1-0,1-0
+2026-02-01,21:15,Primera Division de El Salvador,CD Platense Municipal Zacatecoluca,Alianza San Salvador,0.75,0.5,-0.75,-0.5,1.82,1.8,2.01,2.0,2.5,2.25,1.99,1.82,1.83,1.97,0-0,0-2
+2026-02-01,21:10,Categoria Primera A,Deportivo Cali,Deportivo Pasto,-0.75,-0.75,0.75,0.75,1.92,1.95,1.93,1.83,2.0,2.0,1.85,1.86,1.98,1.91,2-0,3-0
+2026-02-01,21:00,Argentina Regional Federal Championships,General Paz Junlors,CA Central Argentino,-0.25,-0.5,0.25,0.5,1.83,1.81,1.92,1.9,1.75,2.5,1.74,1.95,2.02,1.71,0-1,3-2
+2026-02-01,21:00,Brazil Campeonato Capixaba,Rio Branco-ES,Real Noroeste,-1.0,-1.0,1.0,1.0,2.03,1.87,1.74,1.84,2.25,2.25,1.93,1.81,1.82,1.9,0-0,0-1
+2026-02-01,21:00,Brazil Campeonato Catarinense Division 1,Criciuma,Chapecoense SC,-0.5,-0.25,0.5,0.25,1.91,2.02,1.88,1.76,2.0,2.0,1.9,1.91,1.88,1.85,0-2,1-2
+2026-02-01,21:00,Brazil Campeonato Cearense Division 1,Ceara,Horizonte CE,-1.75,-1.25,1.75,1.25,1.8,1.81,1.93,1.9,2.75,2.5,1.82,1.85,1.91,1.86,1-0,4-0
+2026-02-01,21:00,Brazil Campeonato Paulista B,Ferroviaria SP,Sao Bento,-1.0,-1.25,1.0,1.25,1.81,2.03,1.99,1.75,2.25,2.25,1.9,1.87,1.88,1.88,1-0,2-0
+2026-02-01,21:00,Chile Cup,Deportes Recoleta,Union Espanola,0.25,0.25,-0.25,-0.25,1.87,1.93,1.95,1.81,2.75,2.75,1.93,1.88,1.88,1.85,0-1,0-1
+2026-02-01,21:00,Chile Cup,Union San Felipe,Santiago Wanderers,-0.5,0.0,0.5,0.0,2.02,1.93,1.81,1.82,2.25,2.25,1.81,1.82,2.02,1.93,1-1,2-1
+2026-02-01,21:00,Chile Primera Division,Deportes La Serena,Univ Catolica,0.5,0.5,-0.5,-0.5,1.88,1.83,2.01,1.98,2.25,2.25,1.83,1.81,2.05,1.98,2-1,2-2
+2026-02-01,21:00,Guatemala D2,CSD Ipala,San Benito FC,-0.75,-0.75,0.75,0.75,1.79,1.77,1.94,1.95,2.25,2.5,1.78,1.93,1.96,1.78,0-0,1-0
+2026-02-01,21:00,Guatemala D2,CSYD Carcha,Sacachispas GT,-0.25,0.25,0.25,-0.25,1.9,1.76,1.84,1.96,2.0,2.25,1.84,1.95,1.9,1.77,1-0,2-1
+2026-02-01,21:00,Guatemala D2,Deportivo San Pedro,Huehuetecos FC,-1.5,-1.25,1.5,1.25,1.92,1.85,1.82,1.85,2.5,2.5,1.79,1.85,1.95,1.85,0-1,0-1
+2026-02-01,21:00,Liga Nacional de Honduras,Genesis,CD Choloma,-0.75,-0.75,0.75,0.75,1.9,1.78,1.88,1.99,3.0,3.0,1.98,1.91,1.81,1.85,0-0,0-0
+2026-02-01,21:00,Mexico Liga TDP,Tlapa Mazatecochco,Liga de Futbol de Tehuacan,-1.0,-1.0,1.0,1.0,1.88,1.93,1.85,1.79,3.0,2.75,1.97,1.91,1.75,1.8,1-0,4-2
+2026-02-01,21:00,Nicaragua Liga Primera,Rancho Santana FC,Managua FC,1.25,1.5,-1.25,-1.5,1.77,1.9,2.03,1.81,3.0,3.25,2.02,1.75,1.78,1.94,1-0,1-1
+2026-02-01,21:00,Panama Liga Nacional de Ascenso,Herrera FC,CD Universitario,0.5,0.5,-0.5,-0.5,1.87,1.85,1.95,1.89,2.25,2.25,1.94,1.91,1.88,1.83,0-1,1-1
+2026-02-01,21:00,Panama Liga Prom,Udelas FC,CA Independiente de la Chorrera Reserves,1.25,1.25,-1.25,-1.25,1.85,1.88,1.88,1.83,3.25,3.0,1.98,1.76,1.77,1.96,0-1,3-1
+2026-02-01,21:00,Primera Division de El Salvador,CD Cacahuatique,Fuerte San Francisco,-0.5,-0.5,0.5,0.5,2.04,2.01,1.79,1.79,2.25,2.25,1.9,1.88,1.92,1.91,0-0,0-0
+2026-02-01,21:00,Primera Division de El Salvador,CD Hercules,Municipal Limeno,0.5,0.5,-0.5,-0.5,1.98,1.91,1.84,1.88,2.5,2.25,2.02,1.81,1.81,1.99,0-1,1-1
+2026-02-01,21:00,Primera Division de Paraguay,Olimpia Asuncion,Sportivo Trinidense,-0.75,-0.5,0.75,0.5,1.89,2.02,1.96,1.77,2.5,2.5,2.01,1.91,1.83,1.84,1-1,3-2
+2026-02-01,21:00,Primera Division de Venezuela,Estudiantes Merida FC,Caracas FC,-0.25,-0.25,0.25,0.25,1.93,1.89,1.89,1.85,2.25,2.25,1.96,1.79,1.86,1.96,1-1,2-2
+2026-02-01,20:30,Argentina Regional Federal Championships,Guarani A. Franco,Defensores Puerto Vilelas,-0.25,-0.5,0.25,0.5,2.08,1.76,1.7,1.96,2.0,2.25,1.82,1.97,1.93,1.75,0-0,0-1
+2026-02-01,20:30,Liga Portugal 1,CD Tondela,Benfica,1.5,1.75,-1.5,-1.75,1.89,1.88,2.02,1.92,2.75,3.0,2.04,1.94,1.85,1.85,0-0,0-0
+2026-02-01,20:15,Peru Liga 1,Alianza Atletico Sullana,Cusco FC,0.0,-0.25,0.0,0.25,1.76,1.8,2.13,1.98,2.25,2.25,2.0,1.92,1.84,1.84,0-0,1-0
+2026-02-01,20:10,Trinidad and Tobago Pro League,AC Port Of Spain,Club Sando,0.25,0.5,-0.25,-0.5,1.77,1.75,1.98,1.97,2.25,2.75,1.83,1.87,1.91,1.84,1-3,2-3
+2026-02-01,20:00,Argentine Division 1,Barracas Central,Deportivo Riestra,0.0,-0.25,0.0,0.25,1.99,1.98,1.92,1.84,1.5,1.75,1.96,2.01,1.93,1.81,0-1,1-1
+2026-02-01,20:00,BRA SPB,SC Paysandu Para,Capitao Poco EC,-1.5,-2.0,1.5,2.0,1.88,1.82,1.9,1.93,2.5,2.75,1.85,1.84,1.94,1.9,1-0,1-0
+2026-02-01,20:00,Brazil Campeonato Catarinense Division 1,Concordia AC,Brusque FC,0.25,0.5,-0.25,-0.5,2.02,1.83,1.78,1.93,1.75,2.0,1.9,1.91,1.88,1.85,0-0,0-0
+2026-02-01,20:00,Brazil Campeonato Sul-Matogrossense,Pantanal,Costa Rica MS,-0.5,-0.5,0.5,0.5,1.93,1.91,1.82,1.81,2.25,2.25,1.83,1.82,1.91,1.89,1-0,2-1
+2026-02-01,20:00,Brazil Mato-grossense Division 1,Varzea Grande,Sport Sinop,0.5,0.5,-0.5,-0.5,1.78,1.97,1.96,1.76,2.25,2.0,2.0,1.88,1.76,1.83,0-1,1-2
+2026-02-01,20:00,Brazil Paraibano,Pombal EC,Serra Branca EC,1.25,1.0,-1.25,-1.0,1.79,1.78,1.95,1.93,2.5,2.5,1.89,1.98,1.85,1.75,2-1,3-1
+2026-02-01,20:00,Brazil Paraibano,Treze Campina Grande PB,Confianca/PB,-1.75,-1.5,1.75,1.5,1.85,1.86,1.88,1.85,2.75,2.75,1.76,1.86,1.98,1.85,0-0,1-0
+2026-02-01,20:00,Colombia Primera B,Deportes Quindio,Leones,-1.0,-1.25,1.0,1.25,1.89,1.8,1.96,1.98,2.25,2.5,1.98,1.85,1.86,1.89,2-0,3-0
+2026-02-01,20:00,Colombia Primera B,Tigres Zipaquira,Boca Juniors De Cali,-0.25,0.0,0.25,0.0,1.85,1.73,2.0,2.07,1.75,2.0,1.88,1.96,1.96,1.8,1-0,2-0
+2026-02-01,20:00,Jamaica Premier League,Chapelton Maroons FC,Mount Pleasant FA,1.25,1.0,-1.25,-1.0,1.78,1.96,2.03,1.8,2.25,2.25,1.96,1.94,1.83,1.81,0-1,0-2
+2026-02-01,20:00,Jamaica Premier League,Harbour View FC,Tivoli Gardens FC,0.25,0.0,-0.25,0.0,1.79,1.98,2.01,1.78,2.5,2.25,1.91,1.84,1.88,1.92,1-2,2-2
+2026-02-01,20:00,Jamaica Premier League,Montego Bay Utd,Molynes United,-1.25,-1.25,1.25,1.25,1.97,1.97,1.83,1.79,2.5,2.5,1.91,1.85,1.88,1.9,1-0,3-0
+2026-02-01,20:00,Jamaica Premier League,Portmore United,Cavalier FC,-0.25,0.0,0.25,0.0,1.93,1.75,1.86,2.03,2.0,2.0,1.96,1.97,1.83,1.79,0-0,1-0
+2026-02-01,20:00,Jamaica Premier League,Spanish Town Police,Racing United,1.75,2.0,-1.75,-2.0,2.01,1.78,1.77,1.98,3.0,2.75,1.99,1.87,1.79,1.87,1-0,1-3
+2026-02-01,20:00,Spanish La Liga,Athletic Bilbao,Real Sociedad,-0.25,-0.5,0.25,0.5,1.96,1.9,1.96,1.92,2.25,2.25,1.97,1.87,1.93,1.93,0-1,1-1
+2026-02-01,20:00,Spanish La Liga 2,Granada CF,Racing Santander,0.0,-0.25,0.0,0.25,1.8,2.01,2.14,1.81,2.5,2.5,2.02,1.87,1.87,1.93,1-0,1-0
+2026-02-01,19:45,France Ligue 1,Strasbourg,Paris Saint Germain (PSG),1.0,1.0,-1.0,-1.0,1.87,1.89,2.06,1.93,3.0,3.0,1.97,1.86,1.93,1.93,1-1,1-2
+2026-02-01,19:45,Italy Serie A,Parma,Juventus,1.25,1.0,-1.25,-1.0,1.94,1.85,1.98,1.97,2.5,2.5,2.09,2.0,1.83,1.81,0-2,1-4
+2026-02-01,19:30,Israel C League,Bnei Jaljulia,Maccabi lroni Kfar Yona,0.75,0.0,-0.75,0.0,1.81,1.94,1.93,1.78,2.75,2.75,1.87,1.81,1.87,1.91,0-1,0-3
+2026-02-01,19:30,Italy Serie C,Foggia,Audace Cerignola,0.25,0.5,-0.25,-0.5,1.88,1.79,1.98,2.0,2.25,2.25,1.89,1.97,1.94,1.79,0-1,1-3
+2026-02-01,19:30,Italy Serie C,Salernitana,Giugliano,-1.25,-1.25,1.25,1.25,1.83,1.85,2.03,1.98,2.5,2.5,1.93,1.89,1.9,1.91,1-0,1-1
+2026-02-01,19:30,Spain Primera Division RFEF,AD Alcorcon,Gimnastic Tarragona,-0.5,-0.25,0.5,0.25,1.95,1.83,1.87,1.92,2.0,2.0,1.91,1.9,1.91,1.84,1-0,1-1
+2026-02-01,19:10,Greece Super League A,AEK Athens,Olympiakos Piraeus,0.0,0.0,0.0,0.0,1.84,2.04,2.05,1.78,2.25,2.25,1.86,1.8,2.02,1.99,0-0,1-1
+2026-02-01,19:00,Brazil Campeonato Alagoano,CS Esportivo AL,Centro Sportivo Alagoano,0.5,0.5,-0.5,-0.5,1.98,1.87,1.81,1.88,2.0,2.0,1.83,1.92,1.96,1.84,0-1,0-1
+2026-02-01,19:00,Brazil Campeonato Alagoano,Penedense AL,Murici,-0.25,-0.5,0.25,0.5,1.91,1.99,1.88,1.78,2.0,2.0,1.99,1.91,1.81,1.85,0-0,0-0
+2026-02-01,19:00,Brazil Campeonato Baiano Division,Barcelona BA,Vitoria BA,0.25,0.75,-0.25,-0.75,1.85,1.81,1.93,1.95,2.0,2.0,1.76,1.87,2.05,1.88,0-0,0-2
+2026-02-01,19:00,Brazil Campeonato Maranhense,Imperatriz(MA),Iape,-0.75,-0.25,0.75,0.25,1.93,1.79,1.81,1.92,2.0,2.0,1.79,2.0,1.95,1.73,0-0,0-0
+2026-02-01,19:00,Brazil Campeonato Maranhense,Maranhao,Luminense,-1.0,-0.5,1.0,0.5,1.98,1.78,1.77,1.94,2.25,2.25,1.79,1.79,1.95,1.93,0-0,1-0
+2026-02-01,19:00,Brazil Campeonato Maranhense,Moto Club Sao Luis MA,tuntum EC,-0.5,-0.75,0.5,0.75,1.97,1.73,1.78,2.0,2.0,2.25,1.77,1.93,1.98,1.79,1-1,2-2
+2026-02-01,19:00,Brazil Campeonato Maranhense,Sampaio Correa,ITZ Sport,-2.0,-2.25,2.0,2.25,1.83,1.92,1.89,1.78,2.5,2.5,1.82,1.78,1.91,1.92,4-0,6-0
+2026-02-01,19:00,Brazil Campeonato Paulista B,Oeste,Juventus SP,0.25,0.0,-0.25,0.0,1.9,1.78,1.88,1.99,2.25,2.0,1.96,1.87,1.83,1.88,0-0,0-0
+2026-02-01,19:00,CAF Champions League,MC Alger,Saint Eloi Lupopo,-1.25,-1.25,1.25,1.25,1.84,1.93,1.94,1.83,2.25,2.25,1.89,1.88,1.89,1.87,0-0,2-0
+2026-02-01,19:00,CAF Confederation Cup,Al Masry,Zamalek,-0.25,-0.25,0.25,0.25,1.82,1.91,1.93,1.81,2.0,2.0,1.9,1.8,1.83,1.92,1-1,1-2
+2026-02-01,19:00,CAF Confederation Cup,Olympique de Safi,San Pedro FC,-0.75,-1.0,0.75,1.0,1.77,1.79,1.98,1.93,2.25,2.5,1.89,1.97,1.85,1.75,1-0,2-1
+2026-02-01,19:00,Campeonato Paranaense,Independente Sao Joseense PR,Londrina PR,0.5,0.75,-0.5,-0.75,1.83,1.83,1.95,1.93,1.75,2.0,1.81,1.83,1.98,1.93,0-1,1-1
+2026-02-01,19:00,Categoria Primera A,Atletico Bucaramanga,Alianza Petrolera,-0.75,-1.0,0.75,1.0,1.93,1.95,1.92,1.83,2.0,2.25,1.85,1.87,2.0,1.9,3-0,5-0
+2026-02-01,19:00,Holland Eredivisie,Volendam,Go Ahead Eagles,0.5,0.0,-0.5,0.0,1.87,1.9,2.05,1.92,2.75,3.0,2.02,2.0,1.87,1.81,0-1,1-1
+2026-02-01,19:00,International Club Friendly,Oriente Petrolero,Blooming,0.0,0.0,0.0,0.0,1.77,1.97,1.98,1.7,3.0,3.0,1.83,1.78,1.91,1.94,0-1,0-2
+2026-02-01,19:00,Mexico Liga TDP,Atletico Pachuca,FC Politecnico,3.0,2.25,-3.0,-2.25,1.79,1.81,1.85,1.89,4.5,3.5,1.86,1.81,1.78,1.89,0-2,1-5
+2026-02-01,19:00,Mexico Liga TDP,La Tribu de Cd. Juarez,Deportivo Etchojoa,-2.0,-0.25,2.0,0.25,1.81,1.79,1.92,1.93,2.5,2.75,1.9,1.93,1.83,1.79,1-0,2-0
+2026-02-01,19:00,Supercopa do Brasil,Flamengo,Corinthians Paulista (SP),-0.75,-0.5,0.75,0.5,1.94,1.81,1.96,2.01,2.25,2.25,2.07,1.93,1.83,1.87,0-1,0-2
+2026-02-01,18:45,Hungary Borsodi Liga,ZalaegerzsegTE,Nyiregyhaza,-0.5,-0.5,0.5,0.5,2.03,1.98,1.83,1.8,2.5,2.5,2.0,1.95,1.84,1.81,0-0,0-1
+2026-02-01,18:30,BRA CGD,Centro Oeste,Goiatuba,-0.5,-0.25,0.5,0.25,2.0,1.81,1.76,1.91,2.0,2.0,1.86,1.85,1.88,1.85,1-0,1-0
+2026-02-01,18:30,German 3.Liga,Rot-Weiss Essen,SV Wehen Wiesbaden,-0.5,-0.75,0.5,0.75,1.98,1.97,1.87,1.81,2.75,2.75,1.92,1.79,1.92,1.97,1-0,1-1
+2026-02-01,18:15,Belgian Pro League,Oud-Heverlee Leuven,Mechelen,-0.25,-0.5,0.25,0.5,1.93,1.93,1.97,1.89,2.5,2.5,1.99,1.79,1.9,2.0,1-0,2-2
+2026-02-01,18:00,BRA CP,Globo,Santa Cruz RN,1.0,0.75,-1.0,-0.75,1.88,1.95,1.85,1.76,2.5,2.5,1.79,1.88,1.96,1.83,0-1,2-2
+2026-02-01,18:00,Brazil Campeonato Capixaba,Vitoria ES,Desportiva Capixaba (ES),-1.25,-1.25,1.25,1.25,1.76,1.96,1.99,1.76,2.5,2.5,1.89,1.91,1.85,1.81,2-0,2-0
+2026-02-01,18:00,Brazil Campeonato Paulista B,Taubate,Ituano SP,0.0,0.25,0.0,-0.25,2.0,1.81,1.8,1.94,2.25,2.0,1.97,1.81,1.82,1.94,0-0,0-1
+2026-02-01,18:00,El Salvador Reserves League,CD Cacahuatique Reserves,Fuerte San Francisco Reserves,-0.25,0.25,0.25,-0.25,1.77,1.7,1.98,1.97,3.0,3.0,1.88,1.79,1.86,1.93,1-0,3-0
+2026-02-01,18:00,FIFA Women Champion’s Cup,Arsenal (W),SC Corinthians Paulista (W),-1.75,-1.5,1.75,1.5,1.84,1.78,1.96,1.97,3.0,3.0,1.97,1.93,1.84,1.81,1-1,2-2
+2026-02-01,18:00,Israel Premier League,Hapoel Petah Tikva,Ashdod MS,-0.5,-0.5,0.5,0.5,1.92,1.81,1.93,1.97,2.75,2.5,2.0,1.81,1.84,1.95,0-0,2-0
+2026-02-01,18:00,Liga Portugal 1,Sporting CP,Nacional da Madeira,-2.25,-2.25,2.25,2.25,2.01,1.97,1.88,1.84,3.5,3.25,1.94,1.85,1.93,1.93,0-0,2-1
+2026-02-01,18:00,Malta First Division League,Fgura United,Sirens,-0.5,-0.5,0.5,0.5,1.95,1.93,1.79,1.79,2.75,2.75,1.85,1.82,1.88,1.89,1-1,1-5
+2026-02-01,18:00,Malta Premier League,St. Patrick FC,Floriana F.C.,0.75,0.5,-0.75,-0.5,1.93,1.92,1.85,1.83,2.25,2.25,1.79,1.82,2.01,1.94,0-1,0-3
+2026-02-01,18:00,Mexico Liga MX Femenil,Club America (W),Unam Pumas (W),-2.0,-1.5,2.0,1.5,1.86,1.9,1.97,1.87,3.75,3.75,1.88,1.92,1.94,1.84,2-1,5-1
+2026-02-01,18:00,Mexico Liga Premier Serie A,Montaneses FC,Pioneros de Cancun,-0.5,-0.5,0.5,0.5,1.79,1.95,1.96,1.77,2.5,2.75,1.78,1.94,1.97,1.78,0-0,1-0
+2026-02-01,18:00,Peru Liga 1,Deportivo Garcilaso,Sporting Cristal,0.0,0.5,0.0,-0.5,1.96,1.79,1.89,1.98,2.5,2.5,2.05,1.97,1.81,1.79,0-0,1-1
+2026-02-01,18:00,Romania Liga I,FCSB,FK Csikszereda Miercurea Ciuc,-2.0,-1.75,2.0,1.75,2.06,1.91,1.79,1.85,3.0,3.0,1.96,1.83,1.86,1.92,1-0,1-0
+2026-02-01,18:00,Saudi Arabia Reserve League,Al Hilal Riyadh U21,Al Ittihad U21,-0.5,-0.5,0.5,0.5,1.85,1.83,1.89,1.88,3.25,3.25,1.99,1.97,1.76,1.75,0-0,0-0
+2026-02-01,18:00,Trinidad and Tobago Pro League,San Juan Jabloteh,La Horquetta Rangers FC,-1.25,-1.0,1.25,1.0,1.88,1.83,1.86,1.88,3.5,3.5,1.96,1.94,1.79,1.77,0-1,2-1
+2026-02-01,17:40,Bahraini King’s Cup,Al-Shabbab,Malkia,0.5,0.75,-0.5,-0.75,1.87,1.91,1.87,1.77,2.0,2.5,1.79,1.76,1.96,1.92,1-1,2-1
+2026-02-01,17:30,Belgian Pro League,Saint Gilloise,Club Brugge,-0.25,-0.5,0.25,0.5,2.01,2.05,1.9,1.79,2.5,2.75,1.95,1.88,1.93,1.93,1-0,1-0
+2026-02-01,17:30,Czech Republic Gambrinus Liga,Pardubice,Slavia Praha,1.25,1.25,-1.25,-1.25,1.91,1.98,1.94,1.79,2.75,3.0,1.94,1.84,1.89,1.91,0-1,1-1
+2026-02-01,17:30,German Frauen Bundesliga,RB Leipzig (W),Eintracht Frankfurt (W),1.0,1.0,-1.0,-1.0,2.03,1.83,1.81,1.91,3.5,3.25,1.93,1.81,1.88,1.93,0-1,2-2
+2026-02-01,17:30,Greece Super League A,PAOK Saloniki,Panserraikos,-2.25,-2.75,2.25,2.75,1.83,1.8,2.05,1.98,3.5,3.5,2.01,1.83,1.85,1.93,4-1,4-1
+2026-02-01,17:30,Saudi Professional League,Al-Fateh,Al-Hazm,-0.75,-0.25,0.75,0.25,2.05,1.99,1.8,1.79,2.5,2.75,1.83,1.95,2.01,1.81,0-1,1-1
+2026-02-01,17:30,Saudi Professional League,Al-Ittihad,Al Najma(KSA),-2.0,-2.0,2.0,2.0,1.92,1.78,1.92,1.99,3.5,3.75,1.84,1.91,1.98,1.83,1-0,1-0
+2026-02-01,17:30,Spanish La Liga,Getafe,Celta Vigo,0.0,0.0,0.0,0.0,2.01,2.14,1.92,1.72,1.75,1.75,1.9,1.8,2.0,2.01,0-0,0-0
+2026-02-01,17:30,Spanish La Liga 2,Castellon,Andorra FC,-1.25,-1.0,1.25,1.0,2.06,1.8,1.85,2.03,3.0,3.0,2.06,1.85,1.84,1.96,2-0,2-0
+2026-02-01,17:30,Spanish La Liga 2,SD Huesca,Cadiz,-0.25,-0.25,0.25,0.25,2.09,1.94,1.83,1.87,2.0,2.0,1.87,1.86,2.03,1.93,1-0,1-0
+2026-02-01,17:15,Spain Primera Division RFEF,CD Lugo,Ponferradina,-0.25,-0.5,0.25,0.5,1.98,1.89,1.84,1.85,2.0,2.0,1.98,1.99,1.85,1.77,0-1,0-2
+2026-02-01,17:15,Spain Primera Division RFEF,Cacereno,Barakaldo CF,0.0,0.0,0.0,0.0,1.94,2.01,1.88,1.75,2.0,2.0,1.91,1.88,1.91,1.85,0-0,0-0
+2026-02-01,17:15,Spain Primera Division RFEF,Sabadell,Juventud Torremolinos CF,-1.0,-0.75,1.0,0.75,1.78,1.76,2.06,2.0,2.25,2.25,1.92,2.02,1.9,1.74,1-1,2-2
+2026-02-01,17:15,Spain Regional League,Mutxamel CF,Novelda CF,0.25,0.5,-0.25,-0.5,1.78,1.88,1.96,1.83,2.25,2.25,1.76,1.72,1.99,1.95,0-0,0-1
+2026-02-01,17:10,Wales Premier League Women,Aberystwyth (W),Cardiff City FC (W),2.75,3.25,-2.75,-3.25,1.82,1.85,1.89,1.79,3.75,4.5,1.83,1.89,1.88,1.75,0-1,0-4
+2026-02-01,17:10,Wales Premier League Women,Barry Town (W),Wrexham (W),2.75,2.25,-2.75,-2.25,1.79,1.85,1.93,1.81,4.25,4.0,1.88,1.87,1.84,1.79,1-2,1-6
+2026-02-01,17:10,Wales Premier League Women,Pontypridd Town (W),The New Saints (W),3.25,3.25,-3.25,-3.25,1.87,1.85,1.84,1.79,4.5,4.5,1.94,1.85,1.78,1.79,0-3,0-8
+2026-02-01,17:00,Botola Pro 1,Raja Club Athletic,Renaissance Zmamra,-1.0,-0.75,1.0,0.75,2.01,1.73,1.82,2.03,2.0,2.0,1.79,1.85,2.05,1.88,1-0,3-0
+2026-02-01,17:00,Cyprus 1 Division,AEL Limassol,Aris Limassol,0.75,1.0,-0.75,-1.0,2.07,1.83,1.8,1.93,2.5,2.5,1.84,1.83,2.0,1.93,0-1,2-1
+2026-02-01,17:00,Italian Women Division 1,Juventus (W),Sassuolo (W),-1.75,-1.75,1.75,1.75,1.95,1.85,1.85,1.88,3.0,3.5,1.83,1.84,1.98,1.88,3-0,4-0
+2026-02-01,17:00,Italy Serie A,Cremonese,Inter Milan,1.75,1.5,-1.75,-1.5,1.88,1.93,2.02,1.89,2.75,3.0,1.89,1.95,2.0,1.85,0-2,0-2
+2026-02-01,17:00,Liga Nacional de Guatemala,Club Aurora,Malacateco,-0.75,-0.25,0.75,0.25,1.91,1.78,1.91,1.98,2.5,2.25,1.95,1.84,1.87,1.9,1-0,1-0
+2026-02-01,17:00,Mexico Liga MX Femenil,Chivas Guadalajara (W),Leon (W),-1.25,-1.0,1.25,1.0,2.06,1.8,1.78,1.98,2.75,3.0,1.82,1.97,2.03,1.79,2-0,3-1
+2026-02-01,17:00,Spain Segunda Division RFEF,Real Jaen CF,CD Estebona,-0.25,-0.25,0.25,0.25,1.81,1.83,2.02,1.91,2.0,2.0,1.88,1.85,1.93,1.88,0-0,0-0
+2026-02-01,17:00,Spain Segunda Division RFEF,Terrassa,Barcelona B,0.25,0.0,-0.25,0.0,1.88,1.81,1.93,1.94,2.25,2.5,1.8,1.95,2.03,1.79,0-0,0-2
+2026-02-01,17:00,Spain Segunda Division RFEF,UE Olot,Sant Andreu,0.0,0.0,0.0,0.0,1.9,2.05,1.92,1.72,1.75,2.0,1.89,1.93,1.93,1.81,1-0,2-2
+2026-02-01,17:00,Spanish Bizkaia-Tercera Division,Compostela,CD Boiro,-0.5,-0.5,0.5,0.5,1.83,1.77,1.95,2.0,2.25,2.25,1.94,1.93,1.85,1.83,1-1,2-2
+2026-02-01,17:00,Spanish Bizkaia-Tercera Division,Conil CF,Lucena CF,0.25,0.5,-0.25,-0.5,2.02,1.79,1.78,1.97,2.0,2.0,1.78,1.85,2.02,1.9,2-0,3-2
+2026-02-01,17:00,Spanish Bizkaia-Tercera Division,Marbelli,CD El Palo,-1.0,-1.0,1.0,1.0,1.79,1.76,2.01,2.01,2.25,2.5,1.86,1.99,1.93,1.78,0-1,1-1
+2026-02-01,17:00,Spanish Bizkaia-Tercera Division,Mijas Las Lagunas,UD San Pedro,-1.0,-1.0,1.0,1.0,2.06,1.86,1.75,1.89,2.25,2.25,1.95,1.85,1.83,1.9,2-0,3-1
+2026-02-01,17:00,Spanish Bizkaia-Tercera Division,UD San Sebastian Reyes B,Ciudad de Madrid,-0.75,-0.5,0.75,0.5,1.92,1.81,1.87,1.95,2.0,2.25,1.87,1.95,1.92,1.81,0-0,2-0
+2026-02-01,17:00,Turkey Super Lig,Galatasaray,Kayserispor,-1.75,-2.25,1.75,2.25,1.84,1.93,2.06,1.87,3.5,3.75,1.96,1.91,1.91,1.88,2-0,4-0
+2026-02-01,16:45,Spanish Bizkaia-Tercera Division,Huetor Tajar,Granada CF B,-0.25,0.0,0.25,0.0,2.08,1.71,1.74,2.09,2.0,2.0,1.79,1.96,2.0,1.81,0-0,1-1
+2026-02-01,16:30,Austrian Cup,Rheindorf Altach,Sturm Graz,0.25,0.25,-0.25,-0.25,1.81,1.8,2.07,1.98,2.0,2.25,1.82,1.83,2.03,1.93,0-0,1-1
+2026-02-01,16:30,Austrian Cup,Wolfsberger AC,Red Bull Salzburg,0.5,0.5,-0.5,-0.5,2.01,1.81,1.85,1.96,2.75,2.75,1.81,1.98,2.03,1.78,0-1,0-1
+2026-02-01,16:30,English Premier League,Tottenham Hotspur,Manchester City,0.75,0.75,-0.75,-0.75,2.08,1.98,1.85,1.84,2.75,3.0,1.85,1.96,2.07,1.84,0-2,2-2
+2026-02-01,16:30,German Bundesliga,Borussia Dortmund,Heidenheimer,-1.75,-2.0,1.75,2.0,1.95,2.02,1.95,1.79,3.25,3.25,1.85,1.81,2.05,1.99,1-1,3-2
+2026-02-01,16:30,Italy Serie C,AZ Picerno ASD,Potenza,-0.25,0.0,0.25,0.0,1.93,1.74,1.93,2.05,2.25,2.25,1.84,1.88,2.0,1.87,2-0,2-0
+2026-02-01,16:30,Italy Serie C,Cosenza Calcio 1914,US Casertana 1908,-0.5,-0.25,0.5,0.25,2.05,1.76,1.82,2.03,2.25,2.0,1.97,1.82,1.87,1.94,0-1,3-1
+2026-02-01,16:30,Italy Serie C,US Siracusa,Crotone,0.0,0.25,0.0,-0.25,2.04,1.88,1.83,1.89,2.25,2.25,1.93,1.83,1.9,1.93,1-2,1-3
+2026-02-01,16:30,KSCUP,Al Kuwait SC,Al-Qadsia SC,-0.5,-0.5,0.5,0.5,2.02,1.76,1.78,1.96,2.0,2.5,1.83,1.84,1.96,1.87,0-1,1-1
+2026-02-01,16:30,Poland Ekstraklasa,Legia Warszawa,Korona Kielce,-0.5,-0.75,0.5,0.75,1.88,1.98,2.01,1.83,2.5,2.5,2.05,1.94,1.83,1.85,0-1,1-2
+2026-02-01,16:30,Senegal Premier League,AS Dakar Sacre Coeur,ASC Jaraaf,0.25,0.0,-0.25,0.0,1.68,2.04,2.12,1.7,1.5,1.75,1.84,1.99,1.89,1.74,0-0,0-0
+2026-02-01,16:30,Spain Youth League,CE Constancia U19,Mallorca U19,1.25,1.25,-1.25,-1.25,1.93,1.85,1.85,1.9,3.0,2.75,2.01,1.78,1.79,1.98,0-0,0-1
+2026-02-01,16:30,Spain Youth League,Rayo Vallecano U19,Badazous U19,-1.25,-1.5,1.25,1.5,1.92,1.87,1.87,1.88,2.75,3.0,1.83,1.88,1.95,1.88,1-1,1-1
+2026-02-01,16:30,Spanish Bizkaia-Tercera Division,Arenas Armilla,Atletico Porcuna CF,-0.75,-0.5,0.75,0.5,1.85,1.77,1.93,2.0,2.25,2.25,1.9,2.02,1.88,1.75,0-1,0-2
+2026-02-01,16:30,Spanish Bizkaia-Tercera Division,CD Autol,CD Varea,1.5,1.0,-1.5,-1.0,1.81,2.01,1.99,1.76,2.5,2.5,1.94,1.91,1.84,1.85,0-1,0-2
+2026-02-01,16:30,Spanish Bizkaia-Tercera Division,Martos Club Deportivo,CD Alhaurino,-0.25,0.0,0.25,0.0,1.77,1.85,2.04,1.9,2.25,2.25,2.01,2.03,1.79,1.75,1-0,2-1
+2026-02-01,16:15,France Ligue 1,Angers,Metz,-0.25,-0.25,0.25,0.25,1.88,1.85,2.06,1.97,2.25,2.5,1.92,1.83,1.99,1.98,1-0,1-0
+2026-02-01,16:15,France Ligue 1,Nice,Stade Brestois,-0.25,-0.25,0.25,0.25,1.99,1.9,1.93,1.92,2.5,2.75,1.85,1.96,2.06,1.85,0-2,2-2
+2026-02-01,16:15,France Ligue 1,Toulouse,AJ Auxerre,-0.75,-0.75,0.75,0.75,2.09,1.9,1.85,1.92,2.25,2.5,2.02,2.01,1.88,1.81,0-0,0-0
+2026-02-01,16:15,Italy Serie B,Padova,Monza,0.75,0.5,-0.75,-0.5,1.93,2.0,1.98,1.83,2.25,2.25,1.95,1.94,1.93,1.86,1-1,1-2
+2026-02-01,16:15,Senegal Premier League,Generation Foot,HLM,-0.5,-0.5,0.5,0.5,1.98,1.81,1.78,1.91,1.5,1.5,1.84,1.71,1.89,1.96,1-0,3-0
+2026-02-01,16:15,Spain Youth League,Gimnastic Tarragona U19,CF Damm U19,0.25,1.0,-0.25,-1.0,1.97,1.78,1.82,1.99,2.75,3.0,1.92,1.87,1.87,1.88,1-1,1-1
+2026-02-01,16:00,CAF Champions League,Pyramids FC,Renaissance Sportive de Berkane,-0.75,-0.5,0.75,0.5,1.97,1.86,1.82,1.89,2.0,2.0,2.06,1.91,1.75,1.85,1-0,3-0
+2026-02-01,16:00,CAF Champions League,Rivers United,Power Dynamos,-0.75,-0.5,0.75,0.5,1.92,2.0,1.87,1.77,2.0,2.0,2.0,1.91,1.8,1.85,0-0,0-1
+2026-02-01,16:00,CAF Confederation Cup,Azam,Nairobi United,-2.0,-1.75,2.0,1.75,1.93,1.84,1.81,1.85,2.75,2.5,1.93,1.81,1.8,1.88,1-0,1-0
+2026-02-01,16:00,CAF Confederation Cup,Djoliba,USM Alger,0.25,0.0,-0.25,0.0,1.82,2.13,1.93,1.64,2.0,2.0,1.83,1.92,1.91,1.8,0-0,0-0
+2026-02-01,16:00,Mauritania Division 1,ASC Gendrim,FC Inter Nouakchott,-0.5,-0.5,0.5,0.5,2.01,1.94,1.75,1.78,1.75,2.0,1.79,1.78,1.95,1.93,0-0,0-0
+2026-02-01,16:00,Spain Regional League,Atletico Espeleno,Montilla CF,-0.25,0.25,0.25,-0.25,1.91,1.74,1.83,1.98,2.5,2.5,1.87,1.88,1.87,1.83,0-1,0-1
+2026-02-01,16:00,Spain Regional League,Zalla,Uritarra,-0.25,-0.25,0.25,0.25,1.89,1.83,1.85,1.88,2.5,2.5,1.79,1.78,1.95,1.93,2-0,4-0
+2026-02-01,16:00,Spain Segunda Division RFEF,CD Coria,Rayo Vallecano B,-1.25,-1.0,1.25,1.0,1.8,1.91,2.04,1.83,2.75,2.25,1.84,1.79,1.98,1.96,3-0,3-2
+2026-02-01,16:00,Spain Segunda Division RFEF,Girona B,Reus FC Reddis,-0.25,0.0,0.25,0.0,2.01,1.85,1.82,1.89,2.0,2.25,1.78,1.99,2.06,1.76,0-0,1-1
+2026-02-01,16:00,Spain Segunda Division RFEF,Marino luanco,Rayo Cantabria,-0.25,-0.25,0.25,0.25,1.88,1.81,1.93,1.93,2.0,2.0,1.96,1.88,1.86,1.85,0-0,1-1
+2026-02-01,16:00,Spain Segunda Division RFEF,Real Avila CF,Atletico Astorga,-0.5,-0.75,0.5,0.75,1.85,1.94,1.97,1.8,2.0,2.0,1.88,1.88,1.94,1.86,1-1,2-4
+2026-02-01,16:00,Spain Segunda Division RFEF,Samanod,G. Segoviana,0.75,0.75,-0.75,-0.75,1.94,1.78,1.88,1.97,2.25,2.25,1.97,1.96,1.85,1.79,0-1,0-1
+2026-02-01,16:00,Spain Segunda Division RFEF,Sarriana,Real Valladol B,0.0,0.0,0.0,0.0,2.07,1.95,1.77,1.79,2.25,2.25,1.85,1.85,1.97,1.88,0-2,2-3
+2026-02-01,16:00,Spain Segunda Division RFEF,UD Logrones,CD Basconia,-1.25,-1.25,1.25,1.25,1.95,1.79,1.87,1.96,3.0,2.75,1.89,1.95,1.93,1.79,2-1,2-2
+2026-02-01,16:00,Spain Segunda Division RFEF,UD Ourense,Burgos Promesas,-0.75,-0.75,0.75,0.75,1.79,1.78,2.04,1.96,2.0,2.25,1.97,2.01,1.85,1.75,0-0,1-1
+2026-02-01,16:00,Spain Segunda Division RFEF,Utebo FC,Naxara,-0.75,-0.75,0.75,0.75,1.85,1.75,1.97,2.01,2.5,2.25,1.94,1.78,1.88,1.97,1-0,1-0
+2026-02-01,16:00,Spain Segunda Division RFEF,Yeclano Deportivo,Aguilas CF,-0.25,0.0,0.25,0.0,2.0,1.69,1.83,2.1,1.75,1.75,1.98,2.01,1.84,1.75,0-1,0-1
+2026-02-01,16:00,Spain Segunda Division RFEF,coruxo FC,CF Salmantino,-0.25,-0.25,0.25,0.25,2.09,2.03,1.7,1.8,2.0,2.0,1.9,1.84,1.92,1.98,1-0,1-0
+2026-02-01,16:00,Spain Segunda Women,CFF Olympia Las Rozas (W),Real Betis B (W),-1.0,-0.75,1.0,0.75,1.75,1.84,2.01,1.87,3.0,2.75,1.94,1.76,1.8,1.95,1-0,2-0
+2026-02-01,16:00,Spain Youth League,Almeria U19,UCD Canada Atletico U19,-0.5,-0.75,0.5,0.75,2.03,1.9,1.78,1.85,2.25,2.5,2.01,1.83,1.79,1.93,0-0,0-0
+2026-02-01,16:00,Spanish Bizkaia-Tercera Division,At. Pulpileno,Muleno CF,-0.75,-0.75,0.75,0.75,1.82,1.87,1.97,1.88,2.25,2.0,1.92,1.8,1.86,1.99,0-0,2-0
+2026-02-01,16:00,Spanish Bizkaia-Tercera Division,CD Estradense,Cambados,-0.5,-0.75,0.5,0.75,1.82,1.9,1.98,1.85,2.25,2.25,1.98,1.92,1.81,1.84,0-1,1-1
+2026-02-01,16:00,Spanish Bizkaia-Tercera Division,CD Gevora,Villanovense,0.25,0.5,-0.25,-0.5,1.88,1.77,1.9,2.0,2.25,2.25,1.91,1.92,1.88,1.84,0-0,0-0
+2026-02-01,16:00,Spanish Bizkaia-Tercera Division,CD Mosconia,UC Ceares,-0.75,-0.75,0.75,0.75,1.94,1.95,1.84,1.81,2.0,2.25,1.76,1.99,2.05,1.78,1-0,1-0
+2026-02-01,16:00,Spanish Bizkaia-Tercera Division,CD San Roque de Lepe,UD Tomares,-0.5,-0.25,0.5,0.25,1.87,1.75,1.92,2.02,2.25,2.0,2.02,1.92,1.78,1.84,1-0,1-0
+2026-02-01,16:00,Spanish Bizkaia-Tercera Division,CD Santa Amalia,AD Llerenense,-0.25,0.0,0.25,0.0,1.88,1.75,1.91,2.03,2.0,2.0,1.84,1.9,1.95,1.85,1-1,1-2
+2026-02-01,16:00,Spanish Bizkaia-Tercera Division,CF Badalona B,CF Montanesa,-1.0,-0.75,1.0,0.75,1.91,1.78,1.88,2.0,2.25,2.25,1.84,1.92,1.95,1.83,2-0,3-1
+2026-02-01,16:00,Spanish Bizkaia-Tercera Division,CF Noia,CF Alondras,0.25,0.25,-0.25,-0.25,1.97,1.97,1.82,1.79,2.0,2.0,1.79,1.79,2.01,1.98,1-1,2-1
+2026-02-01,16:00,Spanish Bizkaia-Tercera Division,CP Villarrobledo,CD Pedroneras,-0.25,-0.25,0.25,0.25,1.81,1.97,1.98,1.79,2.0,2.0,1.88,1.91,1.9,1.84,0-0,1-1
+2026-02-01,16:00,Spanish Bizkaia-Tercera Division,Club Deportivo Tropezon,SD Torina,-1.0,-1.0,1.0,1.0,1.85,1.87,1.93,1.88,2.0,2.5,1.83,1.95,1.96,1.81,1-0,2-1
+2026-02-01,16:00,Spanish Bizkaia-Tercera Division,Don Benito,Badajoz,0.0,0.0,0.0,0.0,1.89,1.76,1.89,2.01,1.75,2.0,1.74,1.92,2.07,1.84,1-0,1-1
+2026-02-01,16:00,Spanish Bizkaia-Tercera Division,Haro Deportivo,Calahorra,1.25,1.25,-1.25,-1.25,1.92,1.79,1.87,1.97,3.0,2.75,1.98,1.81,1.82,1.95,0-0,1-0
+2026-02-01,16:00,Spanish Bizkaia-Tercera Division,Huracan de Balazote,CD Guadalajara B,-0.25,-0.25,0.25,0.25,1.93,1.85,1.86,1.9,2.0,2.0,1.85,1.83,1.93,1.93,1-1,1-2
+2026-02-01,16:00,Spanish Bizkaia-Tercera Division,L Entregu CF,Club Siero,-0.5,-0.75,0.5,0.75,1.8,1.98,2.0,1.79,2.25,2.25,1.92,1.77,1.87,2.0,0-1,1-1
+2026-02-01,16:00,Spanish Bizkaia-Tercera Division,La Solana,Villarrubia CF,0.25,0.25,-0.25,-0.25,2.04,1.83,1.76,1.93,2.0,2.0,1.98,1.93,1.81,1.83,0-0,0-0
+2026-02-01,16:00,Spanish Bizkaia-Tercera Division,Lleida,Fundacio Esportiva Grama,0.0,0.0,0.0,0.0,1.92,2.04,1.87,1.74,2.0,2.0,1.83,1.82,1.95,1.94,1-0,2-1
+2026-02-01,16:00,Spanish Bizkaia-Tercera Division,Oyonesa Tudelano,CD Arnedo,-0.25,-0.25,0.25,0.25,2.07,2.05,1.75,1.74,2.25,2.25,1.86,1.85,1.93,1.91,0-2,2-3
+2026-02-01,16:00,Spanish Bizkaia-Tercera Division,UD Somozas,Celtiga,-0.25,-0.25,0.25,0.25,1.79,1.94,2.01,1.85,2.0,2.0,1.83,1.86,1.95,1.89,1-1,1-1
+2026-02-01,16:00,Spanish Ladies Premier League C,Sporting Hortaleza (W),Fuenlabrada Atlantis (W),0.0,0.0,0.0,0.0,1.81,1.8,1.93,1.91,2.5,2.5,1.9,1.88,1.84,1.83,3-2,4-4
+2026-02-01,16:00,Turkey 1. Lig,Amedspor,Adana Demirspor,-5.0,-4.75,5.0,4.75,1.85,1.92,1.92,1.81,5.25,4.75,1.92,1.82,1.84,1.91,3-0,7-0
+2026-02-01,16:00,UAE Etisalat Emirates Cup,Al Wahda(UAE),Dubai United,-1.75,-1.75,1.75,1.75,1.89,1.92,1.91,1.81,3.25,3.25,1.85,1.95,1.95,1.78,1-1,2-2
+2026-02-01,15:45,Holland Eredivisie,SC Heerenveen,FC Utrecht,-0.75,-0.25,0.75,0.25,1.93,1.8,1.98,2.03,2.75,2.75,2.04,1.92,1.85,1.88,1-0,1-1
+2026-02-01,15:45,Holland Eredivisie Women\s,Ajax (W),Hera United (W),-3.5,-4.0,3.5,4.0,1.86,1.91,1.85,1.81,4.0,4.25,1.78,1.83,1.93,1.88,1-1,1-2
+2026-02-01,15:45,Holland Eredivisie Women\s,FC Twente Enschede (W),Excelsior Barendrecht (W),-4.25,-3.75,4.25,3.75,1.85,1.9,1.86,1.81,5.0,4.5,1.88,1.88,1.82,1.83,3-0,3-0
+2026-02-01,15:45,Holland Eredivisie Women\s,FC Utrecht (W),NAC Breda (W),-1.75,-2.5,1.75,2.5,1.81,1.9,2.0,1.82,3.5,3.75,1.88,1.86,1.93,1.86,0-0,1-0
+2026-02-01,15:45,Holland Eredivisie Women\s,Feyenoord Rotterdam (W),PSV Eindhoven  (W),0.75,0.75,-0.75,-0.75,1.86,1.83,1.96,1.92,2.5,2.5,1.87,1.89,1.95,1.85,1-2,2-2
+2026-02-01,15:45,Holland Eredivisie Women\s,SC Heerenveen (W),ADO Den Haag (W),-0.5,-0.5,0.5,0.5,1.92,1.84,1.9,1.9,2.75,3.0,1.9,1.88,1.92,1.85,2-1,4-1
+2026-02-01,15:45,Spain Segunda Division RFEF,Real Oviedo B,Deportivo La Coruna B,0.0,0.0,0.0,0.0,1.85,1.85,1.97,1.89,2.25,2.25,1.91,2.0,1.91,1.76,1-0,1-1
+2026-02-01,15:45,Spanish Bizkaia-Tercera Division,Arosa SC,Gran Pena,-0.75,-0.75,0.75,0.75,1.85,1.96,1.93,1.8,2.5,2.5,1.89,1.97,1.89,1.79,0-0,1-0
+2026-02-01,15:30,Albania Super league,Egnatia,KF Tirana,-0.75,-1.0,0.75,1.0,1.83,1.88,1.92,1.83,2.25,2.25,1.95,1.95,1.79,1.77,0-1,0-1
+2026-02-01,15:30,Albania Super league,Teuta Durres,Vllaznia Shkoder,0.25,0.5,-0.25,-0.5,1.66,1.74,2.14,1.99,1.5,2.0,1.78,1.79,1.98,1.93,0-1,0-1
+2026-02-01,15:30,German 3.Liga,SC Verl,VfB Stuttgart II,-0.75,-0.75,0.75,0.75,1.96,2.0,1.89,1.79,3.25,3.0,2.04,1.79,1.81,1.97,0-0,4-0
+2026-02-01,15:30,Greece Super League A,Panathinaikos,AE Kifisias,-1.0,-1.25,1.0,1.25,1.9,1.92,1.99,1.88,2.25,2.5,1.83,1.8,2.05,1.99,1-0,3-0
+2026-02-01,15:30,Italy Serie B Women,AGSM Verona (W),San Marino College (W),-0.5,-0.5,0.5,0.5,1.85,1.9,1.88,1.81,3.0,3.0,1.98,1.95,1.77,1.77,0-1,0-1
+2026-02-01,15:30,Liga Portugal 1,Gil Vicente,FC Famalicao,0.0,0.0,0.0,0.0,1.93,1.81,1.98,2.02,2.25,2.25,2.03,2.01,1.86,1.8,1-0,5-0
+2026-02-01,15:30,Malta First Division League,Balzan FC,Birzebbuga,-0.75,-0.75,0.75,0.75,1.88,1.87,1.85,1.84,2.25,2.25,1.79,1.77,1.96,1.95,1-0,3-0
+2026-02-01,15:30,Scotland Football League Women,Dundee United (W),Kilmarnock (W),0.75,1.5,-0.75,-1.5,1.96,1.76,1.78,1.96,3.0,3.5,1.86,1.92,1.88,1.8,0-4,0-5
+2026-02-01,15:30,Spain Regional League,CD Olimpic Xativa,Benidorm,0.25,0.5,-0.25,-0.5,1.79,1.89,1.95,1.82,2.0,2.25,1.75,1.94,2.0,1.78,0-0,0-1
+2026-02-01,15:30,Spain Segunda Division RFEF,Quintanar Del Rey,Orihuela CF,0.25,0.25,-0.25,-0.25,2.0,1.81,1.83,1.93,2.25,2.0,1.96,2.03,1.86,1.73,1-0,2-0
+2026-02-01,15:30,Spanish Bizkaia-Tercera Division,Atletico Tordesillas,Villaralbo CF,-1.25,-1.25,1.25,1.25,2.02,2.0,1.79,1.78,2.25,2.25,1.98,1.96,1.81,1.8,0-1,3-1
+2026-02-01,15:30,Spanish Bizkaia-Tercera Division,CA Bembibre,CyD Leonesa Jupiter Leones B,0.0,0.0,0.0,0.0,2.0,1.92,1.79,1.84,2.0,2.0,1.79,1.8,2.0,1.96,0-0,0-1
+2026-02-01,15:30,Spanish Bizkaia-Tercera Division,CD Ardoi Draw,CA Cirbonero,-0.25,-0.25,0.25,0.25,1.83,1.81,1.96,1.94,2.25,2.25,2.01,1.93,1.79,1.83,1-0,1-2
+2026-02-01,15:30,Spanish Bizkaia-Tercera Division,CD Becerril,Almazan,-0.25,-0.25,0.25,0.25,1.94,2.04,1.85,1.71,2.25,2.25,1.94,1.95,1.85,1.81,0-1,1-3
+2026-02-01,15:30,Spanish Bizkaia-Tercera Division,CD Bunol,Atletico Saguntino,0.25,0.0,-0.25,0.0,1.91,1.91,1.88,1.85,2.0,2.0,1.92,1.88,1.87,1.87,0-0,2-1
+2026-02-01,15:30,Spanish Bizkaia-Tercera Division,CD Caspe,Epila CF,-0.25,0.0,0.25,0.0,2.06,1.8,1.75,1.96,1.5,1.75,1.86,1.94,1.92,1.81,1-0,2-1
+2026-02-01,15:30,Spanish Bizkaia-Tercera Division,CD Covadonga,CD Tuilla,-2.25,-2.0,2.25,2.0,2.01,1.79,1.78,1.95,3.0,3.0,1.85,1.84,1.92,1.9,0-0,2-1
+2026-02-01,15:30,Spanish Bizkaia-Tercera Division,CD Utiel,Soneja,-0.5,-0.25,0.5,0.25,2.06,1.77,1.75,2.0,2.0,2.0,2.04,2.04,1.76,1.74,0-0,1-2
+2026-02-01,15:30,Spanish Bizkaia-Tercera Division,Deportivo Maritimo,Olimpico de Totana,0.0,0.0,0.0,0.0,1.81,2.0,1.99,1.77,2.25,2.25,1.99,1.97,1.81,1.79,1-0,1-1
+2026-02-01,15:30,Spanish Bizkaia-Tercera Division,Mallorca B,Inter Ibiza,-2.5,-1.75,2.5,1.75,1.84,1.8,1.93,1.94,3.5,3.0,1.91,1.93,1.86,1.81,2-0,4-2
+2026-02-01,15:30,Spanish Bizkaia-Tercera Division,Mazarron CF,Murcia B,-0.5,-0.25,0.5,0.25,2.0,1.96,1.79,1.8,2.5,2.25,1.94,1.9,1.85,1.85,2-1,3-2
+2026-02-01,15:30,Spanish Bizkaia-Tercera Division,Moralo CP,Jerez,-0.75,-0.5,0.75,0.5,1.83,1.94,1.96,1.81,2.75,2.5,1.98,1.91,1.81,1.84,0-1,0-1
+2026-02-01,15:30,Spanish Bizkaia-Tercera Division,Pena Balsamaiso CF,Yague CF,1.5,1.25,-1.5,-1.25,1.92,1.98,1.87,1.78,3.0,2.75,1.88,1.88,1.91,1.88,1-2,2-2
+2026-02-01,15:30,Spanish Bizkaia-Tercera Division,UD Alzira,CF La Nucia,1.0,0.75,-1.0,-0.75,1.85,1.83,1.94,1.93,2.25,2.0,1.9,1.88,1.88,1.87,1-1,1-1
+2026-02-01,15:30,Spanish Bizkaia-Tercera Division,UD Aretxabaleta,Anorga,-0.5,-0.75,0.5,0.75,1.81,1.88,1.98,1.88,2.5,2.25,1.83,1.79,1.95,1.98,1-1,6-3
+2026-02-01,15:30,Spanish Bizkaia-Tercera Division,UD Vall De Uxo,Crevillente,-0.5,-0.5,0.5,0.5,1.84,1.87,1.95,1.88,2.0,2.0,1.93,1.93,1.85,1.83,2-1,3-1
+2026-02-01,15:30,Spanish Ladies Premier League,Barcelona (W),Sevilla FC (W),-4.5,-4.75,4.5,4.75,1.8,1.8,1.91,1.91,5.0,5.0,1.79,1.79,1.93,1.92,2-0,4-1
+2026-02-01,15:30,Switzerland Super League,Basel,Thun,0.0,-0.75,0.0,0.75,1.81,1.94,2.12,1.88,3.0,3.5,2.01,1.93,1.88,1.87,0-1,1-2
+2026-02-01,15:30,Switzerland Super League,Young Boys,FC Zurich,-1.0,-0.75,1.0,0.75,1.83,1.93,2.09,1.88,3.25,3.25,1.88,1.89,2.01,1.91,1-0,3-0
+2026-02-01,15:15,Romania Liga I,Farul Constanta,CS Universitatea Craiova,0.5,0.5,-0.5,-0.5,1.9,1.94,1.95,1.83,2.25,2.5,1.97,1.87,1.87,1.9,3-0,4-1
+2026-02-01,15:15,Saudi Professional League,Al-Shabab,Al-Feiha,-0.5,-0.5,0.5,0.5,1.88,1.89,1.98,1.88,2.25,2.25,1.94,1.83,1.89,1.93,1-0,1-0
+2026-02-01,15:15,Spanish La Liga,Real Betis,Valencia,-0.75,-1.0,0.75,1.0,2.09,1.99,1.85,1.84,2.5,2.75,2.08,1.99,1.84,1.82,1-1,2-1
+2026-02-01,15:15,Spanish La Liga 2,Eibar,Sporting Gijon,-0.25,-0.25,0.25,0.25,1.84,1.81,2.08,2.01,2.0,2.0,1.82,1.88,2.09,1.93,0-0,1-0
+2026-02-01,15:00,Andorra Primera Divisió,Inter Club Escaldes,FC Santa Coloma,-0.5,-0.25,0.5,0.25,1.99,1.81,1.77,1.89,2.25,2.25,2.0,2.0,1.76,1.72,0-0,1-1
+2026-02-01,15:00,Belgian Pro League,FCV Dender EH,Racing Genk,0.5,0.75,-0.5,-0.75,1.93,1.87,1.98,1.95,2.5,2.5,2.02,1.89,1.88,1.91,0-2,1-2
+2026-02-01,15:00,Botola Pro 1,IRT Itihad de Tanger,Kawkab de Marrakech,-0.25,-0.25,0.25,0.25,1.92,1.98,1.9,1.77,2.25,2.0,1.94,1.99,1.88,1.76,0-0,0-0
+2026-02-01,15:00,Cyprus 1 Division,Akritas Chloraka,Anorthosis Famagusta FC,0.75,0.25,-0.75,-0.25,2.07,2.01,1.8,1.78,2.5,2.25,2.02,1.79,1.82,1.98,1-0,2-0
+2026-02-01,15:00,Ethiopia Premier League,Ethiopia Nigd Bank,Negelle Arsi,0.25,0.0,-0.25,0.0,1.82,1.85,1.97,1.91,1.75,1.75,1.87,1.86,1.92,1.89,0-1,0-2
+2026-02-01,15:00,German Frauen Bundesliga,Hoffenheim (W),Werder Bremen (W),-0.75,-0.75,0.75,0.75,1.93,1.88,1.88,1.85,3.25,3.0,1.95,1.9,1.86,1.84,0-0,0-0
+2026-02-01,15:00,Ghana Premier League,Accra Hearts of Oak,Bechem United,-1.0,-0.75,1.0,0.75,2.05,1.71,1.72,2.02,2.0,2.0,1.99,2.0,1.76,1.73,0-0,0-0
+2026-02-01,15:00,Ghana Premier League,Aduana Stars,Samartex,-0.75,-0.75,0.75,0.75,1.96,1.92,1.78,1.8,1.75,1.75,1.81,1.77,1.94,1.95,0-0,0-0
+2026-02-01,15:00,Ghana Premier League,Basake Holy Stars FC,Berekum Chelsea,-0.75,-0.5,0.75,0.5,1.71,1.75,2.06,1.98,2.25,2.25,1.99,1.9,1.76,1.81,2-0,2-0
+2026-02-01,15:00,Ghana Premier League,Bibiani Gold Stars,Swedru All Blacks,-0.75,-0.75,0.75,0.75,1.79,1.86,1.96,1.85,2.0,2.0,2.02,1.95,1.74,1.76,0-0,1-0
+2026-02-01,15:00,Ghana Premier League,Karela United FC,Hohoe United FC,-0.75,-0.75,0.75,0.75,1.78,1.79,1.97,1.93,1.75,2.0,1.77,1.96,1.98,1.76,0-0,1-0
+2026-02-01,15:00,Ghana Premier League,Young Apostles,Techiman Eleven Wonders,-1.75,-1.25,1.75,1.25,1.86,1.89,1.81,1.82,3.25,2.25,1.96,1.81,1.72,1.9,1-0,3-0
+2026-02-01,15:00,Iceland League Cup,UMF Njardvik,IR Reykjavik,-0.25,-0.5,0.25,0.5,1.91,1.8,1.91,2.0,3.5,3.25,1.89,1.88,1.93,1.91,1-1,3-1
+2026-02-01,15:00,International Club Friendly,Brann 2,Lysekloster,0.25,0.75,-0.25,-0.75,1.95,1.94,1.79,1.77,4.0,3.75,1.81,1.83,1.93,1.88,0-1,0-3
+2026-02-01,15:00,Leinster Senior Cup,UC Dublin,Blackrock College AFC,-0.75,-0.75,0.75,0.75,1.93,1.76,1.82,1.96,3.25,3.25,1.83,1.87,1.91,1.84,0-1,2-3
+2026-02-01,15:00,Nigerian Premier League,Enugu Rangers International,Kano Pillars,-1.0,-1.0,1.0,1.0,2.01,1.92,1.75,1.8,2.0,2.0,1.74,1.75,2.02,1.98,1-0,2-0
+2026-02-01,15:00,Nigerian Premier League,Niger Tornadoes FC,Bendel Insurance,-0.75,-1.0,0.75,1.0,1.7,1.79,2.07,1.93,1.75,2.0,1.85,1.93,1.88,1.79,0-2,2-2
+2026-02-01,15:00,Portugal Campeonato Nacional,Vila Mea,Vila Real,-0.5,-0.5,0.5,0.5,1.93,1.94,1.81,1.78,2.0,2.0,1.76,1.84,1.99,1.87,0-1,1-1
+2026-02-01,15:00,Qatar Reserve League,Al Wakra Reserves,Al Shahaniya Reserves,0.0,0.0,0.0,0.0,1.78,1.71,1.97,2.03,2.25,2.25,1.89,1.88,1.85,1.83,1-2,1-4
+2026-02-01,15:00,Qatar Reserve League,Al-Shamal SC Reserves,Al Sailiya SC Reserves,-0.75,-0.75,0.75,0.75,1.79,1.78,1.96,1.94,2.5,2.5,1.95,1.93,1.79,1.78,0-0,1-0
+2026-02-01,15:00,Scottish Premiership,Celtic FC,Falkirk,-1.25,-1.75,1.25,1.75,1.89,1.83,2.01,1.96,3.0,3.5,1.96,1.99,1.93,1.8,1-0,2-0
+2026-02-01,15:00,Spain Primera Division RFEF,Algeciras,Eldense,-0.25,0.0,0.25,0.0,2.07,1.72,1.78,2.05,2.0,2.0,2.09,2.02,1.76,1.74,1-1,1-1
+2026-02-01,15:00,Spain Primera Division RFEF,Ibiza Eivissa,Atletico de Madrid B,-0.5,-0.25,0.5,0.25,2.0,1.98,1.83,1.77,2.0,2.0,1.88,1.88,1.94,1.85,1-0,2-0
+2026-02-01,15:00,Spain Regional League,Ciudad de Murcia,Lumbreras,0.75,1.25,-0.75,-1.25,1.99,1.79,1.76,1.93,2.25,2.5,1.78,1.79,1.96,1.93,1-0,2-0
+2026-02-01,15:00,Spain Segunda Women,Pozuelo Alarcon (W),Sport Extremadura (W),0.75,1.25,-0.75,-1.25,1.96,1.83,1.79,1.88,2.25,2.75,1.81,1.79,1.93,1.93,1-0,1-0
+2026-02-01,15:00,Spain Youth League,Compostela U19,Celta Vigo U19,1.5,2.0,-1.5,-2.0,1.95,1.78,1.83,1.98,3.0,3.25,1.87,1.83,1.92,1.92,0-0,0-3
+2026-02-01,15:00,Spain Youth League,Deportivo La Coruna U19,Real Oviedo U19,-2.0,-2.25,2.0,2.25,1.83,1.87,1.94,1.87,3.25,3.5,1.97,1.97,1.81,1.78,0-0,3-0
+2026-02-01,15:00,Spain Youth League,Levante U19,Academico Murcia U19,-1.0,-1.0,1.0,1.0,1.79,1.87,2.01,1.88,2.75,2.75,1.96,1.86,1.83,1.89,1-0,1-1
+2026-02-01,15:00,Spain Youth League,Sabadell U19,Gimnastic Manresa U19,-0.25,-0.25,0.25,0.25,1.81,1.77,1.98,2.0,2.75,2.5,1.86,1.81,1.93,1.96,1-1,1-1
+2026-02-01,15:00,Spanish Bizkaia-Tercera Division,Recambios Colon CD,UD Castellonense,0.75,0.75,-0.75,-0.75,1.96,1.97,1.83,1.79,2.0,2.0,1.89,1.81,1.89,1.94,0-1,0-1
+2026-02-01,15:00,Spanish Bizkaia-Tercera Division,SD Huesca II,CD Utrillas,-1.0,-0.75,1.0,0.75,1.81,1.77,1.98,2.0,2.5,2.25,1.87,1.92,1.92,1.83,0-0,3-0
+2026-02-01,15:00,Spanish Bizkaia-Tercera Division,UCAM Murcia CF B,Yeclano B,-1.0,-1.0,1.0,1.0,1.81,1.85,1.99,1.9,2.25,2.25,1.93,1.87,1.86,1.88,2-1,4-1
+2026-02-01,15:00,Spanish Ladies Premier League B,Real Madrid II (W),Cacereno (W),-1.25,-1.0,1.25,1.0,1.94,1.78,1.8,1.93,2.0,2.0,1.74,1.83,2.03,1.88,0-0,1-2
+2026-02-01,15:00,Togo Premier Division,Gbohloesu,Dynamic Togolais,-0.25,-0.25,0.25,0.25,1.81,2.04,1.93,1.7,1.75,1.75,1.93,1.83,1.81,1.88,1-0,2-1
+2026-02-01,14:45,Bahraini King’s Cup,Bahrain SC,Al Hidd,0.5,0.75,-0.5,-0.75,1.85,1.75,1.89,1.92,2.25,2.5,1.88,1.79,1.86,1.88,0-0,1-0
+2026-02-01,14:45,FIFA Women Champion’s Cup,FAR Rabat (W),Gotham FC (W),3.5,2.75,-3.5,-2.75,1.97,1.85,1.83,1.9,4.25,4.0,1.86,1.9,1.93,1.85,0-3,0-4
+2026-02-01,14:30,Andorra Second Division,City Escaldes,Principat,-2.5,-3.5,2.5,3.5,1.79,1.87,1.93,1.81,4.25,5.0,1.84,1.78,1.88,1.91,0-0,3-0
+2026-02-01,14:30,Azerbaijan Premier League,Qarabag,Turan Tovuz,-1.25,-1.25,1.25,1.25,1.89,1.99,1.93,1.76,2.5,2.5,1.88,1.86,1.93,1.88,1-0,1-0
+2026-02-01,14:30,Cameroon Elite One,AS Fortuna Mfou,Aigle Royal Menoua,0.25,0.25,-0.25,-0.25,1.84,1.81,1.9,1.9,2.0,2.0,1.96,1.94,1.79,1.78,0-0,0-0
+2026-02-01,14:30,Cameroon Elite One,Dynamo de Douala,Victoria Utd Limbe,0.0,-0.25,0.0,0.25,1.73,1.77,2.03,1.95,2.0,2.25,1.93,1.88,1.81,1.83,1-1,3-1
+2026-02-01,14:30,Cameroon Elite One,PWD de Bamenda,Stade Renard de Melong,-0.25,-0.25,0.25,0.25,2.02,2.06,1.74,1.69,1.75,1.75,1.89,1.81,1.85,1.9,3-1,4-1
+2026-02-01,14:30,Cameroon Elite One,Unisport Bafang,Panthere Sportive du Nde,0.25,0.75,-0.25,-0.75,1.89,1.87,1.85,1.84,1.75,2.0,1.83,1.93,1.92,1.78,0-0,0-0
+2026-02-01,14:30,Czech Republic Gambrinus Liga,MFK Karvina,FC Viktoria Plzen,0.5,0.5,-0.5,-0.5,1.94,1.77,1.91,2.01,2.75,3.0,1.88,1.83,1.96,1.93,0-1,0-2
+2026-02-01,14:30,Czech Republic Gambrinus Liga,Slovan Liberec,Tescoma Zlin,-0.5,-0.75,0.5,0.75,1.84,1.79,2.02,2.0,2.25,2.25,1.82,1.82,2.02,1.95,1-0,2-0
+2026-02-01,14:30,England FA Women Super League,Manchester City (W),Chelsea FC (W),0.0,-0.25,0.0,0.25,1.93,1.93,1.93,1.84,2.75,2.5,1.88,1.84,1.95,1.92,2-0,5-1
+2026-02-01,14:30,German Bundesliga,VfB Stuttgart,SC Freiburg,-1.0,-1.0,1.0,1.0,2.09,2.04,1.85,1.79,3.0,3.0,2.01,1.91,1.9,1.89,0-0,1-0
+2026-02-01,14:30,Iraq Stars League,Al-Naft,Al Zawraa,0.25,0.5,-0.25,-0.5,1.92,1.78,1.82,1.93,1.75,1.75,1.78,1.69,1.97,1.99,0-0,0-0
+2026-02-01,14:30,Iraq Stars League,Zakho,AL Minaa,-0.75,-1.0,0.75,1.0,1.81,1.88,1.94,1.83,2.25,2.25,1.9,1.94,1.84,1.77,0-1,1-1
+2026-02-01,14:30,Italy Serie D,Paganese,FC Francavilla,-1.0,-1.0,1.0,1.0,1.81,1.96,1.93,1.76,2.25,2.0,1.97,2.0,1.78,1.73,1-2,1-3
+2026-02-01,14:30,Scotland WPL,Hamilton FC (W),Aberdeen (W),1.75,1.5,-1.75,-1.5,1.79,1.92,1.99,1.84,3.0,3.25,1.79,1.95,1.99,1.81,2-1,2-2
+2026-02-01,14:30,Spanish Bizkaia-Tercera Division,Avance Ezcabarte,Atletico Artajones,-0.5,-0.5,0.5,0.5,1.85,1.92,1.94,1.83,2.75,2.75,1.98,1.85,1.82,1.9,1-1,1-1
+2026-02-01,14:15,Hungary Borsodi Liga,Paksi SE Honlapja,Ferencvarosi TC,0.0,0.5,0.0,-0.5,2.07,1.88,1.8,1.89,3.0,3.25,1.85,1.93,1.99,1.83,0-0,0-1
+2026-02-01,14:10,Belgian First Amateur Division,Royal Knokke,Roeselare Daisel,-0.25,-0.25,0.25,0.25,2.02,2.03,1.81,1.74,2.5,2.5,1.91,1.88,1.91,1.86,1-0,1-0
+2026-02-01,14:10,France Ligue 5,FC Nantes B,Les Sables dOlonne,-0.75,-0.25,0.75,0.25,1.98,1.86,1.78,1.85,2.5,2.5,1.83,1.89,1.91,1.82,0-0,1-0
+2026-02-01,14:10,Saudi Arabia Reserve League,Al-Bukayriyah FC U21,Al Adalah U21,0.5,0.5,-0.5,-0.5,1.96,1.94,1.78,1.77,2.75,2.75,1.95,1.93,1.79,1.78,3-1,4-2
+2026-02-01,14:00,Belgian First Amateur Division,Belisia Bilzen,KFC Houtvenne,-0.25,-0.5,0.25,0.5,1.93,1.85,1.89,1.88,2.5,2.75,1.83,1.97,1.99,1.78,0-4,1-4
+2026-02-01,14:00,Belgian First Amateur Division,Charleroi B,Schaerbeek Evere,0.0,-0.5,0.0,0.5,1.79,1.97,2.04,1.78,2.75,2.75,1.94,1.91,1.88,1.83,2-2,4-2
+2026-02-01,14:00,Belgian First Amateur Division,Tienen,Ninove,-0.25,-0.25,0.25,0.25,1.79,1.78,2.04,1.98,2.5,2.5,1.86,1.83,1.96,1.92,1-0,3-1
+2026-02-01,14:00,Botola 2,Chabab Ben Guerir,MCO Mouloudia Oujda,0.0,0.0,0.0,0.0,2.01,1.88,1.75,1.82,1.75,1.75,1.94,1.95,1.8,1.77,1-0,1-1
+2026-02-01,14:00,Botola 2,Racing Casablanca,JSM Jeunesse Sportive El Massi,-0.25,-0.25,0.25,0.25,2.16,2.03,1.65,1.7,1.75,1.75,1.74,1.82,2.02,1.88,1-1,1-2
+2026-02-01,14:00,Botola 2,Stade Marocain du Rabat,SCCM Chabab Mohamedia,-0.25,-0.5,0.25,0.5,1.85,1.76,1.88,1.96,1.75,2.0,1.75,1.94,2.01,1.78,0-0,3-0
+2026-02-01,14:00,Botola 2,Wydad Fes,Union Sportive Boujaad,-0.25,-0.25,0.25,0.25,2.06,2.03,1.71,1.7,1.75,1.75,1.85,1.81,1.89,1.91,1-0,1-0
+2026-02-01,14:00,Croatia 1.Division,ZNK Osijek,Rijeka,0.0,0.25,0.0,-0.25,1.99,1.93,1.86,1.83,2.25,2.25,2.02,1.85,1.82,1.91,1-0,1-0
+2026-02-01,14:00,Cyprus 1 Division,Omonia Nicosia FC,Krasava ENY Ypsonas FC,-2.0,-1.75,2.0,1.75,2.02,1.8,1.83,1.96,3.0,3.25,1.83,1.96,2.0,1.79,0-0,1-0
+2026-02-01,14:00,England National League Women,Ascot United (W),Marine Academy Plymouth (W),-0.5,-0.5,0.5,0.5,1.78,1.97,1.97,1.75,3.0,2.75,1.79,1.79,1.95,1.93,1-0,3-0
+2026-02-01,14:00,England National League Women,Bristol Rovers (W),Bridgwater United (W),-1.5,-1.75,1.5,1.75,1.83,1.76,1.9,1.95,3.25,3.5,1.84,1.78,1.9,1.93,0-0,0-0
+2026-02-01,14:00,England National League Women,Luton Town (W),AFC Sudbury (W),-0.75,-0.25,0.75,0.25,1.92,1.81,1.83,1.91,3.25,3.25,1.87,1.84,1.87,1.87,2-3,3-3
+2026-02-01,14:00,England National League Women,Norwich City (W),Queens Park Rangers (W),-1.5,-1.5,1.5,1.5,1.95,1.93,1.79,1.78,3.25,3.25,1.89,1.88,1.84,1.83,1-1,3-2
+2026-02-01,14:00,England National League Women,York City (W),Doncaster Rovers Belles (W),-1.25,-0.5,1.25,0.5,1.9,1.79,1.84,1.93,3.0,2.75,1.93,1.87,1.81,1.84,0-2,0-2
+2026-02-01,14:00,England Women\s Premier League Cup,Cheadle Town Stingers (W),Halifax Town (W),0.0,0.5,0.0,-0.5,1.77,1.81,1.99,1.9,2.5,3.0,1.79,1.88,1.95,1.83,1-0,2-0
+2026-02-01,14:00,English FA Women\s Championship,Birmingham (W),Nottingham Forest (W),-1.25,-1.0,1.25,1.0,1.95,1.79,1.84,1.98,3.0,3.0,1.88,1.98,1.9,1.79,1-1,5-1
+2026-02-01,14:00,English FA Women\s Championship,Newcastle (W),Ipswich Town (W),-1.75,-1.75,1.75,1.75,1.98,1.78,1.8,1.97,3.25,3.25,1.95,1.86,1.83,1.88,1-1,1-1
+2026-02-01,14:00,English FA Women\s Championship,Southampton (W),CrystalPalace (W),0.75,0.5,-0.75,-0.5,2.04,1.89,1.77,1.86,2.5,2.5,1.97,1.88,1.82,1.87,2-1,3-1
+2026-02-01,14:00,English Premier League,Aston Villa,Brentford,-0.25,-0.5,0.25,0.5,2.06,1.81,1.87,2.01,2.5,2.75,1.92,1.93,1.99,1.87,0-1,0-1
+2026-02-01,14:00,English Premier League,Manchester United,Fulham,-1.0,-0.75,1.0,0.75,1.92,1.85,2.0,1.96,3.25,2.75,2.05,1.87,1.86,1.93,1-0,3-2
+2026-02-01,14:00,English Premier League,Nottingham Forest,Crystal Palace,-0.25,-0.25,0.25,0.25,1.83,1.81,2.11,2.02,2.25,2.5,2.0,2.02,1.91,1.79,1-1,1-1
+2026-02-01,14:00,English Women\s Conference North,Rugby Borough (W),Middlesbrough (W),-1.5,-1.5,1.5,1.5,1.91,1.88,1.83,1.83,2.75,3.0,1.83,1.79,1.92,1.93,1-0,1-1
+2026-02-01,14:00,English Women\s Conference South,Lewes (W),Exeter City (W),0.25,0.0,-0.25,0.0,1.87,1.88,1.87,1.83,3.0,2.75,1.92,1.89,1.82,1.82,0-1,1-1
+2026-02-01,14:00,France Ligue 1,Lyon,Lille,-0.25,-0.25,0.25,0.25,1.96,1.91,1.96,1.91,2.5,2.75,1.94,1.99,1.96,1.81,1-0,1-0
+2026-02-01,14:00,France Ligue 5,Saint-Etienne B,Hauts Lyonnais,0.25,-0.25,-0.25,0.25,1.72,1.89,2.04,1.82,2.5,2.5,1.84,1.79,1.9,1.95,0-0,0-0
+2026-02-01,14:00,Greece Super League A,Levadiakos,Asteras Tripolis,-0.5,-1.0,0.5,1.0,1.86,1.88,2.03,1.93,2.25,2.5,1.91,1.91,1.96,1.88,1-0,3-1
+2026-02-01,14:00,Hungary NB Ⅱ,Csakvari TK,Vasas,0.75,0.75,-0.75,-0.75,1.83,1.85,1.96,1.9,2.5,2.5,1.85,1.8,1.93,1.96,0-1,2-2
+2026-02-01,14:00,Hungary NB Ⅱ,FC Ajka,BVSC Zuglo,0.0,-0.25,0.0,0.25,1.82,1.89,1.97,1.86,2.0,2.0,1.84,1.85,1.94,1.9,0-1,0-2
+2026-02-01,14:00,Hungary NB Ⅱ,Kecskemeti TE,Szeged Csanad,-0.75,-0.75,0.75,0.75,1.92,1.97,1.87,1.79,2.25,2.25,1.83,1.81,1.96,1.96,1-0,4-0
+2026-02-01,14:00,International Club Friendly,Brondby IF,Odense BK,-0.25,-0.75,0.25,0.75,1.98,1.93,1.77,1.79,3.25,3.0,1.93,1.81,1.81,1.9,0-0,1-1
+2026-02-01,14:00,Italian Women Division 1,Parma s (W),AS Roma (W),1.25,1.5,-1.25,-1.5,1.87,1.82,1.95,1.93,2.75,2.75,1.98,1.76,1.85,2.0,2-1,3-3
+2026-02-01,14:00,Italian Women Division 1,Ternana W,Inter Milan (W),1.5,2.0,-1.5,-2.0,1.93,1.79,1.89,1.94,3.0,3.25,1.95,1.97,1.87,1.73,0-1,0-1
+2026-02-01,14:00,Italy Eccellenza,ASD Licata,ASD Partinicaudace 1959,-0.75,-0.75,0.75,0.75,1.8,1.79,1.94,1.93,2.75,2.75,1.96,1.94,1.78,1.77,0-0,0-0
+2026-02-01,14:00,Italy Eccellenza,FB Brindisi 1912,Bisceglie 1913,-0.25,-0.25,0.25,0.25,2.06,2.04,1.71,1.7,2.0,2.0,1.74,1.73,2.02,2.0,1-0,1-0
+2026-02-01,14:00,Italy Eccellenza,Roma City,ASD Salaria FC,-0.5,-0.5,0.5,0.5,1.77,1.76,1.98,1.96,2.25,2.25,1.9,1.88,1.84,1.83,0-1,0-2
+2026-02-01,14:00,Italy Eccellenza,SantElena Quartu,ASD Lanusei,0.25,0.25,-0.25,-0.25,1.85,1.84,1.88,1.87,2.5,2.5,1.91,1.89,1.83,1.82,1-0,1-1
+2026-02-01,14:00,Italy Serie A,Como,Atalanta,-0.25,0.0,0.25,0.0,2.08,1.78,1.85,2.06,2.5,2.5,2.07,1.93,1.85,1.88,0-0,0-0
+2026-02-01,14:00,Italy Serie B,A.C. Reggiana 1919,Juve Stabia,0.25,0.25,-0.25,-0.25,1.91,1.89,1.99,1.93,2.0,2.0,1.96,1.79,1.93,2.02,1-1,1-1
+2026-02-01,14:00,Italy Serie D,ASD Martina Franca,Sarnese,-0.75,-0.75,0.75,0.75,1.93,1.97,1.8,1.75,2.25,2.25,1.82,1.88,1.92,1.83,1-0,3-0
+2026-02-01,14:00,Italy Serie D,Sambiase,Vigor Lamezia,-0.5,-0.5,0.5,0.5,1.88,1.86,1.86,1.85,2.0,2.0,1.8,1.79,1.94,1.93,0-1,0-1
+2026-02-01,14:00,Italy Serie D,Sestri Levante,Ligorna,-0.25,-0.25,0.25,0.25,2.08,1.93,1.7,1.79,2.25,2.25,1.91,1.8,1.83,1.91,0-1,0-1
+2026-02-01,14:00,Liga Portugal 2,Feirense,Maritimo,0.25,0.25,-0.25,-0.25,1.85,1.92,2.01,1.85,2.0,2.25,1.78,1.91,2.08,1.84,0-0,1-1
+2026-02-01,14:00,Morocco League Women,WAC Casablanca (W),UTS Touarga (W),-1.25,-1.25,1.25,1.25,1.97,1.96,1.78,1.76,2.5,3.0,1.76,1.96,1.96,1.78,1-3,3-4
+2026-02-01,14:00,San Marino League,AC Juvenes,Cailungo,-1.0,-1.0,1.0,1.0,2.0,1.98,1.76,1.74,2.5,2.5,1.96,1.93,1.79,1.79,1-0,1-1
+2026-02-01,14:00,San Marino League,SP Domagnano,Fiorentino,-0.5,-0.5,0.5,0.5,1.84,1.75,1.9,1.97,2.25,2.5,1.78,1.92,1.98,1.8,1-2,2-3
+2026-02-01,14:00,San Marino League,San Giovanni,SP Libertas,0.0,-0.25,0.0,0.25,1.88,1.76,1.86,1.96,2.25,2.5,1.85,1.87,1.88,1.84,0-1,1-1
+2026-02-01,14:00,San Marino League,Tre Fiori,San Marino Academy U22,-3.0,-3.75,3.0,3.75,1.88,1.79,1.83,1.89,3.5,4.25,1.82,1.92,1.89,1.77,0-0,2-0
+2026-02-01,14:00,Scottish Premiership,Hibernian,Glasgow Rangers,0.5,0.25,-0.5,-0.25,1.94,1.85,1.96,1.98,2.5,2.75,1.93,1.96,1.96,1.85,0-0,0-0
+2026-02-01,14:00,Serbian Superliga,Backa Topola,Vojvodina Novi Sad,0.25,0.25,-0.25,-0.25,1.85,1.86,2.01,1.91,2.5,2.5,2.0,1.98,1.84,1.74,0-1,0-2
+2026-02-01,14:00,Serbian Superliga,Cukaricki Stankom,Crvena Zvezda,1.5,1.5,-1.5,-1.5,1.99,1.84,1.86,1.93,3.25,3.25,2.0,1.9,1.84,1.85,1-2,1-3
+2026-02-01,14:00,Slovenia 1.Liga,Maribor,NK Publikum Celje,0.25,0.0,-0.25,0.0,2.04,1.97,1.83,1.81,3.0,3.0,2.01,1.81,1.83,1.95,1-0,3-3
+2026-02-01,14:00,Turkey Ligi 3,Denizli IY Gureller,Usakspor,0.0,-0.25,0.0,0.25,1.78,1.81,1.97,1.9,2.0,2.25,1.77,1.81,1.98,1.9,0-0,0-0
+2026-02-01,14:00,Turkey Ligi 3,Giresunspor,Orduspor,0.25,0.5,-0.25,-0.5,1.96,1.84,1.78,1.87,2.5,2.75,1.81,1.93,1.94,1.79,0-0,0-0
+2026-02-01,14:00,Turkey Ligi 3,Yeni Orduspor,Bulancak,-2.0,-1.75,2.0,1.75,1.97,1.78,1.76,1.93,3.25,3.0,1.88,1.74,1.83,1.97,1-0,3-0
+2026-02-01,14:00,Turkey Super Lig,Genclerbirligi,Gazisehir Gaziantep,-0.25,-0.25,0.25,0.25,1.94,1.93,1.96,1.88,2.75,2.5,2.04,1.9,1.85,1.9,1-0,2-1
+2026-02-01,13:45,Poland Ekstraklasa,Wisla Plock,Rakow Czestochowa,0.25,0.25,-0.25,-0.25,2.0,1.93,1.89,1.88,2.25,2.25,2.06,1.96,1.83,1.83,1-0,2-1
+2026-02-01,13:40,Scotland SWPL Cup Women,Glasgow Rangers (W),Celtic (W),-0.25,-0.5,0.25,0.5,1.79,1.83,1.96,1.88,2.75,2.75,1.9,1.88,1.84,1.83,2-3,3-3
+2026-02-01,13:30,Belgian Division 2,Berg en Dal,Wellen,0.0,0.0,0.0,0.0,1.93,1.74,1.81,1.98,2.75,2.75,1.83,1.82,1.92,1.89,0-0,1-0
+2026-02-01,13:30,Belgian Division 2,RSC Tilffois,Raeren,0.25,0.0,-0.25,0.0,1.82,1.88,1.93,1.83,2.5,2.5,1.98,1.96,1.77,1.76,0-1,0-1
+2026-02-01,13:30,Belgian First Amateur Division,Stockay-Warfusee,Standard Liege II,-0.5,-0.5,0.5,0.5,2.01,1.88,1.82,1.85,2.5,2.75,1.98,1.93,1.84,1.82,1-0,1-0
+2026-02-01,13:30,Belgian First Amateur Division,Union Royale Namur,Rochefort,0.25,0.25,-0.25,-0.25,1.79,1.89,2.04,1.85,2.75,2.75,1.87,1.83,1.95,1.92,0-0,1-1
+2026-02-01,13:30,Holland Derde Divisie,UNA,Gemert,0.0,0.5,0.0,-0.5,2.01,1.84,1.7,1.87,2.75,2.75,1.88,1.8,1.85,1.91,1-2,1-4
+2026-02-01,13:30,Holland Eredivisie,Heracles Almelo,Fortuna Sittard,-0.25,-0.25,0.25,0.25,1.95,1.97,1.95,1.85,2.5,2.75,1.93,1.96,1.96,1.85,2-1,2-1
+2026-02-01,13:30,Holland Eredivisie,PSV Eindhoven,Feyenoord,-1.0,-0.75,1.0,0.75,2.08,1.99,1.83,1.83,3.25,3.25,1.86,1.83,2.03,1.98,3-0,3-0
+2026-02-01,13:30,Italy Serie B Women,Bologna W,SSD ACF Calcio Arezzo (W),-1.5,-1.0,1.5,1.0,1.98,1.78,1.77,1.93,3.25,3.0,1.96,1.79,1.79,1.93,0-0,2-0
+2026-02-01,13:30,Italy Serie C,AC Monopoli,Latina,-0.5,-0.5,0.5,0.5,2.05,1.87,1.82,1.9,1.75,2.0,1.83,1.9,2.02,1.85,0-0,1-0
+2026-02-01,13:30,Italy Serie C,Atalanta U23,Benevento,0.75,0.75,-0.75,-0.75,1.83,1.8,2.04,1.98,2.5,2.5,1.87,1.93,1.97,1.83,3-1,3-4
+2026-02-01,13:30,Italy Serie C,JuventusU23,Asd Pineto Calcio,-0.25,-0.25,0.25,0.25,2.13,1.9,1.76,1.87,2.25,2.0,2.03,1.74,1.82,2.04,1-0,1-0
+2026-02-01,13:30,Italy Serie C,Pro Vercelli,Novara,-0.25,-0.25,0.25,0.25,2.09,2.06,1.79,1.74,2.0,2.0,1.82,1.87,2.02,1.88,1-0,1-0
+2026-02-01,13:30,Italy Serie C,Ternana,Sassari Torres,-0.5,-0.5,0.5,0.5,1.93,1.82,1.92,1.95,2.0,2.0,1.93,1.86,1.91,1.89,0-1,0-2
+2026-02-01,13:30,Italy Serie C,Trapani,Team Altamura,-0.25,-0.5,0.25,0.5,1.79,1.88,2.09,1.88,2.0,2.25,1.9,1.93,1.93,1.82,0-1,0-1
+2026-02-01,13:30,Italy Serie D,ASD Citta Di Varese,Club Milano,-0.5,-0.25,0.5,0.25,1.88,1.74,1.86,1.99,2.25,2.25,1.85,1.86,1.88,1.85,2-0,3-0
+2026-02-01,13:30,Italy Serie D,ASD San Luigi Calcio,AC Vigasio,0.0,0.0,0.0,0.0,2.06,1.88,1.71,1.83,2.25,2.25,1.92,1.77,1.82,1.95,0-0,1-1
+2026-02-01,13:30,Italy Serie D,ASD Sporting Trestina,Montevarchi,0.0,-0.25,0.0,0.25,1.65,1.98,2.15,1.75,1.75,2.0,1.74,1.84,2.02,1.87,0-0,0-1
+2026-02-01,13:30,Italy Serie D,ASD Victor San Marino,Recanatese,0.0,0.25,0.0,-0.25,2.04,1.74,1.72,2.0,2.25,2.25,1.87,1.85,1.87,1.85,1-1,1-1
+2026-02-01,13:30,Italy Serie D,AVC Vogherese,ASD Brusaporto,1.25,2.0,-1.25,-2.0,1.87,1.93,1.87,1.78,2.75,3.0,1.91,1.97,1.83,1.74,0-1,0-1
+2026-02-01,13:30,Italy Serie D,Ancona,Castelfidardo,-1.5,-1.5,1.5,1.5,1.85,1.97,1.89,1.75,2.5,2.25,1.92,1.76,1.83,1.97,0-0,2-0
+2026-02-01,13:30,Italy Serie D,Asti,Cairese,0.0,0.0,0.0,0.0,2.12,1.83,1.68,1.88,2.0,2.0,1.97,1.86,1.78,1.85,0-0,1-1
+2026-02-01,13:30,Italy Serie D,Camaiore Calcio,Grosseto,1.0,1.25,-1.0,-1.25,1.85,1.76,1.89,1.95,2.75,2.5,1.85,1.79,1.89,1.93,0-0,1-0
+2026-02-01,13:30,Italy Serie D,Derthona,Valenzana,-0.25,-0.25,0.25,0.25,2.0,1.97,1.75,1.75,2.25,2.25,2.02,1.98,1.74,1.74,1-1,1-1
+2026-02-01,13:30,Italy Serie D,Gavorrano,Prato,0.25,0.25,-0.25,-0.25,1.93,1.91,1.82,1.81,2.25,2.25,1.82,1.81,1.92,1.9,2-1,2-1
+2026-02-01,13:30,Italy Serie D,Imolese,Tuttocuoio,-0.5,-1.0,0.5,1.0,1.79,1.91,1.95,1.81,2.25,2.5,1.83,1.93,1.91,1.79,0-0,1-0
+2026-02-01,13:30,Italy Serie D,Legnago Salus,Calvi Noale,-1.0,-0.75,1.0,0.75,1.99,1.95,1.76,1.76,2.5,2.5,1.88,1.93,1.85,1.78,0-0,1-4
+2026-02-01,13:30,Italy Serie D,NovaRomentin,Biellese,0.75,0.75,-0.75,-0.75,1.89,1.9,1.84,1.81,2.25,2.25,2.01,1.98,1.75,1.75,0-1,1-2
+2026-02-01,13:30,Italy Serie D,Pistoiese,Piacenza,-0.25,-0.25,0.25,0.25,1.93,1.79,1.82,1.93,2.0,2.25,1.88,1.88,1.86,1.83,0-0,1-0
+2026-02-01,13:30,Italy Serie D,Reggina,FC Savoia 1908,-0.75,-0.5,0.75,0.5,1.88,1.78,1.85,1.93,2.25,2.25,1.83,1.8,1.92,1.91,0-1,1-1
+2026-02-01,13:30,Italy Serie D,Sammaurese,Mar Ratase,0.25,0.5,-0.25,-0.5,1.8,1.71,1.95,1.96,2.25,2.25,1.85,1.79,1.88,1.92,0-2,0-4
+2026-02-01,13:30,Italy Serie D,San Nicolo,Giulianova,-0.25,-0.25,0.25,0.25,2.05,1.81,1.72,1.91,1.75,2.0,1.77,1.78,1.98,1.93,0-0,0-0
+2026-02-01,13:30,Italy Serie D,Teramo,Vigor Senigallia,-1.0,-0.75,1.0,0.75,1.84,1.76,1.9,1.96,2.25,2.25,1.78,1.81,1.97,1.91,3-0,3-1
+2026-02-01,13:30,Italy Serie D,Trastevere Calcio,Real Monterotondo,-0.75,-1.0,0.75,1.0,1.93,1.83,1.82,1.88,2.5,2.5,1.94,1.83,1.81,1.88,1-0,3-0
+2026-02-01,13:30,Serbian Superliga,Novi Pazar,FK Spartak Zlatibor Voda,-0.75,-0.75,0.75,0.75,1.88,1.86,1.97,1.91,2.25,2.5,1.88,1.92,1.96,1.84,2-2,2-2
+2026-02-01,13:30,South Africa First League,Black Leopards,Baroka FC,-0.25,-0.25,0.25,0.25,1.93,1.93,1.85,1.83,2.0,2.0,1.89,1.91,1.89,1.85,0-0,1-1
+2026-02-01,13:30,South Africa First League,Highbury,Upington City,-0.25,-0.25,0.25,0.25,2.06,2.11,1.75,1.69,1.75,1.75,1.78,1.92,2.03,1.83,1-0,1-1
+2026-02-01,13:30,South Africa First League,Pretoria Univ,Kruger United,0.0,0.0,0.0,0.0,1.8,1.79,2.0,1.98,2.0,2.0,1.92,1.9,1.87,1.85,0-0,1-1
+2026-02-01,13:30,South Africa Premier Soccer League,TS Galaxy,Sekhukhune United,0.0,0.0,0.0,0.0,2.08,2.0,1.79,1.79,1.75,1.75,1.83,1.82,2.02,1.94,0-1,0-1
+2026-02-01,13:30,Spain Segunda Women,Rayo Vallecano (W),Dinamo Guadalajara (W),-0.25,-0.25,0.25,0.25,1.87,1.81,1.87,1.91,2.0,2.25,1.82,1.78,1.93,1.94,1-0,1-0
+2026-02-01,13:30,Spanish Ladies Premier League C,Cosmos Aragon (W),CD Valdefierro (W),4.5,4.75,-4.5,-4.75,1.93,1.86,1.79,1.82,5.5,5.75,1.84,1.85,1.87,1.83,0-0,0-3
+2026-02-01,13:15,UAE Etisalat Emirates Cup,Shabab Al Ahli,Khor Fakkan,-1.75,-1.5,1.75,1.5,1.81,1.93,2.0,1.81,3.5,3.25,1.99,1.92,1.82,1.83,1-0,3-1
+2026-02-01,13:10,Professional Tunisian League 1,U.S.Monastir,A.S.Marsa,-1.0,-1.0,1.0,1.0,1.89,1.82,1.93,1.97,2.0,2.0,1.87,1.89,1.94,1.89,0-0,1-0
+2026-02-01,13:00,BRA CGD,AE Jataiense,Uniao Inhumas,-1.0,-0.75,1.0,0.75,1.99,1.95,1.76,1.77,2.25,2.0,2.01,1.83,1.72,1.88,0-0,1-0
+2026-02-01,13:00,BRA SPB,Tuna Luso,Ag. Maraba,-0.25,-0.25,0.25,0.25,2.08,1.95,1.74,1.81,2.0,2.0,1.83,1.82,1.96,1.93,0-0,0-2
+2026-02-01,13:00,Brazil Campeonato Capixaba,Vilavelhense,Forte FC,0.0,0.0,0.0,0.0,1.81,1.9,1.93,1.81,2.25,2.25,2.01,2.0,1.75,1.74,0-1,1-1
+2026-02-01,13:00,Brazil Campeonato Paulista B,Santo Andre,Ah so Santa SP,0.25,0.25,-0.25,-0.25,1.85,1.73,1.93,2.06,2.25,2.0,2.02,1.89,1.78,1.86,0-1,2-1
+2026-02-01,13:00,Brazil Campeonato Paulista C,AA Portuguesa Santista,Rio Branco(SP),-0.5,-0.25,0.5,0.25,1.78,1.76,1.97,1.95,2.25,2.0,1.98,1.69,1.78,1.99,1-0,3-0
+2026-02-01,13:00,Brazil Campeonato Paulista C,EC Sao Bernardo/SP,Uniao Suzano AC SP,-1.0,-0.75,1.0,0.75,1.86,1.96,1.88,1.76,2.25,2.0,1.87,1.78,1.87,1.93,1-1,1-1
+2026-02-01,13:00,CAF Champions League,Simba Sports Club,Esperance Sportive de Tunis,0.0,0.0,0.0,0.0,1.86,2.03,1.93,1.74,1.75,1.75,1.75,1.75,2.06,2.03,2-0,2-2
+2026-02-01,13:00,CAF Confederation Cup,AS Otoho,Singida Black Stars,-0.75,-0.5,0.75,0.5,1.84,1.78,1.9,1.94,2.0,2.0,1.75,1.72,2.02,2.01,0-0,2-1
+2026-02-01,13:00,CAF Confederation Cup,Kaizer Chiefs,ZESCO United Ndola,-1.25,-1.5,1.25,1.5,1.85,1.83,1.88,1.88,2.25,2.75,1.9,1.95,1.84,1.76,1-0,1-0
+2026-02-01,13:00,CAF Confederation Cup,Stellenbosch FC,CR Belouizdad,0.0,0.0,0.0,0.0,1.88,1.68,1.86,2.01,2.25,2.25,2.01,1.83,1.75,1.88,0-1,0-3
+2026-02-01,13:00,England U21 Premier League,Sunderland U21,Leicester City U21,0.25,0.0,-0.25,0.0,1.83,1.97,1.99,1.82,3.75,3.5,1.87,1.81,1.93,1.97,2-1,3-2
+2026-02-01,13:00,English FA Women\s Championship,Sheffield United   (W),Charlton (W),1.0,0.75,-1.0,-0.75,1.76,1.95,2.04,1.81,2.0,2.25,1.88,1.88,1.91,1.87,1-1,1-1
+2026-02-01,13:00,Ethiopia Premier League,Fasil Kenema,Kedus Giorgis,0.25,0.0,-0.25,0.0,1.69,1.81,2.15,1.95,1.5,1.75,2.05,1.99,1.76,1.78,0-0,1-0
+2026-02-01,13:00,German Frauen Bundesliga,Hamburger SV (W),SC Freiburg (W),0.25,0.75,-0.25,-0.75,1.87,1.8,1.95,2.0,3.0,3.0,1.92,1.88,1.9,1.91,0-1,0-2
+2026-02-01,13:00,Germany Regionalliga,Koln Am,SC Paderborn 07 II,-0.25,-0.25,0.25,0.25,1.84,1.91,1.98,1.88,2.75,3.0,1.91,1.95,1.91,1.83,0-0,1-0
+2026-02-01,13:00,Greece Super League Women,Panathinaikos (W),Asteras Tripolis (W),0.25,0.0,-0.25,0.0,1.93,1.76,1.82,1.96,2.25,2.5,1.94,1.79,1.8,1.92,1-1,3-1
+2026-02-01,13:00,Holland Derde Divisie,Hoogeveen,Rohda Raalte,0.0,0.0,0.0,0.0,1.93,1.76,1.81,1.96,3.0,3.0,1.83,1.76,1.91,1.95,0-1,0-1
+2026-02-01,13:00,Hungary NB Ⅱ,Bekescsaba,SOROKSAR,-0.5,-0.25,0.5,0.25,1.94,1.88,1.85,1.87,2.5,2.5,1.95,1.98,1.84,1.78,2-0,2-1
+2026-02-01,13:00,Hungary NB Ⅱ,Duna-Tisza,Kozarmisleny SE,-0.75,-0.5,0.75,0.5,1.92,1.8,1.87,1.96,2.5,2.25,1.91,1.78,1.88,1.99,0-1,0-2
+2026-02-01,13:00,Hungary NB Ⅱ,KARCAG SE,Mezokovesd Zsory,0.0,0.0,0.0,0.0,1.85,1.87,1.94,1.88,2.5,2.25,1.93,1.75,1.85,1.99,0-1,0-3
+2026-02-01,13:00,Hungary NB Ⅱ,Szentlorinc SE,Dafuji cloth MTE,0.0,-0.5,0.0,0.5,1.81,2.01,1.98,1.76,2.25,2.25,1.88,1.8,1.91,1.96,2-1,5-3
+2026-02-01,13:00,International Club Friendly,Sarpsborg 08,Osters IF,-1.0,-0.5,1.0,0.5,1.85,1.78,1.88,1.94,3.25,2.75,1.83,1.78,1.92,1.93,2-0,3-0
+2026-02-01,13:00,Liga Super Malaysia,Terengganu,Selangor,0.25,0.25,-0.25,-0.25,1.8,1.86,2.03,1.92,2.75,3.0,1.84,2.01,1.98,1.79,1-0,1-1
+2026-02-01,13:00,Malta First Division League,Santa Lucia,Melita FC Saint Julian,0.5,0.5,-0.5,-0.5,1.78,1.79,1.97,1.93,2.75,2.75,1.96,1.88,1.79,1.83,1-0,2-2
+2026-02-01,13:00,Malta First Division League,Zurrieq,Mgarr United FC,0.0,-0.25,0.0,0.25,1.83,1.97,1.92,1.75,2.75,3.0,1.93,1.95,1.81,1.77,0-0,1-1
+2026-02-01,13:00,Malta Premier League,Valletta FC,Naxxar Lions,-1.0,-1.0,1.0,1.0,1.93,1.91,1.86,1.85,2.5,2.5,1.92,1.9,1.87,1.85,1-2,4-2
+2026-02-01,13:00,Professional Tunisian League 1,AS Gabes,ES du Sahel,0.5,0.5,-0.5,-0.5,1.83,1.77,1.99,2.04,1.75,1.75,1.82,1.8,2.0,1.99,0-0,0-0
+2026-02-01,13:00,Professional Tunisian League 1,Etoile Metlaoui,Stade tunisien,0.25,0.0,-0.25,0.0,1.72,2.12,2.15,1.71,1.5,1.75,1.86,2.01,1.96,1.79,0-0,0-0
+2026-02-01,13:00,Professional Tunisian League 1,Jeunesse Sportive Omrane,Sifakesi,0.25,0.75,-0.25,-0.75,1.93,1.88,1.89,1.91,1.75,1.75,1.95,1.75,1.87,2.06,0-0,1-0
+2026-02-01,13:00,Professional Tunisian League 2,CS Korba,Redeyef,-0.75,-0.75,0.75,0.75,1.98,1.96,1.78,1.76,2.0,2.0,2.02,2.0,1.74,1.72,0-0,3-0
+2026-02-01,13:00,Professional Tunisian League 2,CS.Hammam-Lif,BS Bouhajla,-1.0,-1.0,1.0,1.0,1.85,1.83,1.88,1.88,2.0,2.0,1.81,1.78,1.93,1.93,0-0,0-0
+2026-02-01,13:00,Professional Tunisian League 2,E. M. Mahdia,Sporting Ben Arous,0.0,0.0,0.0,0.0,1.85,1.83,1.89,1.88,1.75,1.75,1.83,1.81,1.92,1.9,0-0,1-1
+2026-02-01,13:00,Professional Tunisian League 2,ES Hamam-Sousse,Chebba,-1.5,-1.5,1.5,1.5,1.79,1.8,1.96,1.91,2.5,2.5,1.87,1.88,1.87,1.83,2-1,3-1
+2026-02-01,13:00,Professional Tunisian League 2,Oceano Kerkennah,Bouselem,-1.0,-1.0,1.0,1.0,1.98,1.81,1.78,1.9,2.0,2.0,1.85,1.78,1.89,1.93,1-0,1-0
+2026-02-01,13:00,Professional Tunisian League 2,Stade Africain Menzel Bourguib,Croissant Msaken,0.0,0.0,0.0,0.0,1.76,1.75,1.99,1.97,1.75,1.75,1.95,1.93,1.8,1.79,1-2,2-2
+2026-02-01,13:00,Professional Tunisian League 2,US Tataouine,Sfax Railways,-0.75,-1.0,0.75,1.0,1.83,1.88,1.91,1.83,2.0,2.25,1.89,1.99,1.84,1.71,0-1,1-1
+2026-02-01,13:00,Scotland Football League Women,Boroughmuir Thistle FC (W),Queen\s Park (W),-0.5,-0.75,0.5,0.75,1.91,1.84,1.83,1.87,2.75,3.25,1.84,1.81,1.9,1.9,0-0,0-1
+2026-02-01,13:00,Spain Segunda Women,Futbol Ellas CFF (W),CD Argual (W),0.75,0.75,-0.75,-0.75,1.94,1.93,1.8,1.79,2.25,2.25,1.79,1.78,1.95,1.93,0-2,1-2
+2026-02-01,13:00,Spain Youth League,Trival Valderas U19,UD La Cruz Villanovense U19,-0.5,-0.5,0.5,0.5,2.03,1.98,1.78,1.78,2.5,2.75,1.87,1.95,1.92,1.81,0-0,0-0
+2026-02-01,13:00,Spanish La Liga,Real Madrid,Rayo Vallecano,-1.5,-1.75,1.5,1.75,1.88,1.81,2.05,1.99,3.5,3.25,2.05,1.99,1.83,1.81,1-0,2-1
+2026-02-01,13:00,Spanish La Liga 2,Almeria,AD Ceuta,-0.75,-0.75,0.75,0.75,2.06,1.85,1.85,1.98,2.75,2.5,1.99,1.81,1.9,2.0,3-1,4-2
+2026-02-01,13:00,Switzerland Challenge League,FC Wil 1900,Stade Nyonnais,-0.75,-0.75,0.75,0.75,1.96,1.99,1.89,1.79,2.5,2.5,1.86,1.83,1.98,1.92,0-0,0-0
+2026-02-01,13:00,Switzerland Super League,Luzern,St. Gallen,0.0,-0.25,0.0,0.25,1.88,2.02,2.03,1.81,3.0,3.0,1.96,1.85,1.93,1.95,0-1,2-2
+2026-02-01,13:00,Turkey 1. Lig,Boluspor,Sakaryaspor,-1.0,-1.0,1.0,1.0,2.04,1.83,1.83,1.95,2.75,2.75,1.93,1.78,1.91,1.99,0-0,2-0
+2026-02-01,13:00,Zambia Super League,Green Buffaloes,Red Arrows,0.25,0.25,-0.25,-0.25,1.86,1.86,1.88,1.85,1.5,1.75,1.76,1.87,1.99,1.84,0-0,0-0
+2026-02-01,12:50,Saudi Arabia Reserve League,Al Najma Reserves,Neom SC U21,0.5,0.5,-0.5,-0.5,1.99,1.84,1.76,1.87,2.5,2.25,1.98,1.75,1.78,1.97,3-1,3-2
+2026-02-01,12:30,Albania Kategoria e Pare,Lushnja KS,Burreli,-0.5,-0.25,0.5,0.25,1.95,1.92,1.79,1.8,2.0,2.0,1.88,1.72,1.86,2.01,0-0,0-1
+2026-02-01,12:30,Belgian Pro League,Standard Liege,Anderlecht,0.25,0.5,-0.25,-0.5,2.08,1.78,1.84,2.06,2.25,2.25,2.02,1.79,1.87,2.03,1-0,2-0
+2026-02-01,12:30,Belgian Second Division,Kortrijk,Lokeren,-0.75,-1.0,0.75,1.0,1.92,2.0,1.93,1.78,2.75,2.75,1.94,1.85,1.89,1.9,1-1,3-2
+2026-02-01,12:30,Belgian Second Division,Lierse,Beerschot Wilrijk,0.75,0.5,-0.75,-0.5,1.9,1.86,1.95,1.91,2.75,2.75,1.88,1.96,1.95,1.8,1-1,1-2
+2026-02-01,12:30,Cyprus 2 Division,Iraklis Yerolakkou,Ethnikos Latsion,-0.25,-0.25,0.25,0.25,1.91,1.92,1.83,1.79,2.0,2.25,1.79,1.93,1.95,1.79,1-0,2-1
+2026-02-01,12:30,England U21 Premier League,Leeds United U21,Arsenal U21,0.5,0.5,-0.5,-0.5,1.83,1.83,1.99,1.97,3.5,3.25,1.97,1.86,1.83,1.88,0-1,0-4
+2026-02-01,12:30,French Championnat Amateur,Blois,AS Furiani Agliani,-0.25,-0.25,0.25,0.25,2.04,2.02,1.72,1.72,2.0,2.25,1.76,1.98,1.99,1.74,0-1,1-2
+2026-02-01,12:30,German 3.Liga,SSV Ulm 1846,MSV Duisburg,0.25,0.25,-0.25,-0.25,1.92,1.82,1.93,1.96,2.5,2.75,1.96,1.95,1.88,1.82,1-0,1-0
+2026-02-01,12:30,German Bundesliga 2,Dynamo Dresden,Arminia Bielefeld,0.0,0.0,0.0,0.0,1.96,1.99,1.93,1.83,2.5,2.75,1.95,1.91,1.93,1.89,1-0,1-1
+2026-02-01,12:30,German Bundesliga 2,Fortuna Dusseldorf,SC Paderborn 07,0.0,0.25,0.0,-0.25,2.08,1.95,1.83,1.86,2.75,2.75,2.02,1.88,1.86,1.93,0-1,2-1
+2026-02-01,12:30,German Bundesliga 2,Hertha Berlin,Darmstadt,-0.25,-0.25,0.25,0.25,1.89,1.92,2.01,1.9,2.75,2.75,1.87,1.93,2.02,1.87,2-1,2-2
+2026-02-01,12:30,Spanish Bizkaia-Tercera Division,CD Mensajero,Lanzarote,-0.25,0.0,0.25,0.0,1.81,1.82,1.99,1.94,2.25,2.25,1.86,1.89,1.93,1.86,1-0,3-0
+2026-02-01,12:30,Spanish Bizkaia-Tercera Division,Castilleja CF,CD Pozoblanco,0.0,0.0,0.0,0.0,1.78,2.07,2.03,1.71,2.25,2.25,2.0,2.04,1.8,1.74,0-2,0-2
+2026-02-01,12:15,Andorra Primera Divisió,Penya Encarnada,CF Esperanca dAndorra,-0.75,-0.75,0.75,0.75,1.83,1.79,1.92,1.92,2.5,2.75,1.79,1.93,1.95,1.79,0-0,1-0
+2026-02-01,12:15,Greece U19,Volos Nps U19,AEL Larisa U19,-1.25,-1.0,1.25,1.0,1.89,1.89,1.85,1.82,2.75,2.75,1.82,1.94,1.92,1.78,0-0,1-0
+2026-02-01,12:15,Lebanese Premier League,Jwaya,Al Abbasieh FC,-1.0,-1.0,1.0,1.0,1.76,1.86,1.99,1.85,2.25,2.0,1.87,1.77,1.87,1.94,0-0,0-0
+2026-02-01,12:15,Lebanese Premier League,Racing Beirut,Al-Ahed,2.75,2.5,-2.75,-2.5,1.83,1.81,1.88,1.89,3.75,3.25,1.83,1.76,1.88,1.95,0-0,0-2
+2026-02-01,12:15,Liga Super Malaysia,Johor Darul Takzim,Imigresen FC,-4.25,-4.25,4.25,4.25,1.85,1.91,1.85,1.85,5.5,5.5,1.85,1.94,1.86,1.81,1-0,5-0
+2026-02-01,12:15,V.League 1,Cong An Ha Noi,Ninh Binh FC,-0.75,-0.5,0.75,0.5,1.99,1.83,1.86,1.94,2.75,2.5,1.95,1.81,1.88,1.95,3-1,3-2
+2026-02-01,12:10,Kenya Super League,Kisumu All Stars,Mwatate United,-0.75,-1.0,0.75,1.0,1.85,1.96,1.89,1.76,2.0,2.25,1.81,1.97,1.93,1.75,0-0,0-0
+2026-02-01,12:00,Azerbaijan Premier League,Araz Nakhchivan,FC Neftci Baku,0.25,0.25,-0.25,-0.25,2.02,1.79,1.81,1.95,2.25,2.25,2.0,1.99,1.83,1.76,0-2,0-4
+2026-02-01,12:00,CAF Confederation Cup,Maniema Union,Wydad Casablanca,0.5,0.5,-0.5,-0.5,1.96,1.91,1.78,1.8,2.0,2.0,1.95,1.86,1.79,1.85,1-0,2-1
+2026-02-01,12:00,Czech Republic Gambrinus Liga,Synot Slovacko,Banik Ostrava,0.25,0.25,-0.25,-0.25,1.97,1.78,1.88,2.01,2.25,2.5,1.88,2.0,1.95,1.78,0-1,2-2
+2026-02-01,12:00,England U21 Professional Development League 2,Brentford U21,Bristol City U21,-1.25,-1.25,1.25,1.25,2.01,1.85,1.82,1.94,3.5,3.75,1.88,1.79,1.92,1.99,1-0,1-0
+2026-02-01,12:00,English FA Women\s Championship,Durham Wildcats LFC (W),Portsmouth (W),-0.5,-0.75,0.5,0.75,1.89,1.97,1.89,1.79,2.75,2.75,1.79,1.89,2.0,1.86,0-0,2-1
+2026-02-01,12:00,Ethiopia Premier League,Mekelle 70 Enderta FC,Ethiopia Bunna,0.0,0.25,0.0,-0.25,2.01,1.76,1.79,2.02,1.75,1.75,1.79,1.88,2.01,1.88,1-1,1-1
+2026-02-01,12:00,Indonesia Super League,Persebaya Surabaya,Dewa United FC,-0.5,0.0,0.5,0.0,2.02,1.81,1.84,1.97,2.75,2.75,2.03,1.97,1.82,1.79,1-1,1-1
+2026-02-01,12:00,Iraq Stars League,Al Qasim Sport Club,Duhok,1.75,1.25,-1.75,-1.25,1.79,1.83,1.94,1.88,2.5,2.25,1.87,1.87,1.85,1.84,0-1,0-3
+2026-02-01,12:00,Iraq Stars League,Mosul FC,Al Quwa Al Jawiya,1.0,0.5,-1.0,-0.5,1.74,1.94,2.02,1.78,2.0,2.0,1.79,1.88,1.96,1.83,0-1,0-1
+2026-02-01,12:00,Iraq Stars League,Naft Misan,AI Kahrabaa,-0.25,-0.25,0.25,0.25,1.9,1.88,1.84,1.83,2.0,2.0,1.93,1.87,1.82,1.84,0-0,0-2
+2026-02-01,12:00,Kenya Premier League,Muranga Seal,APS Bomet,0.0,-0.25,0.0,0.25,1.71,1.78,2.07,1.93,2.0,2.0,1.82,1.81,1.92,1.9,1-1,2-1
+2026-02-01,12:00,Kenya Super League,Gucha Stars FC,MCF FC,-0.75,-0.5,0.75,0.5,1.95,2.0,1.79,1.73,2.0,2.0,1.88,1.73,1.85,2.0,0-0,2-0
+2026-02-01,12:00,Kenya Super League,Kabati Youth,Mombasa United,-0.25,-0.25,0.25,0.25,2.05,2.05,1.72,1.7,2.0,2.0,1.75,1.83,2.0,1.88,0-0,0-1
+2026-02-01,12:00,Serbian Superliga,Mladost Lucani,OFK Beograd,0.25,0.0,-0.25,0.0,1.95,1.98,1.9,1.8,2.25,2.5,1.84,1.96,2.0,1.8,0-0,0-0
+2026-02-01,12:00,Spanish Ladies Premier League,UD Granadilla Tenerife Sur (W),Real Sociedad (W),0.25,0.25,-0.25,-0.25,1.8,1.82,2.04,1.97,2.25,2.25,1.9,1.85,1.92,1.94,1-1,1-1
+2026-02-01,12:00,Thai League 1,Buriram United,Bangkok United FC,-1.0,-1.0,1.0,1.0,1.92,1.79,1.93,2.0,3.0,3.0,2.03,1.96,1.82,1.8,0-1,0-2
+2026-02-01,12:00,Thai League 2,Phrae United FC,Mahasarakham United FC,-0.25,-0.25,0.25,0.25,1.91,1.71,1.83,1.96,2.5,2.5,1.73,1.8,1.93,1.92,0-2,0-6
+2026-02-01,12:00,Turkey A2 League U19,Galatasaray U19,Kayserispor U19,-1.75,-1.25,1.75,1.25,1.95,1.97,1.82,1.79,3.25,3.0,1.88,1.9,1.89,1.85,0-0,1-0
+2026-02-01,12:00,Turkey Lig2,Elazigspor,Altinordu,-2.5,-2.5,2.5,2.5,1.84,1.96,1.93,1.75,3.75,3.25,1.98,1.78,1.8,1.98,0-0,2-0
+2026-02-01,12:00,Turkey Lig2,Erzincanspor,Bursa Niluferspor AS,-0.5,0.0,0.5,0.0,1.93,1.78,1.85,1.98,2.5,2.5,1.89,2.0,1.89,1.77,0-0,0-0
+2026-02-01,12:00,Turkey Lig2,Inegolspor,Kastamonuspor,-0.75,-0.75,0.75,0.75,1.94,1.86,1.85,1.89,2.5,2.5,1.9,1.85,1.88,1.9,2-1,2-2
+2026-02-01,12:00,Turkey Lig2,Menemen Belediye Spor,Kirklarelispor,-0.75,-1.0,0.75,1.0,1.85,1.72,1.93,1.99,2.5,2.75,1.89,1.98,1.89,1.78,0-0,0-0
+2026-02-01,12:00,Turkey Lig2,Somaspor,Musspor,1.75,2.0,-1.75,-2.0,1.82,1.97,1.95,1.78,3.0,3.5,1.78,1.89,2.01,1.85,1-0,1-2
+2026-02-01,12:00,Turkey Ligi 3,Ayvalikgucu Belediyespor,Afjet Afyonspor,-2.25,-2.25,2.25,2.25,1.77,1.97,1.96,1.74,3.5,3.25,1.97,1.88,1.77,1.82,2-0,4-1
+2026-02-01,12:00,Turkey Ligi 3,Beykoz Ishakli Spor,Silivrispor,-0.25,-0.25,0.25,0.25,2.02,1.98,1.74,1.75,2.25,2.25,1.91,1.93,1.83,1.78,0-1,1-1
+2026-02-01,12:00,Turkey Ligi 3,Corluspor,1926 Polatli Belediye,-1.75,-1.75,1.75,1.75,1.81,1.83,1.92,1.86,2.75,2.75,1.82,1.87,1.91,1.83,2-0,4-0
+2026-02-01,12:00,Turkey Ligi 3,Inkilapspor,Nilufer Belediye,0.0,-0.25,0.0,0.25,2.0,1.74,1.76,1.99,2.25,2.25,1.93,1.91,1.82,1.8,1-0,1-1
+2026-02-01,12:00,Turkey Ligi 3,Karsiyaka,Kestel,-1.25,-1.0,1.25,1.0,1.81,1.83,1.93,1.88,2.75,2.5,1.88,1.98,1.85,1.75,3-0,3-1
+2026-02-01,12:00,Turkey Ligi 3,Kutahyaspor,Balikesirspor,-0.75,-0.5,0.75,0.5,1.88,1.93,1.85,1.79,2.25,2.5,1.79,1.94,1.95,1.78,2-1,2-1
+2026-02-01,11:55,England FA Women Super League,Brighton H.A. (W),London City Lionesses (W),-0.25,-0.5,0.25,0.5,1.84,1.91,2.02,1.86,2.75,2.75,1.88,1.83,1.95,1.93,1-2,1-2
+2026-02-01,11:55,England FA Women Super League,Everton FC (W),Aston Villa (W),0.25,0.25,-0.25,-0.25,2.03,1.86,1.83,1.91,2.75,2.5,2.03,1.79,1.82,1.97,1-1,2-1
+2026-02-01,11:55,England FA Women Super League,Manchester United (W),Liverpool (W),-1.5,-1.25,1.5,1.25,2.02,1.81,1.85,1.97,3.0,2.75,2.04,1.83,1.81,1.92,0-0,3-1
+2026-02-01,11:55,England FA Women Super League,West Ham United (W),Tottenham Hotspur  (W),0.25,0.5,-0.25,-0.5,1.79,1.88,2.08,1.88,2.75,2.5,1.9,1.79,1.93,1.98,1-0,1-2
+2026-02-01,11:45,Hungary Borsodi Liga,Diosgyor VTK,Kisvarda FC,-0.25,-0.25,0.25,0.25,2.12,1.85,1.76,1.93,2.5,2.75,2.02,1.89,1.83,1.86,1-0,1-1
+2026-02-01,11:45,Spain Youth League,Racing Santander U19,Montaneros U19,-1.0,-1.0,1.0,1.0,1.88,1.86,1.91,1.89,2.75,2.75,1.79,1.78,2.01,1.99,3-0,4-1
+2026-02-01,11:30,Italian Women Division 1,AC Milan (W),Genoa (W),-1.0,-1.25,1.0,1.25,1.88,1.77,1.94,1.99,3.0,3.0,2.05,1.93,1.79,1.81,1-0,2-1
+2026-02-01,11:30,Italian Women Division 1,Lazio (W),Como 2000 (W),-0.75,-0.5,0.75,0.5,1.89,1.83,1.93,1.91,2.5,2.5,1.88,1.83,1.94,1.91,1-1,1-1
+2026-02-01,11:30,Italy Serie A,Torino,Lecce,-0.25,-0.5,0.25,0.5,1.84,1.83,2.1,2.0,2.0,2.0,1.96,1.82,1.94,1.99,1-0,1-0
+2026-02-01,11:30,Italy Serie C,Cittadella,Albinoleffe,-0.5,-0.25,0.5,0.25,2.06,1.81,1.81,1.97,2.25,2.25,1.81,1.91,2.04,1.85,0-0,0-1
+2026-02-01,11:30,Italy Serie C,Pro Patria,Vicenza,1.25,1.5,-1.25,-1.5,1.81,1.78,2.07,2.01,2.25,2.25,1.84,1.87,2.0,1.88,0-2,0-4
+2026-02-01,11:30,Singapore League,Lion City Sailors,Balestier Khalsa FC,-2.75,-2.5,2.75,2.5,1.9,1.95,1.92,1.81,4.5,4.25,1.97,1.85,1.83,1.89,4-1,5-1
+2026-02-01,11:30,Spain Segunda Division RFEF,La Union CF,Lorca Deportiva FC,-0.25,-0.25,0.25,0.25,1.8,1.76,2.03,2.03,2.0,2.0,1.95,1.91,1.87,1.83,0-1,1-2
+2026-02-01,11:30,Spain Youth League,CF Bansander U19,CD Roces U19,0.0,0.0,0.0,0.0,1.83,1.85,1.96,1.9,2.5,2.5,1.82,1.81,1.97,1.95,0-0,0-0
+2026-02-01,11:30,Spain Youth League,Jove Espanol U19,Albacete U19,1.0,1.5,-1.0,-1.5,1.77,1.85,2.03,1.9,2.5,3.0,1.85,1.94,1.93,1.81,0-0,2-0
+2026-02-01,11:30,Spain Youth League,Las Rozas U19,AD Sporting Hortaleza U19,-1.0,-0.5,1.0,0.5,1.93,1.83,1.85,1.93,2.75,3.0,1.9,1.96,1.88,1.8,1-0,2-2
+2026-02-01,11:30,Spanish Bizkaia-Tercera Division,CD Calamonte,CP Montehermoso,-0.5,-0.5,0.5,0.5,1.93,2.02,1.86,1.75,2.25,2.25,1.95,2.01,1.83,1.76,0-0,0-0
+2026-02-01,11:30,Spanish Bizkaia-Tercera Division,CP San Cristobal,CF Peralada,-0.25,0.0,0.25,0.0,1.77,1.83,2.04,1.93,2.25,2.25,1.94,2.02,1.85,1.75,0-1,0-1
+2026-02-01,11:30,Spanish Bizkaia-Tercera Division,Churriana de la Vega,CD Torreperogil,-0.75,-0.75,0.75,0.75,1.82,1.98,1.97,1.79,2.0,2.0,2.01,1.81,1.79,1.95,1-0,1-0
+2026-02-01,11:30,Spanish Bizkaia-Tercera Division,Montaneros CF,Silva SD,-0.5,-0.5,0.5,0.5,1.94,1.94,1.84,1.81,2.25,2.0,1.85,1.8,1.93,1.96,2-0,4-1
+2026-02-01,11:30,Spanish Bizkaia-Tercera Division,Puebla Calzada,CF Jaraiz,0.5,0.25,-0.5,-0.25,1.82,1.88,1.98,1.87,2.25,2.25,1.83,1.83,1.95,1.93,0-0,0-1
+2026-02-01,11:30,Spanish Ladies Premier League B,Osasuna (W),Real Betis (W),-1.25,-1.25,1.25,1.25,1.85,1.83,1.89,1.88,2.5,2.5,1.93,1.92,1.82,1.79,0-0,2-1
+2026-02-01,11:30,Thai League 1,Ratchaburi FC,Muang Thong United,-1.0,-0.75,1.0,0.75,1.82,1.88,2.04,1.89,3.0,2.75,1.88,1.81,1.96,1.94,1-1,3-2
+2026-02-01,11:30,Thai League 1,Sukhothai,Uthai Thani FC,0.25,0.0,-0.25,0.0,1.78,1.76,2.1,2.04,2.5,2.75,1.91,1.94,1.93,1.81,0-0,1-1
+2026-02-01,11:30,Thai League 2,BEC Tero Sasana,Pattaya Discovery United FC,-0.5,-0.75,0.5,0.75,1.76,1.74,1.99,1.99,2.25,2.5,1.87,1.85,1.86,1.86,0-0,2-0
+2026-02-01,11:15,Holland Eredivisie,Excelsior SBV,AFC Ajax,0.5,0.75,-0.5,-0.75,2.05,1.81,1.87,2.03,3.0,3.0,2.03,1.84,1.87,1.97,0-2,2-2
+2026-02-01,11:15,Holland Eredivisie Women\s,Zwolle (W),AZ Alkmaar (W),-0.25,0.0,0.25,0.0,2.02,1.75,1.81,2.05,2.5,2.75,1.95,1.76,1.86,1.98,1-0,2-0
+2026-02-01,11:15,Poland Ekstraklasa,Motor Lublin,Pogon Szczecin,0.0,0.0,0.0,0.0,2.03,1.87,1.86,1.93,3.0,3.0,2.03,1.93,1.85,1.85,2-1,2-1
+2026-02-01,11:15,Spain Regional League,Pobla Mafumet,UE Valls,-0.5,-0.25,0.5,0.25,1.92,2.02,1.83,1.72,2.25,2.25,1.79,1.83,1.95,1.88,0-1,2-1
+2026-02-01,11:15,Spanish Bizkaia-Tercera Division,CD Binefar,CD La Almunia,-0.25,-0.25,0.25,0.25,1.99,2.04,1.81,1.74,2.0,2.0,1.86,1.85,1.92,1.9,2-0,4-0
+2026-02-01,11:10,Spanish Bizkaia-Tercera Division,UE Tona,Kvida Wright,-0.75,-0.25,0.75,0.25,1.97,1.85,1.82,1.91,2.25,2.25,1.9,2.01,1.88,1.76,2-0,3-0
+2026-02-01,11:00,Cambodian Premier League,Life Sihanoukville,MOI Kompong Dewa FC,1.0,1.0,-1.0,-1.0,2.02,1.78,1.74,1.94,2.5,3.0,1.78,1.89,1.97,1.82,0-0,0-1
+2026-02-01,11:00,Cambodian Premier League,Phnom Penh FC,ISI Dangkor Senchey FC,-2.75,-3.5,2.75,3.5,1.93,1.93,1.78,1.76,4.5,4.25,1.92,1.88,1.8,1.81,0-0,1-0
+2026-02-01,11:00,Cambodian Premier League,Svay Rieng FC,Tiffy Army FC,-2.5,-2.5,2.5,2.5,1.81,1.86,1.92,1.83,4.0,3.75,1.95,1.81,1.78,1.88,4-0,6-3
+2026-02-01,11:00,Greece U19,AO Kavala U19,Iraklis 1908 FC U19,1.75,2.0,-1.75,-2.0,1.79,1.82,1.94,1.88,2.75,3.25,1.81,1.75,1.92,1.95,1-1,4-1
+2026-02-01,11:00,Greece U19,Levadiakos U19,Asteras Tripolis U19,0.25,0.5,-0.25,-0.5,1.79,1.81,1.95,1.9,2.0,2.5,1.73,1.88,2.03,1.82,0-1,0-3
+2026-02-01,11:00,Greece U19,PAOK Saloniki U19,Panserraikos U19,-2.0,-2.25,2.0,2.25,1.76,1.96,1.97,1.75,3.0,3.0,1.98,1.77,1.76,1.93,0-0,1-0
+2026-02-01,11:00,International Club Friendly,Daejeon Citizen,Vasteras SK FK,-0.25,0.0,0.25,0.0,1.98,1.88,1.77,1.83,2.25,2.75,1.81,1.89,1.93,1.82,0-0,1-0
+2026-02-01,11:00,International Club Friendly,Harju JK Laagri,Dziugas Telsiai,0.25,0.75,-0.25,-0.75,1.88,1.96,1.86,1.76,3.5,4.0,1.9,1.94,1.84,1.78,1-0,1-1
+2026-02-01,11:00,Kenya Premier League,Kariobangi Sharks,Ulinzi Stars Nakuru,0.0,-0.25,0.0,0.25,1.93,2.05,1.81,1.65,2.0,1.75,2.04,1.93,1.73,1.78,1-0,1-0
+2026-02-01,11:00,Kenya Premier League,Shabana FC,Bandari,-0.25,-0.25,0.25,0.25,1.95,1.78,1.79,1.94,2.0,1.75,1.88,1.88,1.85,1.83,1-0,1-0
+2026-02-01,11:00,Liga Portugal 2,Sporting CP B,Oliveirense,-0.5,-0.5,0.5,0.5,1.99,1.83,1.86,1.94,2.5,2.5,1.97,1.88,1.87,1.88,1-0,2-0
+2026-02-01,11:00,Portugal Liga Revelacao U19,Benfica U19,Santa Clara U19,-1.75,-1.5,1.75,1.5,1.93,1.99,1.84,1.78,3.0,3.0,1.85,1.88,1.92,1.88,0-0,2-0
+2026-02-01,11:00,Portugal Liga Revelacao U19,Gil Vicente U19,FC Famalicao U19,0.0,0.0,0.0,0.0,1.89,1.8,1.89,1.96,2.5,2.5,2.0,1.81,1.8,1.95,0-0,0-1
+2026-02-01,11:00,Spain Primera Division RFEF,Arenas Club de Getxo,Ourense CF,0.0,-0.25,0.0,0.25,1.8,1.94,2.03,1.8,2.25,2.0,1.97,1.88,1.85,1.85,1-0,2-1
+2026-02-01,11:00,Spain Primera Division RFEF,Teruel,Real Murcia,0.0,0.0,0.0,0.0,1.9,1.96,1.92,1.79,1.75,1.75,1.94,1.87,1.88,1.87,0-0,0-0
+2026-02-01,11:00,Spain Primera Division RFEF,UD Marbella,Antequera CF,-0.25,-0.25,0.25,0.25,1.9,1.99,1.92,1.76,2.0,2.0,1.9,1.86,1.92,1.88,0-0,0-1
+2026-02-01,11:00,Spain Regional League,Maracena,Cuevas,-0.75,-0.75,0.75,0.75,1.97,1.95,1.78,1.77,3.0,3.0,1.98,1.96,1.78,1.76,1-0,1-0
+2026-02-01,11:00,Spain Regional League,SD Ordenes,Negreira,0.0,0.0,0.0,0.0,1.76,1.75,1.99,1.97,2.25,2.25,1.86,1.85,1.88,1.86,3-3,3-7
+2026-02-01,11:00,Spain Segunda Division RFEF,CD Artistico Navalcarnero,UD San Sebastian Reyes,0.0,0.0,0.0,0.0,2.06,1.78,1.78,1.97,2.0,2.0,2.04,1.9,1.79,1.84,0-2,0-2
+2026-02-01,11:00,Spain Segunda Division RFEF,Castellon B,Baleares,0.75,0.75,-0.75,-0.75,1.83,1.79,2.0,1.96,3.0,2.75,1.86,1.83,1.95,1.91,1-1,2-1
+2026-02-01,11:00,Spain Segunda Division RFEF,Deportiva Minera,CD Linares Deportivo,-0.5,-0.25,0.5,0.25,1.96,1.76,1.85,1.99,2.0,2.0,1.77,1.85,2.07,1.88,2-0,5-0
+2026-02-01,11:00,Spain Segunda Division RFEF,Elche CF Ilicitano,Real Madrid C,0.25,0.0,-0.25,0.0,1.83,1.92,2.0,1.83,2.5,2.25,1.96,1.92,1.86,1.83,2-0,2-0
+2026-02-01,11:00,Spain Segunda Division RFEF,Fuenlabrada,UB Conquense,0.0,-0.25,0.0,0.25,2.07,1.74,1.78,2.03,2.0,2.0,1.93,1.91,1.88,1.83,0-0,0-1
+2026-02-01,11:00,Spain Segunda Division RFEF,Numancia,CD Lealtad,-1.25,-1.25,1.25,1.25,1.87,2.02,1.94,1.74,2.5,2.25,1.97,1.88,1.85,1.86,0-1,0-1
+2026-02-01,11:00,Spain Segunda Division RFEF,Porreres,Ibiza Islas Pitiusas,0.0,0.25,0.0,-0.25,1.96,1.75,1.85,2.0,2.0,1.75,2.07,1.8,1.78,1.94,0-0,1-1
+2026-02-01,11:00,Spain Segunda Division RFEF,Puente Genil,CA Antoniano,0.0,-0.25,0.0,0.25,1.9,1.88,1.92,1.85,1.75,2.0,1.78,2.0,2.06,1.76,0-1,2-1
+2026-02-01,11:00,Spain Segunda Division RFEF,RCD Espanyol B,Andratks,-1.0,-0.75,1.0,0.75,2.07,1.96,1.78,1.79,2.0,2.0,1.82,1.82,2.01,1.93,2-0,2-1
+2026-02-01,11:00,Spain Segunda Division RFEF,RSD Alcala Henares,CD Colonia Moscardo,-1.25,-0.75,1.25,0.75,1.9,1.96,1.92,1.79,2.25,2.25,1.79,1.9,2.04,1.84,2-0,3-0
+2026-02-01,11:00,Spain Segunda Division RFEF,Recreativo Huelva,Almeria B,-1.25,-1.5,1.25,1.5,2.03,1.98,1.8,1.78,2.25,2.5,1.87,1.96,1.95,1.79,0-0,1-0
+2026-02-01,11:00,Spain Segunda Division RFEF,Suokuaili Moss,Getafe B,0.25,0.5,-0.25,-0.5,2.03,1.79,1.8,1.95,1.75,2.0,1.79,1.89,2.05,1.85,1-0,2-1
+2026-02-01,11:00,Spain Segunda Division RFEF,Tenerife B,CF Intercity,0.0,0.0,0.0,0.0,1.97,1.93,1.85,1.81,2.25,2.25,1.87,1.88,1.95,1.85,0-0,2-0
+2026-02-01,11:00,Spain Segunda Division RFEF,Torrent C.F,CE Atletic Lleida 2019,0.0,-0.25,0.0,0.25,1.99,1.95,1.83,1.79,2.25,2.25,1.93,1.99,1.88,1.77,0-1,0-1
+2026-02-01,11:00,Spain Segunda Division RFEF,Xerez Deportivo,UD Melilla,-0.5,-0.5,0.5,0.5,1.98,1.97,1.84,1.78,2.0,1.75,2.03,1.81,1.81,1.94,1-0,1-0
+2026-02-01,11:00,Spain Segunda Women,Prainsa Zaragoza (W),SE AEM B (W),-1.0,-1.0,1.0,1.0,1.74,1.75,2.02,1.97,2.0,1.75,1.75,1.73,2.01,2.0,1-0,2-1
+2026-02-01,11:00,Spain Segunda Women,Racing de Santander (W),Madrid CFF II (W),-1.5,-1.5,1.5,1.5,1.79,1.78,1.96,1.94,2.75,2.75,1.76,1.75,2.0,1.98,0-1,1-2
+2026-02-01,11:00,Spain Segunda Women,Real Sociedad II (W),Deportivo La Coruna B (W),-2.25,-1.5,2.25,1.5,1.97,1.86,1.76,1.85,3.0,2.75,1.81,1.86,1.91,1.85,3-0,5-0
+2026-02-01,11:00,Spain Youth League,Arosa U19,Solares U19,-0.5,-0.5,0.5,0.5,1.8,1.79,1.99,1.97,2.5,2.5,1.93,1.92,1.85,1.84,1-2,2-2
+2026-02-01,11:00,Spain Youth League,Atletico de Madrid U19,Leganes U19,-1.5,-1.5,1.5,1.5,1.9,1.81,1.88,1.95,3.25,3.0,1.89,1.78,1.89,1.99,0-0,2-0
+2026-02-01,11:00,Spain Youth League,Burgos U19,Valladolid U19,0.0,0.0,0.0,0.0,2.04,1.85,1.77,1.9,2.5,2.5,1.96,1.96,1.83,1.8,0-0,1-3
+2026-02-01,11:00,Spain Youth League,CD Alaves U19,CD Betono U19,-2.25,-2.0,2.25,2.0,1.91,1.94,1.86,1.8,3.25,3.25,1.79,1.8,1.99,1.94,1-0,1-0
+2026-02-01,11:00,Spain Youth League,Malaga U19,Sevilla U19,-0.25,0.0,0.25,0.0,2.02,1.81,1.78,1.95,2.75,2.75,1.91,1.79,1.88,1.98,1-1,1-1
+2026-02-01,11:00,Spanish Bizkaia-Tercera Division,Albacete B,CD Tarancon,0.0,-0.25,0.0,0.25,1.87,2.05,1.92,1.68,1.75,2.0,1.88,1.89,1.91,1.86,1-0,2-0
+2026-02-01,11:00,Spanish Bizkaia-Tercera Division,Atletico Central,Cadiz B,-0.5,0.0,0.5,0.0,1.99,1.78,1.81,1.99,2.25,2.0,1.93,1.85,1.85,1.9,0-0,2-0
+2026-02-01,11:00,Spanish Bizkaia-Tercera Division,Atletico Mancha real,UD Torre del Mar,0.25,0.5,-0.25,-0.5,2.0,1.75,1.8,1.99,2.0,2.0,1.97,1.85,1.82,1.9,0-0,0-0
+2026-02-01,11:00,Spanish Bizkaia-Tercera Division,Aviles Stadium CF,EI San Martin,0.0,0.0,0.0,0.0,1.95,2.03,1.83,1.75,1.75,2.0,1.77,1.89,2.04,1.86,0-0,0-0
+2026-02-01,11:00,Spanish Bizkaia-Tercera Division,CD Agoncillo,CD Villegas,-1.25,-1.25,1.25,1.25,1.95,1.92,1.84,1.84,3.0,2.75,1.95,1.93,1.84,1.82,0-0,3-0
+2026-02-01,11:00,Spanish Bizkaia-Tercera Division,CD Anguiano,Comillas,-1.5,-1.75,1.5,1.75,1.89,1.96,1.89,1.79,2.75,3.0,1.82,1.89,1.97,1.85,0-0,1-0
+2026-02-01,11:00,Spanish Bizkaia-Tercera Division,CD Berceo,CDFC La Calzada,0.0,0.0,0.0,0.0,1.88,1.98,1.9,1.79,2.5,2.5,1.94,1.88,1.84,1.87,0-1,1-1
+2026-02-01,11:00,Spanish Bizkaia-Tercera Division,CD Beti Onak,CD Subiza,0.5,0.5,-0.5,-0.5,1.8,1.79,2.0,1.98,2.25,2.25,1.84,1.83,1.94,1.93,0-0,0-1
+2026-02-01,11:00,Spanish Bizkaia-Tercera Division,CD Cayon,Atletico Albericia,-0.5,-0.25,0.5,0.25,1.83,1.93,1.95,1.82,2.5,2.25,1.79,1.88,2.0,1.88,0-0,2-1
+2026-02-01,11:00,Spanish Bizkaia-Tercera Division,CD Colunga,Caudal,1.0,1.25,-1.0,-1.25,2.04,1.85,1.76,1.9,2.5,2.5,1.88,1.79,1.91,1.97,0-1,0-1
+2026-02-01,11:00,Spanish Bizkaia-Tercera Division,CD Cuarte Industrial,Andorra CF,-1.0,-0.75,1.0,0.75,1.76,1.81,2.05,1.95,2.0,1.75,2.01,1.81,1.79,1.94,0-1,2-1
+2026-02-01,11:00,Spanish Bizkaia-Tercera Division,CD Diocesano,CD Montijo,0.0,0.0,0.0,0.0,2.07,1.85,1.75,1.9,2.25,2.25,1.95,1.93,1.84,1.82,1-0,1-0
+2026-02-01,11:00,Spanish Bizkaia-Tercera Division,CD Illescas,AD San Clemente,-0.5,-0.5,0.5,0.5,2.0,1.96,1.8,1.8,2.0,2.0,1.88,1.81,1.91,1.94,1-0,1-1
+2026-02-01,11:00,Spanish Bizkaia-Tercera Division,CD Llanes,UD Gijon Industrial,-0.5,-0.5,0.5,0.5,1.78,1.87,2.02,1.88,2.25,2.25,2.04,1.83,1.77,1.93,1-0,1-1
+2026-02-01,11:00,Spanish Bizkaia-Tercera Division,CD Utrera,Dos Hermanas,0.0,0.0,0.0,0.0,1.87,1.85,1.92,1.9,2.5,2.5,1.91,1.91,1.88,1.85,0-3,1-3
+2026-02-01,11:00,Spanish Bizkaia-Tercera Division,CDF Tres Cantos,Villaverde Boetticher CF,0.0,0.25,0.0,-0.25,1.91,1.8,1.88,1.96,2.25,2.25,2.0,2.01,1.8,1.76,0-2,1-2
+2026-02-01,11:00,Spanish Bizkaia-Tercera Division,CF Calamocha,Tamar Ritter,-0.75,-0.75,0.75,0.75,2.0,2.0,1.79,1.77,2.25,2.25,1.99,1.97,1.81,1.79,1-1,2-1
+2026-02-01,11:00,Spanish Bizkaia-Tercera Division,CFJ Mollerussa,UE Vic,-0.5,-0.25,0.5,0.25,1.98,1.98,1.81,1.78,2.5,2.25,1.96,1.79,1.83,1.98,0-0,2-0
+2026-02-01,11:00,Spanish Bizkaia-Tercera Division,Casetas,Zuera,-0.5,-0.25,0.5,0.25,2.02,1.88,1.78,1.84,2.25,2.25,1.98,2.01,1.81,1.76,0-0,1-0
+2026-02-01,11:00,Spanish Bizkaia-Tercera Division,Cazalegas,CD Marchamalo,0.25,0.25,-0.25,-0.25,1.97,1.91,1.82,1.81,2.25,2.25,1.93,1.9,1.85,1.85,0-0,0-0
+2026-02-01,11:00,Spanish Bizkaia-Tercera Division,Coria CF,Atletico Onubense,-0.25,0.0,0.25,0.0,2.03,2.03,1.77,1.75,2.0,2.25,1.79,2.03,2.01,1.74,1-1,2-1
+2026-02-01,11:00,Spanish Bizkaia-Tercera Division,EF Santa Cruz,CD Cieza,1.0,0.75,-1.0,-0.75,1.88,1.89,1.9,1.86,2.25,2.25,1.95,1.98,1.84,1.78,0-2,0-3
+2026-02-01,11:00,Spanish Bizkaia-Tercera Division,EG El Palmar,FC Cartagena B,0.0,0.0,0.0,0.0,1.92,1.96,1.87,1.8,2.25,2.25,2.05,2.02,1.76,1.75,0-1,0-1
+2026-02-01,11:00,Spanish Bizkaia-Tercera Division,FC L Escala,CE Manresa,0.0,0.25,0.0,-0.25,1.83,1.96,1.95,1.81,2.25,2.25,1.83,1.84,1.96,1.92,0-2,0-3
+2026-02-01,11:00,Spanish Bizkaia-Tercera Division,Gimnastica Torrelavega,SD Laredo,-1.0,-1.0,1.0,1.0,1.86,1.9,1.93,1.85,2.25,2.5,1.93,1.85,1.85,1.9,0-0,1-1
+2026-02-01,11:00,Spanish Bizkaia-Tercera Division,Montanas,Castro,1.0,1.0,-1.0,-1.0,1.85,1.78,1.94,1.99,3.0,2.5,1.98,1.81,1.81,1.94,0-0,2-0
+2026-02-01,11:00,Spanish Bizkaia-Tercera Division,Palencia,CD Mirandes B,-0.5,-0.25,0.5,0.25,1.87,1.92,1.92,1.83,2.0,2.0,1.91,1.93,1.88,1.83,3-0,3-1
+2026-02-01,11:00,Spanish Bizkaia-Tercera Division,Racing Villalbes,UD Barbadas,-1.0,-1.0,1.0,1.0,2.04,1.77,1.77,2.0,2.0,2.25,1.85,2.0,1.93,1.77,0-0,3-0
+2026-02-01,11:00,Spanish Bizkaia-Tercera Division,Real Titanico Laviana,CD Praviano,0.0,0.5,0.0,-0.5,1.76,1.91,2.05,1.85,2.0,2.25,1.79,1.92,2.01,1.84,0-1,0-1
+2026-02-01,11:00,Spanish Bizkaia-Tercera Division,SP Villafranca,Atletico Pueblonuevo,-1.0,-1.0,1.0,1.0,1.95,1.93,1.83,1.82,2.5,2.5,1.91,1.89,1.88,1.86,2-0,4-0
+2026-02-01,11:00,Spanish Bizkaia-Tercera Division,Sporting de Gijon B,SD Navarro CF,-2.5,-2.0,2.5,2.0,1.83,1.81,1.93,1.94,3.5,3.25,1.82,1.97,1.95,1.74,0-0,3-0
+2026-02-01,11:00,Spanish Bizkaia-Tercera Division,Toledo,CD Azuqueca,-2.0,-1.75,2.0,1.75,1.89,1.81,1.88,1.93,2.5,2.5,1.88,1.82,1.88,1.92,1-0,2-1
+2026-02-01,11:00,Spanish Bizkaia-Tercera Division,UD Levante B,Atzeneta UE,-1.0,-0.75,1.0,0.75,1.85,1.81,1.93,1.94,2.25,2.25,1.81,1.97,1.98,1.79,0-0,1-0
+2026-02-01,11:00,Spanish Bizkaia-Tercera Division,UD Llanera,SD Lenense,-2.25,-2.0,2.25,2.0,1.96,1.81,1.81,1.93,3.25,3.0,2.01,1.83,1.78,1.91,1-0,3-0
+2026-02-01,11:00,Spanish Bizkaia-Tercera Division,UD Logrones B,CD San Marcial,-2.25,-2.0,2.25,2.0,1.93,1.93,1.83,1.81,3.5,3.25,1.91,1.83,1.86,1.92,3-0,5-0
+2026-02-01,11:00,Spanish Bizkaia-Tercera Division,Viveiro CF,CD Barco,0.0,0.0,0.0,0.0,2.01,1.99,1.79,1.78,2.0,2.0,1.92,1.87,1.87,1.88,0-0,0-2
+2026-02-01,11:00,Spanish Ladies Premier League,Deportivo La Coruna W,Real Madrid (W),1.75,2.0,-1.75,-2.0,1.88,1.95,1.92,1.78,3.25,3.25,1.95,1.87,1.85,1.85,2-2,2-4
+2026-02-01,11:00,Spanish Ladies Premier League,FC Levante Badalona (W),Eibar (W),-1.0,-0.75,1.0,0.75,1.96,1.81,1.86,1.94,2.25,2.0,1.99,1.75,1.83,2.01,0-1,2-1
+2026-02-01,11:00,Spanish Ladies Premier League B,CE Europa (W),Fundacion CD Tenerife B (W),0.0,0.0,0.0,0.0,1.74,1.85,2.03,1.86,2.0,2.5,1.8,1.98,1.94,1.75,1-0,2-0
+2026-02-01,11:00,Spanish Ladies Premier League C,Tomino W,Victoria CF Coruna (W),1.75,1.75,-1.75,-1.75,1.88,1.87,1.84,1.83,3.25,3.25,1.88,1.87,1.84,1.83,2-3,2-4
+2026-02-01,11:00,Thai League 1,Nakhon Ratchasima,Lamphun Warrior,0.25,0.0,-0.25,0.0,1.79,1.91,2.08,1.86,2.5,2.5,1.94,1.88,1.89,1.88,0-1,0-1
+2026-02-01,11:00,Thai League 2,Songkhla FC,Nakhon Pathom FC,-0.25,-0.25,0.25,0.25,1.79,1.91,1.95,1.8,2.25,2.0,1.93,1.79,1.81,1.93,0-1,0-2
+2026-02-01,11:00,Thai League 3 (Pui Rung Arun League),Khonkaen FC,Surin City,-0.75,-0.75,0.75,0.75,1.89,1.81,1.85,1.9,2.25,2.25,1.77,1.78,1.98,1.93,0-0,0-0
+2026-02-01,11:00,V.League 1,PVF-CAND,Cong An TP Ho Chi Minh,0.5,0.0,-0.5,0.0,1.85,2.07,2.01,1.77,2.25,2.25,1.92,1.9,1.92,1.9,0-1,1-2
+2026-02-01,11:00,V.League 1,Thanh Hoa,Nam Dinh FC,1.25,0.5,-1.25,-0.5,1.87,1.9,1.99,1.92,2.25,2.5,1.81,1.93,2.05,1.87,1-2,2-2
+2026-02-01,11:00,Vietnam U19 Championship Women,Thai Nguyen U19 (W),Ha Noi (W) U19,-0.25,0.0,0.25,0.0,2.02,1.84,1.74,1.87,1.75,2.0,1.78,1.97,1.96,1.75,0-1,1-1
+2026-02-01,10:45,Spanish Bizkaia-Tercera Division,Molinense,CD Bala Azul,-0.5,-0.5,0.5,0.5,1.83,1.78,1.96,1.99,2.0,2.0,1.97,1.89,1.82,1.86,1-0,2-1
+2026-02-01,10:45,Spanish Bizkaia-Tercera Division,Mostoles,Las Rozas,-0.5,-0.5,0.5,0.5,1.86,1.85,1.92,1.9,2.5,2.5,2.03,2.0,1.78,1.77,2-1,3-1
+2026-02-01,10:30,International Club Friendly,Chrobry Glogow,Warta Poznan,-0.25,-0.5,0.25,0.5,1.93,1.92,1.81,1.79,2.75,2.75,1.81,1.78,1.93,1.94,0-2,3-3
+2026-02-01,10:30,Malta First Division League,St. Andrews,Vittoriosa Stars,-0.25,-0.25,0.25,0.25,1.83,1.83,1.91,1.88,2.5,2.25,1.93,1.8,1.81,1.92,2-0,3-3
+2026-02-01,10:30,Paraguay reserve team league,Sportivo Ameliano Reserves,Sportivo San Lorenzo Reserve,-0.75,-0.25,0.75,0.25,1.91,1.83,1.83,1.88,2.75,2.25,1.76,1.83,1.99,1.88,5-0,6-1
+2026-02-01,10:30,Spain Segunda Division RFEF,Barbastro,UD Poblense,0.0,0.25,0.0,-0.25,1.76,1.86,2.08,1.88,1.75,1.75,1.92,1.84,1.9,1.9,0-1,0-2
+2026-02-01,10:30,Spanish Bizkaia-Tercera Division,AD Parla,CF Pozuelo Alarcon,0.25,0.25,-0.25,-0.25,1.79,1.82,2.01,1.94,2.0,2.25,1.86,1.98,1.93,1.79,0-0,0-0
+2026-02-01,10:30,Spanish Bizkaia-Tercera Division,Athletic Torrellano,Hercules II,-0.5,-0.5,0.5,0.5,1.81,1.79,1.99,1.97,2.25,2.25,2.04,2.02,1.77,1.76,1-0,3-0
+2026-02-01,10:30,Spanish Bizkaia-Tercera Division,CF Trival Valderas,CD Galapagar,-0.25,-0.25,0.25,0.25,1.87,1.85,1.92,1.9,2.25,2.25,1.9,1.88,1.88,1.87,0-2,2-2
+2026-02-01,10:30,Spanish Bizkaia-Tercera Division,Portmany,CE Felanitx,-0.25,-0.25,0.25,0.25,1.91,1.89,1.88,1.86,2.0,2.0,1.84,1.83,1.95,1.93,1-0,2-0
+2026-02-01,10:30,Spanish Bizkaia-Tercera Division,RCD Carabanchel,AD Union Adarve,0.0,0.0,0.0,0.0,1.78,1.77,2.02,2.0,2.0,2.0,1.89,1.85,1.89,1.9,0-0,0-1
+2026-02-01,10:30,Spanish Bizkaia-Tercera Division,Santomera,Caravaca CF,0.0,0.0,0.0,0.0,1.75,1.85,2.06,1.9,2.5,2.25,2.01,1.81,1.79,1.95,1-0,1-0
+2026-02-01,10:30,Spanish Bizkaia-Tercera Division,Zamudio SD,SD Eibar C,-0.5,-0.5,0.5,0.5,1.81,1.84,1.99,1.92,2.5,2.5,2.01,1.99,1.79,1.78,0-0,1-0
+2026-02-01,10:30,Spanish Ladies Premier League B,Real Oviedo (W),Colegio Aleman Valencia (W),0.5,0.5,-0.5,-0.5,1.98,1.98,1.77,1.75,2.25,2.25,2.0,1.95,1.75,1.76,0-0,0-3
+2026-02-01,10:30,Spanish Ladies Premier League C,CS Puertollano (W),Racing Alcazar (W),0.5,0.5,-0.5,-0.5,1.85,1.84,1.89,1.87,3.25,3.5,1.82,1.94,1.93,1.78,1-1,4-4
+2026-02-01,10:30,Turkey 1. Lig,Bandirmaspor,Belediye Vanspor,-0.25,-0.25,0.25,0.25,2.06,1.77,1.81,2.02,2.25,2.5,1.81,1.94,2.04,1.81,1-0,2-0
+2026-02-01,10:30,Turkey 1. Lig,Sivasspor,Pendikspor,0.0,0.0,0.0,0.0,1.78,1.82,2.1,1.94,2.5,2.5,2.0,1.93,1.85,1.83,0-0,0-0
+2026-02-01,10:15,Italy Eccellenza,SSD Ferentino Calcio,Roccasecca T. San Tommaso,-0.5,-0.5,0.5,0.5,1.9,1.93,1.84,1.79,2.75,2.75,1.93,1.92,1.82,1.79,4-1,4-3
+2026-02-01,10:15,Spanish Bizkaia-Tercera Division,Santurtzi CD,Leioa,0.25,0.0,-0.25,0.0,1.75,1.87,2.07,1.88,2.0,2.25,2.02,1.96,1.79,1.8,0-1,1-2
+2026-02-01,10:15,Spanish Bizkaia-Tercera Division,Torrejon CF,Leganes B,0.25,0.25,-0.25,-0.25,1.85,1.96,1.93,1.81,2.25,2.25,2.02,1.89,1.78,1.86,0-2,2-5
+2026-02-01,10:00,Andorra Primera Divisió,UE Santa Coloma,FC Ordino,-1.75,-2.0,1.75,2.0,1.97,1.97,1.76,1.74,2.75,3.0,1.94,1.79,1.79,1.91,1-0,1-0
+2026-02-01,10:00,Ethiopia Premier League,Welwalo Adigrat,Arba Minch,0.0,0.0,0.0,0.0,1.72,2.06,2.11,1.72,1.5,1.75,1.77,1.93,2.03,1.83,0-0,1-2
+2026-02-01,10:00,Italy Eccellenza,Grifone Gialloverde,Viterbese,-1.0,-0.75,1.0,0.75,2.02,1.74,1.74,2.0,2.25,2.25,1.87,1.89,1.87,1.82,0-1,2-1
+2026-02-01,10:00,Kenya Super League,Vihiga United,Kibera Black Stars,0.0,0.25,0.0,-0.25,1.78,1.75,1.97,1.97,1.75,1.75,1.74,1.73,2.03,2.0,0-0,2-1
+2026-02-01,10:00,South Africa Reserve League,Polokwane City Reserves,Orbit College Reserves,0.5,0.25,-0.5,-0.25,1.76,1.75,2.0,1.98,2.0,2.25,1.83,1.8,1.92,1.91,0-0,0-0
+2026-02-01,10:00,Spain Segunda Division RFEF,CF Rayo Majadahonda,Las Palmas Atletico,-1.0,-0.75,1.0,0.75,1.86,1.92,1.96,1.83,2.25,2.25,1.82,1.99,2.01,1.76,0-1,2-2
+2026-02-01,10:00,Spanish Ladies Premier League B,Barcelona B (W),Villarreal (W),-1.75,-1.25,1.75,1.25,1.95,1.76,1.78,1.96,3.25,2.75,1.92,1.81,1.81,1.89,0-0,1-0
+2026-02-01,10:00,Spanish Ladies Premier League C,Rayo Vallecano II (W),Las Rozas CF (W),1.0,1.0,-1.0,-1.0,1.95,1.93,1.79,1.78,3.25,3.25,1.78,1.77,1.96,1.94,0-1,0-3
+2026-02-01,10:00,Thai League 3 (Pui Rung Arun League),Customs Department FC,Chachoengsao,-0.5,-0.5,0.5,0.5,1.82,1.83,1.92,1.88,2.25,2.25,1.91,1.99,1.83,1.74,0-0,1-0
+2026-02-01,10:00,Thai League 3 (Pui Rung Arun League),Samut Sakhon,Assumption Thonburi,-0.75,-1.25,0.75,1.25,1.88,1.92,1.86,1.79,2.25,2.75,1.79,1.81,1.95,1.91,0-0,3-0
+2026-02-01,10:00,Turkey A2 League U19,Genclerbirligi U19,Gazisehir Gaziantep FK U19,-1.0,-0.75,1.0,0.75,2.02,1.93,1.78,1.83,2.75,2.75,1.82,1.89,1.97,1.86,0-0,0-1
+2026-02-01,10:00,Turkey Bayanlar 1. Ligi,Giresun Sanayispor (W),Hakkarigucu SK (W),0.25,0.5,-0.25,-0.5,1.94,1.76,1.8,1.96,2.5,2.75,1.93,1.86,1.82,1.85,0-0,0-0
+2026-02-01,10:00,Turkey Bayanlar 2. Ligi,Telsizspor (W),Dudulluspor (W),5.0,4.75,-5.0,-4.75,1.79,1.87,1.93,1.81,5.5,5.5,1.85,1.9,1.85,1.78,0-5,0-8
+2026-02-01,10:00,Turkey Lig2,Adana 1954,Batman Petrolspor,0.5,0.5,-0.5,-0.5,1.84,1.88,1.95,1.88,2.25,2.25,1.97,1.87,1.83,1.88,0-1,1-1
+2026-02-01,10:00,Turkey Lig2,Aksarayspor,Isparta 32 Spor,0.0,-0.25,0.0,0.25,1.86,1.88,1.93,1.87,2.25,2.5,2.01,1.96,1.79,1.8,2-2,2-2
+2026-02-01,10:00,Turkey Lig2,Ankarademirspor,Aliaga FUTBOL AS,1.0,0.75,-1.0,-0.75,1.95,1.78,1.84,1.98,2.25,2.5,1.87,1.98,1.92,1.74,0-0,1-2
+2026-02-01,10:00,Turkey Lig2,Bucaspor 1928,Ankaraspor FK,1.25,0.75,-1.25,-0.75,1.76,1.8,2.04,1.96,2.75,2.5,1.93,1.83,1.85,1.93,0-2,2-4
+2026-02-01,10:00,Turkey Lig2,Erbaaspor S,S.Urfaspor,1.25,1.25,-1.25,-1.25,1.79,1.96,2.01,1.8,2.75,2.75,1.79,1.86,2.01,1.89,0-0,0-0
+2026-02-01,10:00,Turkey Lig2,Kahramanmaras Bld,Arnavutkoy Belediyespor,-2.0,-1.5,2.0,1.5,1.92,1.93,1.85,1.83,3.0,3.0,1.89,1.96,1.88,1.8,1-0,1-1
+2026-02-01,10:00,Turkey Lig2,Kepez Belediyespor,Muglaspor,1.75,1.75,-1.75,-1.75,1.78,1.78,2.0,1.96,2.75,2.75,1.96,1.89,1.82,1.85,0-0,1-2
+2026-02-01,10:00,Turkey Ligi 3,Artvin Hopaspor,Yozgat Bld Bozokspor,0.25,0.75,-0.25,-0.75,1.92,1.75,1.82,1.97,2.0,2.5,1.76,1.97,1.99,1.75,0-2,0-3
+2026-02-01,10:00,Turkey Ligi 3,Diyarbakirspor,Silifke Belediyespor,0.0,0.0,0.0,0.0,1.95,1.89,1.79,1.82,2.25,2.25,1.92,1.89,1.83,1.82,0-0,0-0
+2026-02-01,10:00,Turkey Ligi 3,Nigde Belediyespor,Turk Metal 1963,-0.5,-0.5,0.5,0.5,1.89,1.79,1.85,1.92,2.25,2.25,1.97,1.88,1.78,1.83,0-1,2-2
+2026-02-01,10:00,V.League 1,Hoang Anh Gia Lai,Da Nang,0.25,0.0,-0.25,0.0,1.76,1.89,2.12,1.93,2.0,2.25,1.9,2.01,1.93,1.8,0-0,1-0
+2026-02-01,09:30,Greece Super League Women,Volos NFC (W),OFI FC (W),0.25,0.5,-0.25,-0.5,1.94,1.85,1.81,1.86,2.5,2.5,1.94,1.88,1.8,1.83,0-1,0-4
+2026-02-01,09:30,Hong Kong 2nd Division,Tsuen Wan,Kowloon Cricket Club,1.0,1.0,-1.0,-1.0,1.8,1.79,1.94,1.93,3.25,3.25,1.99,1.94,1.76,1.72,0-1,0-2
+2026-02-01,09:30,Hong Kong 3rd Division,Flower,KCDRSC,-2.0,-2.0,2.0,2.0,1.93,1.88,1.8,1.82,3.25,3.25,1.9,1.78,1.83,1.93,3-0,4-0
+2026-02-01,09:00,Thai League 3 (Pui Rung Arun League),ACDC FC,Navy FC,1.5,0.75,-1.5,-0.75,1.78,1.85,1.97,1.85,2.75,2.25,1.96,1.94,1.79,1.78,1-1,2-2
+2026-02-01,09:00,Thai League 3 (Pui Rung Arun League),Chamchuri United FC,Prime Bangkok FC,0.5,0.5,-0.5,-0.5,1.94,1.95,1.81,1.77,2.25,2.5,1.81,1.83,1.93,1.88,0-1,1-2
+2026-02-01,09:00,Thai League 3 (Pui Rung Arun League),Chiangrai Thawee,Phitsanulok FC,0.25,0.0,-0.25,0.0,1.72,1.75,2.04,1.97,2.0,2.25,1.79,1.78,1.96,1.93,0-0,0-0
+2026-02-01,09:00,Thai League 3 (Pui Rung Arun League),Hua Hin City,Suphanburi FC,0.25,0.5,-0.25,-0.5,1.92,1.78,1.83,1.93,2.5,2.5,1.85,1.88,1.88,1.82,0-0,1-2
+2026-02-01,09:00,Thai League 3 (Pui Rung Arun League),Kasem Bundit University FC,Futera United,-0.75,-1.0,0.75,1.0,1.85,1.78,1.88,1.93,2.75,2.75,1.78,1.8,1.96,1.91,0-0,0-1
+2026-02-01,09:00,Thai League 3 (Pui Rung Arun League),PSU Surat Thani City,Muang Trang United,-0.5,-0.5,0.5,0.5,1.94,1.94,1.81,1.78,2.5,2.25,1.78,1.78,1.96,1.94,0-2,2-2
+2026-02-01,09:00,Thai League 3 (Pui Rung Arun League),Pluakdaeng United,Royal Thai Fleet United,0.25,0.25,-0.25,-0.25,1.85,1.86,1.88,1.85,2.25,2.25,1.98,2.01,1.78,1.72,1-1,1-3
+2026-02-01,09:00,Thai League 3 (Pui Rung Arun League),Surin Khongcheemool,Udon Banjan United,1.5,1.0,-1.5,-1.0,1.78,1.76,1.97,1.96,3.25,2.5,1.99,1.81,1.76,1.9,0-1,0-3
+2026-02-01,09:00,Turkey Bayanlar 1. Ligi,Cekmekoy (W),1207 Antalya Muratpasa (W),0.25,0.0,-0.25,0.0,1.75,1.72,2.01,1.97,2.75,3.25,1.89,1.8,1.85,1.91,2-0,2-1
+2026-02-01,09:00,Vietnamese First Division,Van Hien University,Ho Chi Minh City II,-0.75,-0.5,0.75,0.5,1.81,1.83,1.93,1.88,2.0,2.25,1.95,1.95,1.79,1.76,3-0,3-0
+2026-02-01,08:50,Greece U19,Egaleo U19,Panionios U19,1.0,1.75,-1.0,-1.75,1.86,1.87,1.88,1.84,2.5,3.25,1.81,1.96,1.93,1.74,0-0,0-2
+2026-02-01,08:30,Greece U19,Kalamata U19,Hellas Syrou U19,0.25,0.25,-0.25,-0.25,1.96,1.88,1.78,1.83,3.5,3.0,1.79,1.8,1.95,1.91,0-0,1-1
+2026-02-01,08:30,Indonesia Super League,Borneo FC Samarinda,PSIM Yogyakarta,-1.0,-0.75,1.0,0.75,2.06,1.94,1.81,1.82,2.75,2.5,1.93,1.93,1.89,1.83,1-0,2-1
+2026-02-01,08:30,Vietnam U19 Championship Women,Than KSVN U19 (W),Phong Phu Ha Nam U19 (W),2.75,2.5,-2.75,-2.5,1.82,1.84,1.89,1.85,3.5,3.25,1.79,1.78,1.92,1.92,0-2,0-3
+2026-02-01,08:20,Kenya League Women,Kisumu All Starlets (W),Kayole Starlet (W),0.25,1.25,-0.25,-1.25,1.81,1.84,1.94,1.87,2.75,3.0,1.78,1.84,1.98,1.87,0-2,1-2
+2026-02-01,08:00,Brunei Super League,MS PDB,Rimba Star,-1.25,-1.5,1.25,1.5,1.87,1.93,1.87,1.79,3.5,3.5,1.81,1.79,1.93,1.92,0-2,1-3
+2026-02-01,08:00,Cyprus Women Division 1,Apollon Limassol LFC (W),Lakatamia FC (W),-3.5,-3.25,3.5,3.25,1.81,1.79,1.9,1.89,4.25,4.0,1.79,1.88,1.93,1.81,3-0,4-0
+2026-02-01,08:00,Cyprus Women Division 1,Olympiakos Nicosia FC（W）,Aris Limassol  (W),5.0,4.0,-5.0,-4.0,1.87,1.79,1.84,1.9,5.5,4.5,1.84,1.78,1.87,1.91,0-3,0-5
+2026-02-01,08:00,South Africa Reserve League,Marumo Gallants Reserves,Amazulu Reserves,-0.5,0.0,0.5,0.0,1.97,1.79,1.78,1.93,2.5,2.75,1.81,1.95,1.94,1.76,0-0,0-1
+2026-02-01,08:00,South Africa Reserve League,Siwelele FC Reserves,Mamelodi Sundowns Reserves,0.0,0.0,0.0,0.0,1.78,1.98,1.97,1.74,2.5,2.75,1.78,1.93,1.97,1.79,1-1,1-2
+2026-02-01,07:40,Hong Kong 1. Division,Shatin SA,Kwun Tong,-2.25,-2.25,2.25,2.25,1.78,1.78,1.95,1.93,3.75,3.75,1.78,1.81,1.95,1.88,1-0,3-1
+2026-02-01,07:40,Hong Kong 1. Division,South China AA,WSE,0.5,0.5,-0.5,-0.5,1.91,1.76,1.83,1.96,3.0,3.5,1.79,1.95,1.95,1.76,0-0,0-0
+2026-02-01,07:40,Hong Kong 1. Division,Yuen Long FC,Sham Shui Po,-0.25,0.0,0.25,0.0,1.92,1.98,1.83,1.74,3.0,2.5,1.8,1.79,1.94,1.93,0-1,1-1
+2026-02-01,07:30,Hong Kong 2nd Division,Dreams Metro Gallery,Gospel Friends FC,-2.25,-2.25,2.25,2.25,1.9,1.76,1.83,1.94,3.25,3.25,1.78,1.76,1.95,1.95,1-0,1-2
+2026-02-01,07:30,Hong Kong 2nd Division,Kwai Tsing District FA,Wan Chai,-0.25,-0.25,0.25,0.25,1.86,1.85,1.88,1.86,3.25,3.25,1.81,1.8,1.93,1.91,0-1,1-4
+2026-02-01,07:30,Hong Kong 2nd Division,Sui Tung,Yau Tsim Mong,-0.75,-0.75,0.75,0.75,1.93,1.94,1.81,1.78,3.0,3.0,1.97,1.88,1.78,1.83,2-1,6-1
+2026-02-01,07:30,Hong Kong 3rd Division,Ravia SA,Qi Yi FC,-1.25,-0.75,1.25,0.75,1.93,1.72,1.82,1.94,3.5,3.5,1.81,1.94,1.94,1.78,1-0,2-2
+2026-02-01,07:30,Hong Kong 3rd Division,Tuen Mun FC,Tsun Tat Kwok Keung,0.75,0.75,-0.75,-0.75,1.89,1.96,1.85,1.76,2.75,3.25,1.82,1.94,1.93,1.78,0-0,1-1
+2026-02-01,07:00,Hong Kong Premier League,Kowloon City,LeeMan,1.75,1.75,-1.75,-1.75,1.93,1.88,1.88,1.84,3.5,3.5,1.87,1.81,1.93,1.93,0-2,1-4
+2026-02-01,07:00,Hong Kong Premier League,Tai Po FC,Hong Kong FC,-2.5,-3.0,2.5,3.0,1.83,1.76,1.97,1.95,4.0,3.75,2.03,1.85,1.79,1.86,1-0,2-0
+2026-02-01,06:00,Australia A-League,Central Coast Mariners,Melbourne Victory,1.0,0.75,-1.0,-0.75,1.83,1.84,2.1,1.99,3.0,2.75,1.9,1.96,1.99,1.85,1-0,1-0
+2026-02-01,06:00,Australia W-League,Newcastle Jets (W),Wellington Phoenix (W),0.5,0.5,-0.5,-0.5,2.01,1.9,1.85,1.87,2.75,2.75,1.99,1.91,1.85,1.85,0-4,1-5
+2026-02-01,05:30,Hong Kong 1. Division,3 Sing FC,Tung Sing FC,2.25,1.25,-2.25,-1.25,1.89,1.8,1.83,1.91,4.25,3.25,1.85,1.93,1.88,1.79,1-2,3-6
+2026-02-01,05:30,Hong Kong 1. Division,Hoi Jing,Citizen,-1.25,-1.25,1.25,1.25,1.88,1.79,1.85,1.92,4.0,4.0,1.81,1.81,1.93,1.91,2-0,2-1
+2026-02-01,05:30,Hong Kong 1. Division,RCFC,Lucky Mile FC,-3.75,-2.75,3.75,2.75,1.93,1.91,1.79,1.78,5.0,4.25,1.88,1.84,1.83,1.84,0-1,0-1
+2026-02-01,05:30,Hong Kong 1. Division,Supreme FC,Central Western District RSA,-2.5,-2.25,2.5,2.25,1.88,1.83,1.85,1.86,4.5,4.25,1.9,1.93,1.83,1.77,1-0,1-0
+2026-02-01,05:30,Hong Kong 2nd Division,New fair Kuitan,Wing Yee FT,-2.0,-1.5,2.0,1.5,1.97,1.94,1.76,1.78,3.75,3.25,1.92,1.91,1.81,1.81,0-1,3-1
+2026-02-01,05:30,Hong Kong 3rd Division,Convoy Sun Hei,Sai Kung,-2.25,-2.25,2.25,2.25,1.88,1.83,1.84,1.87,3.75,3.75,1.88,1.81,1.85,1.89,2-0,3-0
+2026-02-01,05:00,International Club Friendly,Oita Trinita,Consadole Sapporo,0.0,0.25,0.0,-0.25,1.76,1.88,1.99,1.82,2.5,2.5,1.92,1.77,1.82,1.92,1-0,1-0
+2026-02-01,03:05,Mexico Liga MX Femenil,Tijuana (W),Puebla (W),-2.25,-1.75,2.25,1.75,1.92,1.94,1.92,1.81,3.25,3.25,1.9,1.79,1.92,1.96,1-0,3-0
+2026-02-01,03:00,Australia W-League,Canberra United (W),Melbourne Victory (W),0.25,0.25,-0.25,-0.25,2.02,2.02,1.84,1.76,2.5,2.5,1.88,1.82,1.96,1.93,0-0,3-1
+2026-02-01,03:00,Liga Nacional de Guatemala,Marquense,Antigua GFC,0.0,0.25,0.0,-0.25,1.88,1.77,1.93,1.98,2.25,2.25,1.84,1.98,1.98,1.77,1-1,1-1
+2026-02-01,03:00,Mexico Liga TDP,Club Atletico Tijuana,Cimarrones de Sonora FC II,0.25,0.25,-0.25,-0.25,1.93,1.91,1.81,1.8,2.75,2.75,1.95,1.93,1.79,1.78,0-0,1-0
+2026-02-01,02:00,Mexico Liga TDP,Caballeros de Cordoba,Racing de Veracruz III,0.5,0.5,-0.5,-0.5,1.87,1.91,1.87,1.81,2.75,2.75,1.85,1.83,1.89,1.88,0-3,0-3
+2026-02-01,01:30,Colombia Primera B,Orsomarso,Union Magdalena,0.5,0.0,-0.5,0.0,1.78,1.94,2.11,1.83,2.0,1.75,2.09,1.81,1.77,1.94,0-0,0-1
+2026-02-01,01:30,Liga Nacional de Honduras,CD Olimpia,Juticalpa,-1.75,-1.75,1.75,1.75,1.85,1.85,1.93,1.89,3.0,3.0,1.81,1.81,1.96,1.93,1-1,2-2
+2026-02-01,01:30,Panama Liga Nacional de Ascenso,Plaza Amador,Tauro FC,-0.75,-0.5,0.75,0.5,2.02,1.8,1.81,1.95,2.25,2.25,1.88,1.92,1.93,1.83,0-0,0-1
+2026-02-01,01:15,Primera Division de El Salvador,A.D. Isidro Metapan,Zacatecoluca,-0.75,-0.5,0.75,0.5,1.93,1.93,1.89,1.81,2.25,2.25,2.01,2.01,1.82,1.75,1-0,1-0
+2026-02-01,01:10,Primera Division Liga MX,Club Leon,Tigres UANL,0.5,0.5,-0.5,-0.5,1.85,1.83,2.06,2.0,2.5,2.5,1.88,1.84,2.01,1.96,0-0,1-2
+2026-02-01,01:05,Mexico Liga Premier Serie A,Inter Playa del Carmen,Club Canoneros Marina,-1.5,-1.25,1.5,1.25,1.85,1.76,1.85,1.96,3.0,3.0,1.86,1.92,1.85,1.79,0-0,1-0
+2026-02-01,01:00,Argentine Division 1,Atletico Tucuman,CA Huracan,0.0,0.0,0.0,0.0,1.83,1.93,2.1,1.88,1.75,1.75,1.95,1.76,1.93,2.06,1-0,1-1
+2026-02-01,01:00,Argentine Division 1,Talleres Cordoba,CA Platense,-0.5,-0.25,0.5,0.25,2.03,1.77,1.88,2.07,1.75,1.75,1.88,1.78,2.01,2.04,0-1,1-2
+2026-02-01,01:00,Liga Nacional de Guatemala,Xelaju MC,C.S.D. Comunicaciones,-0.5,-0.5,0.5,0.5,1.85,1.82,1.97,1.93,2.25,2.25,1.99,1.93,1.83,1.81,1-0,2-0
+2026-02-01,01:00,Liga de Expansion MX,Atletico Morelia,Cancun,-0.75,-0.5,0.75,0.5,1.79,2.02,2.08,1.77,2.5,2.5,1.93,1.93,1.9,1.83,0-0,0-1
+2026-02-01,01:00,Mexico Liga MX Femenil,Mazatlan FC (W),Club Necaxa (W),-0.75,-0.25,0.75,0.25,1.85,1.81,2.01,1.97,2.5,2.75,1.85,1.96,2.0,1.8,4-0,5-0
+2026-02-01,01:00,Mexico Liga Premier Serie A,Celaya FC,Toros Neza,-1.25,-1.0,1.25,1.0,1.79,1.89,1.96,1.82,3.25,3.0,1.99,1.75,1.76,1.97,2-0,6-0
+2026-02-01,01:00,Mexico Liga Premier Serie A,Racing Porto Palmeiras,Tapachula Soconusco FC,-1.5,-2.0,1.5,2.0,1.87,1.85,1.87,1.85,2.75,3.0,1.79,1.82,1.96,1.88,1-0,2-1
+2026-02-01,01:00,Mexico Liga TDP,Artesanos Bajos De Chila,Chapulineros de Oaxaca II,1.0,0.75,-1.0,-0.75,1.78,1.94,1.97,1.78,2.75,2.75,1.88,1.89,1.85,1.82,0-0,0-0
+2026-02-01,01:00,Primera Division Liga MX,Monterrey,Club Tijuana,-0.75,-1.0,0.75,1.0,1.88,1.88,2.04,1.94,2.75,3.0,1.95,1.94,1.93,1.86,1-1,2-2
+2026-02-01,01:00,Primera Division de El Salvador,CD FAS,Aguila,-0.25,-0.25,0.25,0.25,1.95,1.85,1.87,1.88,2.5,2.5,1.93,1.97,1.88,1.78,2-0,3-0
+2026-02-01,01:00,Primera Division de El Salvador,Luis Angel Firpo,Inter F.A,-0.75,-1.0,0.75,1.0,1.81,1.81,2.03,1.93,2.5,2.5,1.83,1.78,1.99,1.97,0-0,0-0
+2026-02-01,00:10,Trinidad and Tobago Pro League,National Defense Forces,Prison Service FC,-1.25,-1.5,1.25,1.5,1.96,1.96,1.79,1.76,3.75,3.25,1.83,1.97,1.92,1.75,1-0,2-0

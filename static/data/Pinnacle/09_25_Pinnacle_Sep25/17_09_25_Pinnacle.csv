@@ -1,0 +1,259 @@
+Date,Time,League,Home Team,Away Team,Home AH Closing,Home AH Opening,Away AH Closing,Away AH Opening,Home Odds Closing,Home Odds Opening,Away Odds Closing,Away Odds Opening,Total Line Closing,Total Line Opening,Over Odds Closing,Over Odds Opening,Under Odds Closing,Under Odds Opening,HT Result,FT Result
+2025-09-17,23:40,USA Major League Soccer,New York City FC,Columbus Crew,-0.5,0.0,0.5,0.0,1.99,1.87,1.92,1.95,3.0,3.0,1.83,1.94,2.07,1.86,1-1,3-2
+2025-09-17,23:30,Brazil Copa Gaucho,Brasil de Pelotas,Gaucho/RS,-0.75,-1.0,0.75,1.0,1.77,1.74,1.98,1.94,2.25,2.25,1.87,1.79,1.87,1.88,0-0,0-0
+2025-09-17,23:15,Primera Division de Honduras,Platense,CD Motagua,0.75,0.5,-0.75,-0.5,2.0,1.93,1.79,1.83,3.0,2.75,1.96,1.79,1.83,1.97,0-2,1-2
+2025-09-17,23:00,Brazil Catarinense Division 2,Chapecoense,Brusque FC,-0.5,-0.25,0.5,0.25,1.86,1.75,1.88,1.97,2.0,2.0,1.94,2.0,1.81,1.74,0-0,0-0
+2025-09-17,22:30,Brazil Serie A,Botafogo RJ,Mirassol,-0.75,-1.0,0.75,1.0,1.97,1.97,1.92,1.85,2.5,2.5,2.08,1.91,1.81,1.89,3-0,3-3
+2025-09-17,22:30,USL League One,Richmond Kickers,Portland Hearts of Pine,0.0,0.25,0.0,-0.25,1.93,1.76,1.88,2.0,2.75,2.5,1.92,1.79,1.9,1.96,1-2,2-5
+2025-09-17,22:00,Argentina Reserve League,Central Cordoba SdE Reserves,Tigre Reserves,0.0,0.0,0.0,0.0,2.01,1.97,1.82,1.78,2.0,2.0,1.77,1.88,2.07,1.85,0-1,1-1
+2025-09-17,22:00,Bolivia Primera Division,Jorge Wilstermann,Nacional Potosi,0.25,0.5,-0.25,-0.5,1.9,1.85,1.95,1.92,2.75,2.75,1.88,1.83,1.96,1.92,0-3,2-5
+2025-09-17,22:00,Brasil Cup women,Palmeiras SP (W),America Mineiro (W),-1.75,-1.5,1.75,1.5,1.96,1.77,1.77,1.95,3.0,3.0,1.77,1.81,1.96,1.91,0-0,3-0
+2025-09-17,22:00,Copa Sudamericana,Bolivar,Atletico Mineiro,-0.75,-0.75,0.75,0.75,2.05,1.9,1.85,1.9,2.0,2.5,2.02,1.85,1.85,1.93,0-2,2-2
+2025-09-17,22:00,Costa Rica Primera Division,Guadalupe FC,Municipal Liberia,0.5,0.25,-0.5,-0.25,1.86,1.76,1.99,2.03,2.5,2.5,1.93,1.92,1.91,1.84,2-0,2-2
+2025-09-17,22:00,Primera Division de Paraguay,Cerro Porteno,Atletico Tembetary,-1.5,-1.25,1.5,1.25,1.98,1.93,1.88,1.85,2.75,2.5,1.94,1.86,1.89,1.89,0-0,1-1
+2025-09-17,22:00,Venezuela Cup,Deportivo La Guaira,Universidad Central de Venezuela,-0.75,-0.75,0.75,0.75,1.79,1.85,2.02,1.86,2.25,2.25,1.83,1.77,1.96,1.95,0-0,1-1
+2025-09-17,21:00,Argentina Cup,Newells Old Boys,Belgrano,0.5,0.0,-0.5,0.0,1.77,1.76,2.1,2.03,1.75,1.75,1.83,1.88,2.01,1.88,1-1,1-3
+2025-09-17,21:00,Brasil Cup women,Sao Paulo/SP (W),Flamengo/RJ (W),-0.5,-0.25,0.5,0.25,1.93,1.74,1.81,1.99,2.75,2.5,1.85,1.83,1.89,1.88,0-0,1-0
+2025-09-17,21:00,Panama Liga Prom,CD Universitario Reserves,CA Independiente de la Chorrera Reserves,1.0,0.75,-1.0,-0.75,1.81,1.85,1.93,1.85,3.5,3.25,1.88,1.8,1.86,1.91,3-0,3-0
+2025-09-17,20:30,Ecuador Campeonato Serie B,San Antonio(ECU),Leones del Norte,0.0,0.0,0.0,0.0,2.04,1.79,1.79,1.96,1.5,1.75,1.79,1.85,2.05,1.89,1-0,1-1
+2025-09-17,20:15,Peru Primera Division,Comerciantes Unidos,Sport Huancayo,0.0,0.5,0.0,-0.5,2.03,1.8,1.83,1.98,2.25,2.5,1.88,1.97,1.96,1.79,0-0,2-0
+2025-09-17,20:00,Brasil Cup women,Bragantino (W),CA Piauiense(W),-1.5,-1.5,1.5,1.5,1.91,1.83,1.83,1.88,2.75,2.75,1.81,1.93,1.93,1.78,0-0,1-0
+2025-09-17,19:30,Venezuela Cup,Monagas SC,Carabobo FC,-0.25,0.25,0.25,-0.25,1.83,1.71,1.97,2.02,2.5,2.0,1.93,1.91,1.86,1.8,0-0,1-1
+2025-09-17,19:15,Iceland Division 1,HK Kopavogs,Throttur Reykjavik,-0.25,-0.25,0.25,0.25,2.06,1.98,1.81,1.84,3.25,3.5,1.94,1.89,1.89,1.91,0-0,4-3
+2025-09-17,19:00,Bolivia Primera Division,Academia del Balompie Boliviano,San Jose de Oruro,-0.25,-0.5,0.25,0.5,1.98,1.89,1.88,1.88,2.75,2.75,1.87,1.78,1.97,1.99,0-0,0-0
+2025-09-17,19:00,Botola Pro 1,Raja Club Athletic,FAR Forces Armee Royales,-0.25,0.0,0.25,0.0,2.0,1.95,1.85,1.87,2.0,2.0,1.95,1.83,1.88,1.97,0-0,0-0
+2025-09-17,19:00,Chile Tercera,Naval de Talcahuano,Lota Schwager,0.25,0.25,-0.25,-0.25,1.83,1.84,1.96,1.92,2.75,3.0,1.83,1.83,1.97,1.93,0-1,0-2
+2025-09-17,19:00,Costa Rica 2.Liga,Deportivo Upala,Santa Cruz Costa Rica,-0.5,-0.75,0.5,0.75,1.92,1.87,1.83,1.84,2.75,2.5,1.81,1.79,1.93,1.93,0-0,3-0
+2025-09-17,19:00,England League Cup,Swansea City,Nottingham Forest,0.75,0.75,-0.75,-0.75,1.94,1.91,1.94,1.86,2.75,2.75,2.0,1.97,1.88,1.79,0-2,3-2
+2025-09-17,19:00,International Friendly,Paraguay U20,Colombia U20,0.5,0.75,-0.5,-0.75,1.9,1.82,1.92,1.97,2.75,2.75,1.99,1.82,1.83,1.97,0-0,1-1
+2025-09-17,19:00,Malta Premier League,Mosta FC,Hibernians FC,0.25,0.5,-0.25,-0.5,1.98,1.79,1.84,1.95,2.5,2.5,1.98,1.96,1.84,1.79,1-1,2-2
+2025-09-17,19:00,The women\s league of Argentina,San Luis FC (W),CA Independiente (W),-0.25,-0.25,0.25,0.25,1.92,1.8,1.9,2.0,2.25,2.25,1.92,1.91,1.9,1.88,1-0,5-0
+2025-09-17,19:00,UEFA Champions League,AFC Ajax,Inter Milan,1.0,0.25,-1.0,-0.25,1.83,1.9,2.11,1.92,3.0,2.5,1.98,1.89,1.93,1.91,0-1,0-2
+2025-09-17,19:00,UEFA Champions League,Bayern Munchen,Chelsea,-0.75,-0.75,0.75,0.75,2.01,1.96,1.91,1.86,3.0,3.0,1.94,1.89,1.96,1.91,2-1,3-1
+2025-09-17,19:00,UEFA Champions League,Liverpool,Atletico Madrid,-1.25,-0.5,1.25,0.5,2.07,1.67,1.86,2.23,3.0,2.75,1.97,1.83,1.93,1.98,2-1,3-2
+2025-09-17,19:00,UEFA Champions League,Paris Saint Germain (PSG),Atalanta,-1.25,-1.5,1.25,1.5,1.87,1.95,2.06,1.87,3.0,2.75,1.85,1.8,2.07,2.01,2-0,4-0
+2025-09-17,18:45,England FA Cup,Frome Town,Shaftesbury Town,-0.75,-0.5,0.75,0.5,1.98,1.95,1.82,1.81,2.75,2.75,1.85,1.87,1.94,1.88,1-1,1-1
+2025-09-17,18:40,England National League Women,Bristol Rovers (W),Bridgwater United (W),-1.5,-1.5,1.5,1.5,1.9,1.9,1.84,1.81,4.0,4.0,1.91,1.9,1.83,1.81,3-0,4-1
+2025-09-17,18:30,Argentina Regional League,CD Policiales,Resistencia Central,0.0,0.0,0.0,0.0,1.9,1.88,1.84,1.83,2.25,2.25,1.75,1.74,2.0,1.98,1-0,1-5
+2025-09-17,18:30,Argentina Reserve League,CSD Flandria Reserves,Villa Dalmine Reserves,-0.75,-0.75,0.75,0.75,1.79,1.77,1.96,1.94,2.25,2.25,2.03,2.01,1.74,1.72,3-0,5-1
+2025-09-17,18:30,Argentina Reserve League,Deportivo Merlo Reserves,Villa San Carlos Reserves,-0.5,-0.75,0.5,0.75,1.93,1.85,1.81,1.85,2.0,2.25,1.81,2.0,1.93,1.73,0-0,2-0
+2025-09-17,18:30,Belgian Pro League,Racing Genk,Charleroi,-1.0,-0.75,1.0,0.75,2.08,1.93,1.84,1.88,3.0,3.0,1.95,2.01,1.93,1.8,0-1,0-1
+2025-09-17,18:30,England Nacional League Cup,Gateshead,Middlesbrough U21,0.0,0.0,0.0,0.0,1.83,1.87,1.99,1.87,3.5,3.5,1.85,1.83,1.97,1.92,0-1,0-2
+2025-09-17,18:30,England Ryman(Isthmian) League,Sevenoaks Town,Merstham,0.0,0.0,0.0,0.0,1.76,1.74,2.0,1.99,2.75,2.75,1.88,1.89,1.86,1.82,1-1,1-4
+2025-09-17,18:30,Switzerland. 2. Liga Interregional,FC Urania Geneve Sport,FC Vernier,0.5,0.5,-0.5,-0.5,1.9,1.87,1.84,1.84,3.25,3.25,1.79,1.77,1.96,1.94,0-1,0-1
+2025-09-17,18:30,UEFA Women Europa League,Yalong City (W),Glasgow City (W),0.25,0.5,-0.25,-0.5,1.83,1.74,1.91,1.93,2.5,2.75,1.96,1.76,1.79,1.92,0-1,0-3
+2025-09-17,18:30,Wales FAW Championship,Caerau Ely,Baglan Dragons,-0.25,-0.75,0.25,0.75,1.85,1.85,1.94,1.9,2.5,2.5,1.83,1.78,1.96,1.98,0-0,2-1
+2025-09-17,18:15,AFC Champions League 2,Al-Muharraq,Al Wihdat Amman,-0.5,-0.25,0.5,0.25,1.83,1.79,1.9,1.88,2.5,2.5,1.9,1.93,1.84,1.75,2-0,4-0
+2025-09-17,18:15,AFC Champions League 2,Al-Nassr,FC Istiklol Dushanbe,-3.0,-2.75,3.0,2.75,1.81,1.87,1.9,1.77,4.0,4.0,1.79,1.87,1.92,1.77,2-0,5-0
+2025-09-17,18:00,Argentina Reserve League,All Boys Reserves,CA Estudiantes Caseros Reserves,-0.5,-0.5,0.5,0.5,1.81,1.8,1.93,1.92,3.0,3.0,1.83,1.81,1.92,1.9,5-1,7-1
+2025-09-17,18:00,Argentina Reserve League,Banfield Reserves,Union Santa Fe Reserves,-0.25,-0.25,0.25,0.25,1.93,1.92,1.89,1.87,2.25,2.25,1.96,1.96,1.86,1.83,1-0,2-1
+2025-09-17,18:00,Argentina Reserve League,CA Aldosivi Reserves,Argentinos Jrs Reserves,0.0,0.0,0.0,0.0,2.09,2.07,1.76,1.74,2.25,2.25,1.98,1.91,1.85,1.88,0-0,1-1
+2025-09-17,18:00,Argentina Reserve League,Platense Reserves,San Martin de San Juan Reserves,-0.5,0.0,0.5,0.0,1.86,1.74,1.96,2.07,2.5,2.25,1.98,1.93,1.84,1.86,0-0,1-0
+2025-09-17,18:00,Argentina Reserve League,Racing Club Reserves,Colon Reserves,-0.25,-0.25,0.25,0.25,1.9,1.92,1.92,1.87,2.5,2.25,1.97,1.91,1.85,1.88,1-0,1-0
+2025-09-17,18:00,Argentina Reserve League,Temperley Reserves,Talleres Remedios Reserves,0.0,0.0,0.0,0.0,1.9,1.88,1.84,1.83,2.0,2.0,1.93,1.92,1.81,1.8,0-0,2-0
+2025-09-17,18:00,Argentina Reserve League,Velez Sarsfield Reserves,Atletico Tucuman Reserve,-0.75,-0.75,0.75,0.75,1.87,1.81,1.95,1.98,2.5,2.25,1.92,1.83,1.9,1.95,0-1,1-1
+2025-09-17,18:00,Belgian First Amateur Division,Belisia Bilzen,Leuven B,-0.25,-0.5,0.25,0.5,1.79,1.82,2.04,1.97,2.25,2.5,1.83,1.9,2.0,1.88,0-0,2-1
+2025-09-17,18:00,Brasil Cup women,SC Corinthians Paulista (W),EC Juventude (W),-2.5,-3.0,2.5,3.0,1.79,1.87,1.94,1.81,3.75,4.0,1.83,1.87,1.9,1.81,2-0,3-0
+2025-09-17,18:00,Brazil Campeonato Maranhense,Guarany AL,Cruzeiro Arapiraca,-0.25,-0.5,0.25,0.5,2.06,1.81,1.71,1.91,2.0,2.25,1.9,1.77,1.84,1.94,1-0,1-0
+2025-09-17,18:00,Brazil Campeonato Maranhense,Zumbi EC,Desportiva Alianca Pilarense,-1.0,-0.5,1.0,0.5,1.87,1.81,1.87,1.91,2.5,2.25,1.78,1.93,1.96,1.79,0-1,2-1
+2025-09-17,18:00,Holland Eredivisie,Feyenoord,Fortuna Sittard,-1.75,-1.75,1.75,1.75,1.99,1.9,1.9,1.9,3.25,3.25,1.94,1.88,1.93,1.9,1-0,2-0
+2025-09-17,18:00,Italy C1,Salernitana,Atalanta U23,-0.5,-0.75,0.5,0.75,1.82,1.97,2.05,1.81,2.5,2.5,1.92,1.98,1.92,1.79,0-0,1-0
+2025-09-17,18:00,Montenegro Prva Crnogorska Liga,FK Mornar Bar,FK Buducnost Podgorica,0.5,0.75,-0.5,-0.75,1.79,1.85,2.05,1.93,2.5,2.5,1.98,1.88,1.84,1.9,0-1,1-1
+2025-09-17,18:00,Peru Primera Division,Sporting Cristal,Alianza Atletico Sullana,-1.0,-1.0,1.0,1.0,1.85,1.85,2.0,1.93,2.5,2.5,1.86,1.83,1.98,1.93,0-0,0-0
+2025-09-17,18:00,Saudi Arabia Division 1,Al-Draih,Al-Adalh,-0.75,-0.75,0.75,0.75,1.83,2.0,2.03,1.83,2.5,2.5,1.98,1.87,1.77,1.93,3-0,3-1
+2025-09-17,18:00,Slovenia Cup,ND Gorica,NK Primorje,0.5,0.5,-0.5,-0.5,1.96,1.81,1.76,1.85,2.75,2.75,1.84,1.78,1.9,1.89,0-0,0-2
+2025-09-17,18:00,Spanish Federacion Cup,CD Varea,UD San Sebastian Reyes,0.5,0.5,-0.5,-0.5,1.96,1.91,1.79,1.8,2.25,2.25,1.89,1.89,1.85,1.82,1-0,1-2
+2025-09-17,18:00,Spanish Federacion Cup,CE Atletic Lleida 2019,Formentera,-0.5,-0.5,0.5,0.5,1.96,1.77,1.79,1.94,2.0,2.25,1.77,1.8,1.98,1.91,3-0,6-1
+2025-09-17,18:00,Spanish Federacion Cup,Orihuela CF,Huetor Tajar,-1.0,-1.0,1.0,1.0,1.98,1.76,1.77,1.96,2.25,2.0,2.0,1.75,1.76,1.97,2-0,3-0
+2025-09-17,18:00,Spanish Federacion Cup,Ourense CF,Zamora CF,0.0,0.0,0.0,0.0,1.97,1.93,1.78,1.78,2.0,2.0,1.96,1.98,1.79,1.75,0-1,2-1
+2025-09-17,18:00,Spanish Federacion Cup,Toledo,CD Coria,0.25,0.0,-0.25,0.0,1.75,1.74,2.01,1.99,2.0,2.0,1.85,1.88,1.89,1.83,0-0,1-0
+2025-09-17,18:00,UEFA Women Europa League,Hibernian (W),Inter Milan (W),1.5,1.5,-1.5,-1.5,1.86,1.78,1.88,1.89,3.0,3.25,1.9,1.89,1.84,1.78,0-0,0-1
+2025-09-17,17:40,Israel C League,Hapoel Mahane Yehuda,Beitar Petah Tikva,-1.25,-1.5,1.25,1.5,1.93,1.88,1.82,1.82,2.75,3.0,1.94,1.93,1.8,1.78,0-0,1-0
+2025-09-17,17:35,Kuwaiti Premier League,Al Fahaheel SC,Al-Arabi Club (KUW),0.75,1.0,-0.75,-1.0,1.96,1.77,1.83,2.0,2.5,3.0,1.81,1.98,1.99,1.78,0-1,0-3
+2025-09-17,17:30,Croatia 2.HNL,Karlovac,Rudes,-0.25,-0.25,0.25,0.25,1.89,1.85,1.89,1.9,2.0,2.0,1.89,1.73,1.89,2.05,1-0,4-1
+2025-09-17,17:30,Germany Regionalliga,SC Paderborn 07 II,Wuppertaler,-0.75,-0.75,0.75,0.75,1.81,1.95,2.03,1.83,2.75,2.75,1.81,1.75,2.02,1.99,5-1,6-1
+2025-09-17,17:30,Germany Regionalliga,SSVg Velbert,Bonner,0.25,-0.25,-0.25,0.25,2.02,1.86,1.81,1.93,2.5,3.0,1.83,2.01,2.0,1.79,0-0,0-0
+2025-09-17,17:30,Germany Regionalliga,SV Rodinghausen,Fortuna Dusseldorf (Youth),-0.5,-0.25,0.5,0.25,1.94,1.95,1.88,1.84,2.75,2.75,1.91,1.96,1.91,1.83,3-0,3-0
+2025-09-17,17:30,Germany Regionalliga,Schalke 04 (Youth),Rot-Weiss Oberhausen,-0.25,-0.5,0.25,0.5,1.91,1.87,1.91,1.92,3.0,3.25,1.85,1.99,1.97,1.81,0-0,0-2
+2025-09-17,17:30,Germany Regionalliga,Siegen Sportfreunde,Sportfreunde Lotte,-0.5,-0.75,0.5,0.75,2.01,1.98,1.81,1.82,2.75,2.75,1.99,1.78,1.83,2.02,0-0,0-0
+2025-09-17,17:30,Poland Division 2,Olimpia Grudziadz,Podbeskidzie Bielsko-Biala,0.0,0.0,0.0,0.0,1.74,1.93,1.94,1.81,2.5,2.5,1.82,1.91,1.85,1.83,0-0,2-1
+2025-09-17,17:30,Russia Cup,FK Sochi,Dynamo Moscow,0.75,0.75,-0.75,-0.75,2.01,2.02,1.88,1.79,2.75,2.75,2.0,1.83,1.87,1.96,0-3,0-4
+2025-09-17,17:30,Russia Cup,Zenit St. Petersburg,Terek Grozny,-0.75,-1.25,0.75,1.25,1.91,1.85,1.98,1.94,2.25,2.75,1.87,1.97,2.0,1.82,1-0,2-1
+2025-09-17,17:30,South Africa Premier Soccer League,AmaZulu,Stellenbosch FC,0.0,0.25,0.0,-0.25,2.08,1.79,1.79,1.99,1.75,2.0,1.82,1.88,2.03,1.87,2-0,2-1
+2025-09-17,17:30,South Africa Premier Soccer League,Marumo Gallants FC,Mamelodi Sundowns,1.25,1.25,-1.25,-1.25,1.92,1.89,1.93,1.88,2.25,2.5,1.94,1.91,1.89,1.85,1-1,1-1
+2025-09-17,17:30,South Africa Premier Soccer League,Polokwane City FC,Lamontville Golden Arrows,-0.25,-0.25,0.25,0.25,1.81,1.82,2.05,1.95,1.75,1.75,2.02,1.8,1.83,1.96,0-1,2-1
+2025-09-17,17:30,South Africa Premier Soccer League,Richards Bay,TS Galaxy,0.0,0.0,0.0,0.0,2.1,1.75,1.78,2.04,1.75,1.75,1.98,1.91,1.85,1.85,1-1,1-1
+2025-09-17,17:30,Switzerland Promotion League,SC Cham,Vevey Sports,-0.75,-0.75,0.75,0.75,2.01,1.95,1.82,1.8,3.25,3.25,1.94,1.82,1.88,1.93,2-0,3-1
+2025-09-17,17:00,Argentina Reserve League,Almagro Reserves,Deportivo Moron Reserves,0.0,-0.25,0.0,0.25,1.83,1.89,1.83,1.82,2.25,2.0,1.96,1.72,1.72,2.01,0-0,1-1
+2025-09-17,17:00,Austrian Cup,SV Oberwart,Rapid Wien,2.75,2.75,-2.75,-2.75,1.81,1.87,1.89,1.81,4.0,4.0,1.86,1.89,1.85,1.79,0-2,1-2
+2025-09-17,17:00,Egyptian Premier League,Al Masry,Ghazl El Mahallah,-0.75,-0.75,0.75,0.75,1.86,1.92,1.99,1.85,2.25,2.25,1.95,2.04,1.88,1.75,1-1,2-1
+2025-09-17,17:00,Egyptian Premier League,El Gouna FC,Petrojet,0.0,0.0,0.0,0.0,1.73,2.02,2.17,1.77,1.75,1.75,1.79,1.76,2.06,2.03,0-0,1-1
+2025-09-17,17:00,German 3.Liga,Energie Cottbus,Erzgebirge Aue,-0.5,-0.5,0.5,0.5,1.92,1.77,1.93,2.0,3.0,3.0,1.98,1.93,1.86,1.83,1-1,2-1
+2025-09-17,17:00,German 3.Liga,Hansa Rostock,TSV 1860 Munchen,0.0,0.0,0.0,0.0,1.85,1.88,2.0,1.88,2.5,2.5,1.98,1.88,1.86,1.88,2-0,2-1
+2025-09-17,17:00,German 3.Liga,Havelse,Ingolstadt,0.5,0.75,-0.5,-0.75,1.83,1.85,2.03,1.92,3.0,3.0,1.82,1.84,2.02,1.93,2-2,2-6
+2025-09-17,17:00,German 3.Liga,Rot-Weiss Essen,VfL Osnabruck,-0.5,-0.25,0.5,0.25,1.88,1.77,1.98,2.02,2.5,2.75,1.83,1.94,2.01,1.83,0-0,1-1
+2025-09-17,17:00,German 3.Liga,SV Waldhof Mannheim,VfB Stuttgart II,-0.5,-0.5,0.5,0.5,2.05,1.92,1.81,1.85,2.75,2.75,2.0,1.94,1.84,1.83,0-0,0-1
+2025-09-17,17:00,Germany Regionalliga,Chemnitzer,Hallescher FC,0.25,0.5,-0.25,-0.5,2.04,1.93,1.79,1.85,2.25,2.25,1.85,1.92,1.97,1.87,2-0,3-0
+2025-09-17,17:00,Germany Regionalliga,Werder Bremen (Youth),Eintracht Norderstedt,-0.25,-0.5,0.25,0.5,1.96,2.01,1.86,1.79,3.5,3.5,1.88,1.91,1.93,1.88,0-2,2-2
+2025-09-17,17:00,Hungary NB Ⅱ,Kecskemeti TE,Budapest Honved,0.0,0.0,0.0,0.0,1.89,1.88,1.89,1.87,2.25,2.5,1.88,1.99,1.91,1.77,0-0,1-0
+2025-09-17,17:00,Italy C1,USD Virtus Verona,Inter Milan U23,0.0,-0.25,0.0,0.25,1.8,1.76,2.07,2.03,2.25,2.25,1.85,1.81,1.98,1.95,1-1,1-2
+2025-09-17,17:00,Montenegro Prva Crnogorska Liga,Decic Tuzi,FK Sutjeska Niksic,0.25,0.0,-0.25,0.0,1.74,1.89,2.02,1.89,2.25,2.25,1.95,2.06,1.79,1.75,2-0,3-1
+2025-09-17,17:00,Poland III Liga,Hutnik Krakow II,Beskid Andrychow,1.25,2.0,-1.25,-2.0,1.83,1.77,1.91,1.93,3.0,3.75,1.88,1.91,1.85,1.79,1-2,1-4
+2025-09-17,17:00,Slovenia Cup,Tinex Sencur,Triglav Gorenjska,1.25,1.5,-1.25,-1.5,1.77,1.85,1.98,1.85,2.75,3.0,1.89,1.8,1.85,1.92,2-0,2-0
+2025-09-17,17:00,Spanish Federacion Cup,Terrassa,SD Ejea,-0.5,-0.25,0.5,0.25,1.83,1.75,1.92,1.98,2.0,2.0,1.83,1.75,1.91,1.98,0-0,0-1
+2025-09-17,17:00,Switzerland Super League,FC Sion,Servette,-0.25,0.0,0.25,0.0,2.08,1.96,1.84,1.86,2.75,2.75,2.05,1.86,1.85,1.94,0-0,0-2
+2025-09-17,17:00,Switzerland Super League,Lugano,Lausanne Sports,-0.5,-0.25,0.5,0.25,1.92,2.02,1.99,1.81,2.75,3.0,1.98,1.93,1.9,1.87,1-0,1-1
+2025-09-17,17:00,Turkey Super Lig,Fenerbahce,Alanyaspor,-1.75,-1.5,1.75,1.5,1.98,1.88,1.91,1.94,3.0,3.25,2.05,1.95,1.83,1.85,0-1,2-2
+2025-09-17,17:00,Turkey Super Lig,Karagumruk,Istanbul Basaksehir,0.5,0.5,-0.5,-0.5,1.88,1.91,2.02,1.91,2.5,2.5,2.01,1.95,1.88,1.85,0-0,0-2
+2025-09-17,17:00,Turkey Super Lig,Samsunspor,Kasimpasa,-0.75,-0.5,0.75,0.5,2.07,1.97,1.85,1.85,2.5,2.5,1.98,1.83,1.91,1.97,0-0,0-0
+2025-09-17,17:00,UEFA Women Europa League,Anderlecht (W),Aris Limassol  (W),-4.5,-3.25,4.5,3.25,1.84,1.77,1.87,1.87,5.25,4.5,1.81,1.82,1.9,1.82,5-0,9-0
+2025-09-17,17:00,UEFA Women Europa League,PSV Eindhoven  (W),Rosenborg BK  (W),-0.75,-0.5,0.75,0.5,1.86,1.88,1.88,1.79,3.0,3.25,1.84,1.88,1.9,1.79,2-0,4-0
+2025-09-17,16:45,Iceland Division 1,Keflavik,UMF Njardvik,0.0,0.0,0.0,0.0,1.88,1.85,1.97,1.97,3.5,3.5,1.92,1.97,1.92,1.83,0-2,1-2
+2025-09-17,16:45,Malta Premier League,Marsaxlokk FC,Gzira United,-0.25,-0.5,0.25,0.5,2.07,1.81,1.77,1.93,2.25,2.5,1.79,1.93,2.04,1.82,2-0,2-0
+2025-09-17,16:45,UEFA Champions League,Olympiakos Piraeus,AEP Paphos,-1.25,-1.0,1.25,1.0,1.9,1.81,2.01,2.01,2.75,2.75,1.93,1.9,1.95,1.9,0-0,0-0
+2025-09-17,16:45,UEFA Champions League,Slavia Praha,Bodo Glimt,-0.5,-0.25,0.5,0.25,1.94,1.83,1.96,2.0,2.75,2.75,1.88,1.81,2.02,2.0,1-0,2-2
+2025-09-17,16:30,Denmark Cup,IF Lyseng,Roskilde,1.75,1.5,-1.75,-1.5,1.83,1.82,1.98,1.93,3.25,2.75,1.95,1.79,1.85,1.96,0-2,2-2
+2025-09-17,16:30,Estonia Champions League,JK Tallinna Kalev,Paide Linnameeskond,2.25,2.0,-2.25,-2.0,1.83,1.93,2.01,1.83,3.5,3.25,1.82,1.79,2.01,1.96,0-2,0-3
+2025-09-17,16:30,Montenegro Prva Crnogorska Liga,FK Mladost DG,Jezero Plav,-0.25,0.0,0.25,0.0,1.93,1.76,1.88,2.04,2.5,2.25,2.03,1.93,1.81,1.85,0-0,0-1
+2025-09-17,16:30,Qatar B,Al Bidda SC,Al Mesaimeer Club,0.25,-0.25,-0.25,0.25,1.77,1.99,1.98,1.74,2.75,2.5,1.93,1.77,1.81,1.94,1-1,2-1
+2025-09-17,16:30,Qatar B,Al Khor SC,Al Waab SC,-1.0,-0.75,1.0,0.75,1.9,1.93,1.84,1.73,2.75,2.75,1.8,1.87,1.94,1.84,1-1,1-1
+2025-09-17,16:30,Qatar B,Al Markhiya,Al-Khuraitiat,-0.5,-0.25,0.5,0.25,1.82,1.76,1.93,1.96,2.5,2.5,1.88,1.91,1.85,1.81,1-0,2-1
+2025-09-17,16:30,Qatar B,Lusail Russell City,Muaidar SC,0.0,-0.5,0.0,0.5,1.88,1.96,1.79,1.76,2.5,2.5,1.87,1.86,1.8,1.85,2-0,2-0
+2025-09-17,16:30,USL Championship,Birmingham Legion,Tampa Bay Rowdies,-0.25,-0.25,0.25,0.25,1.91,1.91,1.94,1.85,2.5,2.5,1.92,1.81,1.92,1.94,1-0,1-4
+2025-09-17,16:15,Slovenia Cup,Tabor Sezana,FC Koper,1.0,1.25,-1.0,-1.25,1.81,1.8,1.93,1.87,2.5,3.0,1.81,1.78,1.93,1.89,0-0,0-0
+2025-09-17,16:00,AFC Champions League 2,Al-Ahli Doha,Al Khaldiya,-0.25,-0.5,0.25,0.5,1.81,1.81,2.01,1.86,2.75,2.75,1.93,1.76,1.89,1.91,0-0,0-0
+2025-09-17,16:00,AFC Champions League 2,Al-Wasl,Esteghlal Tehran,-0.75,-0.5,0.75,0.5,1.99,1.88,1.83,1.79,2.25,2.25,1.81,1.88,2.03,1.79,3-1,7-1
+2025-09-17,16:00,Cyprus 1 Division,Omonia Nicosia FC,AEK Larnaca,0.0,-0.25,0.0,0.25,1.84,1.81,2.02,1.97,2.5,2.5,2.02,1.82,1.83,1.94,0-0,1-0
+2025-09-17,16:00,Denmark Cup,Aalborg,Midtjylland,1.5,1.25,-1.5,-1.25,1.85,1.76,1.97,1.96,3.75,3.25,1.88,1.86,1.93,1.85,0-0,0-3
+2025-09-17,16:00,Estonia Champions League,Levadia Tallinn,FC Flora Tallinn,-1.0,-0.25,1.0,0.25,1.95,1.84,1.9,1.93,2.75,2.75,1.91,1.92,1.93,1.84,1-2,1-3
+2025-09-17,16:00,Finland Kolmonen,Kyparamaki,HoDy,-0.75,-1.0,0.75,1.0,1.79,1.96,1.95,1.76,4.25,3.5,1.83,1.79,1.92,1.93,2-2,3-4
+2025-09-17,16:00,Finland Kolmonen,VPV Pallo-Veikot,FF Jaro II,2.25,2.5,-2.25,-2.5,1.8,1.88,1.93,1.82,4.5,4.5,1.88,1.79,1.84,1.91,0-3,0-4
+2025-09-17,16:00,Israel Leumit League,Hapoel Ramat Gan,Maccabi Petah Tikva FC,0.5,0.25,-0.5,-0.25,1.84,1.94,1.98,1.85,2.75,2.5,2.02,1.82,1.81,1.97,0-2,0-3
+2025-09-17,16:00,Latvia Cup,FK Rigas Futbola skola,FK Auda Riga,-1.5,-1.25,1.5,1.25,1.94,1.8,1.88,1.87,3.25,3.5,1.94,1.85,1.87,1.81,0-0,0-2
+2025-09-17,16:00,Norway NM Cupen,Kongsvinger,KFUM Oslo,0.5,0.25,-0.5,-0.25,1.83,1.88,2.04,1.83,2.5,2.75,1.97,1.81,1.87,1.91,0-1,1-3
+2025-09-17,16:00,Norway NM Cupen,Mjondalen IF,Brann,2.25,2.0,-2.25,-2.0,1.87,1.83,1.97,1.97,3.75,3.5,1.91,1.97,1.91,1.83,1-3,1-5
+2025-09-17,16:00,Poland Division 2,Chojniczanka Chojnice,Sokol Kleczew,-0.75,-1.0,0.75,1.0,1.84,1.93,1.98,1.81,2.75,2.5,1.87,1.77,1.95,1.98,0-1,1-4
+2025-09-17,16:00,Saudi Arabia Division 1,Al-Orubah,Al-Tai,0.25,-0.25,-0.25,0.25,1.87,2.0,1.99,1.83,2.5,2.25,2.02,1.79,1.83,2.03,2-0,2-1
+2025-09-17,16:00,Turkey Cup,Balikesirspor,Yesil Yalova FK,-0.75,-0.25,0.75,0.25,1.8,1.81,1.95,1.85,2.25,2.25,1.83,1.93,1.91,1.75,1-1,1-2
+2025-09-17,16:00,Turkey Cup,Karsiyaka,Yldrm Belediyesispor,-0.5,-1.25,0.5,1.25,1.84,1.86,1.9,1.81,2.5,2.75,1.96,1.88,1.79,1.78,0-1,0-1
+2025-09-17,16:00,Turkey Cup,Menemen Belediye Spor,Anadolu Universitesi,0.0,0.75,0.0,-0.75,1.76,1.85,1.99,1.86,3.0,2.5,2.0,1.82,1.76,1.88,0-1,2-1
+2025-09-17,16:00,Turkey Cup,Nigde Belediyespor,Aksarayspor,0.0,1.25,0.0,-1.25,1.83,1.83,1.92,1.82,2.5,2.75,1.91,1.83,1.83,1.83,2-0,3-1
+2025-09-17,16:00,Turkey Cup,Orduspor,Sebat Genclikspor,-0.75,0.0,0.75,0.0,1.81,1.78,1.86,1.89,2.75,2.75,1.76,1.78,1.92,1.88,0-1,1-1
+2025-09-17,16:00,UEFA Women Europa League,Kolos Kovalivka (W),Vllaznia Shkoder  (W),0.75,1.0,-0.75,-1.0,1.96,1.85,1.79,1.85,2.25,2.5,1.8,1.78,1.94,1.93,0-0,0-2
+2025-09-17,16:00,UEFA Women Europa League,ZFK Spartak Subotica (W),Partizani Tirana (W),-4.25,-4.0,4.25,4.0,1.93,1.85,1.78,1.79,5.0,5.0,1.79,1.77,1.93,1.87,1-0,3-0
+2025-09-17,16:00,Uganda Premier League,NEC FC Bugolobi,SC Villa,0.25,0.25,-0.25,-0.25,1.81,1.76,1.93,1.97,2.0,2.0,2.01,2.0,1.75,1.73,0-1,0-2
+2025-09-17,16:00,Ukraine Cup,PFC Oleksandria,Dynamo Kyiv,1.25,1.0,-1.25,-1.0,1.84,1.95,1.98,1.68,2.5,2.5,1.81,1.83,2.02,1.83,0-1,1-2
+2025-09-17,15:30,Lithuania cup,Dziugas Telsiai,Hegelmann Litauen,0.5,0.5,-0.5,-0.5,1.95,1.84,1.87,1.87,2.25,2.25,1.93,1.88,1.88,1.83,0-0,1-1
+2025-09-17,15:30,Montenegro Prva Crnogorska Liga,Arsenal Tivat,Bokelj Kotor,-0.25,-0.5,0.25,0.5,1.79,1.98,2.05,1.81,2.0,2.25,1.93,1.92,1.89,1.87,2-0,2-1
+2025-09-17,15:30,Spanish Federacion Cup,Deportiva Minera,Molinense,-0.75,-0.75,0.75,0.75,1.82,1.85,1.92,1.85,2.25,2.0,1.97,1.75,1.78,1.97,0-0,0-0
+2025-09-17,15:20,Kuwaiti Premier League,Al Kuwait SC,Al-Jahra,-2.75,-2.0,2.75,2.0,1.94,1.81,1.81,1.94,4.0,3.5,1.93,1.82,1.83,1.92,2-0,4-1
+2025-09-17,15:10,Argentina Reserve League,Sportivo Italiano Reserves,Atletico Fenix Reserves,0.0,0.0,0.0,0.0,2.0,1.81,1.75,1.9,2.0,1.75,2.03,1.74,1.74,1.99,0-0,0-1
+2025-09-17,15:00,Argentina Reserve League,Acassuso Reserves,Club Comunicaciones Reserves,-0.25,-0.25,0.25,0.25,2.02,2.02,1.67,1.67,2.0,2.0,1.94,1.93,1.8,1.79,0-2,0-4
+2025-09-17,15:00,Argentina Reserve League,Tristan Suarez Reserves,Gimnasia Mendoza Reserves,-0.75,-0.25,0.75,0.25,1.87,1.74,1.87,1.99,2.0,2.0,1.77,1.88,1.98,1.83,0-1,0-2
+2025-09-17,15:00,Austrian Cup,Sc Rothis,Sturm Graz,4.0,3.25,-4.0,-3.25,1.87,1.78,1.84,1.9,5.25,4.5,1.87,1.84,1.84,1.84,0-1,0-2
+2025-09-17,15:00,Estonia Womens Meistri Liiga,Saku Sporting (W),FC Flora Tallinn (W),1.75,1.5,-1.75,-1.5,1.91,1.88,1.82,1.78,3.5,4.0,1.79,1.81,1.93,1.86,1-0,1-0
+2025-09-17,15:00,Germany Regionalliga,BFC Preussen,Hertha BSC Berlin Youth,0.0,-0.25,0.0,0.25,1.92,1.91,1.9,1.88,2.75,2.75,1.8,1.93,2.04,1.86,0-0,0-0
+2025-09-17,15:00,Mexico Youth U21,Chivas Guadalajara U21,Tigres UANL U21,0.5,0.5,-0.5,-0.5,1.92,1.77,1.83,1.94,2.75,2.75,1.97,1.76,1.78,1.96,0-0,1-2
+2025-09-17,15:00,Russia Cup,Krylya Sovetov,FC Krasnodar,0.5,0.75,-0.5,-0.75,2.05,1.92,1.85,1.88,2.5,2.5,1.93,1.79,1.94,2.0,0-1,1-2
+2025-09-17,15:00,Switzerland Promotion League,Lugano U21,FC Luzern U21,-0.25,-0.25,0.25,0.25,1.95,1.74,1.87,1.95,3.5,3.25,1.89,1.75,1.93,1.94,1-0,2-2
+2025-09-17,15:00,Turkey Cup,Elazigspor,12 Bingol Bld,-0.5,-1.5,0.5,1.5,1.9,1.88,1.84,1.83,2.75,2.75,1.85,1.75,1.88,1.97,2-2,2-2
+2025-09-17,15:00,UEFA Women Europa League,KuPs (W),Nordsjaelland (W),0.75,0.5,-0.75,-0.5,1.88,1.75,1.86,1.93,3.25,3.0,1.91,1.81,1.83,1.86,1-2,1-5
+2025-09-17,14:45,Croatia 2.HNL,NK Croatia Zmijavci,HNK Cibalia,-0.25,-0.25,0.25,0.25,1.79,2.06,2.0,1.73,2.0,2.25,1.92,2.02,1.87,1.76,0-1,0-1
+2025-09-17,14:45,Poland III Liga,Pelikan Lowicz,Mazovia Rawa Mazowiecka,-2.0,-2.0,2.0,2.0,1.96,1.77,1.75,1.93,4.0,4.0,1.96,1.87,1.75,1.83,1-1,4-1
+2025-09-17,14:30,Argentina Reserve League,CA Atlanta Reserves,Defensores Unidos Reserves,-1.25,-1.25,1.25,1.25,1.92,1.98,1.83,1.75,2.5,2.25,1.98,1.76,1.77,1.95,0-0,0-1
+2025-09-17,14:30,Croatia 2.HNL,NK Dugopolje,Hrvace,-1.25,-0.25,1.25,0.25,1.94,1.83,1.85,1.93,2.75,2.5,1.9,1.96,1.88,1.8,1-0,2-0
+2025-09-17,14:30,Croatia 2.HNL,NK Jarun,NK Opatija,0.0,0.25,0.0,-0.25,1.85,1.83,1.94,1.93,2.0,2.0,1.94,1.81,1.85,1.94,1-0,2-0
+2025-09-17,14:30,Croatia 2.HNL,NK Orijent Rijeka,Radnik Sesvete,-0.5,-0.75,0.5,0.75,1.86,2.0,1.93,1.77,2.5,2.25,1.91,1.78,1.88,1.98,0-1,1-1
+2025-09-17,14:30,Croatia Cup,Granicar Kotoriba,Slaven Belupo,2.75,3.0,-2.75,-3.0,1.93,1.8,1.79,1.88,4.25,4.0,1.83,1.8,1.88,1.88,0-1,0-5
+2025-09-17,14:30,Estonia Champions League,Harju JK Laagri,FC Kuressaare,-0.75,-0.5,0.75,0.5,1.99,2.0,1.87,1.79,3.0,3.0,1.89,1.93,1.94,1.82,1-0,2-1
+2025-09-17,14:30,Greece Cup,Levadiakos,PAOK Saloniki,1.0,1.25,-1.0,-1.25,1.83,1.95,2.04,1.73,2.5,2.75,2.02,1.89,1.84,1.77,2-1,4-1
+2025-09-17,14:30,Greece Cup,Marko,AEL Larisa,0.75,1.0,-0.75,-1.0,2.07,1.94,1.75,1.77,2.25,2.25,2.01,1.81,1.79,1.9,1-1,2-2
+2025-09-17,14:30,Greece Cup,Panathinaikos,Kallithea,-1.75,-1.5,1.75,1.5,1.79,1.79,1.99,1.96,3.0,2.75,1.92,1.79,1.85,1.95,1-0,1-0
+2025-09-17,14:30,Poland III Liga,AKS SMS Lodz,Ner Poddebice,-2.25,-2.25,2.25,2.25,1.96,1.92,1.77,1.79,4.0,3.75,1.9,1.8,1.83,1.9,2-1,3-3
+2025-09-17,14:30,Professional Tunisian League 1,C.A.Bizertin,AS Gabes,-0.75,-1.0,0.75,1.0,1.8,2.01,2.04,1.79,1.75,2.0,1.8,1.97,2.03,1.82,1-0,3-0
+2025-09-17,14:30,Professional Tunisian League 1,Esperance Sportive Zarzis,U.S.Monastir,0.0,0.0,0.0,0.0,1.88,1.94,1.94,1.85,1.75,1.75,2.05,1.85,1.78,1.94,0-1,0-1
+2025-09-17,14:30,Professional Tunisian League 1,Jeunesse Sportive Omrane,Club Africain,0.75,0.75,-0.75,-0.75,1.89,1.82,1.93,1.97,1.75,2.0,1.86,1.96,1.96,1.83,0-2,0-3
+2025-09-17,14:30,Professional Tunisian League 1,Sifakesi,US Ben Guerdane,-0.75,-0.75,0.75,0.75,1.87,1.93,1.95,1.85,1.75,1.75,1.84,1.81,1.98,1.98,0-1,2-1
+2025-09-17,14:30,Slovenia Cup,NK Race,Dobrovce,-1.25,-1.0,1.25,1.0,1.9,1.93,1.84,1.78,3.0,3.0,1.85,1.93,1.88,1.79,1-1,4-1
+2025-09-17,14:30,Slovenia Cup,Roltek Dob,Domzale,1.25,1.25,-1.25,-1.25,1.81,1.77,1.93,1.95,3.25,3.25,1.91,1.9,1.83,1.81,0-0,1-2
+2025-09-17,14:15,Estonia Champions League,Trans Narva,Nomme JK Kalju,0.25,0.25,-0.25,-0.25,1.86,1.85,1.99,1.93,2.75,2.75,1.95,1.85,1.88,1.91,0-0,0-0
+2025-09-17,14:00,Argentina Reserve League,Chacarita Juniors Reserves,Nueva Chicago Reserves,-0.5,-0.5,0.5,0.5,1.78,1.88,1.96,1.83,2.25,2.0,1.78,1.94,1.97,1.77,2-1,2-1
+2025-09-17,14:00,Argentina Reserve League,Deportivo Armenio Reserves,Ferrocarril Midland Reserves,-0.25,-0.25,0.25,0.25,1.76,1.75,1.99,1.97,2.0,2.0,1.84,1.83,1.9,1.88,3-0,5-1
+2025-09-17,14:00,Bosnia and Herzegovina Premier League,HSK Zrinjski Mostar,FK Sloga Doboj,-1.75,-1.5,1.75,1.5,1.83,1.85,1.95,1.91,2.5,2.25,1.81,1.79,1.96,1.98,2-0,3-0
+2025-09-17,14:00,Egyptian Premier League,El Mokawloon El Arab,Pharco,-0.5,-0.5,0.5,0.5,1.92,2.04,1.93,1.76,2.0,1.75,1.93,1.75,1.82,2.04,1-0,1-1
+2025-09-17,14:00,Jordan League Division 1,Al-Arabi(JOR),Sama SC,-0.75,0.0,0.75,0.0,1.79,1.79,1.95,1.92,2.75,2.25,1.97,1.81,1.78,1.9,1-0,2-2
+2025-09-17,14:00,Montenegro Prva Crnogorska Liga,Jedinstvo Bijelo Polje,OFK Petrovac,0.25,0.25,-0.25,-0.25,1.91,1.94,1.91,1.85,2.25,2.25,1.88,1.85,1.93,1.93,1-0,1-0
+2025-09-17,14:00,Poland Division 2,Hutnik Krakow,GKS Jastrzebie,-0.75,-0.75,0.75,0.75,1.81,1.91,2.01,1.83,3.0,2.75,1.88,1.89,1.85,1.85,0-0,3-0
+2025-09-17,14:00,Poland III Liga,Lech II Poznan,MKS Notec Czarnkow,-0.75,-1.0,0.75,1.0,1.86,1.77,1.88,1.94,3.5,3.25,1.93,1.79,1.81,1.92,0-1,0-2
+2025-09-17,14:00,Portugal U23,Gil Vicente U23,Braga U23,0.0,0.0,0.0,0.0,2.08,1.99,1.79,1.83,3.0,2.75,1.99,1.88,1.85,1.93,0-0,2-1
+2025-09-17,14:00,The women\s league of Argentina,Ferro Carril Oeste (W),Boca Juniors (W),0.5,0.5,-0.5,-0.5,1.97,1.97,1.85,1.82,2.25,2.25,1.84,1.89,1.98,1.89,0-0,1-0
+2025-09-17,14:00,UEFA Youth League U19,Bayern Munchen U19,Chelsea FC U19,-0.25,-0.25,0.25,0.25,1.89,1.83,1.89,1.88,3.5,3.25,1.9,1.91,1.88,1.81,2-1,2-3
+2025-09-17,14:00,UEFA Youth League U19,Liverpool U19,Atletico de Madrid U19,0.25,0.25,-0.25,-0.25,1.85,1.96,1.93,1.82,3.0,3.25,1.85,1.99,1.94,1.78,0-0,0-0
+2025-09-17,14:00,UEFA Youth League U19,Naxxar Lions U19,Lincoln Red Imps FC U19,-1.0,-1.0,1.0,1.0,1.86,1.85,1.88,1.86,4.25,4.25,1.84,1.83,1.9,1.88,0-1,0-2
+2025-09-17,13:45,AFC Champions League 2,Arkadag FK,FK Andijon,-0.75,-0.25,0.75,0.25,1.84,1.92,1.89,1.76,2.5,2.5,1.9,1.89,1.84,1.78,0-0,0-0
+2025-09-17,13:45,AFC Champions League 2,FC Goa,Al Zawraa,0.25,-0.25,-0.25,0.25,1.96,1.85,1.78,1.81,2.5,2.75,1.86,1.85,1.88,1.81,0-1,0-2
+2025-09-17,13:30,Macedonian First Football League,FC Struga Trim Lum,FK Shkendija 79,-0.5,-0.25,0.5,0.25,1.86,1.98,1.88,1.75,2.5,2.5,2.0,1.88,1.76,1.83,0-0,1-1
+2025-09-17,13:30,Macedonian First Football League,FK Tikves Kavadarci,FK Shkupi,-1.25,-1.0,1.25,1.0,1.84,1.75,1.9,1.98,2.5,2.5,1.81,1.85,1.93,1.86,1-0,1-0
+2025-09-17,13:10,Argentina Reserve League,Defensores de Belgrano Reserves,Almirante Brown Reserves,-0.25,-0.25,0.25,0.25,2.05,1.78,1.72,1.93,2.0,2.0,1.97,1.97,1.78,1.75,0-0,2-2
+2025-09-17,13:00,Albania Super league,Teuta Durres,KS Dinamo Tirana,0.0,0.0,0.0,0.0,1.93,1.74,1.81,1.99,2.0,2.0,1.87,1.92,1.87,1.8,1-0,1-0
+2025-09-17,13:00,Brazil national youth (U20) Football Championship,CR Flamengo (RJ) (Youth),Nova Iguacu U20,-1.5,-1.25,1.5,1.25,1.85,1.76,1.89,1.95,3.25,3.0,1.91,1.95,1.83,1.76,0-0,1-0
+2025-09-17,13:00,Egypt Division 2,Alo Egypt,Mustaqbal Sport,0.25,0.25,-0.25,-0.25,1.98,1.95,1.77,1.77,2.0,2.0,1.87,1.98,1.87,1.75,1-0,2-0
+2025-09-17,13:00,Greece Cup,Atromitos Athens,Hellas Syrou,-2.0,-2.0,2.0,2.0,1.92,1.79,1.85,1.93,2.75,3.0,1.82,1.92,1.96,1.81,3-0,4-2
+2025-09-17,13:00,Greece Cup,Egaleo Athens,AEK Athens,3.0,2.75,-3.0,-2.75,1.83,1.81,1.88,1.91,3.5,3.25,1.85,1.8,1.85,1.92,0-1,0-1
+2025-09-17,13:00,Greece Cup,OFI Crete,AO Kavala,-2.25,-1.75,2.25,1.75,1.88,1.77,1.89,1.88,3.25,2.75,2.01,1.83,1.78,1.83,2-0,3-0
+2025-09-17,13:00,Italy Serie D,ASD Victor San Marino,ASD Termoli Calcio,-0.25,-0.25,0.25,0.25,1.94,1.93,1.81,1.79,2.0,2.0,1.75,1.78,2.01,1.93,0-0,0-1
+2025-09-17,13:00,Tanzania Ligue 1,KMC FC,Dodoma Jiji FC,-0.25,-0.5,0.25,0.5,1.81,1.75,1.93,1.97,2.25,2.25,1.81,1.93,1.93,1.78,0-0,1-0
+2025-09-17,13:00,UEFA Youth League U19,Ajax U19,Inter Milan U19,-0.5,0.25,0.5,-0.25,1.87,1.82,1.92,1.88,3.5,3.0,1.98,1.83,1.81,1.88,1-0,1-1
+2025-09-17,12:30,Brazil national youth (U20) Football Championship,Paysandu Sport Club U20,Remo PA (Youth),-0.5,-0.75,0.5,0.75,1.78,1.79,1.96,1.93,3.0,3.5,1.81,1.9,1.93,1.81,0-0,1-0
+2025-09-17,12:30,Croatia 2.HNL,NK Dubrava Zagreb,Bijelo Brdo,0.0,0.0,0.0,0.0,1.83,1.95,1.96,1.81,2.25,2.25,1.85,1.94,1.93,1.81,1-0,1-0
+2025-09-17,12:30,UEFA Youth League U19,Paris Saint Germain U19,Atalanta U19,-0.75,-0.5,0.75,0.5,1.82,1.9,1.98,1.87,4.0,3.25,2.0,1.94,1.8,1.81,2-1,5-1
+2025-09-17,12:30,Ukraine Cup,FC Livyi Bereh,FC Victoria Mykolaivka,-0.25,-0.75,0.25,0.75,1.76,1.74,1.99,1.99,2.0,2.25,1.79,1.93,1.95,1.79,0-1,0-1
+2025-09-17,12:30,Ukraine Cup,Polissya Stavky,FC Shakhtar Donetsk,3.75,3.5,-3.75,-3.5,1.79,1.92,1.93,1.77,4.75,5.0,1.85,1.87,1.85,1.81,0-1,0-1
+2025-09-17,12:15,AFC Champions League 2,Nam Dinh FC,Ratchaburi FC,-0.75,-0.25,0.75,0.25,2.01,1.97,1.82,1.71,2.5,2.25,1.86,1.74,1.96,1.93,1-0,3-1
+2025-09-17,12:15,AFC Champions League Elite,Shanghai Port,Vissel Kobe,0.75,0.0,-0.75,0.0,2.06,1.84,1.81,1.93,2.75,2.75,1.82,1.81,2.03,1.96,0-3,0-3
+2025-09-17,12:00,Azerbaijan Division 2,Cəbrayıl FK,E Nel G Tick,0.25,0.25,-0.25,-0.25,1.8,1.71,1.95,2.02,2.0,2.25,1.93,1.98,1.82,1.75,1-2,1-3
+2025-09-17,12:00,Germany Regionalliga,Koln Am,Monchengladbach AM.,-0.25,0.0,0.25,0.0,1.98,1.85,1.84,1.93,3.0,3.0,1.97,2.0,1.85,1.79,0-1,2-1
+2025-09-17,12:00,Greece Cup,AE Kifisias,Asteras Tripolis,0.0,-0.25,0.0,0.25,1.95,1.91,1.9,1.83,2.25,2.25,1.98,1.91,1.87,1.83,0-1,1-1
+2025-09-17,12:00,Greece Cup,Panaitolikos Agrinio,Aris Thessaloniki,0.25,0.25,-0.25,-0.25,1.95,1.86,1.9,1.81,2.25,2.25,2.0,1.88,1.85,1.79,0-0,0-1
+2025-09-17,12:00,Poland Mloda Ekstraklasa,Legia Warszawa (Youth),Escola Varsovia Warszawa Youth,-0.5,-1.25,0.5,1.25,1.78,1.88,1.97,1.82,3.25,4.25,1.79,1.92,1.96,1.79,1-0,6-0
+2025-09-17,12:00,Turkey Cup,Corluspor,Ayvalikgucu Belediyespor,-0.75,-0.25,0.75,0.25,1.92,1.88,1.83,1.79,2.25,2.25,1.84,1.98,1.9,1.7,0-0,1-1
+2025-09-17,12:00,Turkey Cup,Galata,Beykozspor 1908,0.0,0.5,0.0,-0.5,1.78,1.79,1.96,1.88,2.5,2.75,1.81,1.93,1.93,1.74,0-3,1-5
+2025-09-17,12:00,Turkey Cup,Karabuk Idman,Belediye Derincespor,0.25,1.0,-0.25,-1.0,1.77,1.74,1.98,1.94,2.25,2.25,1.79,1.84,1.95,1.83,0-0,1-0
+2025-09-17,12:00,Turkey Cup,Kastamonuspor,Fatsa Belediyespor,-1.25,-1.5,1.25,1.5,1.9,1.77,1.83,1.91,2.5,2.5,1.88,1.76,1.86,1.92,1-1,2-2
+2025-09-17,12:00,Turkey Cup,Kepez Belediyespor,Denizli IY Gureller,-1.5,0.0,1.5,0.0,1.88,1.83,1.86,1.88,2.75,2.5,1.86,1.91,1.88,1.8,0-0,0-0
+2025-09-17,12:00,Turkey Cup,Kucukcekmece,Inegolspor,-0.25,0.0,0.25,0.0,1.93,1.77,1.81,1.9,2.5,2.5,1.94,1.87,1.8,1.8,1-0,1-1
+2025-09-17,12:00,Turkey Cup,Kutahyaspor,Altinordu,-1.5,0.5,1.5,-0.5,1.92,1.89,1.82,1.78,3.0,2.75,1.88,1.89,1.85,1.78,2-0,3-1
+2025-09-17,12:00,Turkey Cup,Silifke Belediyespor,Kahramanmaras Bld,-1.75,0.5,1.75,-0.5,1.79,1.74,1.93,1.94,2.75,2.75,1.77,1.88,1.96,1.79,3-0,7-1
+2025-09-17,12:00,Turkey Cup,Silivrispor,Halide Edip Adivarspor,0.25,0.25,-0.25,-0.25,1.95,1.85,1.79,1.82,2.5,2.5,1.94,1.75,1.8,1.93,0-0,0-0
+2025-09-17,12:00,Turkey Cup,Somaspor,Cankaya FK,0.25,-0.75,-0.25,0.75,1.88,1.92,1.85,1.76,2.5,2.5,2.0,1.95,1.76,1.73,0-2,1-3
+2025-09-17,12:00,Turkey Cup,Yeni Amasya Spor,Hekimoglu Trabzon,0.5,0.75,-0.5,-0.75,1.78,1.82,1.97,1.89,2.5,2.5,1.99,1.93,1.76,1.78,0-1,0-1
+2025-09-17,12:00,UEFA Women Europa League,Farul Constanta (W),HB Koge (W),1.25,1.75,-1.25,-1.75,1.93,1.91,1.82,1.76,2.5,3.5,1.79,1.92,1.95,1.74,0-1,0-3
+2025-09-17,11:30,Turkey Cup,Kahramanmarasspor,Karaman Belediyespor,0.0,0.75,0.0,-0.75,1.98,1.95,1.77,1.68,2.5,2.25,1.9,1.78,1.84,1.89,0-0,0-0
+2025-09-17,11:00,Poland III Liga,Wisla II Plock,Legia Warszawa B,0.5,0.5,-0.5,-0.5,1.95,1.76,1.79,1.96,3.25,3.0,1.96,1.89,1.78,1.81,1-1,1-2
+2025-09-17,11:00,Turkey Cup,Kdz Ereglispor,Bursaspor,0.75,1.5,-0.75,-1.5,1.95,1.83,1.79,1.83,2.75,3.0,1.82,1.89,1.93,1.77,0-0,1-2
+2025-09-17,11:00,UEFA Youth League U19,Slavia Praha U19,Bodo Glimt U19,-4.0,-1.5,4.0,1.5,1.88,1.96,1.83,1.81,5.25,3.5,1.81,1.81,1.9,1.95,1-0,5-0
+2025-09-17,10:30,India Bangalore Super Division,Student Union FC,FC Bengaluru United,1.25,1.0,-1.25,-1.0,1.83,1.97,1.92,1.76,3.0,3.0,1.93,1.97,1.81,1.75,0-1,0-8
+2025-09-17,10:30,UEFA Youth League U19,Olympiakos Piraeus U19,Paphos U19,-2.75,-2.25,2.75,2.25,1.77,1.95,1.94,1.76,4.25,3.25,1.93,1.76,1.78,1.94,2-0,4-0
+2025-09-17,10:00,AFC Champions League 2,Gamba Osaka,Eastern A.A Football Team,-3.25,-2.0,3.25,2.0,1.87,1.73,1.88,1.93,4.25,3.25,1.86,1.77,1.89,1.88,1-1,3-1
+2025-09-17,10:00,AFC Champions League Elite,Ulsan HD FC,Chengdu Rongcheng FC,-0.25,-0.25,0.25,0.25,1.91,2.0,1.94,1.79,2.75,3.0,1.88,1.91,1.96,1.85,0-1,2-1
+2025-09-17,10:00,Ukraine Cup,Metalist Kharkiv,LNZ Cherkasy,1.0,1.25,-1.0,-1.25,1.89,1.76,1.85,1.96,2.5,2.25,1.98,1.79,1.78,1.92,0-1,0-2
+2025-09-17,09:00,Myanmar League Women,Yreo FC (W),Yangon United FC (W),3.5,3.5,-3.5,-3.5,1.8,1.82,1.91,1.86,5.0,5.75,1.79,1.85,1.93,1.84,0-3,1-4
+2025-09-17,09:00,Slovakia - U19 League,DAC Dunajska Streda U19,FK Pohronie U19,-2.25,-1.5,2.25,1.5,1.84,1.78,1.88,1.93,4.25,3.75,1.83,1.86,1.9,1.85,2-0,6-0
+2025-09-17,09:00,Vietnam Women\s League,Ho Chi Minh City B (W),Ha Noi (W),4.0,4.0,-4.0,-4.0,1.75,1.82,1.97,1.93,4.25,4.25,2.35,1.93,1.53,1.82,0-1,0-2
+2025-09-17,08:45,Malaysia President Cup,Kuala Lumpur FA U20,Selangor FA U20,0.25,-0.5,-0.25,0.5,1.86,1.81,1.88,1.9,2.5,2.5,1.77,1.79,1.97,1.93,0-2,0-2
+2025-09-17,08:45,Malaysia President Cup,Melaka United U20,Sabah U20,1.0,0.0,-1.0,0.0,1.83,1.78,1.92,1.93,2.75,2.25,1.75,1.96,1.98,1.76,0-0,0-0
+2025-09-17,08:30,Cambodia Cup,Kampong Chhnang,Banteay Meanchey,2.75,2.0,-2.75,-2.0,1.81,1.93,1.9,1.77,5.0,4.0,1.88,1.93,1.83,1.73,0-1,1-4
+2025-09-17,08:00,India Bangalore Super Division,ASC Center FC,Bharat Bengaluru FC,-0.75,-0.25,0.75,0.25,1.96,2.01,1.76,1.72,3.0,2.75,1.83,1.85,1.91,1.85,1-0,3-2
+2025-09-17,06:00,India Mumbai Super Division,Symbians FC,Charkop FC,2.0,2.0,-2.0,-2.0,1.8,1.77,1.93,1.93,4.25,4.25,1.93,1.93,1.79,1.76,0-2,0-8
+2025-09-17,05:30,India Bangalore Super Division,MEG,Royal Banga Lu Lu,-1.0,-0.75,1.0,0.75,1.81,1.93,1.93,1.79,3.0,2.75,1.89,1.93,1.85,1.78,0-1,1-1
+2025-09-17,02:10,Canadian Championship,Vancouver Whitecaps,Forge FC,-1.0,-1.25,1.0,1.25,1.95,1.92,1.83,1.84,3.25,3.0,1.88,1.98,1.9,1.79,2-0,4-0
+2025-09-17,02:00,CONCACAF Women Champions Cup,Vancouver Whitecaps W,Gotham FC (W),3.0,3.25,-3.0,-3.25,1.77,1.86,1.94,1.77,4.0,4.25,1.79,1.84,1.93,1.8,1-2,1-4
+2025-09-17,02:00,Costa Rica Primera Division,Alajuelense,AD San Carlos,-1.0,-1.0,1.0,1.0,1.91,1.9,1.94,1.87,2.25,2.5,1.81,1.89,2.04,1.86,2-0,2-0
+2025-09-17,01:10,Colombia Copa Cup,Millonarios,Envigado FC,-1.0,-1.0,1.0,1.0,1.81,1.86,2.06,1.91,2.5,2.25,1.97,1.96,1.86,1.8,0-0,0-0
+2025-09-17,01:00,Liga Nacional de Guatemala,C.S.D. Comunicaciones,Malacateco,-1.0,-0.75,1.0,0.75,1.89,1.89,1.93,1.85,2.5,2.5,1.82,1.93,2.01,1.82,0-0,1-0
+2025-09-17,00:35,Brazil Serie B,Chapecoense SC,Atletico Paranaense,0.0,0.0,0.0,0.0,2.11,2.03,1.8,1.79,2.0,2.0,1.79,1.82,2.1,1.97,0-1,2-3
+2025-09-17,00:30,Copa Sudamericana,Lanus,Fluminense RJ,-0.25,-0.25,0.25,0.25,2.14,1.91,1.78,1.89,1.5,2.25,1.89,1.94,1.98,1.85,0-0,1-0
+2025-09-17,00:00,Bolivia Primera Division,Real Oruro,Aurora,-0.25,-0.25,0.25,0.25,1.95,1.92,1.9,1.85,2.75,2.75,1.85,1.85,1.99,1.91,2-1,5-3
+2025-09-17,00:00,CFU Club Championship,Central FC,Moca FC,-0.25,-0.25,0.25,0.25,1.98,2.0,1.77,1.73,2.5,2.5,1.92,1.96,1.82,1.76,1-0,2-0
+2025-09-17,00:00,USA Open Cup,Nashville,Philadelphia Union,-0.25,0.25,0.25,-0.25,1.86,2.0,2.03,1.82,2.75,2.75,2.0,1.89,1.87,1.89,1-0,3-1
+2025-09-17,00:00,USA Women,Seattle Reign (W),Racing Louisville (W),-0.25,0.0,0.25,0.0,1.94,1.86,1.87,1.88,2.5,2.25,2.0,1.78,1.83,1.97,0-0,1-0

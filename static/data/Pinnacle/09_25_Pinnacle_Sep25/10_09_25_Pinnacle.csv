@@ -1,0 +1,195 @@
+Date,Time,League,Home Team,Away Team,Home AH Closing,Home AH Opening,Away AH Closing,Away AH Opening,Home Odds Closing,Home Odds Opening,Away Odds Closing,Away Odds Opening,Total Line Closing,Total Line Opening,Over Odds Closing,Over Odds Opening,Under Odds Closing,Under Odds Opening,HT Result,FT Result
+2025-09-10,23:30,USA USL League One Cup,Hartford Athletic,Greenville Triumph,-0.5,-0.75,0.5,0.75,1.95,1.9,1.84,1.81,2.5,2.25,1.79,1.76,2.0,1.95,0-0,3-1
+2025-09-10,23:30,Uruguay Cup,Albion FC,Centro Recreativo Porongos,-0.75,-0.75,0.75,0.75,1.81,1.86,1.93,1.81,2.0,2.0,1.8,1.79,1.94,1.88,2-0,4-0
+2025-09-10,23:30,Uruguay Cup,CA Penarol,Liverpool URU,-0.5,-0.5,0.5,0.5,1.86,1.78,1.96,1.89,2.25,2.25,1.9,1.85,1.92,1.82,1-1,2-1
+2025-09-10,23:15,Primera Division de Honduras,CD Choloma,CD Motagua,1.25,1.0,-1.25,-1.0,1.91,1.77,1.88,1.99,3.25,2.75,1.98,1.83,1.81,1.93,0-1,0-3
+2025-09-10,23:00,Brazil Santa Catarina Cup,Caravaggio FC,Criciuma,-0.25,-0.25,0.25,0.25,1.94,1.91,1.8,1.81,2.25,2.25,1.93,1.9,1.82,1.81,0-0,0-1
+2025-09-10,23:00,Brazil Santa Catarina Cup,Concordia AC,Chapecoense,-0.25,-0.25,0.25,0.25,1.98,1.79,1.77,1.93,2.25,2.25,2.01,1.83,1.75,1.88,0-1,0-1
+2025-09-10,23:00,USA USL League One Cup,Rhode Island,Sacramento Republic FC,0.25,0.0,-0.25,0.0,1.73,1.83,2.09,1.88,2.0,2.0,1.89,1.81,1.89,1.9,0-0,0-0
+2025-09-10,22:00,Argentina Reserve League,Boca Juniors Reserve,Central Cordoba SdE Reserves,-1.25,-1.25,1.25,1.25,1.88,1.79,1.93,1.96,2.5,2.5,1.91,1.9,1.91,1.84,1-0,2-0
+2025-09-10,22:00,Colombia Primera B,Inter Palmira,Leones,-1.25,-1.5,1.25,1.5,1.94,1.97,1.91,1.79,2.75,2.75,1.99,1.88,1.85,1.86,0-0,1-0
+2025-09-10,22:00,Copa do Brasil,Fluminense RJ,Bahia,-0.75,-0.5,0.75,0.5,1.82,2.01,2.09,1.8,2.25,2.0,1.96,1.77,1.91,2.03,0-0,2-0
+2025-09-10,22:00,Uruguay Cup,Cerro Largo,Tacuarembo,-0.5,-0.5,0.5,0.5,1.92,1.86,1.9,1.8,2.0,2.0,1.79,1.8,2.05,1.87,0-0,0-1
+2025-09-10,22:00,Venezuela Cup,Universidad Central de Venezuela,Deportivo La Guaira,0.25,0.25,-0.25,-0.25,2.03,1.74,1.77,2.04,2.5,2.25,1.93,1.85,1.85,1.9,0-0,2-0
+2025-09-10,21:30,El Salvador Liga Feminina,Municipal Limeno (W),Alianza FC San Salvador (W),1.25,0.5,-1.25,-0.5,1.77,1.89,1.97,1.78,3.25,3.0,1.88,1.76,1.85,1.91,0-2,1-2
+2025-09-10,21:00,Guatemala D2,Huehuetecos FC,Chichicasteco FC,-0.75,-0.5,0.75,0.5,1.83,1.97,1.9,1.75,2.75,2.5,1.92,1.79,1.83,1.93,0-0,0-0
+2025-09-10,21:00,Guatemala D2,Nueva Santa Rosa CDF,Santa Lucia Cotzumalguapa,-1.0,-1.0,1.0,1.0,1.99,1.81,1.77,1.91,2.0,2.25,1.76,1.84,2.0,1.87,0-0,1-0
+2025-09-10,21:00,Guatemala D2,Suchitepequez,Nueva Concepcion,-1.25,-1.25,1.25,1.25,1.78,1.98,1.97,1.75,2.5,2.25,1.77,1.79,1.97,1.93,1-1,3-1
+2025-09-10,21:00,Primera Division de Honduras,Lobos UPNFM,Olancho FC,0.25,0.25,-0.25,-0.25,1.79,1.84,2.01,1.92,2.5,2.25,1.95,1.77,1.83,2.0,1-0,1-1
+2025-09-10,20:30,Ecuador Campeonato Serie B,22 de Julio,Chacaritas SC,-0.75,-0.5,0.75,0.5,1.79,1.86,2.01,1.88,2.5,2.5,1.79,1.86,2.0,1.88,1-0,1-1
+2025-09-10,20:30,Ecuador Campeonato Serie B,Atletico Vinotinto,CD Vargas Torres,-0.75,-0.5,0.75,0.5,2.02,1.79,1.81,1.95,2.0,2.25,1.76,1.95,2.09,1.79,0-0,0-0
+2025-09-10,19:10,Argentina Primera C Metropolitana,Deportivo Muniz,Ituzaingo,0.5,0.25,-0.5,-0.25,1.75,1.91,2.01,1.81,1.5,1.75,1.76,1.91,2.0,1.81,0-0,0-2
+2025-09-10,19:00,Faroe Islands Division 1,B36 Torshavn II,07 Vestur II,-2.25,-1.0,2.25,1.0,1.94,1.93,1.75,1.78,3.75,3.25,1.83,1.77,1.85,1.94,0-0,1-0
+2025-09-10,19:00,Guatemala D2,Coatepeque,Depotivo Gomera,-0.75,-0.75,0.75,0.75,1.87,1.76,1.87,1.96,2.25,2.25,1.81,1.75,1.93,1.97,1-1,2-1
+2025-09-10,19:00,Iceland U20 Women League,Fjolnir U20 (W),Selfoss U20 (W),1.0,0.75,-1.0,-0.75,1.82,1.82,1.92,1.89,4.25,4.0,1.86,1.89,1.88,1.82,2-0,4-0
+2025-09-10,19:00,Scottish Highland Football League,Banks o Dee,Formartine United,0.0,-0.25,0.0,0.25,1.88,2.01,1.91,1.76,2.5,2.75,1.93,1.9,1.85,1.85,0-0,1-0
+2025-09-10,19:00,Scottish Highland Football League,Brechin City,Huntly,-1.5,-1.75,1.5,1.75,1.82,1.92,1.97,1.83,3.5,3.25,1.83,1.81,1.96,1.93,1-0,2-0
+2025-09-10,19:00,Scottish Highland Football League,Buckie Thistle FC,Clachnacuddin,0.0,0.0,0.0,0.0,1.96,1.83,1.83,1.93,3.25,3.25,1.93,1.99,1.85,1.78,0-1,1-2
+2025-09-10,19:00,Scottish Highland Football League,Forres Mechanics,Keith,-1.25,-1.25,1.25,1.25,1.98,1.88,1.81,1.88,3.5,3.25,1.95,1.8,1.83,1.96,1-1,2-2
+2025-09-10,19:00,Scottish Highland Football League,Inverurie Loco Works,Turriff United,-0.5,-0.25,0.5,0.25,1.95,1.84,1.84,1.92,3.0,3.25,1.88,1.88,1.91,1.87,1-1,1-2
+2025-09-10,19:00,Scottish Highland Football League,Rothes,Deveronvale,1.0,1.0,-1.0,-1.0,1.88,1.79,1.9,1.97,3.75,3.5,1.96,1.85,1.83,1.91,2-0,2-5
+2025-09-10,19:00,Scottish Highland Football League,Strathspey Thistle,Brora Rangers,2.25,1.75,-2.25,-1.75,1.83,1.95,1.94,1.79,4.25,4.0,1.93,1.97,1.85,1.78,0-3,0-8
+2025-09-10,19:00,Scottish Highland Football League,fraserburgh,Lossiemouth,-2.75,-2.5,2.75,2.5,1.92,1.81,1.84,1.93,4.0,3.75,1.9,1.83,1.85,1.91,3-0,5-0
+2025-09-10,19:00,USA MLS Next Pro League,Chicago flame B,Cincinnati II,-0.25,-0.5,0.25,0.5,1.88,1.93,1.94,1.81,3.25,3.0,1.89,1.77,1.93,1.97,0-0,2-1
+2025-09-10,18:55,Spanish Queen Cup,CD Juan Grande (W),CD Femarguin (W),0.5,0.25,-0.5,-0.25,1.92,1.94,1.81,1.77,2.25,2.25,1.93,1.75,1.79,1.98,0-1,0-3
+2025-09-10,18:45,England Northern League Division One,Avro FC,Vauxhall Motors,-0.25,-0.25,0.25,0.25,2.01,1.99,1.75,1.74,2.5,2.5,1.86,1.85,1.88,1.86,0-0,2-1
+2025-09-10,18:45,England Northern League Division One,Corby Town,Boldmere St Michaels,-1.25,-1.5,1.25,1.5,1.79,1.95,1.95,1.76,2.75,3.0,1.81,1.89,1.93,1.82,0-0,1-0
+2025-09-10,18:45,England Northern Premier League,Stocksbridge Park Steels,Gainsborough Trinity,0.75,0.25,-0.75,-0.25,1.79,1.83,2.02,1.92,2.5,2.5,1.95,2.0,1.84,1.77,0-2,0-2
+2025-09-10,18:45,England Ryman(Isthmian) League,Downham Town FC,Redbridge,0.0,0.0,0.0,0.0,1.97,1.79,1.78,1.93,2.75,3.25,1.93,1.93,1.81,1.78,1-1,1-2
+2025-09-10,18:45,England Southern League Central Division,Stourbridge,Worcester City,-0.5,-0.25,0.5,0.25,1.87,1.92,1.92,1.84,2.5,2.5,1.89,1.91,1.89,1.85,2-0,2-2
+2025-09-10,18:45,England Southern Premier League,Gosport Borough,Wimborne Town,-0.25,0.0,0.25,0.0,2.02,1.86,1.78,1.89,2.75,2.5,2.01,1.88,1.79,1.88,0-0,1-0
+2025-09-10,18:45,England Southern Premier League,Taunton Town,Weymouth,-0.75,-0.75,0.75,0.75,1.91,1.88,1.88,1.87,2.75,2.75,1.88,1.95,1.9,1.81,0-0,1-1
+2025-09-10,18:45,Northern Ireland Women\s Super,St. James Swifts (W),Sion Swifts (W),-0.25,0.0,0.25,0.0,1.85,1.84,1.88,1.87,3.75,4.25,1.95,1.78,1.79,1.93,3-1,5-3
+2025-09-10,18:45,Spanish Queen Cup,UE Cornella (W),CE Europa (W),1.75,1.75,-1.75,-1.75,1.78,1.85,1.95,1.85,2.75,2.75,1.82,1.81,1.9,1.89,0-4,0-6
+2025-09-10,18:45,The lowlands of Scotland League,Celtic B,Stirling University,-2.0,-1.5,2.0,1.5,1.81,1.83,1.96,1.92,4.5,4.25,1.92,1.93,1.85,1.82,1-1,2-2
+2025-09-10,18:45,Wales Challenge League Cup,Barry Town United,Llanelli,-1.25,-1.25,1.25,1.25,1.79,1.81,1.95,1.9,3.0,3.0,1.93,1.75,1.81,1.97,0-0,1-0
+2025-09-10,18:45,Wales Challenge League Cup,Caernarfon,Holywell,-1.75,-1.5,1.75,1.5,1.81,1.77,1.93,1.95,3.5,3.5,1.81,1.88,1.93,1.83,0-0,2-2
+2025-09-10,18:45,Wales Challenge League Cup,Cambrian Clydach,UWIC Inter Cardiff,0.5,0.5,-0.5,-0.5,1.88,1.78,1.85,1.93,2.75,2.75,1.8,1.76,1.95,1.97,1-1,1-1
+2025-09-10,18:45,Wales Challenge League Cup,Connahs Quay Nomads FC,The New Saints,1.0,1.25,-1.0,-1.25,1.83,1.83,1.91,1.88,3.0,3.0,1.78,1.83,1.97,1.88,0-2,1-3
+2025-09-10,18:45,Wales Challenge League Cup,Haverfordwest County,Swansea City U21,-0.25,-0.5,0.25,0.5,1.92,1.91,1.82,1.8,3.0,3.0,1.89,1.86,1.85,1.85,1-0,4-1
+2025-09-10,18:45,Wales Challenge League Cup,Newtown AFC,Bala Town F.C.,0.5,0.5,-0.5,-0.5,1.79,1.76,1.95,1.96,2.5,2.5,1.79,1.78,1.96,1.93,1-1,1-1
+2025-09-10,18:45,Wales Challenge League Cup,Pen-y-Bont FC,Briton Ferry Athletic,-1.25,-1.25,1.25,1.25,1.82,1.94,1.93,1.77,3.0,3.0,1.93,1.81,1.82,1.9,0-1,2-2
+2025-09-10,18:35,UEFA Women Europa League,Glasgow City (W),Yalong City (W),-1.25,-1.5,1.25,1.5,1.78,1.78,1.97,1.93,2.75,3.0,1.84,1.84,1.9,1.87,1-0,3-0
+2025-09-10,18:30,Belgian First Amateur Division,Dessel Sport,Hoogstraten VV,-0.75,-0.75,0.75,0.75,1.85,1.81,1.97,1.93,3.0,2.75,1.96,1.77,1.83,1.98,1-1,1-3
+2025-09-10,18:30,Brazil Campeonato Pernambucano A2,Ipojuca AC,Santoli,-1.0,-1.0,1.0,1.0,1.8,1.77,1.94,1.94,2.75,2.75,1.97,1.93,1.77,1.79,0-2,1-2
+2025-09-10,18:30,Northern Ireland Women\s Super,Bangor (W),Ballymoney United (W),0.0,0.25,0.0,-0.25,1.87,1.94,1.87,1.77,4.5,4.25,1.8,1.86,1.95,1.85,0-1,3-2
+2025-09-10,18:30,Spanish Federacion Cup,CD Estradense,CD Covadonga,-0.5,-0.25,0.5,0.25,1.93,1.89,1.81,1.82,2.25,2.25,1.92,1.89,1.83,1.82,2-0,2-1
+2025-09-10,18:30,Spanish Federacion Cup,CF Jaraiz,CD Coria,0.0,0.5,0.0,-0.5,1.88,1.75,1.85,1.96,2.5,2.5,1.87,1.81,1.87,1.89,1-1,2-2
+2025-09-10,18:30,Spanish Federacion Cup,UD San Sebastian Reyes,Alfaro,-0.75,-1.0,0.75,1.0,1.81,2.0,1.94,1.73,2.5,2.25,1.96,1.83,1.79,1.88,0-0,0-0
+2025-09-10,18:30,Spanish Federacion Cup,Zamora CF,SD Amorebieta,-0.75,-1.25,0.75,1.25,1.76,1.98,1.99,1.75,2.25,2.5,1.8,1.79,1.94,1.93,3-0,4-1
+2025-09-10,18:30,Uruguay Cup,Racing Club Montevideo,Boston River,0.25,0.0,-0.25,0.0,1.79,2.01,2.04,1.68,2.5,2.0,2.03,1.76,1.8,1.91,0-0,0-0
+2025-09-10,18:15,Iceland U20 Women League,HK Kopavogur U20 (W),Vikingur Reykjavik U20 (W),0.0,-0.25,0.0,0.25,1.84,1.83,1.9,1.88,4.75,4.0,1.92,1.79,1.82,1.93,1-0,1-2
+2025-09-10,18:15,Spain Regional League,CD Cabecense,UB Lebrijana,0.0,0.0,0.0,0.0,1.97,1.95,1.78,1.77,2.75,2.75,1.89,1.88,1.85,1.83,0-0,0-2
+2025-09-10,18:00,Argentina Reserve League,All Boys Reserves,Temperley Reserves,-0.25,-0.25,0.25,0.25,1.99,1.94,1.77,1.77,2.0,2.0,1.85,1.97,1.89,1.75,2-0,3-1
+2025-09-10,18:00,Argentina Reserve League,Belgrano Reserves,Newell\s Reserves,-0.75,-0.5,0.75,0.5,1.81,1.79,2.02,1.96,2.25,2.25,1.83,1.85,2.0,1.89,3-0,3-1
+2025-09-10,18:00,Argentina Reserve League,Rosario Central Reserves,Talleres Cordoba Reserve,-0.75,-0.5,0.75,0.5,1.8,1.8,2.04,1.94,2.5,2.0,1.9,1.74,1.92,2.03,1-0,1-0
+2025-09-10,18:00,Argentina Reserve League,San Martin de San Juan Reserves,Velez Sarsfield Reserves,0.25,0.25,-0.25,-0.25,1.83,1.85,1.99,1.88,2.0,2.0,1.82,1.82,2.01,1.93,1-1,2-4
+2025-09-10,18:00,Belgian First Amateur Division,Diegem Sport,Royal Knokke,0.25,0.25,-0.25,-0.25,2.02,1.9,1.81,1.84,2.75,3.0,1.84,1.93,1.99,1.81,1-0,2-3
+2025-09-10,18:00,Belgian First Amateur Division,Excelsior Virton,Schaerbeek Evere,-0.75,-0.5,0.75,0.5,1.91,1.82,1.91,1.93,2.75,2.75,1.82,1.82,2.01,1.92,2-1,5-2
+2025-09-10,18:00,Belgian First Amateur Division,Ninove,Thes Sport,-0.25,-0.5,0.25,0.5,1.99,1.83,1.84,1.91,2.5,3.0,1.84,1.88,1.98,1.86,1-1,1-2
+2025-09-10,18:00,Belgian First Amateur Division,Tubize,Rochefort,-1.0,-1.25,1.0,1.25,1.79,1.84,2.04,1.89,2.75,3.0,1.83,1.95,2.0,1.8,0-0,1-0
+2025-09-10,18:00,Belgium Second Amateur Divisio,KSK Heist,Sint Truidense R,-0.5,-0.5,0.5,0.5,1.84,1.83,1.9,1.88,3.0,3.0,1.9,1.88,1.84,1.83,0-0,1-0
+2025-09-10,18:00,Belgium Second Amateur Divisio,Oudenaarde,Vigor Wuitens Hamme,-0.25,-0.25,0.25,0.25,1.85,1.96,1.89,1.76,2.75,3.0,1.87,1.81,1.87,1.91,0-2,0-4
+2025-09-10,18:00,Belgium Second Amateur Divisio,RFC Wetteren,Torhout,-0.5,-0.5,0.5,0.5,1.78,1.97,1.97,1.75,3.0,3.0,1.85,1.88,1.88,1.83,0-0,0-1
+2025-09-10,18:00,Belgium Second Amateur Divisio,Union La Calamine,Braine,-0.5,-0.5,0.5,0.5,1.91,1.97,1.83,1.75,3.0,2.75,1.8,1.93,1.94,1.79,1-2,1-2
+2025-09-10,18:00,Bosnia and Herzegovina Premier League,HSK Zrinjski Mostar,Sarajevo,-0.75,-0.75,0.75,0.75,1.99,1.88,1.8,1.88,2.25,2.25,1.98,1.78,1.81,1.98,1-0,2-0
+2025-09-10,18:00,Brazil Campeonato Paulista Youth,Ponte Preta (Youth),Capivariano FC SP Youth,0.0,-0.5,0.0,0.5,1.78,1.84,1.97,1.87,2.5,2.5,1.9,1.77,1.84,1.95,1-0,1-0
+2025-09-10,18:00,England U21 League Cup,Coventry U21,Blackburn Rovers U21,-0.25,0.25,0.25,-0.25,1.98,1.87,1.84,1.87,3.0,3.25,1.85,1.83,1.95,1.89,1-0,1-1
+2025-09-10,18:00,Premier League International Cup,Leicester City U21,Juventus U21,0.0,0.25,0.0,-0.25,1.83,1.78,1.99,2.02,3.25,3.25,1.98,1.92,1.84,1.87,0-0,1-2
+2025-09-10,18:00,Premier League International Cup,Wolverhampton U21,Real Madrid U21,1.0,0.25,-1.0,-0.25,1.93,1.89,1.88,1.89,3.5,3.25,1.85,1.93,1.97,1.86,0-0,0-1
+2025-09-10,18:00,Spanish Federacion Cup,CD Laguna,Toledo,0.5,1.0,-0.5,-1.0,1.81,1.76,1.93,1.96,2.5,2.5,1.9,1.76,1.84,1.96,1-0,1-1
+2025-09-10,18:00,Spanish Federacion Cup,CD Varea,Moralo CP,-0.5,-0.25,0.5,0.25,1.78,1.87,1.97,1.84,2.75,2.75,1.93,1.83,1.82,1.88,1-0,2-0
+2025-09-10,18:00,Spanish Federacion Cup,CE Atletic Lleida 2019,CD Tudelano,-0.25,-0.25,0.25,0.25,1.76,1.93,1.99,1.79,2.25,2.25,1.87,1.87,1.87,1.84,0-0,1-0
+2025-09-10,18:00,Spanish Federacion Cup,Molinense,Xerez Deportivo,0.0,0.0,0.0,0.0,2.0,2.05,1.75,1.69,2.0,2.0,1.85,1.84,1.88,1.87,1-0,2-0
+2025-09-10,18:00,Spanish Federacion Cup,SD Laredo,Ourense CF,1.0,0.75,-1.0,-0.75,1.86,1.99,1.88,1.74,2.5,2.5,1.85,1.85,1.89,1.85,0-2,1-5
+2025-09-10,18:00,Spanish Queen Cup,Las Rozas CF (W),Getafe (W),-0.25,0.0,0.25,0.0,2.01,1.77,1.75,1.94,2.25,2.75,1.76,1.74,2.0,1.96,2-1,5-3
+2025-09-10,18:00,Spanish Queen Cup,Rayo Vallecano (W),Pozuelo Alarcon (W),0.0,-0.5,0.0,0.5,1.85,1.83,1.88,1.88,2.25,2.5,1.87,1.97,1.87,1.75,1-0,1-0
+2025-09-10,18:00,Spanish Queen Cup,Villarreal (W),Fundacion Albacete (W),0.0,-0.25,0.0,0.25,1.8,1.94,1.94,1.77,2.25,2.25,1.91,1.89,1.83,1.81,3-1,4-1
+2025-09-10,18:00,Switzerland Promotion League,FC Mendrisio Stabio,FC Winterthur U21,-0.25,-0.25,0.25,0.25,1.85,1.91,1.93,1.85,3.0,3.0,1.76,1.9,2.01,1.85,3-2,4-2
+2025-09-10,18:00,The women\s league of Argentina,Platense (W),CA Independiente (W),0.25,0.0,-0.25,0.0,1.76,2.0,2.09,1.75,2.0,2.25,1.91,1.88,1.91,1.86,0-0,0-0
+2025-09-10,18:00,UEFA Women Europa League,Inter Milan (W),Hibernian (W),-1.5,-2.25,1.5,2.25,1.83,1.78,1.91,1.93,3.25,3.25,1.83,1.79,1.92,1.91,2-0,4-1
+2025-09-10,17:40,Austria Landesliga,SPG Motz/Silz,FC Volders,0.25,0.0,-0.25,0.0,1.83,1.95,1.91,1.77,3.25,3.5,1.78,1.93,1.97,1.78,2-3,6-4
+2025-09-10,17:30,Austria Amateur cup,Oberpullendorf,SV Oberwart,2.25,2.5,-2.25,-2.5,1.88,1.9,1.85,1.8,4.5,4.5,1.87,1.87,1.85,1.83,0-0,0-5
+2025-09-10,17:30,International Club Friendly,AD Alcorcon,Cultural Leonesa,-0.25,0.0,0.25,0.0,1.83,1.88,1.92,1.82,2.0,2.5,1.75,1.88,2.01,1.83,0-0,0-1
+2025-09-10,17:30,Spanish Federacion Cup,SD Ejea,UE Tona,-0.5,-0.75,0.5,0.75,1.9,1.85,1.84,1.85,2.5,2.5,1.93,1.8,1.81,1.91,0-0,0-0
+2025-09-10,17:30,Spanish Queen Cup,Sport Extremadura (W),Cacereno (W),1.0,1.25,-1.0,-1.25,1.93,1.89,1.82,1.82,2.5,2.75,1.94,1.88,1.8,1.83,0-0,1-0
+2025-09-10,17:00,Finland Kolmonen,GrIFK Reservi,FC Finnkurd,-1.5,0.0,1.5,0.0,1.83,1.82,1.79,1.89,5.75,4.25,1.76,1.92,1.85,1.79,1-0,2-0
+2025-09-10,17:00,Finland Kolmonen,VJS Vantaa B,EIF Academy,-0.75,0.0,0.75,0.0,1.9,1.85,1.84,1.86,3.75,4.25,1.85,1.88,1.88,1.83,2-1,4-1
+2025-09-10,17:00,Finland Suomen Cup,KuPs,Jaro,-1.75,-1.25,1.75,1.25,2.01,2.03,1.86,1.78,3.25,3.0,1.97,1.98,1.88,1.81,1-0,2-0
+2025-09-10,17:00,Spanish Federacion Cup,CD Ceuta 6 de Junio,Orihuela CF,3.25,3.0,-3.25,-3.0,1.94,1.79,1.77,1.88,4.0,3.75,1.93,1.86,1.78,1.82,2-3,2-5
+2025-09-10,17:00,Spanish Federacion Cup,Terrassa,CA Monzon,-0.75,-0.75,0.75,0.75,1.77,1.73,1.98,2.0,2.5,2.5,1.93,1.88,1.81,1.82,1-0,4-0
+2025-09-10,17:00,Spanish Queen Cup,Atleico Malaga (W),Real Betis (W),0.0,0.0,0.0,0.0,2.01,1.88,1.75,1.83,2.5,3.0,1.92,1.85,1.83,1.85,0-0,0-0
+2025-09-10,17:00,Switzerland U19 Elite,Grasshopper U19,FC Zurich U19,-0.5,-0.25,0.5,0.25,1.89,1.79,1.85,1.93,4.0,4.0,1.81,1.93,1.93,1.79,1-1,1-1
+2025-09-10,17:00,UEFA Women Europa League,Grasshopper (W),BIIK Shymkent  (W),-1.5,-1.75,1.5,1.75,1.87,1.92,1.87,1.78,3.0,3.0,1.77,1.77,1.98,1.93,1-0,2-0
+2025-09-10,17:00,Uruguay Cup,Club Oriental,Defensor Sporting Montevideo,1.0,0.75,-1.0,-0.75,1.78,1.86,2.06,1.81,2.25,2.0,1.86,1.73,1.96,1.95,0-0,0-2
+2025-09-10,16:30,Finland Kolmonen,TuPS,HIFK,1.5,1.5,-1.5,-1.5,1.95,1.78,1.79,1.93,3.5,3.25,1.95,1.8,1.8,1.91,1-1,1-3
+2025-09-10,16:30,Spanish Queen Cup,CD Pradejon (W),Racing de Santander (W),0.5,0.75,-0.5,-0.75,1.75,1.91,1.98,1.81,2.25,2.25,1.98,1.96,1.77,1.76,0-2,0-4
+2025-09-10,16:30,Spanish Queen Cup,Elche (W),Colegio Aleman Valencia (W),1.75,1.25,-1.75,-1.25,1.83,1.88,1.9,1.83,3.0,3.0,1.9,1.79,1.83,1.93,0-0,0-2
+2025-09-10,16:30,Spanish Queen Cup,Sporting Gijon (W),Real Aviles CF (W),0.5,0.25,-0.5,-0.25,1.82,1.88,1.93,1.83,2.75,2.75,1.93,1.76,1.82,1.97,0-0,0-0
+2025-09-10,16:15,Spanish Queen Cup,Atletico Villalonga (W),Real Oviedo (W),1.25,1.0,-1.25,-1.0,1.82,1.83,1.93,1.88,3.25,3.0,1.97,1.79,1.78,1.93,0-3,0-6
+2025-09-10,16:00,Czech Republic Ceska Fotbalova Liga,Hlucin,Unicov,0.25,0.5,-0.25,-0.5,1.85,1.79,1.93,1.97,3.0,3.0,1.93,1.89,1.86,1.86,0-0,0-2
+2025-09-10,16:00,Estonia cup (w),FC Elva (W),JK Tallinna Kalev (W),1.75,1.5,-1.75,-1.5,1.79,1.88,1.93,1.83,3.75,4.0,1.81,1.83,1.93,1.88,1-1,3-2
+2025-09-10,16:00,Finland Kolmonen,FC Haka Juniors,TPV/2,-1.0,-1.5,1.0,1.5,1.79,1.77,1.96,1.94,4.25,4.25,1.87,1.81,1.87,1.91,1-0,2-0
+2025-09-10,16:00,Finland Kolmonen,JäPS/47,PKKU II,-2.25,-2.0,2.25,2.0,1.84,1.96,1.88,1.75,4.25,3.5,1.95,1.85,1.78,1.85,3-0,3-0
+2025-09-10,16:00,Finland Kolmonen,Kyparamaki,Huima/Urho,1.5,1.25,-1.5,-1.25,1.92,1.89,1.82,1.81,4.5,4.0,1.85,1.89,1.89,1.82,0-3,2-5
+2025-09-10,16:00,Poland III Liga,Barycz Sulow,Lechia Dzierzoniow,-2.5,-1.75,2.5,1.75,1.76,1.81,1.93,1.88,4.25,4.0,1.85,1.84,1.85,1.85,2-0,5-0
+2025-09-10,16:00,Spanish Queen Cup,Bizkerre (W),CD Alaves (W),1.5,1.5,-1.5,-1.5,1.88,1.88,1.86,1.82,2.75,3.25,1.91,1.93,1.83,1.78,0-3,0-5
+2025-09-10,16:00,Spanish Queen Cup,Cordoba (W),Sporting De Huelva (W),0.0,0.5,0.0,-0.5,1.83,1.77,1.92,1.94,2.25,2.75,1.81,1.83,1.94,1.88,1-1,1-4
+2025-09-10,16:00,UEFA Women Europa League,Nordsjaelland (W),KuPs (W),-0.75,-1.25,0.75,1.25,1.88,1.91,1.86,1.8,3.25,3.5,1.93,1.8,1.82,1.91,0-0,3-1
+2025-09-10,16:00,UEFA Women Europa League,Rosenborg BK  (W),PSV Eindhoven  (W),0.0,0.0,0.0,0.0,2.01,1.99,1.82,1.74,3.25,3.0,1.97,1.88,1.85,1.83,1-0,3-0
+2025-09-10,16:00,UEFA Women Europa League,SFK 2000 Sarajevo (W),Fomget Genclik (W),1.25,1.5,-1.25,-1.5,1.93,1.78,1.82,1.93,3.0,3.0,1.93,1.79,1.82,1.93,0-0,0-0
+2025-09-10,15:30,Finland Kolmonen,FF Jaro II,KPV/Akatemia,-4.0,-3.75,4.0,3.75,1.78,1.9,1.93,1.79,5.25,5.25,1.79,1.87,1.92,1.81,3-1,7-1
+2025-09-10,15:30,Finland Women Premier League,HJK Helsinki (W),PK-35 Vantaa (W),-3.5,-2.25,3.5,2.25,1.83,1.76,1.88,1.9,4.75,3.25,1.85,1.77,1.85,1.88,0-0,2-0
+2025-09-10,15:30,Germany Regionalliga,HSC Hannover,Hamburger SV (Youth),0.25,-0.25,-0.25,0.25,1.89,2.03,1.93,1.77,3.5,3.25,2.01,1.83,1.82,1.95,0-0,4-1
+2025-09-10,15:30,Spanish Federacion Cup,Deportiva Minera,UD Melilla,0.0,-0.25,0.0,0.25,1.79,1.89,1.96,1.82,2.5,2.5,1.87,1.88,1.87,1.83,1-0,3-0
+2025-09-10,15:00,Czech Republic Ceska Fotbalova Liga,Aritma Praha,Domazlice,0.5,0.75,-0.5,-0.75,1.93,1.81,1.86,1.95,2.75,2.75,1.94,1.78,1.85,1.99,0-0,0-1
+2025-09-10,15:00,Czech Republic Ceska Fotbalova Liga,Benatky Nad Jizerou,Velke Hamry,-0.25,0.0,0.25,0.0,1.96,1.99,1.83,1.77,3.0,2.75,1.93,1.82,1.85,1.94,0-0,0-1
+2025-09-10,15:00,Czech Republic Ceska Fotbalova Liga,Bohemians1905 B,SK Motorlet Praha,-0.25,0.0,0.25,0.0,1.79,1.83,2.01,1.93,2.75,3.0,1.91,1.89,1.88,1.86,0-0,1-1
+2025-09-10,15:00,Czech Republic Ceska Fotbalova Liga,Brno B,FC Vsetin,-1.25,-1.25,1.25,1.25,1.88,1.85,1.91,1.9,3.25,3.5,1.83,1.94,1.96,1.81,2-0,3-0
+2025-09-10,15:00,Czech Republic Ceska Fotbalova Liga,Ceske Budejovice B,Admira Praha,0.25,0.0,-0.25,0.0,1.83,1.96,1.96,1.8,2.75,3.0,1.93,1.98,1.86,1.79,0-0,0-0
+2025-09-10,15:00,Czech Republic Ceska Fotbalova Liga,Dukla Praha B,SK Petrin Plzen,-0.5,-0.75,0.5,0.75,1.81,1.89,1.98,1.86,3.25,3.25,1.91,1.95,1.88,1.81,1-1,3-1
+2025-09-10,15:00,Czech Republic Ceska Fotbalova Liga,FK Kraluv Dvur,FC Pisek,0.0,-0.25,0.0,0.25,2.07,1.98,1.75,1.78,2.75,3.0,1.89,1.79,1.89,1.97,0-2,1-2
+2025-09-10,15:00,Czech Republic Ceska Fotbalova Liga,Hodonin Sardice,Sigma Olomouc B,0.25,0.25,-0.25,-0.25,1.83,1.8,1.96,1.96,2.75,2.75,1.79,1.77,2.0,1.99,0-0,3-3
+2025-09-10,15:00,Czech Republic Ceska Fotbalova Liga,Hranice KUNZ,Vrchovina,0.0,0.0,0.0,0.0,2.05,1.88,1.76,1.87,2.5,2.75,1.83,1.86,1.95,1.89,1-0,2-0
+2025-09-10,15:00,Czech Republic Ceska Fotbalova Liga,Jiskra Usti nad Orlici,Banik Most-Sous,0.25,-0.25,-0.25,0.25,1.79,2.05,2.0,1.73,2.25,2.5,1.77,1.9,2.03,1.85,0-0,0-2
+2025-09-10,15:00,Czech Republic Ceska Fotbalova Liga,Pardubice B,Hradec Kralove B,0.0,0.25,0.0,-0.25,1.85,1.88,1.93,1.88,2.75,3.0,1.88,1.83,1.91,1.93,0-2,0-4
+2025-09-10,15:00,Czech Republic Ceska Fotbalova Liga,SK Kladno,FK Pribram B,-2.25,-2.0,2.25,2.0,1.93,1.83,1.84,1.91,4.0,3.5,1.98,1.85,1.8,1.89,1-2,5-2
+2025-09-10,15:00,Czech Republic Ceska Fotbalova Liga,SK Slovan Varnsdorf,FK Kolin,0.75,-0.25,-0.75,0.25,1.88,2.0,1.86,1.77,3.25,3.25,1.95,1.98,1.79,1.78,1-1,2-2
+2025-09-10,15:00,Czech Republic Ceska Fotbalova Liga,SK Zapy,Arsenal Ceska Lipa,0.0,-0.25,0.0,0.25,1.83,1.82,1.96,1.94,2.75,3.0,1.92,1.93,1.87,1.83,1-2,3-2
+2025-09-10,15:00,Czech Republic Ceska Fotbalova Liga,Sokol Brozany,Mlada Boleslav B,0.25,-0.5,-0.25,0.5,1.84,1.83,1.95,1.93,2.75,3.0,1.79,1.86,2.0,1.89,0-0,0-2
+2025-09-10,15:00,Czech Republic Ceska Fotbalova Liga,TJ Start Brno,Vitkovice,-0.75,-0.5,0.75,0.5,1.9,1.93,1.88,1.83,2.75,3.0,1.78,1.91,2.02,1.84,1-2,3-2
+2025-09-10,15:00,Czech Republic Ceska Fotbalova Liga,Taborsko B,Loko Vltavin,-0.75,-0.5,0.75,0.5,1.95,1.92,1.83,1.84,2.75,3.0,1.95,1.99,1.84,1.78,2-1,2-2
+2025-09-10,15:00,Czech Republic Ceska Fotbalova Liga,Teplice B,Slovan Velvary,-0.5,-0.5,0.5,0.5,1.8,1.97,2.0,1.79,3.0,3.25,1.79,1.93,2.0,1.83,2-0,5-1
+2025-09-10,15:00,Poland III Liga,Watra Bialka Tatrzanska,Luban Maniowy,0.25,0.5,-0.25,-0.5,1.89,1.85,1.84,1.86,2.75,2.75,1.85,1.88,1.88,1.83,0-3,1-3
+2025-09-10,15:00,Slovenia Cup,Hajdina,NK Aluminij,4.0,3.0,-4.0,-3.0,1.77,1.89,1.94,1.79,4.75,4.0,1.77,1.88,1.94,1.8,0-3,0-5
+2025-09-10,15:00,Spanish Queen Cup,Balears FC (W),Seccio Esportiva AEM (W),0.5,0.25,-0.5,-0.25,1.79,1.95,1.95,1.72,2.0,2.75,1.96,1.76,1.78,1.97,0-0,0-2
+2025-09-10,14:30,Bosnia Herzegovina U19 Liga,FK Borac Banja Luka U19,Siroki Brijeg U19,-0.75,-0.25,0.75,0.25,1.88,1.92,1.85,1.8,2.75,2.75,1.86,1.94,1.88,1.77,4-0,6-1
+2025-09-10,14:30,Croatia 3.Division,NK Primorac Biograd,Slovam lovenson,0.0,0.0,0.0,0.0,1.77,1.88,1.98,1.83,2.5,3.0,1.83,1.88,1.92,1.83,1-0,1-1
+2025-09-10,14:30,Croatia Cup,DUGO SELO,NK Lokomotiva Zagreb,2.0,2.25,-2.0,-2.25,1.93,1.77,1.8,1.93,3.5,3.5,1.87,1.85,1.85,1.85,0-2,0-4
+2025-09-10,14:30,Croatia Cup,HNK Vukovar 91,HNK Cibalia,-1.25,-1.5,1.25,1.5,2.0,1.96,1.75,1.76,2.75,2.75,1.89,1.81,1.85,1.9,0-0,0-1
+2025-09-10,14:30,Croatia Cup,NK Udarnik Kurilovec,Oriolik,-2.25,-2.5,2.25,2.5,1.85,1.77,1.87,1.93,3.75,4.0,1.79,1.93,1.94,1.76,2-0,5-0
+2025-09-10,14:30,Croatia Cup,Radnik Krizevci,Mladost Zdralovi,0.75,0.5,-0.75,-0.5,1.92,1.79,1.82,1.88,2.5,2.75,1.93,1.83,1.81,1.84,0-0,0-1
+2025-09-10,14:30,Czech Republic Ceska Fotbalova Liga,MFK Karvina B,Polanka,-1.5,-1.75,1.5,1.75,1.89,1.96,1.89,1.79,3.5,3.0,1.88,1.76,1.9,1.99,1-2,1-2
+2025-09-10,14:30,Montenegro Division 2,FK Grbalj Radanovici,FK Podgorica,-0.25,-0.5,0.25,0.5,1.88,1.83,1.85,1.88,2.5,2.5,1.99,1.95,1.76,1.77,1-0,3-1
+2025-09-10,14:30,Montenegro Division 2,FK Rudar Pljevlja,FK Berane,-0.5,-0.75,0.5,0.75,1.87,1.75,1.87,1.97,2.25,2.5,1.83,1.91,1.92,1.81,0-0,0-0
+2025-09-10,14:30,Slovakia 3.Liga,TJ Druzstevnik Vrakun,FC Banik Prievidza,0.75,0.75,-0.75,-0.75,1.88,1.77,1.85,1.94,3.0,3.0,1.76,1.85,1.99,1.86,0-2,1-2
+2025-09-10,14:30,Slovakia Cup,Nadszeg,Slovan Bratislava,5.25,4.5,-5.25,-4.5,1.85,1.87,1.86,1.81,5.75,5.25,1.78,1.79,1.93,1.89,2-2,2-4
+2025-09-10,14:00,Argentina Reserve League,El Porvenir Reserves,Deportivo Espanol Reserves,0.25,0.25,-0.25,-0.25,1.93,1.97,1.81,1.76,3.75,3.25,1.96,1.88,1.79,1.83,0-1,0-1
+2025-09-10,14:00,Belarusian Premier League,FC Molodechno,Neman Grodno,1.75,1.75,-1.75,-1.75,1.81,1.9,2.01,1.85,3.0,2.75,1.87,1.86,1.97,1.88,1-0,3-2
+2025-09-10,14:00,Czech Republic Ceska Fotbalova Liga,Slovacko II,Trinec,0.5,0.5,-0.5,-0.5,1.97,1.89,1.82,1.86,2.75,3.0,1.9,1.93,1.88,1.83,0-2,0-5
+2025-09-10,14:00,Czech Republic Ceska Fotbalova Liga,Unie Hlubina,Blansko,-1.0,-0.75,1.0,0.75,1.95,1.79,1.84,1.97,3.25,3.5,1.83,1.97,1.96,1.79,0-1,0-4
+2025-09-10,14:00,Czech Republic Ceska Fotbalova Liga,Zlin B,Frydek-Mistek,0.0,0.25,0.0,-0.25,1.93,1.89,1.85,1.86,2.75,3.0,1.79,1.88,2.02,1.88,0-1,1-1
+2025-09-10,14:00,Slovakia 3.Liga,FK Belusa,Malacky,-0.5,-0.25,0.5,0.25,1.83,1.93,1.92,1.79,3.0,2.75,2.0,1.81,1.76,1.9,1-1,1-1
+2025-09-10,14:00,Slovakia Cup,Banik VeLky Krtis,Humenne,3.0,2.5,-3.0,-2.5,1.95,1.88,1.77,1.81,4.5,3.75,1.88,1.8,1.83,1.9,0-4,0-6
+2025-09-10,14:00,Slovakia Cup,MFK Sobrance,Michalovce,3.75,4.0,-3.75,-4.0,1.94,1.86,1.77,1.82,4.5,4.75,1.93,1.87,1.79,1.81,0-8,0-10
+2025-09-10,14:00,Slovakia Cup,Slovenska Lupca,TeslaStropkov,3.25,3.0,-3.25,-3.0,1.89,1.75,1.82,1.93,4.25,4.0,1.75,1.87,1.93,1.81,1-3,2-7
+2025-09-10,14:00,Slovakia I Liga Women,FC Tatran Presov (W),TJ Spartak Myjava(W),1.75,2.25,-1.75,-2.25,1.77,1.87,1.96,1.83,3.0,3.75,1.76,1.93,1.98,1.77,0-1,0-2
+2025-09-10,14:00,UEFA Women Europa League,HB Koge (W),Farul Constanta (W),-3.0,-2.0,3.0,2.0,1.88,1.77,1.83,1.93,4.0,3.25,1.87,1.93,1.84,1.78,1-1,3-2
+2025-09-10,14:00,Uzbek League,Nasaf Qarshi,Buxoro FK,-1.25,-1.25,1.25,1.25,1.84,1.83,2.02,1.93,2.5,2.5,1.82,2.0,2.02,1.77,4-0,5-0
+2025-09-10,13:30,FYR Macedonia Cup,FK Kozuv,FK Shkupi,0.25,0.5,-0.25,-0.5,1.94,1.82,1.8,1.89,2.75,2.75,1.79,1.78,1.95,1.93,0-1,0-2
+2025-09-10,13:30,FYR Macedonia Cup,FK Skopje,FK Tikves Kavadarci,1.25,1.25,-1.25,-1.25,1.92,1.89,1.83,1.82,2.75,2.75,1.83,1.8,1.91,1.92,0-0,0-1
+2025-09-10,13:30,FYR Macedonia Cup,Jenimaale Bitola,FK Shkendija 79,4.0,3.25,-4.0,-3.25,1.83,1.89,1.88,1.79,4.5,4.0,1.88,1.87,1.83,1.81,0-5,0-9
+2025-09-10,13:00,Argentina Reserve League,Arsenal de Sarandi Reserves,Almagro Reserves,-1.0,-0.5,1.0,0.5,1.83,1.72,1.91,1.94,2.75,2.5,1.78,1.83,1.96,1.88,1-1,1-2
+2025-09-10,13:00,Argentina Reserve League,Villa Dalmine Reserves,Sportivo Italiano Reserves,-0.5,-0.75,0.5,0.75,1.89,1.93,1.85,1.78,2.25,2.25,1.99,1.88,1.76,1.83,0-1,0-1
+2025-09-10,13:00,Egypt Division 2,Ala ab Damanhour,El Olympi,0.5,0.0,-0.5,0.0,1.94,2.04,1.81,1.7,2.25,2.0,2.03,1.99,1.74,1.74,1-0,4-0
+2025-09-10,13:00,Gulf Cup U20,Saudi Arabia U20,Yemen U20,-0.75,-1.25,0.75,1.25,1.94,1.81,1.84,1.95,2.25,2.5,2.0,1.81,1.79,1.95,2-1,3-1
+2025-09-10,12:10,Argentina Reserve League,Deportivo Liniers Reserves,Deportivo Merlo Reserves,-0.5,-0.5,0.5,0.5,1.98,1.96,1.77,1.76,2.0,2.0,1.97,1.95,1.77,1.76,1-1,1-1
+2025-09-10,12:00,CECAFA Clubs Cup,Al-Hilal Omdurman,Kator FC,-1.0,-0.5,1.0,0.5,1.93,1.77,1.82,1.9,2.0,2.0,1.76,1.88,2.0,1.79,3-1,3-1
+2025-09-10,12:00,CECAFA Clubs Cup,Mogadishu City,Al-Ahli Wad Madani,0.5,0.25,-0.5,-0.25,1.91,1.68,1.83,2.02,2.0,2.0,1.9,1.99,1.84,1.7,1-1,2-1
+2025-09-10,12:00,Hong Kong Senior Challenge Shield,Wofoo Tai Po,Southern District,-0.75,-1.5,0.75,1.5,1.82,1.98,1.98,1.78,3.25,3.25,2.0,1.75,1.77,1.95,1-0,3-1
+2025-09-10,11:00,India Shillong Premier League,Sawmer SC,Rangdajied United,1.75,1.25,-1.75,-1.25,1.85,1.76,1.88,1.96,3.75,3.25,1.77,1.81,1.96,1.91,0-0,1-0
+2025-09-10,11:00,Kosovo League U21,KF Malisheva U21,KF Dukagjini U21,-2.5,-2.25,2.5,2.25,1.84,1.8,1.88,1.89,4.75,4.0,1.93,1.78,1.8,1.93,1-0,3-0
+2025-09-10,10:30,India Bangalore Super Division,Rebels FC,Bengaluru B,1.5,1.5,-1.5,-1.5,1.93,1.88,1.81,1.83,3.25,3.25,1.86,1.88,1.88,1.82,1-0,1-2
+2025-09-10,10:00,International Club Friendly,Vejle,Midtjylland,0.5,1.0,-0.5,-1.0,1.94,1.78,1.8,1.93,3.25,3.0,1.87,1.97,1.87,1.75,1-0,3-0
+2025-09-10,09:20,Czech Republic U19 League,Slovan Liberec U19,Pardubice U19,1.25,1.5,-1.25,-1.5,1.86,1.85,1.88,1.86,3.25,4.0,1.81,1.94,1.93,1.77,0-1,2-2
+2025-09-10,09:00,Myanmar League Women,Yangon Royals FC (W),Ispe FC (W),5.5,4.25,-5.5,-4.25,1.92,1.86,1.8,1.82,6.25,5.0,1.81,1.86,1.91,1.82,0-5,0-7
+2025-09-10,09:00,Myanmar U21 League,Hantharwady United FC U21,Ispe FC U21,2.0,1.5,-2.0,-1.5,1.92,1.88,1.81,1.83,3.5,3.0,1.79,1.89,1.93,1.82,0-1,1-1
+2025-09-10,08:45,Malaysia President Cup,Selangor FA U20,PDRM U20,-2.0,-1.75,2.0,1.75,1.88,1.8,1.84,1.9,3.5,3.5,1.94,1.84,1.79,1.85,1-0,1-0
+2025-09-10,08:30,Czech Republic Ceska Fotbalova Liga,Viktoria Plzen B,Slavia Prague C,-1.0,-0.75,1.0,0.75,1.79,1.8,2.01,1.96,3.75,3.5,1.97,1.88,1.82,1.87,0-0,1-1
+2025-09-10,02:00,FIFA World Cup qualification (CONCACAF),Costa Rica,Haiti,-1.0,-0.75,1.0,0.75,1.85,1.89,2.01,1.88,2.5,2.5,1.88,1.99,1.96,1.75,2-0,3-3
+2025-09-10,02:00,FIFA World Cup qualification (CONCACAF),Honduras,Nicaragua,-1.25,-1.25,1.25,1.25,1.89,1.93,1.96,1.85,2.5,2.75,1.96,1.88,1.88,1.87,0-0,2-0
+2025-09-10,01:30,Categoria Primera A,Atletico Bucaramanga,Deportiva Once Caldas,-1.0,-0.5,1.0,0.5,2.05,1.94,1.81,1.82,2.5,2.25,2.04,2.0,1.81,1.77,0-0,0-0
+2025-09-10,01:30,Colombia Copa Cup,Independiente Santa Fe,Alianza Petrolera,-1.0,-0.75,1.0,0.75,2.04,1.82,1.83,1.96,2.25,2.25,1.85,1.93,1.99,1.83,1-0,4-1
+2025-09-10,01:30,International Friendly,Mexico,South Korea,-0.25,0.0,0.25,0.0,1.95,1.88,1.9,1.88,2.25,2.25,1.85,1.77,1.98,2.0,1-0,2-2
+2025-09-10,00:00,FIFA World Cup qualification (CONCACAF),Curacao,Bermuda,-2.0,-2.25,2.0,2.25,1.91,1.88,1.89,1.87,3.25,3.25,1.87,1.91,1.92,1.83,2-2,3-2
+2025-09-10,00:00,FIFA World Cup qualification (CONCACAF),Jamaica,Trinidad and Tobago,-1.25,-0.75,1.25,0.75,1.9,1.8,1.95,1.98,2.5,2.5,1.81,1.79,2.03,1.97,1-0,2-0

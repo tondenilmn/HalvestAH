@@ -1,0 +1,137 @@
+Date,Time,League,Home Team,Away Team,Home AH Closing,Home AH Opening,Away AH Closing,Away AH Opening,Home Odds Closing,Home Odds Opening,Away Odds Closing,Away Odds Opening,Total Line Closing,Total Line Opening,Over Odds Closing,Over Odds Opening,Under Odds Closing,Under Odds Opening,HT Result,FT Result
+31-12,00:30,Argentina Regional Cup,Club Arsenal de Viale,CA Union de Crespo,-0.25,-0.25,0.25,0.25,1.83,1.83,1.92,1.88,2.5,2.5,1.93,1.95,1.81,1.77,0-0,1-0
+30-12,23:30,International Club Friendly,ABC RN,Campinense,-0.5,-0.75,0.5,0.75,1.94,1.94,1.80,1.78,2.25,2.25,1.98,1.79,1.77,1.93,1-0,1-0
+30-12,23:00,International Club Friendly,Penedense AL,Itabaiana(SE),0.25,0.25,-0.25,-0.25,1.79,2.00,1.96,1.73,2.25,2,2.01,1.72,1.75,2.01,1-0,2-0
+30-12,22:00,Honduras Reserve League,CD Olimpia Reservas,Real Espana Reserves,-0.75,-0.75,0.75,0.75,1.75,1.83,2.01,1.88,2.25,2.25,1.87,1.75,1.87,1.97,1-1,2-3
+30-12,22:00,Honduras Reserve League,Lobos UPNFM Reserves,CD Victoria La Ceiba Reserves,-0.25,-0.5,0.25,0.5,1.77,1.88,1.99,1.83,2.25,2.75,1.82,1.81,1.93,1.90,3-0,5-3
+30-12,21:30,England National League South,Hemel Hempstead Town,Enfield Town,-0.75,-0.75,0.75,0.75,1.85,1.90,2.01,1.87,2.75,2.5,1.97,1.79,1.86,1.98,2-0,3-0
+30-12,21:15,English Premier League,Arsenal,Aston Villa,-1.25,-1.25,1.25,1.25,1.89,2.05,2.04,1.79,2.75,2.5,1.91,1.83,2.00,1.98,0-0,4-1
+30-12,21:15,English Premier League,Manchester United,Wolves,-1.25,-1.5,1.25,1.5,1.88,1.92,2.04,1.90,3,3,1.87,1.83,2.04,1.98,1-1,1-1
+30-12,21:15,Liga Portugal 2,SCU Torreense,Lusitania FC,-0.25,-0.25,0.25,0.25,1.98,1.81,1.91,2.00,2.25,2.5,2.08,2.02,1.81,1.78,0-1,0-1
+30-12,21:00,Scottish Premiership,Motherwell,Celtic FC,0.75,0.75,-0.75,-0.75,2.11,1.83,1.82,2.00,2.75,2.75,1.85,1.96,2.04,1.85,1-0,2-0
+30-12,20:45,England National League,Aldershot Town,Wealdstone FC,-0.5,0,0.5,0,1.92,1.85,1.93,1.92,3,3,1.93,1.87,1.91,1.88,3-1,4-1
+30-12,20:45,England National League,Altrincham,York City,1.25,1,-1.25,-1,1.88,1.77,1.98,2.02,3.25,3,1.82,1.78,2.03,1.98,0-1,1-2
+30-12,20:45,England National League,Boreham Wood,Solihull Moors,-1.25,-1.25,1.25,1.25,1.96,2.00,1.88,1.78,3,3,1.89,1.88,1.93,1.87,2-1,2-1
+30-12,20:45,England National League,Boston United,Brackley Town,-0.5,-0.25,0.5,0.25,2.03,1.94,1.83,1.83,2.5,2.5,1.89,1.96,1.94,1.80,1-0,1-2
+30-12,20:45,England National League,Carlisle United,Morecambe,-1.25,-1.25,1.25,1.25,1.85,1.88,2.01,1.89,3.25,3.25,1.93,1.89,1.90,1.86,1-0,1-0
+30-12,20:45,England National League,Forest Green Rovers,Truro City,-1.75,-1.5,1.75,1.5,2.02,1.85,1.83,1.92,3.25,3,2.04,1.87,1.80,1.88,1-1,1-1
+30-12,20:45,England National League,Rochdale,Hartlepool United,-1,-1,1,1,1.83,2.00,2.03,1.79,2.75,2.75,1.93,1.83,1.91,1.93,0-2,1-2
+30-12,20:45,England National League,Scunthorpe United,Gateshead,-1.5,-1.25,1.5,1.25,1.92,1.90,1.93,1.87,3.25,3.25,1.90,1.95,1.93,1.81,1-0,2-0
+30-12,20:45,England National League,Southend United,Sutton United,-1.25,-1.25,1.25,1.25,1.87,1.85,1.98,1.92,3,3,1.84,1.89,2.00,1.85,1-0,1-0
+30-12,20:45,England National League,Tamworth,Halifax Town,0,-0.25,0,0.25,2.00,1.99,1.85,1.79,2.5,2.5,1.85,1.81,1.99,1.95,0-2,0-2
+30-12,20:45,England National League,Woking,Braintree Town,-0.75,-0.5,0.75,0.5,1.99,2.00,1.87,1.79,2.5,2.5,1.88,1.88,1.95,1.87,0-1,0-1
+30-12,20:45,England National League,Yeovil Town,Eastleigh,-0.25,0,0.25,0,2.12,1.81,1.77,1.97,2.25,2.25,1.86,1.79,1.98,1.96,1-1,1-1
+30-12,20:45,England National League North,Alfreton Town,Leamington,-0.75,-0.75,0.75,0.75,1.96,1.77,1.89,2.02,2.5,2.5,1.88,1.95,1.96,1.81,1-1,2-1
+30-12,20:45,England National League North,Bedford Town,Kings Lynn,0,0.25,0,-0.25,1.93,1.81,1.92,1.96,2.75,2.75,1.94,1.97,1.89,1.79,1-1,4-2
+30-12,20:45,England National League North,Buxton FC,Worksop Town,-0.25,-0.25,0.25,0.25,1.80,1.85,2.03,1.93,2.75,2.75,1.93,1.88,1.90,1.88,2-0,3-1
+30-12,20:45,England National League North,Chester FC,Macclesfield Town,-0.25,0,0.25,0,1.94,1.84,1.91,1.93,2.75,2.75,1.95,1.94,1.88,1.81,1-0,2-0
+30-12,20:45,England National League North,Chorley FC,Marine,-0.5,-0.5,0.5,0.5,2.02,2.01,1.83,1.78,2.5,2.5,1.88,1.97,1.95,1.79,1-0,2-1
+30-12,20:45,England National League North,Darlington,South Shields,0.5,0.5,-0.5,-0.5,2.00,1.80,1.86,1.98,3.5,3.25,1.94,1.91,1.89,1.85,0-1,1-2
+30-12,20:45,England National League North,Kidderminster Harriers,AFC Telford United,-0.5,-0.75,0.5,0.75,1.94,1.96,1.91,1.82,2.5,2.5,1.83,1.76,2.01,1.97,1-0,3-0
+30-12,20:45,England National League North,Merthyr Town,Hereford FC,-0.75,-0.25,0.75,0.25,1.90,1.80,1.95,1.98,3.25,3.25,1.83,1.86,2.02,1.89,1-0,2-2
+30-12,20:45,England National League North,Peterborough Sports,Oxford City,-0.25,-0.25,0.25,0.25,1.90,1.91,1.95,1.86,2.75,2.75,2.01,1.84,1.83,1.92,0-0,0-0
+30-12,20:45,England National League North,Radcliffe Borough,AFC Fylde,0,-0.25,0,0.25,1.95,1.97,1.90,1.81,3.25,3,2.03,1.91,1.82,1.85,0-2,3-3
+30-12,20:45,England National League North,Southport FC,Curzon Ashton FC,-0.25,-0.5,0.25,0.5,1.91,1.90,1.94,1.87,2.75,2.75,1.97,1.91,1.87,1.85,1-2,2-4
+30-12,20:45,England National League North,Spennymoor Town,Scarborough,-0.25,-0.25,0.25,0.25,1.85,1.83,2.01,1.95,2.5,2.5,1.85,1.85,1.98,1.90,1-0,1-1
+30-12,20:45,England National League South,AFC Totton,Chippenham Town,-0.75,-0.75,0.75,0.75,1.89,1.99,1.96,1.79,3,2.75,2.02,1.78,1.83,1.98,0-0,1-1
+30-12,20:45,England National League South,Bath City,Torquay United,0.5,0.5,-0.5,-0.5,1.83,1.85,2.04,1.92,2.5,2.5,1.85,1.96,2.00,1.80,0-0,0-0
+30-12,20:45,England National League South,Dover Athletic,Ebbsfleet United,0.25,0.75,-0.25,-0.75,1.94,1.87,1.91,1.90,3,2.75,2.03,1.88,1.81,1.88,0-1,1-2
+30-12,20:45,England National League South,Hornchurch,Maidstone United,0,0,0,0,1.78,1.75,2.09,2.05,2.5,2.5,1.93,1.97,1.90,1.79,1-1,1-2
+30-12,20:45,England National League South,Horsham,Farnborough Town,-0.5,-0.5,0.5,0.5,1.83,1.86,2.03,1.91,2.75,2.75,1.96,1.93,1.88,1.83,1-2,2-2
+30-12,20:45,England National League South,Slough Town,Chesham United,0,0,0,0,2.01,1.99,1.85,1.79,2.75,2.5,1.99,1.81,1.85,1.95,1-0,3-0
+30-12,20:45,England National League South,Tonbridge Angels,Eastbourne Borough,0,0.25,0,-0.25,1.92,1.87,1.93,1.90,2.75,2.75,1.93,1.93,1.90,1.83,1-2,3-4
+30-12,20:45,England National League South,Weston Super Mare,Salisbury FC,-0.75,-0.75,0.75,0.75,1.86,1.96,2.00,1.82,2.5,2.5,1.87,1.86,1.97,1.89,1-0,1-0
+30-12,20:45,England National League South,Worthing,Dorking,-0.5,-0.5,0.5,0.5,2.02,1.88,1.84,1.89,3.5,3.25,2.02,1.94,1.83,1.81,2-2,3-2
+30-12,20:45,England Northern League Division One,Lower Breck,Bootle,0,-0.75,0,0.75,1.75,1.84,2.01,1.87,2.25,3,1.80,1.95,1.94,1.76,0-1,1-1
+30-12,20:45,Northern Ireland IFA Championship,Armagh City,Ards FC,0.5,0.5,-0.5,-0.5,1.79,1.79,1.96,1.93,3,2.75,1.85,1.79,1.88,1.92,0-4,0-8
+30-12,20:45,Northern Ireland IFA Championship,Institute FC,Newington,0.25,0.25,-0.25,-0.25,1.79,1.78,1.95,1.93,3,3,1.99,1.97,1.76,1.75,0-1,3-3
+30-12,20:45,Northern Ireland IFA Championship,Warrenpoint Town,HW Welders,0.5,0.5,-0.5,-0.5,1.91,1.93,1.83,1.79,3,3,1.96,1.93,1.79,1.76,0-2,0-3
+30-12,20:45,Northern Ireland Premier League,Bangor FC,Ballymena United,0,0,0,0,1.81,1.80,2.05,1.98,2.25,2.5,1.85,1.82,1.99,1.94,1-0,2-0
+30-12,20:45,Northern Ireland Premier League,Coleraine,Linfield FC,-0.25,-0.25,0.25,0.25,1.83,1.84,2.04,1.93,2.25,2.25,1.81,1.79,2.03,1.96,0-0,3-1
+30-12,20:45,Northern Ireland Premier League,Crusaders,Carrick Rangers,0,0,0,0,2.09,2.00,1.79,1.78,2.75,2.75,1.89,1.83,1.94,1.93,1-2,2-2
+31-12,00:30,Argentina Regional Cup,Club Arsenal de Viale,CA Union de Crespo,-0.25,-0.25,0.25,0.25,1.83,1.83,1.92,1.88,2.5,2.5,1.93,1.95,1.81,1.77,0-0,1-0
+30-12,23:30,International Club Friendly,ABC RN,Campinense,-0.5,-0.75,0.5,0.75,1.94,1.94,1.80,1.78,2.25,2.25,1.98,1.79,1.77,1.93,1-0,1-0
+30-12,23:00,International Club Friendly,Penedense AL,Itabaiana(SE),0.25,0.25,-0.25,-0.25,1.79,2.00,1.96,1.73,2.25,2,2.01,1.72,1.75,2.01,1-0,2-0
+30-12,22:00,Honduras Reserve League,CD Olimpia Reservas,Real Espana Reserves,-0.75,-0.75,0.75,0.75,1.75,1.83,2.01,1.88,2.25,2.25,1.87,1.75,1.87,1.97,1-1,2-3
+30-12,22:00,Honduras Reserve League,Lobos UPNFM Reserves,CD Victoria La Ceiba Reserves,-0.25,-0.5,0.25,0.5,1.77,1.88,1.99,1.83,2.25,2.75,1.82,1.81,1.93,1.90,3-0,5-3
+30-12,21:30,England National League South,Hemel Hempstead Town,Enfield Town,-0.75,-0.75,0.75,0.75,1.85,1.90,2.01,1.87,2.75,2.5,1.97,1.79,1.86,1.98,2-0,3-0
+30-12,21:15,English Premier League,Arsenal,Aston Villa,-1.25,-1.25,1.25,1.25,1.89,2.05,2.04,1.79,2.75,2.5,1.91,1.83,2.00,1.98,0-0,4-1
+30-12,21:15,English Premier League,Manchester United,Wolves,-1.25,-1.5,1.25,1.5,1.88,1.92,2.04,1.90,3,3,1.87,1.83,2.04,1.98,1-1,1-1
+30-12,21:15,Liga Portugal 2,SCU Torreense,Lusitania FC,-0.25,-0.25,0.25,0.25,1.98,1.81,1.91,2.00,2.25,2.5,2.08,2.02,1.81,1.78,0-1,0-1
+30-12,21:00,Scottish Premiership,Motherwell,Celtic FC,0.75,0.75,-0.75,-0.75,2.11,1.83,1.82,2.00,2.75,2.75,1.85,1.96,2.04,1.85,1-0,2-0
+30-12,20:45,England National League,Aldershot Town,Wealdstone FC,-0.5,0,0.5,0,1.92,1.85,1.93,1.92,3,3,1.93,1.87,1.91,1.88,3-1,4-1
+30-12,20:45,England National League,Altrincham,York City,1.25,1,-1.25,-1,1.88,1.77,1.98,2.02,3.25,3,1.82,1.78,2.03,1.98,0-1,1-2
+30-12,20:45,England National League,Boreham Wood,Solihull Moors,-1.25,-1.25,1.25,1.25,1.96,2.00,1.88,1.78,3,3,1.89,1.88,1.93,1.87,2-1,2-1
+30-12,20:45,England National League,Boston United,Brackley Town,-0.5,-0.25,0.5,0.25,2.03,1.94,1.83,1.83,2.5,2.5,1.89,1.96,1.94,1.80,1-0,1-2
+30-12,20:45,England National League,Carlisle United,Morecambe,-1.25,-1.25,1.25,1.25,1.85,1.88,2.01,1.89,3.25,3.25,1.93,1.89,1.90,1.86,1-0,1-0
+30-12,20:45,England National League,Forest Green Rovers,Truro City,-1.75,-1.5,1.75,1.5,2.02,1.85,1.83,1.92,3.25,3,2.04,1.87,1.80,1.88,1-1,1-1
+30-12,20:45,England National League,Rochdale,Hartlepool United,-1,-1,1,1,1.83,2.00,2.03,1.79,2.75,2.75,1.93,1.83,1.91,1.93,0-2,1-2
+30-12,20:45,England National League,Scunthorpe United,Gateshead,-1.5,-1.25,1.5,1.25,1.92,1.90,1.93,1.87,3.25,3.25,1.90,1.95,1.93,1.81,1-0,2-0
+30-12,20:45,England National League,Southend United,Sutton United,-1.25,-1.25,1.25,1.25,1.87,1.85,1.98,1.92,3,3,1.84,1.89,2.00,1.85,1-0,1-0
+30-12,20:45,England National League,Tamworth,Halifax Town,0,-0.25,0,0.25,2.00,1.99,1.85,1.79,2.5,2.5,1.85,1.81,1.99,1.95,0-2,0-2
+30-12,20:45,England National League,Woking,Braintree Town,-0.75,-0.5,0.75,0.5,1.99,2.00,1.87,1.79,2.5,2.5,1.88,1.88,1.95,1.87,0-1,0-1
+30-12,20:45,England National League,Yeovil Town,Eastleigh,-0.25,0,0.25,0,2.12,1.81,1.77,1.97,2.25,2.25,1.86,1.79,1.98,1.96,1-1,1-1
+30-12,20:45,England National League North,Alfreton Town,Leamington,-0.75,-0.75,0.75,0.75,1.96,1.77,1.89,2.02,2.5,2.5,1.88,1.95,1.96,1.81,1-1,2-1
+30-12,20:45,England National League North,Bedford Town,Kings Lynn,0,0.25,0,-0.25,1.93,1.81,1.92,1.96,2.75,2.75,1.94,1.97,1.89,1.79,1-1,4-2
+30-12,20:45,England National League North,Buxton FC,Worksop Town,-0.25,-0.25,0.25,0.25,1.80,1.85,2.03,1.93,2.75,2.75,1.93,1.88,1.90,1.88,2-0,3-1
+30-12,20:45,England National League North,Chester FC,Macclesfield Town,-0.25,0,0.25,0,1.94,1.84,1.91,1.93,2.75,2.75,1.95,1.94,1.88,1.81,1-0,2-0
+30-12,20:45,England National League North,Chorley FC,Marine,-0.5,-0.5,0.5,0.5,2.02,2.01,1.83,1.78,2.5,2.5,1.88,1.97,1.95,1.79,1-0,2-1
+30-12,20:45,England National League North,Darlington,South Shields,0.5,0.5,-0.5,-0.5,2.00,1.80,1.86,1.98,3.5,3.25,1.94,1.91,1.89,1.85,0-1,1-2
+30-12,20:45,England National League North,Kidderminster Harriers,AFC Telford United,-0.5,-0.75,0.5,0.75,1.94,1.96,1.91,1.82,2.5,2.5,1.83,1.76,2.01,1.97,1-0,3-0
+30-12,20:45,England National League North,Merthyr Town,Hereford FC,-0.75,-0.25,0.75,0.25,1.90,1.80,1.95,1.98,3.25,3.25,1.83,1.86,2.02,1.89,1-0,2-2
+30-12,20:45,England National League North,Peterborough Sports,Oxford City,-0.25,-0.25,0.25,0.25,1.90,1.91,1.95,1.86,2.75,2.75,2.01,1.84,1.83,1.92,0-0,0-0
+30-12,20:45,England National League North,Radcliffe Borough,AFC Fylde,0,-0.25,0,0.25,1.95,1.97,1.90,1.81,3.25,3,2.03,1.91,1.82,1.85,0-2,3-3
+30-12,20:45,England National League North,Southport FC,Curzon Ashton FC,-0.25,-0.5,0.25,0.5,1.91,1.90,1.94,1.87,2.75,2.75,1.97,1.91,1.87,1.85,1-2,2-4
+30-12,20:45,England National League North,Spennymoor Town,Scarborough,-0.25,-0.25,0.25,0.25,1.85,1.83,2.01,1.95,2.5,2.5,1.85,1.85,1.98,1.90,1-0,1-1
+30-12,20:45,England National League South,AFC Totton,Chippenham Town,-0.75,-0.75,0.75,0.75,1.89,1.99,1.96,1.79,3,2.75,2.02,1.78,1.83,1.98,0-0,1-1
+30-12,20:45,England National League South,Bath City,Torquay United,0.5,0.5,-0.5,-0.5,1.83,1.85,2.04,1.92,2.5,2.5,1.85,1.96,2.00,1.80,0-0,0-0
+30-12,20:45,England National League South,Dover Athletic,Ebbsfleet United,0.25,0.75,-0.25,-0.75,1.94,1.87,1.91,1.90,3,2.75,2.03,1.88,1.81,1.88,0-1,1-2
+30-12,20:45,England National League South,Hornchurch,Maidstone United,0,0,0,0,1.78,1.75,2.09,2.05,2.5,2.5,1.93,1.97,1.90,1.79,1-1,1-2
+30-12,20:45,England National League South,Horsham,Farnborough Town,-0.5,-0.5,0.5,0.5,1.83,1.86,2.03,1.91,2.75,2.75,1.96,1.93,1.88,1.83,1-2,2-2
+30-12,20:45,England National League South,Slough Town,Chesham United,0,0,0,0,2.01,1.99,1.85,1.79,2.75,2.5,1.99,1.81,1.85,1.95,1-0,3-0
+30-12,20:45,England National League South,Tonbridge Angels,Eastbourne Borough,0,0.25,0,-0.25,1.92,1.87,1.93,1.90,2.75,2.75,1.93,1.93,1.90,1.83,1-2,3-4
+30-12,20:45,England National League South,Weston Super Mare,Salisbury FC,-0.75,-0.75,0.75,0.75,1.86,1.96,2.00,1.82,2.5,2.5,1.87,1.86,1.97,1.89,1-0,1-0
+30-12,20:45,England National League South,Worthing,Dorking,-0.5,-0.5,0.5,0.5,2.02,1.88,1.84,1.89,3.5,3.25,2.02,1.94,1.83,1.81,2-2,3-2
+30-12,20:45,England Northern League Division One,Lower Breck,Bootle,0,-0.75,0,0.75,1.75,1.84,2.01,1.87,2.25,3,1.80,1.95,1.94,1.76,0-1,1-1
+30-12,20:45,Northern Ireland IFA Championship,Armagh City,Ards FC,0.5,0.5,-0.5,-0.5,1.79,1.79,1.96,1.93,3,2.75,1.85,1.79,1.88,1.92,0-4,0-8
+30-12,20:45,Northern Ireland IFA Championship,Institute FC,Newington,0.25,0.25,-0.25,-0.25,1.79,1.78,1.95,1.93,3,3,1.99,1.97,1.76,1.75,0-1,3-3
+30-12,20:45,Northern Ireland IFA Championship,Warrenpoint Town,HW Welders,0.5,0.5,-0.5,-0.5,1.91,1.93,1.83,1.79,3,3,1.96,1.93,1.79,1.76,0-2,0-3
+30-12,20:45,Northern Ireland Premier League,Bangor FC,Ballymena United,0,0,0,0,1.81,1.80,2.05,1.98,2.25,2.5,1.85,1.82,1.99,1.94,1-0,2-0
+30-12,20:45,Northern Ireland Premier League,Coleraine,Linfield FC,-0.25,-0.25,0.25,0.25,1.83,1.84,2.04,1.93,2.25,2.25,1.81,1.79,2.03,1.96,0-0,3-1
+30-12,20:45,Northern Ireland Premier League,Crusaders,Carrick Rangers,0,0,0,0,2.09,2.00,1.79,1.78,2.75,2.75,1.89,1.83,1.94,1.93,1-2,2-2
+30-12,14:00,Ethiopia Premier League,Shire Endaselassie FC,Adama City,0.25,0.25,-0.25,-0.25,1.77,1.69,2.03,2.11,1.5,1.75,1.81,1.86,1.98,1.89,0-0,0-1
+30-12,14:00,International Club Friendly,U.S.Monastir,CS.Hammam-Lif,-1,-1,1,1,1.99,1.83,1.76,1.88,2.25,2.25,1.88,1.82,1.86,1.88,0-0,1-0
+30-12,14:00,Iraq Stars League,Dyala,Al Qasim Sport Club,-1.5,-0.25,1.5,0.25,1.83,1.74,1.91,2.00,2.25,2,1.76,1.84,2.00,1.87,3-0,3-0
+30-12,13:55,UAE Division 1 Group A,Al-Hamriyah,Al Arabi(UAE),0,0,0,0,1.97,1.88,1.83,1.88,2.25,2.25,1.84,1.90,1.94,1.85,1-1,2-3
+30-12,13:55,UAE Division 1 Group A,Al-Ittifaq(UAE),Al Oruba (UAE),1,1.25,-1,-1.25,1.99,1.78,1.80,2.00,2.75,2.75,1.93,1.85,1.86,1.89,0-1,0-2
+30-12,13:50,United Arab Emirates U23,Ajman SCC U,Shabab Al Ahli Dubai U,0.75,0.25,-0.75,-0.25,1.87,1.79,1.92,1.89,3,3.25,1.91,1.81,1.88,1.89,1-0,1-0
+30-12,13:50,United Arab Emirates U23,Al Jazira SC U,Al Ittihad Kalba U,-0.75,-0.75,0.75,0.75,1.90,1.80,1.88,1.92,3.5,3,1.90,1.78,1.88,1.94,0-2,0-3
+30-12,13:50,United Arab Emirates U23,Baniyas SC U,Al-Dhafra U,-0.75,-0.25,0.75,0.25,1.99,1.96,1.80,1.76,3,2.75,1.83,1.78,1.96,1.94,3-2,3-3
+30-12,13:45,Saudi Arabia Division 1,Al Ula FC,Al Anwar SA,-1.25,-1,1.25,1,1.82,1.96,2.05,1.82,2.75,2.5,1.94,1.94,1.89,1.81,1-0,1-1
+30-12,13:30,Egypt Division 2,Banha,Nogoom El Mostakbal,-0.25,-0.25,0.25,0.25,1.92,1.97,1.82,1.75,2,2,1.83,1.88,1.92,1.83,0-1,0-3
+30-12,13:30,Egypt Division 2,El Shams,Al Qanater,-0.25,0,0.25,0,2.05,1.95,1.72,1.77,2,2,1.84,1.83,1.90,1.88,0-0,0-0
+30-12,13:30,Egypt Division 2,Levels FC,Diamond SC,-0.25,-0.25,0.25,0.25,1.82,1.92,1.93,1.79,2.25,2.25,1.97,1.98,1.78,1.75,0-1,2-1
+30-12,13:30,Egypt Division 2,Misr Insurance FC,Eastern Company,-0.25,0,0.25,0,1.85,1.95,1.88,1.76,2.25,2.25,1.85,1.98,1.89,1.75,0-1,2-1
+30-12,13:25,Saudi Arabia Division 1,Al-Arabi(KSA),Al-Wehda,0.25,0.5,-0.25,-0.5,1.99,1.82,1.87,1.95,2.75,2.5,1.84,1.88,2.00,1.88,0-0,0-1
+30-12,13:15,Lebanese Premier League,Al-Ansar (LIB),Al Bourj,-2.25,-1.75,2.25,1.75,1.96,1.81,1.78,1.88,3,3,1.91,1.93,1.81,1.77,2-0,4-1
+30-12,13:00,Ethiopia Premier League,Hawassa City FC,Hadiya Hossana,0,-0.25,0,0.25,1.74,2.07,2.07,1.71,1.75,1.75,1.78,1.79,2.03,1.97,0-1,0-1
+30-12,13:00,Indonesia Liga 4,PSGC Ciamis,Pekanbaru FC,0,0,0,0,1.79,1.79,1.96,1.93,2,2,1.81,1.82,1.93,1.89,1-0,1-0
+30-12,13:00,Indonesia Liga 4,Persika Karanganyar,Persibo Bojonegoro,0,0,0,0,1.78,1.79,1.98,1.93,2.5,2.5,1.98,1.89,1.78,1.81,1-0,3-0
+30-12,13:00,Jordan Reserve League,Al Faisaly Amman Reserves,Sama Al Sarhan Reserves,-0.75,-1,0.75,1,1.92,1.89,1.83,1.82,2.25,2.75,1.77,1.92,1.99,1.79,1-1,3-2
+30-12,12:45,Spain Youth League,Real Betis U,Melilla U,-4.5,-3.5,4.5,3.5,1.85,1.78,1.86,1.95,5.25,4.5,1.90,1.93,1.81,1.79,4-0,7-0
+30-12,12:30,Persian Gulf Pro League,Tractor S.C.,Malavan,-0.75,-0.75,0.75,0.75,1.84,1.81,1.90,1.90,2,2,1.98,2.00,1.78,1.73,0-0,0-0
+30-12,11:00,Ethiopia Premier League,Dire Dawa,Negelle Arsi,0.25,0,-0.25,0,1.75,1.99,2.07,1.78,1.75,1.75,1.86,1.90,1.93,1.85,0-1,0-3
+30-12,10:30,Myanmar Professional League,Dagon Port,Thitsar Arman FC,1,0.5,-1,-0.5,1.81,1.76,1.93,1.96,3.75,3.5,1.79,1.83,1.96,1.88,1-3,3-3
+30-12,10:00,India League Women,Kerala (W),Kickstart Karnataka FC (W),-0.75,-0.75,0.75,0.75,1.88,1.94,1.86,1.78,2.5,2.5,1.86,1.89,1.88,1.82,0-0,1-0
+30-12,10:00,Myanmar League Women,Ispe FC (W),Thitsar Arman FC (W),-0.5,-0.75,0.5,0.75,1.78,1.85,1.97,1.85,2.75,3,1.84,1.92,1.89,1.79,0-0,1-0
+30-12,10:00,Myanmar Professional League,Yadanabon FC,Dagon FC,0.25,0,-0.25,0,1.81,1.75,1.93,1.97,3.25,3,1.96,1.81,1.79,1.90,2-1,2-2
+30-12,09:45,Malaysia A1 Semi-Pro League,Bunga Raya,Kelantan Red Warrior,2,1.75,-2,-1.75,1.79,1.77,1.94,1.93,2.75,2.75,1.76,1.83,1.98,1.86,0-2,0-2
+30-12,09:30,Indonesia Super League,Arema FC,Persita Tangerang,0,-0.5,0,0.5,1.78,2.03,2.10,1.76,2.5,2.5,1.93,1.96,1.90,1.79,0-0,0-1
+30-12,09:15,Cambodia Cup,Kampong Speu Province,Battambong,0.75,-0.25,-0.75,0.25,1.86,1.94,1.88,1.77,3.25,2.75,1.92,1.93,1.83,1.78,0-6,0-10
+30-12,09:00,Australia W-League,WS Wanderers (W),Wellington Phoenix (W),1,0.75,-1,-0.75,1.91,1.82,1.94,1.95,2.75,2.75,1.93,1.87,1.91,1.88,0-1,0-3
+30-12,09:00,Indonesia Liga 4,Perserang Serang,Persikota Tangerang,0.25,0,-0.25,0,1.68,1.99,2.03,1.74,2.25,2.25,1.94,1.93,1.80,1.78,0-0,1-1
+30-12,09:00,Indonesia Liga 4,Sang Maestro,Rans Nusantara FC,0.25,0.25,-0.25,-0.25,1.89,1.80,1.85,1.91,2.5,2.25,1.95,1.83,1.79,1.88,1-0,3-1
+30-12,04:30,India League Women,Garhwal (W),Nita FA (W),0.5,1.25,-0.5,-1.25,1.97,1.78,1.78,1.93,2.75,3.25,1.83,1.79,1.91,1.93,0-1,0-1
+30-12,04:30,India League Women,Sreebhumi FC (W),Sethu FC (W),-0.5,-0.5,0.5,0.5,1.87,1.97,1.87,1.75,2.5,2.5,1.85,1.79,1.89,1.93,0-2,2-4
+30-12,01:30,Jamaica Premier League,Arnett Gardens,Racing United,0.75,0,-0.75,0,1.79,1.88,2.01,1.88,2.75,2.5,1.97,1.97,1.82,1.79,0-0,1-1
+30-12,01:00,International Club Friendly,Tlaxcala,Pachuca,0.5,1,-0.5,-1,1.86,1.93,1.88,1.79,3,3,1.99,1.92,1.76,1.80,0-3,1-4
