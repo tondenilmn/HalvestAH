@@ -29,7 +29,7 @@ module.exports = {
   DOG_ODDS_ON:   false,  // Dog odds move
 
   // ── Thresholds to trigger a notification ────────────────────────────────────
-  MIN_N:    40,   // minimum pre-match sample size
+  MIN_N:    30,   // minimum pre-match sample size
   MIN_Z:    2.0,  // minimum z-score
   MIN_EDGE: 5,    // minimum edge in percentage points above baseline
 
