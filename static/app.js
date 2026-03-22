@@ -85,14 +85,20 @@ const BETS = [
   { k: 'homeWinsFT',    label: 'Home wins full time',      market: 'Match Result — Home Win',           favSideBaseline: 'HOME' },
   { k: 'awayWinsFT',    label: 'Away wins full time',      market: 'Match Result — Away Win',           favSideBaseline: 'AWAY' },
   { k: 'drawFT',        label: 'Draw full time',           market: 'Match Result — Draw' },
-  { k: 'dnbHome',       label: 'DNB — Home',               market: 'Draw No Bet — Home',                favSideBaseline: 'HOME' },
-  { k: 'dnbAway',       label: 'DNB — Away',               market: 'Draw No Bet — Away',                favSideBaseline: 'AWAY' },
   { k: 'btts',          label: 'BTTS full time',           market: 'Both Teams to Score — FT' },
   // FT totals
   { k: 'over15FT',      label: 'Over 1.5 goals FT',       market: 'Over/Under 1.5 — Full Time' },
   { k: 'over25FT',      label: 'Over 2.5 goals FT',       market: 'Over/Under 2.5 — Full Time' },
   { k: 'over35FT',      label: 'Over 3.5 goals FT',       market: 'Over/Under 3.5 — Full Time' },
   { k: 'under25FT',     label: 'Under 2.5 goals FT',      market: 'Over/Under 2.5 — Full Time' },
+];
+
+// Fixed bet groups for the always-visible dashboard (order defines display order)
+const BET_GROUPS = [
+  { label: 'FT RESULT',  keys: ['ahCover', 'homeWinsFT', 'drawFT', 'awayWinsFT', 'btts'] },
+  { label: 'FT TOTALS',  keys: ['over15FT', 'over25FT', 'over35FT', 'under25FT'] },
+  { label: '2H',         keys: ['favWins2H', 'draw2H', 'homeWins2H', 'awayWins2H', 'favScored2H', 'homeScored2H', 'awayScored2H', 'homeOver15_2H', 'awayOver15_2H', 'over05_2H', 'over15_2H', 'under05_2H', 'under15_2H'] },
+  { label: '1H',         keys: ['favWins1H', 'draw1H', 'favScored1H', 'homeWins1H', 'awayWins1H', 'over05_1H', 'over15_1H', 'under05_1H', 'under15_1H', 'btts1H'] },
 ];
 
 /* ── League tier classification ─────────────────────────────────────────
@@ -874,7 +880,7 @@ const _2H_BETS_SET = new Set([
 ]);
 const _FT_BETS_SET = new Set([
   'noDrawFT','favWinsFT','homeWinsFT','awayWinsFT',
-  'dnbHome','dnbAway','over25FT','over15FT','over35FT','under25FT','drawFT','btts',
+  'over25FT','over15FT','over35FT','under25FT','drawFT','btts',
   'favWins1H','draw1H','favScored1H','homeWins1H','awayWins1H',
   'over05_1H','over15_1H','under05_1H','under15_1H','btts1H',
 ]);
@@ -2047,12 +2053,6 @@ function renderMergedBetCard(merged, rank, label) {
   const preColHtml = buildBetCol(pre, prePass, 'PRE-MATCH', 'no score filter', rank, 'pre', merged.minN);
   const gsColHtml  = buildBetCol(gs,  gsPass,  'IN-PLAY',   label,             rank, 'gs',  merged.minN);
 
-  // Odds checker uses in-play if it passes (more specific), else pre-match
-  const ocBet  = (gsPass && gs) ? gs : pre;
-  const ocLive = ocBet?.live?.live_p != null && ocBet.live.live_p > 0 && ocBet.live.live_p < 100;
-  const ocMo   = ocLive ? ocBet.live.fair_odd.toFixed(2) : ocBet.mo_mid;
-  const ocP    = ocLive ? ocBet.live.live_p              : ocBet.p;
-
   let liveHtml = '';
   const liveBet = gs?.live ? gs : (pre?.live ? pre : null);
   if (liveBet?.live) {
@@ -2085,18 +2085,58 @@ function renderMergedBetCard(merged, rank, label) {
       ${gsColHtml}
     </div>
     ${liveHtml}
-    <div class="odds-checker">
-      <label>CHECK LIVE ODDS:</label>
-      <span>Betfair</span>
-      <input class="odds-check-input" type="text" placeholder="1.85"
-             data-mo="${ocMo}" data-p="${ocP}">
-      <span class="odds-result"></span>
-      <span style="margin-left:10px">Soft book</span>
-      <input class="odds-check-input" type="text" placeholder="1.85"
-             data-mo="${ocMo}" data-p="${ocP}">
-      <span class="odds-result"></span>
-    </div>
   </div>`;
+}
+
+function renderBetDashboard(preMap, gsMap) {
+  const betDefMap = new Map(BETS.map(b => [b.k, b]));
+
+  const fmtCol = (b) => {
+    if (!b) return '<span class="bd-col-na">—</span>';
+    const zCls = b.z >= MIN_Z ? 'bd-z-pass' : b.z >= 0 ? 'bd-z-ok' : 'bd-z-neg';
+    const eCls = b.edge >= 0 ? 'bd-e-pos' : 'bd-e-neg';
+    const sign = b.z >= 0 ? '+' : '';
+    return `<span class="${zCls}">z${sign}${b.z.toFixed(1)}</span><span class="bd-sep">·</span><span class="${eCls}">${b.p.toFixed(0)}%</span><span class="bd-bl">vs ${b.bl.toFixed(0)}%</span>`;
+  };
+
+  let html = `<div class="bd-col-headers">
+    <span class="bd-ch-dot"></span>
+    <span class="bd-ch-label">BET</span>
+    <span class="bd-ch-scenarios"><span>PRE-MATCH</span><span>IN-PLAY</span></span>
+    <span class="bd-ch-n">N</span>
+    <span class="bd-ch-mo">MIN ODDS</span>
+  </div>
+  <div class="bet-dashboard">`;
+
+  for (const group of BET_GROUPS) {
+    html += `<div class="bd-group-hdr">${group.label}</div>`;
+    for (const k of group.keys) {
+      const def = betDefMap.get(k);
+      if (!def) continue;
+      const pre = preMap.get(k) || null;
+      const gs  = gsMap.get(k)  || null;
+      const bestZ   = Math.max(pre?.z ?? -99, gs?.z ?? -99);
+      const hasData = pre !== null || gs !== null;
+      let tierCls;
+      if (!hasData)          tierCls = 'bd-nodata';
+      else if (bestZ >= 2.5) tierCls = 'bd-strong';
+      else if (bestZ >= 2.0) tierCls = 'bd-good';
+      else if (bestZ >= 1.5) tierCls = 'bd-marginal';
+      else if (bestZ >= 0)   tierCls = 'bd-weak';
+      else                   tierCls = 'bd-negative';
+      const mo = pre?.mo_mid ?? gs?.mo_mid ?? '—';
+      const n  = pre?.n ?? gs?.n ?? '—';
+      html += `<div class="bd-row ${tierCls}">
+        <span class="bd-dot"></span>
+        <span class="bd-label">${def.label}</span>
+        <span class="bd-scenarios"><span class="bd-pre">${fmtCol(pre)}</span><span class="bd-scen-sep">│</span><span class="bd-gs">${fmtCol(gs)}</span></span>
+        <span class="bd-n">n=${n}</span>
+        <span class="bd-mo">${mo}</span>
+      </div>`;
+    }
+  }
+  html += '</div>';
+  return html;
 }
 
 function renderMatchResults({ pre, gs, gsLabel: label }) {
@@ -2108,32 +2148,14 @@ function renderMatchResults({ pre, gs, gsLabel: label }) {
     cfgSummary = `<div class="cfg-summary">${ahSide} AH −${pre.cfg.fav_line}</div>`;
   }
 
-  // Build union of bets passing MIN_Z in at least one scenario
   const preMap = new Map(pre.allBets.map(b => [b.k, b]));
   const gsMap  = new Map(gs.allBets.map(b => [b.k, b]));
-  const unionKeys = new Set([...pre.bets.map(b => b.k), ...gs.bets.map(b => b.k)]);
-
-  const mergedBets = Array.from(unionKeys).map(k => ({
-    k,
-    pre:     preMap.get(k) || null,
-    gs:      gsMap.get(k)  || null,
-    prePass: pre.bets.some(b => b.k === k),
-    gsPass:  gs.bets.some(b => b.k === k),
-    minN:    pre.min_n,
-  }));
-
-  // Sort: both pass first, then by combined z
-  mergedBets.sort((a, b) => {
-    const aBoth = a.prePass && a.gsPass, bBoth = b.prePass && b.gsPass;
-    if (aBoth !== bBoth) return aBoth ? -1 : 1;
-    return ((b.pre?.z || 0) + (b.gs?.z || 0)) - ((a.pre?.z || 0) + (a.gs?.z || 0));
-  });
 
   const qualPre = pre.bets.filter(b => b.edge > 0).length;
   const qualGs  = gs.bets.filter(b => b.edge > 0).length;
   const gsLow   = gs.gs_n < pre.min_n;
 
-  let html = `<h2 class="results-title">BEST BETS</h2>${cfgSummary}`;
+  let html = `<h2 class="results-title">BET DASHBOARD</h2>${cfgSummary}`;
 
   html += `<div class="scenarios-summary">
     <div class="sc-stat"><span class="sc-label">Config</span><span class="sc-val">${pre.cfg_n}</span><span class="sc-sub">matches</span></div>
@@ -2156,39 +2178,35 @@ function renderMatchResults({ pre, gs, gsLabel: label }) {
     }
   }
 
-  if (!mergedBets.length) {
-    html += `<div class="no-bets"><div class="warn-icon">⚠️</div>
-      <p>No statistically significant bets found.<br>No edge detected (z ≥ 1.5) on any outcome.<br><br>
-      → Skip this match.<br>→ Use Config Discovery to explore other configurations.</p></div>`;
-    right.innerHTML = html;
-    return;
+  // Always-visible bet dashboard (all 34 bets, grouped, color-coded by tier)
+  html += renderBetDashboard(preMap, gsMap);
+
+  // Qualifying bets (z >= MIN_Z in at least one scenario) — full detail cards with odds checker
+  const qualifyingKeys = new Set([...pre.bets.map(b => b.k), ...gs.bets.map(b => b.k)]);
+  if (qualifyingKeys.size > 0) {
+    const mergedBets = Array.from(qualifyingKeys).map(k => ({
+      k,
+      pre:     preMap.get(k) || null,
+      gs:      gsMap.get(k)  || null,
+      prePass: pre.bets.some(b => b.k === k),
+      gsPass:  gs.bets.some(b => b.k === k),
+      minN:    pre.min_n,
+    }));
+    mergedBets.sort((a, b) => {
+      const aBoth = a.prePass && a.gsPass, bBoth = b.prePass && b.gsPass;
+      if (aBoth !== bBoth) return aBoth ? -1 : 1;
+      return ((b.pre?.z || 0) + (b.gs?.z || 0)) - ((a.pre?.z || 0) + (a.gs?.z || 0));
+    });
+    html += `<div class="section-label" style="margin-top:18px">QUALIFYING BETS</div>`;
+    html += `<p style="font-size:11px;color:var(--dim);margin-bottom:10px">${mergedBets.length} bet${mergedBets.length !== 1 ? 's' : ''} — sorted by strength · both-pass first</p>`;
+    for (let i = 0; i < mergedBets.length; i++) html += renderMergedBetCard(mergedBets[i], i + 1, label);
   }
 
-  html += `<p style="font-size:11px;color:var(--dim);margin-bottom:10px">${mergedBets.length} bet${mergedBets.length !== 1 ? 's' : ''} — sorted by strength · both-pass first</p>`;
-  for (let i = 0; i < mergedBets.length; i++) html += renderMergedBetCard(mergedBets[i], i + 1, label);
-
-  // Value hunt from pre-match allBets (bets with positive edge but z < MIN_Z)
+  // Value hunt from pre-match allBets (positive edge but z < MIN_Z)
   const vhBets = pre.allBets.filter(b => Math.abs(b.z) < MIN_Z && b.edge > 0 && b.n >= pre.min_n);
   if (vhBets.length) html += renderValueHuntSection(vhBets);
 
   right.innerHTML = html;
-  right.querySelectorAll('.odds-check-input').forEach(inp => {
-    inp.addEventListener('input', () => {
-      const mo   = parseFloat(inp.dataset.mo);
-      const p    = parseFloat(inp.dataset.p);
-      const lbl  = inp.nextElementSibling;
-      const odds = parseFloat(inp.value);
-      if (isNaN(odds) || isNaN(mo)) { lbl.textContent = ''; lbl.className = 'odds-result'; return; }
-      const ev = (odds * (p / 100) - 1) * 100;
-      if (odds >= mo) {
-        lbl.textContent = `✓ VALUE  ${ev >= 0 ? '+' : ''}${ev.toFixed(1)}%`;
-        lbl.className   = 'odds-result value';
-      } else {
-        lbl.textContent = `✗ SKIP  ${ev >= 0 ? '+' : ''}${ev.toFixed(1)}%`;
-        lbl.className   = 'odds-result skip';
-      }
-    });
-  });
 }
 
 function renderBetCard(bet, rank) {
@@ -2287,17 +2305,6 @@ function renderBetCard(bet, rank) {
       </div>
     </div>
     ${liveHtml}
-    <div class="odds-checker">
-      <label>CHECK LIVE ODDS:</label>
-      <span>Betfair</span>
-      <input class="odds-check-input" type="text" placeholder="1.85"
-             data-mo="${bet.mo_mid}" data-p="${bet.p}">
-      <span class="odds-result"></span>
-      <span style="margin-left:10px">Soft book</span>
-      <input class="odds-check-input" type="text" placeholder="1.85"
-             data-mo="${bet.mo_mid}" data-p="${bet.p}">
-      <span class="odds-result"></span>
-    </div>
   </div>`;
 }
 
@@ -2329,12 +2336,6 @@ function renderValueHuntCard(bet) {
           <span class="vh-p">p=${bet.p.toFixed(1)}%</span>
           <span style="color:${nColor}">  n=${bet.n}</span>
           <span class="vh-ci">  CI [${bet.lo}%–${bet.hi}%]</span>
-        </div>
-        <div class="vh-checker">
-          <label>BK ODDS:</label>
-          <input class="odds-check-input" type="text" placeholder="2.10"
-                 data-mo="${bet.mo_mid}" data-p="${bet.p}">
-          <span class="odds-result"></span>
         </div>
       </div>
       <div class="vh-right">
@@ -2571,7 +2572,32 @@ function useScanMatch(id) {
   if (!entry) return;
   fillFromScraped(entry.odds);
   fillLiveMatchState(entry.match);
+  _showActiveMatchBanner(entry.match);
   switchTab('match');
+}
+
+function _showActiveMatchBanner(match) {
+  const el = document.getElementById('active-match-banner');
+  if (!el) return;
+  if (!match) { el.style.display = 'none'; return; }
+
+  const home   = match.home_team || '?';
+  const away   = match.away_team || '?';
+  const league = match.league    || '';
+  const score  = match.score     || null;
+  const min    = match.minute    ? String(match.minute).replace(/'/g, '').trim() + "'" : null;
+
+  const scorePart  = score  ? `<span class="amb-score">${score}</span>`          : '';
+  const minPart    = min    ? `<span class="amb-minute">${min}</span>`            : '';
+  const leaguePart = league ? `<span class="amb-league">${league}</span><span class="amb-sep">·</span>` : '';
+
+  el.innerHTML = `
+    ${leaguePart}
+    <span class="amb-teams">${home}<span class="amb-vs">vs</span>${away}</span>
+    ${scorePart}${minPart}
+    <button class="amb-clear" onclick="document.getElementById('active-match-banner').style.display='none'" title="Dismiss">✕</button>
+  `;
+  el.style.display = 'flex';
 }
 
 function fillLiveMatchState(match) {

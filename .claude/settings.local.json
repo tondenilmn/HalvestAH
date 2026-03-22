@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd:*)",
+      "Bash(ls:*)",
+      "WebFetch(domain:www.asianbetsoccer.com)",
+      "WebFetch(domain:botbot3.space)",
+      "WebSearch",
+      "Bash(curl -s -I https://botbot3.space/tables/v4/livegame.js)",
+      "Bash(curl -s -I https://botbot3.space/tables/v4/live.js)",
+      "Bash(curl -s -I https://botbot3.space/tables/v4/liveodds.js)",
+      "Bash(curl -s -I https://botbot3.space/tables/v4/currentgames.js)",
+      "Bash(curl -s -I https://botbot3.space/tables/v4/today.js)",
+      "Bash(curl -s -I https://www.asianbetsoccer.com/api/livescore)",
+      "Bash(curl -s -I https://www.asianbetsoccer.com/api/live)",
+      "Bash(curl -s -I https://www.asianbetsoccer.com/it/api/live)",
+      "Bash(curl -s \"https://www.asianbetsoccer.com/it/livescore.html\")",
+      "Bash(curl -s \"https://www.asianbetsoccer.com/settings/tablefunc.v5.book.min.js\")",
+      "Bash(curl -s \"https://www.asianbetsoccer.com/settings/onloaded_V4.js?v1\")",
+      "Bash(curl -s https://www.asianbetsoccer.com/settings/onloaded_V4.js?v1 2)",
+      "Read(//tmp/**)",
+      "Bash(curl -s \"https://www.asianbetsoccer.com/settings/cookiebanner.bookies.v3.js\")",
+      "Bash(curl -s -I \"https://botbot3.space/tables/v4/Q/livegame/pinnacle.js\")",
+      "Bash(curl -s -I \"https://botbot3.space/tables/v4/L/livegame/pinnacle.js\")",
+      "Bash(curl -s -I \"https://botbot3.space/tables/v4/A/livegame/pinnacle.js\")",
+      "Bash(curl -s \"https://botbot3.space/tables/v4/L/livegame/pinnacle.js\")",
+      "Bash(curl -s \"https://botbot3.space/tables/v4/L/livegame/pinnacle.js?date=1710892800000\")",
+      "Bash(curl -s \"https://botbot3.space/tables/v4/oddsComp/pinnacle.js\")",
+      "Bash(curl -s \"https://www.asianbetsoccer.com/functions/api/scrape.js\")"
+    ]
+  }
+}
