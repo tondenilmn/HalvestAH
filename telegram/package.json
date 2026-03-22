@@ -1,0 +1,18 @@
+{
+  "name": "halvest-telegram-notifier",
+  "version": "1.0.0",
+  "description": "Telegram alerts for HalvestAH live scan",
+  "main": "notify.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node notify.js",
+    "test": "node notify.js --once"
+  },
+  "dependencies": {
+    "papaparse": "^5.4.1",
+    "node-cron": "^3.0.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
