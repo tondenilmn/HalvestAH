@@ -61,28 +61,52 @@ function formatMessage(match, bets, matchCfg, gsMap) {
   // GS label shown once above bets if available
   const gsLabel = gsMap ? `\n<i>🎯 ${match._gsLabel || 'in-play'}</i>\n` : '';
 
-  // Bet rows — sorted by z descending
-  const betLines = bets
-    .sort((a, b) => b.z - a.z)
-    .map(b => {
-      const zStr    = (b.z >= 0 ? '+' : '') + b.z.toFixed(1);
-      const edgeStr = (b.edge >= 0 ? '+' : '') + b.edge.toFixed(1) + 'pp';
-      const moStr   = b.mo ? `  @ <b>${b.mo}</b>` : '';
-      let gsStr = '';
-      if (gsMap) {
-        const gs = gsMap.get(b.k);
-        if (gs) {
-          const gsZ = (gs.z >= 0 ? '+' : '') + gs.z.toFixed(1);
-          gsStr = `\n    <i>↳ GS  z${gsZ}  n=${gs.n}</i>`;
-        } else {
-          gsStr = `\n    <i>↳ GS  n/a</i>`;
-        }
-      }
-      const zBadge = b.z >= 3.0 ? '🔥' : b.z >= 2.5 ? '⚡' : '📊';
-      return `${zBadge} <b>${b.label}</b>${moStr}\n    z<b>${zStr}</b>  <b>${b.p.toFixed(0)}%</b> vs ${b.bl.toFixed(0)}%  <b>${edgeStr}</b>  <i>n=${b.n}</i>${gsStr}`;
-    }).join('\n\n');
+  // Bet categories — defines display order and grouping
+  const CATEGORIES = [
+    { label: 'AH',         keys: ['ahCover'] },
+    { label: '1H Results', keys: ['favWins1H','draw1H','favScored1H','homeWins1H','awayWins1H','btts1H'] },
+    { label: '1H Totals',  keys: ['over05_1H','over15_1H','under05_1H','under15_1H'] },
+    { label: '2H Results', keys: ['favWins2H','favScored2H','draw2H','homeWins2H','awayWins2H','homeScored2H','awayScored2H'] },
+    { label: '2H Totals',  keys: ['over05_2H','over15_2H','under05_2H','under15_2H','homeOver15_2H','awayOver15_2H'] },
+    { label: 'FT Results', keys: ['homeWinsFT','awayWinsFT','drawFT','btts','dnbHome','dnbAway'] },
+    { label: 'FT Totals',  keys: ['over15FT','over25FT','over35FT','under25FT'] },
+  ];
 
-  return `${league}⚽ <b>${match.home_team} vs ${match.away_team}</b>${score}${minute}\n${context}${gsLabel}\n${betLines}`;
+  // Helper: format a single bet row
+  function formatBet(b) {
+    const zStr    = (b.z >= 0 ? '+' : '') + b.z.toFixed(1);
+    const edgeStr = (b.edge >= 0 ? '+' : '') + b.edge.toFixed(1) + 'pp';
+    const moStr   = b.mo ? `  @ <b>${b.mo}</b>` : '';
+    let gsStr = '';
+    if (gsMap) {
+      const gs = gsMap.get(b.k);
+      if (gs) {
+        const gsZ = (gs.z >= 0 ? '+' : '') + gs.z.toFixed(1);
+        gsStr = `\n    <i>↳ GS  z${gsZ}  n=${gs.n}</i>`;
+      } else {
+        gsStr = `\n    <i>↳ GS  n/a</i>`;
+      }
+    }
+    const zBadge = b.z >= 3.0 ? '🔥' : b.z >= 2.5 ? '⚡' : '📊';
+    return `${zBadge} <b>${b.label}</b>${moStr}\n    z<b>${zStr}</b>  <b>${b.p.toFixed(0)}%</b> vs ${b.bl.toFixed(0)}%  <b>${edgeStr}</b>  <i>n=${b.n}</i>${gsStr}`;
+  }
+
+  // Group bets by category; bets within each group sorted by z desc
+  const betMap = new Map(bets.map(b => [b.k, b]));
+  const groupLines = CATEGORIES
+    .map(cat => {
+      const catBets = cat.keys
+        .map(k => betMap.get(k))
+        .filter(Boolean)
+        .sort((a, b) => b.z - a.z);
+      if (!catBets.length) return null;
+      const rows = catBets.map(formatBet).join('\n\n');
+      return `📂 <b>${cat.label}</b> <i>(${catBets.length})</i>\n<tg-spoiler>${rows}</tg-spoiler>`;
+    })
+    .filter(Boolean)
+    .join('\n\n');
+
+  return `${league}⚽ <b>${match.home_team} vs ${match.away_team}</b>${score}${minute}\n${context}${gsLabel}\n${groupLines}`;
 }
 
 // ── Game state builder ─────────────────────────────────────────────────────────

@@ -2109,13 +2109,17 @@ function renderBetDashboard(preMap, gsMap) {
   <div class="bet-dashboard">`;
 
   for (const group of BET_GROUPS) {
-    html += `<div class="bd-group-hdr">${group.label}</div>`;
+    let rowsHtml = '';
+    let groupBestZ = -99;
+    let groupHasPass = false;
     for (const k of group.keys) {
       const def = betDefMap.get(k);
       if (!def) continue;
       const pre = preMap.get(k) || null;
       const gs  = gsMap.get(k)  || null;
       const bestZ   = Math.max(pre?.z ?? -99, gs?.z ?? -99);
+      if (bestZ > groupBestZ) groupBestZ = bestZ;
+      if (bestZ >= MIN_Z) groupHasPass = true;
       const hasData = pre !== null || gs !== null;
       let tierCls;
       if (!hasData)          tierCls = 'bd-nodata';
@@ -2126,7 +2130,7 @@ function renderBetDashboard(preMap, gsMap) {
       else                   tierCls = 'bd-negative';
       const mo = pre?.mo_mid ?? gs?.mo_mid ?? '—';
       const n  = pre?.n ?? gs?.n ?? '—';
-      html += `<div class="bd-row ${tierCls}">
+      rowsHtml += `<div class="bd-row ${tierCls}">
         <span class="bd-dot"></span>
         <span class="bd-label">${def.label}</span>
         <span class="bd-scenarios"><span class="bd-pre">${fmtCol(pre)}</span><span class="bd-scen-sep">│</span><span class="bd-gs">${fmtCol(gs)}</span></span>
@@ -2134,6 +2138,11 @@ function renderBetDashboard(preMap, gsMap) {
         <span class="bd-mo">${mo}</span>
       </div>`;
     }
+    const badge = groupHasPass ? `<span class="bd-group-badge">●</span>` : '';
+    html += `<details class="bd-group">
+      <summary class="bd-group-hdr">${badge}${group.label}<span class="bd-group-arrow">▸</span></summary>
+      <div class="bd-group-body">${rowsHtml}</div>
+    </details>`;
   }
   html += '</div>';
   return html;
