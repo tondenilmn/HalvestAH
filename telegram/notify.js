@@ -40,22 +40,26 @@ function formatMessage(match, bets, matchCfg, gsMap) {
   const minute = match.minute ? `  <b>${match.minute}</b>` : '';
   const league = match.league ? `🏆 <i>${match.league}</i>\n` : '';
 
-  // Market context line
+  // Market context — AH line + line move signal on one line, TL on the next
   const ahSide = matchCfg.fav_side === 'HOME' ? 'Home' : 'Away';
   const ahLine = `${ahSide} -${matchCfg.fav_line}`;
   const tlVal  = match.odds.tl_c != null ? `TL ${match.odds.tl_c}` : '';
   const sig    = matchCfg.signals;
-  const sigStr = [
-    sig.lineMove  !== 'UNKNOWN' ? `Line: <b>${sig.lineMove}</b>`  : null,
-    sig.tlMove    !== 'UNKNOWN' ? `TL: <b>${sig.tlMove}</b>`      : null,
+
+  const ahExtra = [
+    sig.lineMove  !== 'UNKNOWN' ? `Line: <b>${sig.lineMove}</b>` : null,
     cfg.FAV_ODDS_ON && sig.favOddsMove !== 'UNKNOWN' ? `Fav: <b>${sig.favOddsMove}</b>` : null,
     cfg.DOG_ODDS_ON && sig.dogOddsMove !== 'UNKNOWN' ? `Dog: <b>${sig.dogOddsMove}</b>` : null,
   ].filter(Boolean).join('  ·  ');
 
-  const context = `<code>${ahLine}${tlVal ? `  ·  ${tlVal}` : ''}</code>  ${sigStr}\n`;
+  const tlExtra = sig.tlMove !== 'UNKNOWN' ? `TL: <b>${sig.tlMove}</b>` : '';
+
+  const ahRow = `<code>${ahLine}</code>${ahExtra ? `  ·  ${ahExtra}` : ''}`;
+  const tlRow = tlVal ? `<code>${tlVal}</code>${tlExtra ? `  ·  ${tlExtra}` : ''}` : '';
+  const context = ahRow + (tlRow ? `\n${tlRow}` : '') + '\n';
 
   // GS label shown once above bets if available
-  const gsLabel = gsMap ? `<i>${match._gsLabel || 'in-play'}</i>\n` : '';
+  const gsLabel = gsMap ? `\n<i>🎯 ${match._gsLabel || 'in-play'}</i>\n` : '';
 
   // Bet rows — sorted by z descending
   const betLines = bets
@@ -63,25 +67,22 @@ function formatMessage(match, bets, matchCfg, gsMap) {
     .map(b => {
       const zStr    = (b.z >= 0 ? '+' : '') + b.z.toFixed(1);
       const edgeStr = (b.edge >= 0 ? '+' : '') + b.edge.toFixed(1) + 'pp';
-      const moStr   = b.mo ? `  min <b>${b.mo}</b>` : '';
-      // GS column — show z if available, or N/A if game state sample too small
+      const moStr   = b.mo ? `  @ <b>${b.mo}</b>` : '';
       let gsStr = '';
       if (gsMap) {
         const gs = gsMap.get(b.k);
         if (gs) {
           const gsZ = (gs.z >= 0 ? '+' : '') + gs.z.toFixed(1);
-          gsStr = `  GS z${gsZ} n=${gs.n}`;
+          gsStr = `\n    <i>↳ GS  z${gsZ}  n=${gs.n}</i>`;
         } else {
-          gsStr = `  GS n/a`;
+          gsStr = `\n    <i>↳ GS  n/a</i>`;
         }
       }
-      return `📊 <b>${b.label}</b>\n    PRE z${zStr}  ${b.p.toFixed(0)}% vs ${b.bl.toFixed(0)}%  ${edgeStr}  n=${b.n}${moStr}${gsStr}`;
-    }).join('\n');
+      const zBadge = b.z >= 3.0 ? '🔥' : b.z >= 2.5 ? '⚡' : '📊';
+      return `${zBadge} <b>${b.label}</b>${moStr}\n    z<b>${zStr}</b>  <b>${b.p.toFixed(0)}%</b> vs ${b.bl.toFixed(0)}%  <b>${edgeStr}</b>  <i>n=${b.n}</i>${gsStr}`;
+    }).join('\n\n');
 
-  // Clickable link
-  const link = match.url ? `\n🔗 <a href="${match.url}">Open on asianbetsoccer</a>` : '';
-
-  return `${league}⚽ <b>${match.home_team} vs ${match.away_team}</b>${score}${minute}\n${context}${gsLabel}\n${betLines}${link}`;
+  return `${league}⚽ <b>${match.home_team} vs ${match.away_team}</b>${score}${minute}\n${context}${gsLabel}\n${betLines}`;
 }
 
 // ── Game state builder ─────────────────────────────────────────────────────────

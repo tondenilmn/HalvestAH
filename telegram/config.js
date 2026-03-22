@@ -17,6 +17,7 @@ module.exports = {
   //   Example: https://halvest-ah.pages.dev
   //   Leave null to use the local DATA_DIR path instead (default for local runs).
   DATA_URL: process.env.DATA_URL || null,
+ 
 
   // Local CSV folder — used when DATA_URL is null (relative to this file)
   DATA_DIR: process.env.DATA_DIR || '../static/data',
