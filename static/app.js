@@ -1108,7 +1108,7 @@ function switchTab(name) {
   document.querySelectorAll('.tab-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.tab === name);
   });
-  ['match', 'disc', 'scan'].forEach(t =>
+  ['match', 'disc', 'scan', 'bayes'].forEach(t =>
     document.getElementById(`tab-${t}`).classList.toggle('active', t === name)
   );
 }
