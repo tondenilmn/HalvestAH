@@ -2083,6 +2083,74 @@ function showError(msg) {
     `<div class="no-bets"><div class="warn-icon">⚠️</div><p>${msg}</p></div>`;
 }
 
+function renderBayesianScore(results, n, signals, ctx) {
+  const DIM_LABELS = { lm: 'LM', om: 'OM', tlm: 'TLM', ovm: 'OVM', ht: 'HT' };
+  const ALL_DIMS   = ['lm', 'om', 'tlm', 'ovm', 'ht'];
+
+  // Signal badges
+  const badgesHtml = ALL_DIMS.map(dim => {
+    const val = signals[dim];
+    if (val == null) {
+      return `<span class="bayes-badge dim-off">${DIM_LABELS[dim]}: —</span>`;
+    }
+    const uiVal = { IN: 'STEAM', OUT: 'DRIFT' }[val] || val;
+    return `<span class="bayes-badge">${DIM_LABELS[dim]}: ${uiVal}</span>`;
+  }).join('');
+
+  // Context line
+  const lineLabel = ctx.favLine != null ? `AH ${ctx.favLine}` : '';
+  const sideLabel = ctx.favSide ? ` · Fav: ${ctx.favSide}` : '';
+  const tlLabel   = ctx.tlc    != null ? ` · TL ≈ ${parseFloat(ctx.tlc).toFixed(2)}` : '';
+  const ctxLine   = `${lineLabel}${sideLabel}${tlLabel} · n = ${n}`;
+
+  // Table rows
+  const rowsHtml = results.map(r => {
+    const rowCls   = r.unreliable ? 'bayes-row-dim'
+                   : r.delta > 3  ? 'bayes-row-pos'
+                   : r.delta < -3 ? 'bayes-row-neg'
+                   : '';
+    const sign     = r.delta >= 0 ? '+' : '';
+    const deltaCls = r.delta >= 0 ? 'bayes-delta-pos' : 'bayes-delta-neg';
+    const arrow    = r.delta >= 0 ? '▲' : '▼';
+    const warnIcon = r.unreliable ? ' ⚠' : '';
+    return `<tr class="${rowCls}">
+      <td>${r.label}${warnIcon}</td>
+      <td class="bayes-pct">${r.baseline.toFixed(1)}%</td>
+      <td>→</td>
+      <td class="bayes-pct">${r.posterior.toFixed(1)}%</td>
+      <td class="${deltaCls}">${arrow} ${sign}${r.delta.toFixed(1)}pp</td>
+      <td class="bayes-n">${r.poolN}</td>
+    </tr>`;
+  }).join('');
+
+  const html = `
+    <div style="padding:16px">
+      <div style="font-size:14px;font-weight:700;color:var(--bright);margin-bottom:8px">
+        BAYESIAN SCORE
+      </div>
+      <div class="bayes-header">${ctxLine}</div>
+      <div class="bayes-badges">${badgesHtml}</div>
+      <table class="bayes-table">
+        <thead>
+          <tr>
+            <th>Bet</th>
+            <th>Baseline</th>
+            <th></th>
+            <th>Posterior</th>
+            <th>Shift</th>
+            <th>n</th>
+          </tr>
+        </thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+      <p style="font-size:10px;color:var(--dim);margin-top:10px">
+        ⚠ = LR cell &lt; ${DEFAULT_MIN_N} rows — treat with caution
+      </p>
+    </div>`;
+
+  document.getElementById('right-panel').innerHTML = html;
+}
+
 function tierClass(z) {
   const az = Math.abs(z);
   if (az >= 2.5) return 'strong';

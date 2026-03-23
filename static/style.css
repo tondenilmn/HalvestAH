@@ -891,3 +891,22 @@ select.gs-select {
 /* ── League Tier Filter ──────────────────────────────────── */
 .tier-filter-card { margin-bottom: 8px; }
 .tier-breakdown   { font-size: 10px; color: var(--dim); margin-top: 5px; line-height: 1.5; }
+
+/* ── Bayesian Score Panel ───────────────────────────────── */
+.bayes-header    { font-size:12px; color:var(--dim); margin-bottom:12px; line-height:1.7; }
+.bayes-badges    { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px; }
+.bayes-badge     { font-size:11px; font-weight:700; padding:3px 8px; border-radius:4px;
+                   background:var(--bg2); border:1px solid var(--border); color:var(--bright); }
+.bayes-badge.dim-off { color:var(--dim); border-color:var(--border); }
+
+.bayes-table     { width:100%; border-collapse:collapse; font-size:13px; }
+.bayes-table th  { text-align:left; color:var(--dim); font-size:11px; font-weight:600;
+                   padding:4px 8px; border-bottom:1px solid var(--border); }
+.bayes-table td  { padding:6px 8px; border-bottom:1px solid rgba(255,255,255,0.04); }
+.bayes-row-pos   { background:rgba(0,220,100,0.07); }
+.bayes-row-neg   { background:rgba(220,60,60,0.07); }
+.bayes-row-dim   { opacity:0.45; font-style:italic; }
+.bayes-delta-pos { color:var(--green); font-weight:700; }
+.bayes-delta-neg { color:var(--red);   font-weight:700; }
+.bayes-pct       { color:var(--bright); }
+.bayes-n         { color:var(--dim); font-size:11px; }
