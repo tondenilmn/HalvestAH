@@ -626,7 +626,7 @@ function runBayesian() {
       if (value == null) continue;
       const hits   = pool.filter(r => r[bet.k] === true  && getBayesDimValue(r, dim) === value).length;
       const misses = pool.filter(r => r[bet.k] === false && getBayesDimValue(r, dim) === value).length;
-      if (hits < DEFAULT_MIN_N || misses < DEFAULT_MIN_N) { unreliable = true; break; }
+      if (hits < DEFAULT_MIN_N || misses < DEFAULT_MIN_N) { unreliable = true; break; } // || is intentional: either side sparse → LR unreliable
     }
 
     return {
