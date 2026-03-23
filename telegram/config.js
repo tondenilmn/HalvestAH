@@ -29,17 +29,26 @@ module.exports = {
   DOG_ODDS_ON:   false,  // Dog odds move
 
   // ── Thresholds to trigger a notification ────────────────────────────────────
-  MIN_N:    30,   // minimum pre-match sample size
-  MIN_Z:    2.0,  // minimum z-score
-  MIN_EDGE: 5,    // minimum edge in percentage points above baseline
+  MIN_N:        35,   // minimum pre-match sample size
+  MIN_Z:        2.0,  // minimum z-score
+  MIN_EDGE:     6,    // minimum edge in percentage points above baseline
+  MIN_BASELINE: 25,   // minimum baseline hit rate % — suppresses low base-rate bets
+                      // (e.g. Home Over 1.5 2H at 8%, Away wins 1H at 7%) that
+                      // historically underperform out-of-sample despite high z-scores
+
+  // ── Signal quality gate ──────────────────────────────────────────────────────
+  // Only notify matches where at least one active signal shows real movement
+  // (i.e. not STABLE and not UNKNOWN). Prevents alerts on flat-signal matches
+  // where the AH line + TL combination alone happens to show historical edge.
+  REQUIRE_MOVEMENT: true,
 
   // ── League tier filter ───────────────────────────────────────────────────────
-  // 'ALL'       — all leagues (current)
+  // 'ALL'       — all leagues
   // 'TOP'       — top 5 EU + Champions/Europa/Conference League only
   // 'MAJOR'     — strong national leagues (Brazil, Argentina, MLS, J1, etc.)
   // 'TOP+MAJOR' — both TOP and MAJOR, excludes obscure/lower leagues
-  LEAGUE_TIER: process.env.LEAGUE_TIER || 'ALL',
+  LEAGUE_TIER: process.env.LEAGUE_TIER || 'TOP+MAJOR',
 
   // ── How often to scan (minutes) ─────────────────────────────────────────────
-  SCAN_INTERVAL_MINUTES: parseInt(process.env.SCAN_INTERVAL_MINUTES || '5', 10),
+  SCAN_INTERVAL_MINUTES: parseInt(process.env.SCAN_INTERVAL_MINUTES || '3', 10),
 };
