@@ -36,77 +36,53 @@ async function sendTelegram(text) {
 
 // gsMap: Map of betKey → gs bet result (or null if not run)
 function formatMessage(match, bets, matchCfg, gsMap) {
-  const score  = match.score  ? `  <b>${match.score}</b>` : '';
-  const minute = match.minute ? `  <b>${match.minute}</b>` : '';
-  const league = match.league ? `🏆 <i>${match.league}</i>\n` : '';
-
-  // Market context — AH line + line move signal on one line, TL on the next
-  const ahSide = matchCfg.fav_side === 'HOME' ? 'Home' : 'Away';
-  const ahLine = `${ahSide} -${matchCfg.fav_line}`;
-  const tlVal  = match.odds.tl_c != null ? `TL ${match.odds.tl_c}` : '';
   const sig    = matchCfg.signals;
+  const ahSide = matchCfg.fav_side === 'HOME' ? 'Home' : 'Away';
 
-  const ahExtra = [
-    sig.lineMove  !== 'UNKNOWN' ? `Line: <b>${sig.lineMove}</b>` : null,
-    cfg.FAV_ODDS_ON && sig.favOddsMove !== 'UNKNOWN' ? `Fav: <b>${sig.favOddsMove}</b>` : null,
-    cfg.DOG_ODDS_ON && sig.dogOddsMove !== 'UNKNOWN' ? `Dog: <b>${sig.dogOddsMove}</b>` : null,
+  // ── Header ────────────────────────────────────────────────────────────────
+  const leagueLine = match.league ? `🏆 <i>${match.league}</i>` : '';
+
+  const scorePart  = match.score  ? `  <b>${match.score}</b>`  : '';
+  const minPart    = match.minute ? `  🕐 <b>${match.minute}</b>` : '';
+  const matchLine  = `⚽ <b>${match.home_team} vs ${match.away_team}</b>${scorePart}${minPart}`;
+
+  // Signals line: AH line + each active signal
+  const sigParts = [
+    `AH <b>${ahSide} -${matchCfg.fav_line}</b>`,
+    sig.lineMove  !== 'UNKNOWN' ? `LM <b>${sig.lineMove}</b>`  : null,
+    cfg.TL_MOVE_ON && sig.tlMove !== 'UNKNOWN' ? `TL <b>${sig.tlMove}</b>` : null,
+    match.odds.tl_c != null ? `<code>TL ${match.odds.tl_c}</code>` : null,
+    cfg.FAV_ODDS_ON && sig.favOddsMove !== 'UNKNOWN' ? `Fav <b>${sig.favOddsMove}</b>` : null,
+    cfg.DOG_ODDS_ON && sig.dogOddsMove !== 'UNKNOWN' ? `Dog <b>${sig.dogOddsMove}</b>` : null,
   ].filter(Boolean).join('  ·  ');
 
-  const tlExtra = sig.tlMove !== 'UNKNOWN' ? `TL: <b>${sig.tlMove}</b>` : '';
+  const gsLine = gsMap ? `🎯 <i>${match._gsLabel || 'in-play'}</i>` : null;
 
-  const ahRow = `<code>${ahLine}</code>${ahExtra ? `  ·  ${ahExtra}` : ''}`;
-  const tlRow = tlVal ? `<code>${tlVal}</code>${tlExtra ? `  ·  ${tlExtra}` : ''}` : '';
-  const context = ahRow + (tlRow ? `\n${tlRow}` : '') + '\n';
+  const header = [leagueLine, matchLine, sigParts, gsLine].filter(Boolean).join('\n');
 
-  // GS label shown once above bets if available
-  const gsLabel = gsMap ? `\n<i>🎯 ${match._gsLabel || 'in-play'}</i>\n` : '';
+  // ── Bets — sorted by z descending ─────────────────────────────────────────
+  const sortedBets = [...bets].sort((a, b) => b.z - a.z);
 
-  // Bet categories — defines display order and grouping
-  const CATEGORIES = [
-    { label: 'AH',         keys: ['ahCover'] },
-    { label: '1H Results', keys: ['favWins1H','draw1H','favScored1H','homeWins1H','awayWins1H','btts1H'] },
-    { label: '1H Totals',  keys: ['over05_1H','over15_1H','under05_1H','under15_1H'] },
-    { label: '2H Results', keys: ['favWins2H','favScored2H','draw2H','homeWins2H','awayWins2H','homeScored2H','awayScored2H'] },
-    { label: '2H Totals',  keys: ['over05_2H','over15_2H','under05_2H','under15_2H','homeOver15_2H','awayOver15_2H'] },
-    { label: 'FT Results', keys: ['homeWinsFT','awayWinsFT','drawFT','btts','dnbHome','dnbAway'] },
-    { label: 'FT Totals',  keys: ['over15FT','over25FT','over35FT','under25FT'] },
-  ];
-
-  // Helper: format a single bet row
-  function formatBet(b) {
+  const betLines = sortedBets.map(b => {
+    const zBadge  = b.z >= 3.0 ? '🔥' : b.z >= 2.5 ? '⚡' : '📌';
     const zStr    = (b.z >= 0 ? '+' : '') + b.z.toFixed(1);
     const edgeStr = (b.edge >= 0 ? '+' : '') + b.edge.toFixed(1) + 'pp';
-    const moStr   = b.mo ? `  @ <b>${b.mo}</b>` : '';
+    const moLine  = b.mo ? `   💰 <b>Min odds: ${b.mo}</b>` : '';
+
+    // Game state second line (if available)
     let gsStr = '';
     if (gsMap) {
       const gs = gsMap.get(b.k);
-      if (gs) {
+      if (gs && gs.n >= 10) {
         const gsZ = (gs.z >= 0 ? '+' : '') + gs.z.toFixed(1);
-        gsStr = `\n    <i>↳ GS  z${gsZ}  n=${gs.n}</i>`;
-      } else {
-        gsStr = `\n    <i>↳ GS  n/a</i>`;
+        gsStr = `\n   <i>↳ in-play: ${gs.p.toFixed(0)}% vs ${gs.bl.toFixed(0)}%  z${gsZ}  n=${gs.n}</i>`;
       }
     }
-    const zBadge = b.z >= 3.0 ? '🔥' : b.z >= 2.5 ? '⚡' : '📊';
-    return `${zBadge} <b>${b.label}</b>${moStr}\n    z<b>${zStr}</b>  <b>${b.p.toFixed(0)}%</b> vs ${b.bl.toFixed(0)}%  <b>${edgeStr}</b>  <i>n=${b.n}</i>${gsStr}`;
-  }
 
-  // Group bets by category; bets within each group sorted by z desc
-  const betMap = new Map(bets.map(b => [b.k, b]));
-  const groupLines = CATEGORIES
-    .map(cat => {
-      const catBets = cat.keys
-        .map(k => betMap.get(k))
-        .filter(Boolean)
-        .sort((a, b) => b.z - a.z);
-      if (!catBets.length) return null;
-      const rows = catBets.map(formatBet).join('\n\n');
-      return `📂 <b>${cat.label}</b> <i>(${catBets.length})</i>\n<tg-spoiler>${rows}</tg-spoiler>`;
-    })
-    .filter(Boolean)
-    .join('\n\n');
+    return `${zBadge} <b>${b.label}</b>\n${moLine}\n   ${b.p.toFixed(0)}% hit  vs  bl ${b.bl.toFixed(0)}%  <b>${edgeStr}</b>  z<b>${zStr}</b>  <i>n=${b.n}</i>${gsStr}`;
+  }).join('\n\n');
 
-  return `${league}⚽ <b>${match.home_team} vs ${match.away_team}</b>${score}${minute}\n${context}${gsLabel}\n${groupLines}`;
+  return `${header}\n\n${betLines}`;
 }
 
 // ── Game state builder ─────────────────────────────────────────────────────────
@@ -220,6 +196,17 @@ async function runScan() {
     const matchCfg = buildCfgFromMatch(match.odds, cfg);
     if (!matchCfg) continue;
 
+    // Signal quality gate — skip matches where every active signal is flat
+    if (cfg.REQUIRE_MOVEMENT) {
+      const s = matchCfg.signals;
+      const hasMovement =
+        (cfg.LINE_MOVE_ON  && s.lineMove    !== 'STABLE' && s.lineMove    !== 'UNKNOWN') ||
+        (cfg.TL_MOVE_ON    && s.tlMove      !== 'STABLE' && s.tlMove      !== 'UNKNOWN') ||
+        (cfg.FAV_ODDS_ON   && s.favOddsMove !== 'STABLE' && s.favOddsMove !== 'UNKNOWN') ||
+        (cfg.DOG_ODDS_ON   && s.dogOddsMove !== 'STABLE' && s.dogOddsMove !== 'UNKNOWN');
+      if (!hasMovement) continue;
+    }
+
     // League tier filter — restrict DB to the configured tier before scoring
     let tierDb = db;
     if (cfg.LEAGUE_TIER === 'TOP')       tierDb = db.filter(r => r.league_tier === 'TOP');
@@ -234,7 +221,8 @@ async function runScan() {
     const qualifying = bets.filter(b =>
       b.z >= cfg.MIN_Z &&
       b.edge >= cfg.MIN_EDGE &&
-      b.n >= cfg.MIN_N
+      b.n >= cfg.MIN_N &&
+      b.bl >= (cfg.MIN_BASELINE ?? 0)
     );
 
     if (!qualifying.length) continue;

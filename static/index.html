@@ -12,7 +12,7 @@
   <!-- ── Header ────────────────────────────────────────── -->
   <header>
     <div class="header-left">
-      <span class="version-pill">v3.1</span>
+      <span class="version-pill">v3.2</span>
       <span class="header-title">GAME STATE BETTING TOOL</span>
     </div>
     <span class="header-sub">Enter match parameters → get best bets + minimum odds</span>
@@ -70,6 +70,7 @@
         <button class="tab-btn active" data-tab="match" onclick="switchTab('match')">MATCH ANALYSIS</button>
         <button class="tab-btn"        data-tab="disc"  onclick="switchTab('disc')">CONFIG DISCOVERY</button>
         <button class="tab-btn"        data-tab="scan"  onclick="switchTab('scan')">LIVE SCAN</button>
+        <button class="tab-btn"        data-tab="bayes" onclick="switchTab('bayes')">BAYES</button>
       </div>
 
       <!-- ══ MATCH ANALYSIS TAB ═════════════════════════ -->
@@ -524,6 +525,16 @@
         <button class="run-btn" id="scan-run-btn" onclick="startBatchScan()">SCAN LIVE MATCHES →</button>
         <div id="scan-results"></div>
       </div><!-- /tab-scan -->
+
+      <!-- ══ BAYES TAB ══════════════════════════════════════════ -->
+      <div id="tab-bayes" class="tab-pane">
+        <p style="color:var(--dim);font-size:11px;margin-bottom:12px;line-height:1.6">
+          Computes posterior probabilities for all bets using Bayesian updating.<br>
+          Reads closing + opening values from <strong style="color:var(--bright)">Advanced mode</strong> inputs.<br>
+          When using <strong style="color:var(--bright)">Live Scan →</strong>, results are pre-computed automatically.
+        </p>
+        <button class="run-btn" onclick="runBayesian()">RUN BAYESIAN SCORE →</button>
+      </div><!-- /tab-bayes -->
 
     </div><!-- /left-panel -->
 

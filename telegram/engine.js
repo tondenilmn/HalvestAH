@@ -81,15 +81,68 @@ const BETS = [
 
 // ── League tier ───────────────────────────────────────────────────────────────
 const _T1_RULES = [
-  { inc: 'english premier league',  exc: ['u21','women','reserve'] },
-  { inc: 'spanish la liga',         exc: ['la liga 2','segunda','ladies','women','youth'] },
-  { inc: 'german bundesliga',       exc: ['bundesliga 2','2. bundesliga','junioren','frauen'] },
-  { inc: 'italy serie a',           exc: ['serie b','serie c','women','primavera'] },
+  { inc: 'english premier league',  exc: ['u21','women','reserve','international club'] },
+  { inc: 'spanish la liga',         exc: ['la liga 2','segunda','ladies','women','youth','supercopa','rfef'] },
+  { inc: 'german bundesliga',       exc: ['bundesliga 2','2. bundesliga','junioren','frauen','women'] },
+  { inc: 'italy serie a',           exc: ['serie b','serie c','serie d','women','primavera'] },
   { inc: 'italian serie a',         exc: ['serie b','serie c','women','primavera'] },
-  { inc: 'france ligue 1',          exc: ['ligue 2','ligue 3','women','youth'] },
-  { inc: 'uefa champions league',   exc: ['qualification','women','youth'] },
+  { inc: 'france ligue 1',          exc: ['ligue 2','ligue 3','ligue 5','women','youth'] },
+  { inc: 'uefa champions league',   exc: ['afc','qualification','women','youth','u19','u21'] },
   { inc: 'uefa europa league',      exc: ['conference','qualification','women'] },
   { inc: 'uefa conference league',  exc: ['qualification','women'] },
+];
+
+const _T2_KEYS = [
+  'england championship','england league 1','england league 2',
+  'german bundesliga 2','german 3.liga',
+  'spanish la liga 2','spain segunda','spain primera division rfef',
+  'italy serie b','italian serie b','italy serie c','italian serie c','coppa italia',
+  'france ligue 2',
+  'liga portugal 1','liga portugal 2',
+  'belgian pro league',
+  'holland eredivisie',
+  'turkey super lig',
+  'russia premier league','russian premier league','russian national football league',
+  'scottish premiership',
+  'brazil serie a','brazil serie b','copa do brasil',
+  'argentina primera','argentine division 1',
+  'copa libertadores','copa sudamericana','recopa sudamericana',
+  'usa major league soccer','major league soccer','mls next pro',
+  'concacaf champions league',
+  'j1 league','j2 league','j-league cup',
+  'k league 1','k league 2','korean fa cup',
+  'chinese super league','chinese fa cup',
+  'saudi professional league','saudi kings cup',
+  'swiss super league',
+  'austrian bundesliga',
+  'norway eliteserien','norwegian tippeligaen',
+  'swedish allsvenskan',
+  'denmark superliga','denmark superligaen',
+  'greece super league a','greek super league',
+  'ekstraklasa',
+  'romania liga i','romania liga 1',
+  'ukrainian premier league','ukraine premier league',
+  'serbia superliga','serbian superliga',
+  'croatia 1.division','croatia first league',
+  'persian gulf pro league',
+  'qatar stars league',
+  'uae pro-league',
+  'afc champions league elite',
+  'caf champions league','caf confederation cup',
+  'fifa world cup qualification',
+  'uefa nations league','uefa european',
+  'concacaf nations league','concacaf gold',
+  'israel premier league',
+  'primera division liga mx',
+  'liga pro ecuador serie a',
+  'peru liga 1','peru primera division',
+  'uruguay primera division',
+  'colombia primera',
+  'chile primera division',
+  'thai league 1',
+  'australia a-league',
+  'finland veikkausliga',
+  'indonesia liga 1',
 ];
 
 function classifyLeague(name) {
@@ -98,6 +151,7 @@ function classifyLeague(name) {
   for (const { inc, exc } of _T1_RULES) {
     if (n.includes(inc) && !exc.some(e => n.includes(e))) return 'TOP';
   }
+  if (_T2_KEYS.some(k => n.includes(k))) return 'MAJOR';
   return 'OTHER';
 }
 

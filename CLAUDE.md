@@ -17,6 +17,7 @@ npx wrangler pages dev static --port 8788
 
 # Or plain HTTP server (Functions won't work, scrape feature unavailable)
 npx serve static
+# Alternative: python -m http.server 3000 --directory static
 ```
 
 ## Deploying
@@ -42,6 +43,11 @@ static/
   data/
     manifest.json         # Auto-generated — do not edit by hand
     *.csv / **/*.csv      # Pinnacle export CSVs (nested folders supported)
+telegram/
+  config.js               # All configuration (credentials, thresholds, scan interval)
+  engine.js               # Direct port of app.js analysis logic for Node.js
+  livescore.js            # Adapted livescore fetcher (Node.js, no Cloudflare runtime)
+  notify.js               # Entry point: cron scheduler + Telegram message formatting
 ```
 
 ## Architecture
@@ -59,7 +65,9 @@ Everything in the Python desktop app (`constants.py`, `data.py`, `engine.py`, `s
 
 ## Key Constants (app.js)
 
-- **`VALID_LINES`**: `[0.00, 0.25, 0.50, 0.75, 1.00, 1.25, 1.50]` — includes level ball (0.00). Rows outside ±0.13 of a valid line are excluded.
+- **`LINE_THRESH = 0.12`**, **`ODDS_THRESH = 0.06`**, **`TL_THRESH = 0.12`**: matching tolerances for AH line, odds, and TL respectively.
+- **`DEFAULT_MIN_N = 15`**, **`MIN_Z = 1.5`**: minimum sample size and z-score for Match Analysis results.
+- **`VALID_LINES`**: `[0.00, 0.25, 0.50, 0.75, 1.00, 1.25, 1.50]` — includes level ball (0.00). Rows outside ±0.12 of a valid line are excluded.
 - **`TL_CLUSTERS`**: named ranges `<2`, `2-2.5`, `2.5-3`, `>3` for TL cluster mode.
 - **`ADV_TL_RANGES`**: finer ranges `1.5-2`, `2.25-2.75`, `3-3.5` for advanced TL range mode.
 - **`SIGNAL_UI_TO_ENGINE`**: maps UI labels (`STEAM`→`IN`, `DRIFT`→`OUT`) to engine values.
@@ -69,7 +77,7 @@ Everything in the Python desktop app (`constants.py`, `data.py`, `engine.py`, `s
 
 When `ahHc ≈ 0`, the favourite is determined by lower closing odds (more likely to win). `favLc = 0.0`, `favLo = |ahHo|`.
 
-## Bet Set (34 bets)
+## Bet Set (32 bets)
 
 Fav-normalised AH: `ahCover`
 2H fav-normalised: `favWins2H`, `favScored2H`, `draw2H`
@@ -78,7 +86,7 @@ Fav-normalised AH: `ahCover`
 1H fav-normalised: `favWins1H`, `draw1H`, `favScored1H`
 1H home/away: `homeWins1H`, `awayWins1H`
 1H totals: `over05_1H`, `over15_1H`, `under05_1H`, `under15_1H`, `btts1H`
-FT results: `homeWinsFT`, `awayWinsFT`, `drawFT`, `dnbHome`, `dnbAway`, `btts`
+FT results: `homeWinsFT`, `awayWinsFT`, `drawFT`, `btts`
 FT totals: `over15FT`, `over25FT`, `over35FT`, `under25FT`
 
 Bets with `favSideBaseline` use a side-filtered baseline pool (e.g. only HOME fav rows as baseline for `homeWins2H`).
@@ -190,12 +198,68 @@ Returns JSON: `ah_hc`, `ah_ho`, `ho_c`, `ho_o`, `ao_c`, `ao_o`, `tl_c`, `tl_o`, 
 
 Required columns: AH Home/Away Closing+Opening, Home/Away Odds Closing+Opening, HT Result, FT Result. TL columns optional but needed for TL filtering. Column names accepted with spaces or underscores.
 
+## Telegram Notifier (`telegram/`)
+
+Standalone Node.js service that runs periodic live scans and sends Telegram alerts for qualifying bets. Deployable to Railway or run locally.
+
+```bash
+cd telegram
+npm install
+
+node notify.js          # start scheduler (runs every N minutes)
+node notify.js --once   # single scan + exit (for testing)
+node backtest.js        # simulate against last month (Feb 2026) — TOP+MAJOR filter
+node backtest.js --all  # same but all leagues
+node backtest.js --summary  # suppress individual alerts, show per-bet table only
+```
+
+**Architecture:** `notify.js` orchestrates — it calls `engine.js` (port of `app.js` analysis logic) and `livescore.js` (adapted from `functions/api/livescore.js` for Node >= 18 native fetch). Config lives entirely in `telegram/config.js`.
+
+**Current config values (`config.js`):**
+
+| Setting | Value | Reason |
+|---|---|---|
+| `MIN_N` | 35 | Minimum historical pool size after signal filtering |
+| `MIN_Z` | 2.0 | Minimum z-score for statistical significance |
+| `MIN_EDGE` | 6 | Minimum pp above baseline |
+| `MIN_BASELINE` | 25 | **Suppresses low base-rate bets** — see below |
+| `REQUIRE_MOVEMENT` | true | Skip matches where every active signal is STABLE/UNKNOWN |
+| `LEAGUE_TIER` | `TOP+MAJOR` | See below |
+| `SCAN_INTERVAL_MINUTES` | 3 | Poll frequency |
+
+**Why `LEAGUE_TIER = TOP+MAJOR` (not ALL):**
+Backtested against Feb 2026 (10,040 matches, all data before Feb excluded as DB):
+- ALL leagues: 1,908 alerts, **40% hit rate, −1.5pp edge** — obscure leagues pollute the signal
+- TOP+MAJOR: 664 alerts, **43% hit rate, +2.7pp edge**
+
+TOP+MAJOR keeps leagues where the Pinnacle market is deep and the DB coverage is consistent. `engine.js` implements both tiers — `_T1_RULES` for TOP (top 5 EU + UEFA competitions), `_T2_KEYS` for MAJOR (~40 strong national/continental leagues). Both must be kept in sync with `app.js` if the classification changes.
+
+**Why `MIN_BASELINE = 25` (suppress low base-rate bets):**
+Bets with a baseline hit rate below ~25% — e.g. Home Over 1.5 2H (baseline ~4%), Away wins 1H (~7%), BTTS 1H (~9%), Over 3.5 FT (~11%) — consistently underperform out-of-sample despite high z-scores. The historical pattern doesn't hold for rare events because the cell sizes are too small to be reliable even at z ≥ 2.0.
+
+Applying `MIN_BASELINE = 25` on the Feb 2026 backtest (TOP+MAJOR):
+- Dropped from 664 → **452 alerts** (−32%)
+- Hit rate improved from 43% → **56%**
+- Edge improved from +2.7pp → **+5.3pp**
+
+Surviving bets are high-frequency markets where the signal genuinely holds: Over 0.5 1H/2H, Fav/Home scores 1H/2H, Under 1.5 2H, Over 2.5 FT, Draw 1H.
+
+**Why `REQUIRE_MOVEMENT = true`:**
+Without this, a match where both LM and TLM are STABLE would still be scored. The AH line + TL combination alone can show spurious historical edge in small cells. Requiring at least one active signal to be non-STABLE/non-UNKNOWN ensures every alert has a genuine market movement story.
+
+**Message format:**
+Each alert contains: league, match, score/minute, AH line + signal summary, then per bet: name, 💰 min odds to look for, hit% vs baseline%, edge, z-score, n. Sorted by z-score descending. In-play game state shown per bet when available (n ≥ 10).
+
+**Sync requirement:** `telegram/engine.js` is a direct port of `static/app.js` constants + engine sections. When changing scoring logic, filter modes, the bet set, or league tier classification in `app.js`, mirror those changes in `telegram/engine.js`.
+
+**Railway deployment:** set `TELEGRAM_TOKEN`, `TELEGRAM_CHAT_ID`, and `DATA_URL` as env vars in the Railway dashboard. The `railway.json` in `telegram/` defines the start command.
+
 ## Key Differences vs Python Desktop App
 
 | Aspect | Desktop (`gamestate_gui.py`) | This (`static/app.js`) |
 |---|---|---|
 | Config Discovery bar | `MIN_Z = 1.5` | `MIN_Z_DISC = 2.0` |
-| Bet set | 16 bets | 24 bets (adds FT markets, DNB, BTTS, totals) |
+| Bet set | 16 bets | 32 bets (adds FT markets, BTTS, 1H/2H totals) |
 | Filter mode | Basic only | Basic + Advanced (per-signal toggles) |
 | Level ball | Not supported | Supported (0.00 line, fav by odds) |
 | Scrape auto-fill | Not available | `/api/scrape?url=` pre-fills all inputs |
