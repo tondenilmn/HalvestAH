@@ -484,6 +484,25 @@ function computeBayesLRs(rows, activeHt) {
   return { lrTable, n: rows.length };
 }
 
+function bayesianPosterior(baselineRate, lrTable, betKey, signals) {
+  // baselineRate is a probability in [0, 1], NOT a percentage
+  const safe = Math.max(0.001, Math.min(0.999, baselineRate));
+  let logOdds = Math.log(safe / (1 - safe));
+
+  const betLRs = lrTable[betKey];
+  if (!betLRs) return { posterior: baselineRate, delta: 0 };
+
+  for (const [dim, value] of Object.entries(signals)) {
+    if (value == null || value === 'UNKNOWN') continue;
+    const lr = betLRs[dim]?.[value];
+    if (lr == null || lr <= 0) continue;
+    logOdds += Math.log(lr);
+  }
+
+  const posterior = 1 / (1 + Math.exp(-logOdds));
+  return { posterior, delta: posterior - baselineRate };
+}
+
 /* ════════════════════════════════════════════════════════════
    ENGINE
    ════════════════════════════════════════════════════════════ */
