@@ -164,3 +164,83 @@ Before or after Match Analysis, run **Config Discovery** with only the AH line a
 | Yellow | 1.5–2.0 | Marginal — only if n is large (50+) |
 | Dim | < 1.5 | Weak — do not place |
 | Red | Negative | Against baseline — avoid |
+
+---
+
+## Manual live scan workflow
+
+Use this when actively watching matches rather than waiting for a Telegram alert.
+
+### Step 1 — Screen scan cards quickly
+
+Skip a card immediately if:
+- All signals are **STABLE** (no movement at all — nothing to work with)
+- Minute is **75+** (too little time for 2H bets; FT bets only and only if clear edge)
+- Score is **3+ goals** (high-scoring games distort 2H total baselines)
+- League is unknown or obscure (edge is TOP/MAJOR-specific)
+
+Keep a card if: **LM=DEEPER** or **TLM=UP**, regardless of what OM shows.
+
+### Step 2 — Run Bayesian Score first
+
+Before Match Analysis, open the Bayesian panel. It is the fastest summary of whether anything is worth pursuing.
+
+- Scan the **reliable (no ⚠) rows only**
+- Look for **delta ≥ +5pp** and **positive posterior**
+- Note the **min odds pill** next to each bet name
+- If nothing shows positive delta above +5pp among reliable bets → skip the match
+
+If you see 1–2 reliable bets with strong delta, continue to Step 3.
+
+### Step 3 — Check bookmaker odds immediately
+
+Before running Match Analysis, open your bookmaker and compare the offered odds against the min odds shown in the Bayesian panel.
+
+- Need: **bookmaker odds ≥ min odds + 0.05**
+- If no bet clears that bar → skip the match now, before spending more time on it
+
+This is the most common early exit point. Most matches pass signals but fail the value check.
+
+### Step 4 — Run Match Analysis (Advanced mode)
+
+Only if Step 3 found at least one bet with odds value. Confirm with z-score:
+
+- **z ≥ 2.0** required (z ≥ 2.5 if n < 30)
+- **n ≥ 30** in the filtered pool
+- Hit% clearly above baseline% (not just z-inflated by large n)
+
+### Step 5 — Add game state if in-play
+
+If the match has a score and minute showing:
+
+- **2H (minute > 45)**: enter the HT score in the HT fields, re-run
+- **1H (minute ≤ 45, non 0-0)**: set the first goal trigger (FAV_1H or DOG_1H), re-run
+- **1H 0-0**: no game state to add — pre-match signals only
+
+Game state narrows the sample. If the filtered n drops below 15, ignore the game state result and fall back to the pre-match analysis.
+
+### Step 6 — Prioritise by market type
+
+When multiple bets pass, choose in this order:
+
+1. **2H totals** (Over/Under 1.5 2H, Over 0.5 2H) — best bookmaker lag
+2. **1H results and totals** — if still in 1H with time remaining
+3. **FT Over/Under** — thin but usable
+4. **FT result / Fav wins** — last resort; bookmaker adjusts these most precisely
+
+### What to skip entirely in manual mode
+
+- **Config Discovery** — useful for validation, too slow for real-time decisions
+- **Basic mode** — use Advanced or Bayesian only; Basic produces noisier results
+- **Stability tab** — only relevant for long-term config research
+- Any bet with **⚠** in the Bayesian panel — unreliable LR estimate
+
+### Quick checklist (manual scan)
+
+- [ ] Signal present (LM=DEEPER or TLM=UP)
+- [ ] Minute < 75 (or accepting FT-only bets after 75)
+- [ ] Bayesian: at least one reliable bet with delta ≥ +5pp
+- [ ] Bookmaker odds ≥ min odds + 0.05
+- [ ] Match Analysis: z ≥ 2.0, n ≥ 30
+- [ ] Game state added if in 2H with known HT score
+- [ ] Bet is in a secondary market (2H or 1H preferred)

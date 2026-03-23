@@ -1247,7 +1247,7 @@ const state = {
   gsTrigger:    'HT',
   dGsTrigger:   'HT',
   liveOn:       false,
-  filterMode:   'BASIC',   // 'BASIC' or 'ADVANCED'
+  filterMode:   'ADVANCED', // 'BASIC' or 'ADVANCED'
   // Advanced toggles
   advLmOn:      false,
   advOddsTolOn: false,
@@ -1331,7 +1331,7 @@ function switchTab(name) {
   document.querySelectorAll('.tab-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.tab === name);
   });
-  ['match', 'disc', 'scan', 'bayes'].forEach(t =>
+  ['match', 'disc', 'scan'].forEach(t =>
     document.getElementById(`tab-${t}`).classList.toggle('active', t === name)
   );
 }
@@ -1405,6 +1405,11 @@ function updateDbUI(data) {
   } else {
     status.textContent = `✓  ${data.total.toLocaleString()} records  ·  ${data.files.length} file${data.files.length !== 1 ? 's' : ''}`;
     status.className   = 'db-status loaded';
+    // Auto-collapse the upload area once DB is loaded
+    const expandArea = document.getElementById('db-expand-area');
+    const expandBtn  = document.getElementById('db-expand-btn');
+    if (expandArea) expandArea.style.display = 'none';
+    if (expandBtn)  expandBtn.textContent = '▶';
     if (breakdown) {
       const nTop   = _db.filter(r => r.league_tier === 'TOP').length;
       const nMajor = _db.filter(r => r.league_tier === 'MAJOR').length;
@@ -1412,6 +1417,27 @@ function updateDbUI(data) {
       breakdown.textContent = `TOP 5+UCL: ${nTop.toLocaleString()}  ·  MAJOR: ${nMajor.toLocaleString()}  ·  Other: ${nOther.toLocaleString()}`;
     }
   }
+}
+
+/* ════════════════════════════════════════════════════════════
+   DB CARD + URL IMPORT COLLAPSE TOGGLES
+   ════════════════════════════════════════════════════════════ */
+function toggleDbExpand() {
+  const area = document.getElementById('db-expand-area');
+  const btn  = document.getElementById('db-expand-btn');
+  if (!area) return;
+  const open = area.style.display !== 'none';
+  area.style.display = open ? 'none' : '';
+  btn.textContent    = open ? '▶' : '▼';
+}
+
+function toggleUrlImport() {
+  const body  = document.getElementById('url-import-body');
+  const arrow = document.getElementById('url-toggle-arrow');
+  if (!body) return;
+  const open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : '';
+  if (arrow) arrow.textContent = open ? '▼' : '▲';
 }
 
 /* ════════════════════════════════════════════════════════════

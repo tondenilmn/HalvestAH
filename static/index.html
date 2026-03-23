@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Game State Betting Tool</title>
+  <title>HalvestAH — Betting Analysis</title>
   <link rel="stylesheet" href="./style.css">
 </head>
 <body>
@@ -13,9 +13,9 @@
   <header>
     <div class="header-left">
       <span class="version-pill">v3.2</span>
-      <span class="header-title">GAME STATE BETTING TOOL</span>
+      <span class="header-title">HALVEST AH</span>
     </div>
-    <span class="header-sub">Enter match parameters → get best bets + minimum odds</span>
+    <span class="header-sub">Scan live  →  Bayesian check  →  place</span>
   </header>
 
   <!-- ── Main split ────────────────────────────────────── -->
@@ -24,34 +24,41 @@
     <!-- ── LEFT PANEL ──────────────────────────────────── -->
     <div class="left-panel">
 
-      <!-- Database card -->
-      <div class="card">
-        <div class="card-title">DATABASE</div>
-
-        <div class="upload-area" id="upload-area">
-          <div>📂 Drop CSV files here — or click to browse</div>
-          <div style="font-size:10px;margin-top:4px">Pinnacle export format</div>
+      <!-- Database card (collapsible) -->
+      <div class="card" id="db-card">
+        <div class="card-header-row">
+          <div class="card-title">DATABASE</div>
+          <button class="db-expand-btn" id="db-expand-btn" onclick="toggleDbExpand()" title="Toggle loader">▼</button>
         </div>
-        <input type="file" id="file-input" accept=".csv" multiple style="display:none">
-
         <div class="db-status" id="db-status">No database loaded</div>
-
-        <div class="db-actions">
-          <button class="clear-btn" onclick="clearDb()">✕ Clear database</button>
+        <div id="db-expand-area">
+          <div class="upload-area" id="upload-area">
+            <div>📂 Drop CSV files here — or click to browse</div>
+            <div style="font-size:10px;margin-top:4px">Pinnacle export format</div>
+          </div>
+          <input type="file" id="file-input" accept=".csv" multiple style="display:none">
+          <div class="db-actions">
+            <button class="clear-btn" onclick="clearDb()">✕ Clear database</button>
+          </div>
         </div>
       </div>
 
-      <!-- URL Import -->
+      <!-- URL Import (collapsible) -->
       <div class="card">
-        <div class="card-title">IMPORT FROM URL</div>
-        <div class="url-import-col">
-          <input id="url-import-input" type="text" class="url-import-input"
-                 placeholder="https://www.asianbetsoccer.com/…?id=…"
-                 onkeydown="if(event.key==='Enter')importFromUrl()"
-                 onpaste="setTimeout(importFromUrl,0)">
-          <button id="url-import-btn" class="run-btn url-import-btn" onclick="importFromUrl()">Import</button>
+        <div class="card-title url-toggle-hdr" onclick="toggleUrlImport()">
+          IMPORT FROM URL
+          <span class="url-toggle-arrow" id="url-toggle-arrow">▼</span>
         </div>
-        <div id="url-import-status" class="url-import-status"></div>
+        <div id="url-import-body" style="display:none">
+          <div class="url-import-col">
+            <input id="url-import-input" type="text" class="url-import-input"
+                   placeholder="https://www.asianbetsoccer.com/…?id=…"
+                   onkeydown="if(event.key==='Enter')importFromUrl()"
+                   onpaste="setTimeout(importFromUrl,0)">
+            <button id="url-import-btn" class="run-btn url-import-btn" onclick="importFromUrl()">Import</button>
+          </div>
+          <div id="url-import-status" class="url-import-status"></div>
+        </div>
       </div>
 
       <!-- League Tier Filter -->
@@ -65,28 +72,65 @@
         <div id="tier-breakdown" class="tier-breakdown"></div>
       </div>
 
+      <!-- Active Match Banner — global, visible across all tabs -->
+      <div id="active-match-banner" style="display:none"></div>
+
       <!-- Tabs -->
       <div class="tabs">
-        <button class="tab-btn active" data-tab="match" onclick="switchTab('match')">MATCH ANALYSIS</button>
-        <button class="tab-btn"        data-tab="disc"  onclick="switchTab('disc')">CONFIG DISCOVERY</button>
-        <button class="tab-btn"        data-tab="scan"  onclick="switchTab('scan')">LIVE SCAN</button>
-        <button class="tab-btn"        data-tab="bayes" onclick="switchTab('bayes')">BAYES</button>
+        <button class="tab-btn active" data-tab="scan"  onclick="switchTab('scan')">LIVE SCAN</button>
+        <button class="tab-btn"        data-tab="match" onclick="switchTab('match')">ANALYSE</button>
+        <button class="tab-btn"        data-tab="disc"  onclick="switchTab('disc')">DISCOVER</button>
       </div>
 
-      <!-- ══ MATCH ANALYSIS TAB ═════════════════════════ -->
-      <div id="tab-match" class="tab-pane active">
+      <!-- ══ LIVE SCAN TAB ═══════════════════════════════════ -->
+      <div id="tab-scan" class="tab-pane active">
+        <p style="color:var(--dim);font-size:11px;margin-bottom:12px;line-height:1.6">
+          Scans all live matches on asianbetsoccer.com and applies the
+          <strong style="color:var(--bright)">Basic mode signal filters</strong>.
+          Shows only matches with qualifying bets (z ≥ 1.5, edge &gt; 0).<br>
+          Click <strong style="color:var(--bright)">Use this match →</strong> to load into Analyse + auto-run Bayesian.
+        </p>
 
-        <!-- Active match context banner (shown when a match is selected from live scan) -->
-        <div id="active-match-banner" style="display:none"></div>
+        <div class="section-label">LIVESCORE URL</div>
+        <div class="url-import-col" style="margin-bottom:12px">
+          <input id="scan-url-input" type="text" class="url-import-input"
+                 value="https://www.asianbetsoccer.com/it/livescore.html"
+                 placeholder="https://www.asianbetsoccer.com/it/livescore.html">
+        </div>
+
+        <div class="section-label">GAME STATE</div>
+        <p style="color:var(--dim);font-size:10px;margin-bottom:10px">
+          Uses the HT / First Goal / In-play 2H setting from the Analyse tab.
+        </p>
+        <div class="section-label">MINIMUM MATCHING RECORDS</div>
+        <div class="min-n-row">
+          <button class="min-n-preset" onclick="document.getElementById('scan-min-n').value=10">10</button>
+          <button class="min-n-preset" onclick="document.getElementById('scan-min-n').value=15">15</button>
+          <button class="min-n-preset" onclick="document.getElementById('scan-min-n').value=20">20</button>
+          <button class="min-n-preset" onclick="document.getElementById('scan-min-n').value=30">30</button>
+          <input class="min-n-input" id="scan-min-n" type="text" value="15">
+        </div>
+        <div id="scan-progress-wrap" style="display:none;margin:10px 0">
+          <div class="scan-progress-track">
+            <div class="scan-progress-bar" id="scan-progress-bar" style="width:0%"></div>
+          </div>
+          <div id="scan-progress-text" class="scan-progress-text"></div>
+        </div>
+        <button class="run-btn" id="scan-run-btn" onclick="startBatchScan()">SCAN LIVE MATCHES →</button>
+        <div id="scan-results"></div>
+      </div><!-- /tab-scan -->
+
+      <!-- ══ ANALYSE TAB ══════════════════════════════════ -->
+      <div id="tab-match" class="tab-pane">
 
         <!-- BASIC / ADVANCED mode switcher -->
         <div class="mode-switcher">
-          <button class="mode-btn active" id="mode-btn-BASIC"    onclick="setFilterMode('BASIC')">BASIC</button>
-          <button class="mode-btn"        id="mode-btn-ADVANCED" onclick="setFilterMode('ADVANCED')">ADVANCED</button>
+          <button class="mode-btn"        id="mode-btn-BASIC"    onclick="setFilterMode('BASIC')">BASIC</button>
+          <button class="mode-btn active" id="mode-btn-ADVANCED" onclick="setFilterMode('ADVANCED')">ADVANCED</button>
         </div>
 
         <!-- ══ BASIC MODE INPUTS ══════════════════════════ -->
-        <div id="basic-inputs">
+        <div id="basic-inputs" style="display:none">
 
           <!-- Market inputs -->
           <div class="section-label">MARKET</div>
@@ -197,7 +241,7 @@
         </div><!-- /basic-inputs -->
 
         <!-- ══ ADVANCED MODE INPUTS ═══════════════════════ -->
-        <div id="adv-inputs" style="display:none">
+        <div id="adv-inputs">
 
           <!-- Pinnacle Signal Guide -->
           <div class="sig-guide">
@@ -416,15 +460,19 @@
           <input class="min-n-input" id="min-n-match" type="text" value="15">
         </div>
 
-        <!-- Run -->
-        <button class="run-btn" onclick="runMatch()">FIND BEST BETS →</button>
+        <!-- Run buttons -->
+        <div class="run-btn-group">
+          <button class="run-btn" onclick="runBayesian()">RUN BAYESIAN SCORE →</button>
+          <button class="run-btn run-btn-secondary" onclick="runMatch()">FIND BEST BETS (z-score) →</button>
+        </div>
       </div><!-- /tab-match -->
 
       <!-- ══ CONFIG DISCOVERY TAB ════════════════════════ -->
       <div id="tab-disc" class="tab-pane">
         <p style="color:var(--dim);font-size:11px;margin-bottom:12px;line-height:1.6">
           Sweep all parameter combinations for a given AH line + game state.<br>
-          Finds configurations with the strongest statistical edge.
+          Finds configurations with the strongest statistical edge.<br>
+          <strong style="color:var(--dim)">Optional validation step — use after Analyse to confirm.</strong>
         </p>
 
         <div class="disc-grid">
@@ -488,53 +536,6 @@
         <!-- Run -->
         <button class="run-btn" onclick="runDisc()">FIND BEST CONFIGURATIONS →</button>
       </div><!-- /tab-disc -->
-
-      <!-- ══ LIVE SCAN TAB ═══════════════════════════════════ -->
-      <div id="tab-scan" class="tab-pane">
-        <p style="color:var(--dim);font-size:11px;margin-bottom:12px;line-height:1.6">
-          Scans all live matches on asianbetsoccer.com and applies the
-          <strong style="color:var(--bright)">Basic mode signal filters</strong>.
-          Shows only matches with qualifying bets (z ≥ 1.5, edge &gt; 0).
-        </p>
-
-        <div class="section-label">LIVESCORE URL</div>
-        <div class="url-import-col" style="margin-bottom:12px">
-          <input id="scan-url-input" type="text" class="url-import-input"
-                 value="https://www.asianbetsoccer.com/it/livescore.html"
-                 placeholder="https://www.asianbetsoccer.com/it/livescore.html">
-        </div>
-
-        <div class="section-label">GAME STATE</div>
-        <p style="color:var(--dim);font-size:10px;margin-bottom:10px">
-          Uses the HT / First Goal / In-play 2H setting from the Match Analysis tab.
-        </p>
-        <div class="section-label">MINIMUM MATCHING RECORDS</div>
-        <div class="min-n-row">
-          <button class="min-n-preset" onclick="document.getElementById('scan-min-n').value=10">10</button>
-          <button class="min-n-preset" onclick="document.getElementById('scan-min-n').value=15">15</button>
-          <button class="min-n-preset" onclick="document.getElementById('scan-min-n').value=20">20</button>
-          <button class="min-n-preset" onclick="document.getElementById('scan-min-n').value=30">30</button>
-          <input class="min-n-input" id="scan-min-n" type="text" value="15">
-        </div>
-        <div id="scan-progress-wrap" style="display:none;margin:10px 0">
-          <div class="scan-progress-track">
-            <div class="scan-progress-bar" id="scan-progress-bar" style="width:0%"></div>
-          </div>
-          <div id="scan-progress-text" class="scan-progress-text"></div>
-        </div>
-        <button class="run-btn" id="scan-run-btn" onclick="startBatchScan()">SCAN LIVE MATCHES →</button>
-        <div id="scan-results"></div>
-      </div><!-- /tab-scan -->
-
-      <!-- ══ BAYES TAB ══════════════════════════════════════════ -->
-      <div id="tab-bayes" class="tab-pane">
-        <p style="color:var(--dim);font-size:11px;margin-bottom:12px;line-height:1.6">
-          Computes posterior probabilities for all bets using Bayesian updating.<br>
-          Reads closing + opening values from <strong style="color:var(--bright)">Advanced mode</strong> inputs.<br>
-          When using <strong style="color:var(--bright)">Live Scan →</strong>, results are pre-computed automatically.
-        </p>
-        <button class="run-btn" onclick="runBayesian()">RUN BAYESIAN SCORE →</button>
-      </div><!-- /tab-bayes -->
 
     </div><!-- /left-panel -->
 
