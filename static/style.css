@@ -910,3 +910,7 @@ select.gs-select {
 .bayes-delta-neg { color:var(--red);   font-weight:700; }
 .bayes-pct       { color:var(--bright); }
 .bayes-n         { color:var(--dim); font-size:11px; }
+.bayes-label     { display:block; }
+.bayes-minodds   { display:inline-block; margin-top:2px; font-size:15px; font-weight:700;
+                   color:var(--green); background:rgba(0,229,170,0.1);
+                   border-radius:4px; padding:1px 6px; }

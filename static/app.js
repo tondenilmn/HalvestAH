@@ -639,7 +639,10 @@ function runBayesian() {
     };
   });
 
-  results.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
+  results.sort((a, b) => {
+    if (a.unreliable !== b.unreliable) return a.unreliable ? 1 : -1;
+    return b.delta - a.delta;
+  });
 
   renderBayesianScore(results, n, signals, { favLine, favSide, tlc });
 }
@@ -2114,7 +2117,7 @@ function renderBayesianScore(results, n, signals, ctx) {
     const arrow    = r.delta >= 0 ? '▲' : '▼';
     const warnIcon = r.unreliable ? ' ⚠' : '';
     return `<tr class="${rowCls}">
-      <td>${r.label}${warnIcon}</td>
+      <td><span class="bayes-label">${r.label}${warnIcon}</span><span class="bayes-minodds">${minOdds(r.posterior)}</span></td>
       <td class="bayes-pct">${r.baseline.toFixed(1)}%</td>
       <td>→</td>
       <td class="bayes-pct">${r.posterior.toFixed(1)}%</td>
@@ -2871,6 +2874,7 @@ function useScanMatch(id) {
   fillLiveMatchState(entry.match);
   _showActiveMatchBanner(entry.match);
   switchTab('match');
+  runBayesian();
 }
 
 function _showActiveMatchBanner(match) {
