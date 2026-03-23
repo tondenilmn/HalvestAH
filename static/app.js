@@ -425,6 +425,66 @@ function computeFtDist(stateRows, baselineRows) {
 }
 
 /* ════════════════════════════════════════════════════════════
+   BAYESIAN ENGINE
+   ════════════════════════════════════════════════════════════ */
+
+function htBucket(r) {
+  const fh = r.fav_ht, dh = r.dog_ht;
+  if (fh == null || dh == null || isNaN(fh) || isNaN(dh)) return 'UNKNOWN';
+  const total = fh + dh;
+  if (total >= 2)   return 'multi_goal';
+  if (fh > dh)      return 'fav_ahead';
+  if (dh > fh)      return 'dog_ahead';
+  return 'level';
+}
+
+function computeBayesLRs(rows, activeHt) {
+  const DIMS = [
+    { key: 'lm',  field: r => r.line_move      },
+    { key: 'om',  field: r => r.fav_odds_move   },
+    { key: 'tlm', field: r => r.tl_move         },
+    { key: 'ovm', field: r => r.over_move       },
+  ];
+  if (activeHt) {
+    DIMS.push({ key: 'ht', field: r => htBucket(r) });
+  }
+
+  const lrTable = {};
+
+  for (const bet of BETS) {
+    lrTable[bet.k] = {};
+
+    // Replicate scoreBets favSideBaseline split
+    const pool = (bet.favSideBaseline)
+      ? rows.filter(r => r.fav_side === bet.favSideBaseline)
+      : rows;
+
+    const hits   = pool.filter(r => r[bet.k] === true);
+    const misses = pool.filter(r => r[bet.k] === false);
+
+    for (const dim of DIMS) {
+      // Collect distinct values in pool for dynamic Laplace K
+      const allVals = new Set(pool.map(dim.field));
+      const K = allVals.size || 1;
+
+      lrTable[bet.k][dim.key] = {};
+
+      for (const v of allVals) {
+        const hitsWithV   = hits.filter(r => dim.field(r) === v).length;
+        const missesWithV = misses.filter(r => dim.field(r) === v).length;
+
+        const pHit  = (hitsWithV   + 1) / (hits.length   + K);
+        const pMiss = (missesWithV + 1) / (misses.length  + K);
+
+        lrTable[bet.k][dim.key][v] = pHit / pMiss;
+      }
+    }
+  }
+
+  return { lrTable, n: rows.length };
+}
+
+/* ════════════════════════════════════════════════════════════
    ENGINE
    ════════════════════════════════════════════════════════════ */
 function applyConfig(db, cfg) {
