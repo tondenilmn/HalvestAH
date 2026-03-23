@@ -503,6 +503,147 @@ function bayesianPosterior(baselineRate, lrTable, betKey, signals) {
   return { posterior, delta: posterior - baselineRate };
 }
 
+/* ─── Bayesian Run ─── */
+
+function getBayesDimValue(r, dim) {
+  if (dim === 'lm')  return r.line_move;
+  if (dim === 'om')  return r.fav_odds_move;
+  if (dim === 'tlm') return r.tl_move;
+  if (dim === 'ovm') return r.over_move;
+  if (dim === 'ht')  return htBucket(r);
+  return null;
+}
+
+function runBayesian() {
+  if (!_db.length) { showError('No database loaded. Please upload CSV files first.'); return; }
+
+  // --- Read AH line (required) ---
+  const hcRaw = document.getElementById('ah_hc').value;
+  const hc = sf(hcRaw);
+  if (hc === null) {
+    showError('Enter AH closing line in the Advanced mode inputs first.');
+    return;
+  }
+  const favLc = Math.abs(hc);
+  const favLine = VALID_LINES.find(v => Math.abs(favLc - v) < LINE_THRESH);
+  if (favLine === undefined) {
+    showError('Invalid AH line value.');
+    return;
+  }
+
+  showLoader();
+
+  // --- Read fav side ---
+  const hoc = sf(document.getElementById('ho_c').value);
+  const aoc = sf(document.getElementById('ao_c').value);
+  let favSide;
+  if      (hc < -0.01)                  favSide = 'HOME';
+  else if (hc >  0.01)                  favSide = 'AWAY';
+  else if (hoc !== null && aoc !== null) favSide = hoc <= aoc ? 'HOME' : 'AWAY';
+  else                                   favSide = 'HOME'; // level ball, no odds entered — default HOME
+
+  // --- Filter DB (same as applyBaselineConfig) ---
+  const activeDb = getDb();
+  let baseRows = activeDb.filter(r => Math.abs(r.fav_line - favLine) < LINE_THRESH);
+  baseRows = baseRows.filter(r => r.fav_side === favSide);
+
+  // Optional TL filter (closing value only)
+  const tlcRaw = document.getElementById('tl_c').value;
+  const tlc = sf(tlcRaw);
+  if (tlc !== null) {
+    baseRows = baseRows.filter(r => r.tl_c != null && Math.abs(r.tl_c - tlc) < TL_THRESH);
+  }
+
+  if (baseRows.length < DEFAULT_MIN_N) {
+    showError(`Too few baseline records (${baseRows.length}) — need at least ${DEFAULT_MIN_N}.`);
+    return;
+  }
+
+  // --- Derive signals from raw form values ---
+  const hoo = sf(document.getElementById('ah_ho').value);
+  const favLo = hoo !== null ? Math.abs(hoo) : null;
+  let lmSignal = null;
+  if (favLo !== null) {
+    const diff = favLc - favLo;
+    lmSignal = diff > LINE_THRESH ? 'DEEPER' : diff < -LINE_THRESH ? 'SHRANK' : 'STABLE';
+  }
+
+  const hooOdds = sf(document.getElementById('ho_o').value);
+  const aooOdds = sf(document.getElementById('ao_o').value);
+  const favOc = favSide === 'AWAY' ? aoc : hoc;
+  const favOo = favSide === 'AWAY' ? aooOdds : hooOdds;
+  const omSignalRaw = oddsDir(favOc, favOo);
+  const omSignal = omSignalRaw === 'UNKNOWN' ? null : omSignalRaw;
+
+  const tlo = sf(document.getElementById('tl_o').value);
+  const tlmSignalRaw = moveDir(tlc, tlo, TL_THRESH);
+  const tlmSignal = tlmSignalRaw === 'UNKNOWN' ? null : tlmSignalRaw;
+
+  const ovc = sf(document.getElementById('ov_c').value);
+  const ovo = sf(document.getElementById('ov_o').value);
+  const ovmSignalRaw = oddsDir(ovc, ovo);
+  const ovmSignal = ovmSignalRaw === 'UNKNOWN' ? null : ovmSignalRaw;
+
+  // --- HT dimension: only if game state trigger is HT and score is provided ---
+  let htSignal = null;
+  if (state.gsTrigger === 'HT') {
+    const homeGoals = parseInt(document.getElementById('gs-panel-home')?.value, 10);
+    const awayGoals = parseInt(document.getElementById('gs-panel-away')?.value, 10);
+    if (!isNaN(homeGoals) && !isNaN(awayGoals)) {
+      const favHt = favSide === 'AWAY' ? awayGoals : homeGoals;
+      const dogHt = favSide === 'AWAY' ? homeGoals : awayGoals;
+      const total  = favHt + dogHt;
+      if      (total >= 2)   htSignal = 'multi_goal';
+      else if (favHt > dogHt) htSignal = 'fav_ahead';
+      else if (dogHt > favHt) htSignal = 'dog_ahead';
+      else                    htSignal = 'level';
+    }
+  }
+
+  const signals = {
+    lm:  lmSignal,
+    om:  omSignal,
+    tlm: tlmSignal,
+    ovm: ovmSignal,
+  };
+  if (htSignal !== null) signals.ht = htSignal;
+
+  const activeHt = htSignal !== null;
+
+  // --- Compute LRs and posteriors ---
+  const { lrTable, n } = computeBayesLRs(baseRows, activeHt);
+
+  const results = BETS.map(bet => {
+    const pool = bet.favSideBaseline
+      ? baseRows.filter(r => r.fav_side === bet.favSideBaseline)
+      : baseRows;
+    const baselineRate = pct(pool, bet.k) / 100;
+    const { posterior, delta } = bayesianPosterior(baselineRate, lrTable, bet.k, signals);
+
+    // Flag unreliable: any active signal cell < DEFAULT_MIN_N rows
+    let unreliable = false;
+    for (const [dim, value] of Object.entries(signals)) {
+      if (value == null) continue;
+      const hits   = pool.filter(r => r[bet.k] === true  && getBayesDimValue(r, dim) === value).length;
+      const misses = pool.filter(r => r[bet.k] === false && getBayesDimValue(r, dim) === value).length;
+      if (hits < DEFAULT_MIN_N || misses < DEFAULT_MIN_N) { unreliable = true; break; }
+    }
+
+    return {
+      k: bet.k, label: bet.label,
+      baseline: baselineRate * 100,
+      posterior: posterior * 100,
+      delta: delta * 100,
+      unreliable,
+      poolN: pool.length,
+    };
+  });
+
+  results.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
+
+  renderBayesianScore(results, n, signals, { favLine, favSide, tlc });
+}
+
 /* ════════════════════════════════════════════════════════════
    ENGINE
    ════════════════════════════════════════════════════════════ */
