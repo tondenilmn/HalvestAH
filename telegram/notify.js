@@ -58,76 +58,144 @@ function computeKelly(p, mo) {
   return fullKelly > 0 ? fullKelly * 0.25 : null;
 }
 
-// ── Shared bet row renderer ────────────────────────────────────────────────────
-// gsMap: optional Map of betKey → scored gs result (pre-match in-play enrichment)
+// ── Timestamp helper ──────────────────────────────────────────────────────────
+function nowStamp() {
+  const d = new Date();
+  const dd   = String(d.getDate()).padStart(2, '0');
+  const mm   = String(d.getMonth() + 1).padStart(2, '0');
+  const yyyy = d.getFullYear();
+  const hh   = String(d.getHours()).padStart(2, '0');
+  const min  = String(d.getMinutes()).padStart(2, '0');
+  return { date: `${dd}/${mm}/${yyyy}`, time: `${hh}:${min}` };
+}
+
+// ── Bet type classifier ────────────────────────────────────────────────────────
+function betTypeInfo(minute) {
+  const n = minute ? parseInt(minute, 10) : NaN;
+  if (isNaN(n)) return { label: 'PreMatch', icon: '⏳' };
+  if (n > 45)   return { label: 'Live 2T',  icon: '🔴' };
+  return           { label: 'Live 1T',  icon: '🟡' };
+}
+
+// ── Z-score strength icon ──────────────────────────────────────────────────────
+function zIcon(z) {
+  if (z >= 3.0) return '🔥';
+  if (z >= 2.5) return '⚡';
+  return '📈';
+}
+
+// ── Approximate time remaining ─────────────────────────────────────────────────
+function timeLeft(minute) {
+  const n = parseInt(minute, 10);
+  if (isNaN(n)) return null;
+  if (n <= 45) {
+    const left = 47 - n;
+    return left > 0 ? `≈${left}' left` : null;
+  }
+  if (n <= 90) {
+    const left = 93 - n;
+    return left > 0 ? `≈${left}' left` : null;
+  }
+  return 'ET';
+}
+
+// ── Bet row renderer ───────────────────────────────────────────────────────────
+const CIRCLED = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩'];
+
 function formatBetLines(bets, gsMap = null) {
   return [...bets].sort((a, b) => b.z - a.z).map((b, i) => {
-    const zStr    = (b.z >= 0 ? '+' : '') + b.z.toFixed(1);
+    const zStr    = (b.z    >= 0 ? '+' : '') + b.z.toFixed(1);
     const edgeStr = (b.edge >= 0 ? '+' : '') + b.edge.toFixed(1) + 'pp';
-    const moStr   = b.mo ? `odds ≥ <b>${b.mo}</b>` : 'odds ≥ –';
+    const odds    = b.mo_p ? `<code>${b.mo_p} – ${b.mo}</code>` : '<code>–</code>';
+    const num     = CIRCLED[i] || `${i + 1}.`;
 
-    let gsStr = '';
+    let gsLine = '';
     if (gsMap) {
       const gs = gsMap.get(b.k);
       if (gs && gs.n >= 10) {
-        const gsZ = (gs.z >= 0 ? '+' : '') + gs.z.toFixed(1);
-        gsStr = `\n   <i>↳ in-play: ${gs.p.toFixed(0)}% / ${gs.bl.toFixed(0)}%  z${gsZ}  n=${gs.n}</i>`;
+        const gz = (gs.z >= 0 ? '+' : '') + gs.z.toFixed(1);
+        gsLine = `\n    <i>↳ in-play: ${gs.p.toFixed(0)}% vs ${gs.bl.toFixed(0)}%  z= ${gz}  n= ${gs.n}</i>`;
       }
     }
 
     return [
-      `<b>${i + 1}. ${b.label}</b> — ${moStr}`,
-      `   ${b.p.toFixed(0)}% / ${b.bl.toFixed(0)}%  <b>${edgeStr}</b>  z${zStr}  n=${b.n}${gsStr}`,
+      `${zIcon(b.z)} <b>${b.label}</b>`,
+      `    💰 Odds: [<b>${odds}</b>]`,
+      `    <i>📊 ${b.p.toFixed(0)}% vs ${b.bl.toFixed(0)}%  ${edgeStr}  -  z= ${zStr}  -  n= ${b.n}${gsLine}</i>`,
     ].join('\n');
   }).join('\n\n');
 }
 
-// ── Shared signal line builder ─────────────────────────────────────────────────
-function buildSignalLine(match, matchCfg) {
+// ── Signal builders ────────────────────────────────────────────────────────────
+// Returns the LM signal string to append to the AH line, e.g. " (STEAM)"
+function ahSignalSuffix(matchCfg) {
   const sig = matchCfg.signals;
   const parts = [];
-  if (sig.lineMove !== 'UNKNOWN') parts.push(`LM: <b>${sig.lineMove}</b>`);
-  if (cfg.TL_MOVE_ON && sig.tlMove !== 'UNKNOWN') {
-    const tlVal = match.odds.tl_c != null ? ` (${match.odds.tl_c})` : '';
-    parts.push(`TL: <b>${sig.tlMove}</b>${tlVal}`);
-  }
-  if (cfg.FAV_ODDS_ON && sig.favOddsMove !== 'UNKNOWN') parts.push(`Fav: <b>${sig.favOddsMove}</b>`);
-  if (cfg.DOG_ODDS_ON && sig.dogOddsMove !== 'UNKNOWN') parts.push(`Dog: <b>${sig.dogOddsMove}</b>`);
-  return parts.length ? `📈 ${parts.join('  ·  ')}` : null;
+  if (sig.lineMove === 'DEEPER' || sig.lineMove === 'SHRANK') parts.push(sig.lineMove);
+  if (cfg.FAV_ODDS_ON && sig.favOddsMove !== 'UNKNOWN' && sig.favOddsMove !== 'STABLE') parts.push(`Fav ${sig.favOddsMove}`);
+  if (cfg.DOG_ODDS_ON && sig.dogOddsMove !== 'UNKNOWN' && sig.dogOddsMove !== 'STABLE') parts.push(`Dog ${sig.dogOddsMove}`);
+  return parts.length ? ` <i>(${parts.join('  ·  ')})</i>` : '';
 }
 
-// ── Pre-match alert formatter ──────────────────────────────────────────────────
+// Returns the TL line, e.g. "TL: 2.75 (UP)", or null if not available
+function tlLine(match) {
+  const { tl_c, tl_o } = match.odds;
+  if (tl_c == null) return null;
+  let dir = '';
+  if (tl_o != null && tl_c !== tl_o) {
+    dir = tl_c > tl_o ? ' <i>(UP)</i>' : ' <i>(DOWN)</i>';
+  }
+  return `📏 TL: <b>${tl_c}</b>${dir}`;
+}
+
+// ── Pre-match / live alert formatter ──────────────────────────────────────────
 // gsMap: Map of betKey → gs result for in-play enrichment lines (optional)
 function formatMessage(match, bets, matchCfg, gsMap) {
+  const { date, time } = nowStamp();
   const ahSide  = matchCfg.fav_side === 'HOME' ? 'Home' : 'Away';
-  const timePart = [match.minute, match.score].filter(Boolean).join(' · ');
-  const bracket  = timePart ? `  [${timePart}]` : '';
+  const { label: btLabel, icon: btIcon } = betTypeInfo(match.minute);
+  const maxZ    = Math.max(...bets.map(b => b.z));
+  const status  = match.score && match.minute
+    ? `<b>${match.score}</b>  ·  <b>${match.minute}</b>`
+    : match.score ? `<b>${match.score}</b>` : '<i>Pre-match</i>';
+  const gsLabel = gsMap && match._gsLabel ? `🎯 <i>In-play: ${match._gsLabel}</i>` : null;
+  const count   = bets.length;
 
-  const lines = [
-    `⚽ <b>${match.home_team} vs ${match.away_team}</b>${bracket}`,
-    match.league
-      ? `🏆 <i>${match.league}</i>  ·  AH <b>${ahSide} -${matchCfg.fav_line}</b>`
-      : `AH <b>${ahSide} -${matchCfg.fav_line}</b>`,
-    buildSignalLine(match, matchCfg),
-    gsMap ? `🎯 <i>${match._gsLabel || 'in-play'}</i>` : null,
+  const header = [
+    `${zIcon(maxZ)} <b>${count} Signal${count !== 1 ? 's' : ''}  ·  ${date}  ·  ${time}</b>`,
+    `${btIcon} <b>${btLabel}</b>`,
+    ``,
+    `🏆 <i>${match.league || '—'}</i>`,
+    `⚽ <b>${match.home_team} vs ${match.away_team}</b>`,
+    `📍 ${status}`,
+    `⚖️ AH Line: <b>${ahSide} -${matchCfg.fav_line}</b>${ahSignalSuffix(matchCfg)}`,
+    tlLine(match),
+    gsLabel,
   ].filter(Boolean).join('\n');
 
-  return `${lines}\n\n${formatBetLines(bets, gsMap)}`;
+  return `${header}\n\n${formatBetLines(bets, gsMap)}\n\n<code>─────────────────────</code>`;
 }
 
 // ── Half-time alert formatter ──────────────────────────────────────────────────
 function formatHtMessage(match, bets, matchCfg, homeGoals, awayGoals) {
-  const ahSide = matchCfg.fav_side === 'HOME' ? 'Home' : 'Away';
+  const { date, time } = nowStamp();
+  const ahSide  = matchCfg.fav_side === 'HOME' ? 'Home' : 'Away';
+  const maxZ = Math.max(...bets.map(b => b.z));
 
-  const lines = [
-    `⚽ <b>${match.home_team} vs ${match.away_team}</b>  [HT · ${homeGoals}-${awayGoals}]`,
-    match.league
-      ? `🏆 <i>${match.league}</i>  ·  AH <b>${ahSide} -${matchCfg.fav_line}</b>`
-      : `AH <b>${ahSide} -${matchCfg.fav_line}</b>`,
-    buildSignalLine(match, matchCfg),
+  const count = bets.length;
+
+  const header = [
+    `${zIcon(maxZ)} <b>${count} Signal${count !== 1 ? 's' : ''}  ·  ${date}  ·  ${time}</b>`,
+    `⏸ <b>HT Alert</b>`,
+    ``,
+    `🏆 <i>${match.league || '—'}</i>`,
+    `⚽ <b>${match.home_team} vs ${match.away_team}</b>`,
+    `📍 <b>HT ${homeGoals}-${awayGoals}</b>`,
+    `⚖️ AH Line: <b>${ahSide} -${matchCfg.fav_line}</b>${ahSignalSuffix(matchCfg)}`,
+    tlLine(match),
   ].filter(Boolean).join('\n');
 
-  return `${lines}\n\n${formatBetLines(bets)}`;
+  return `${header}\n\n${formatBetLines(bets)}\n\n<code>─────────────────────</code>`;
 }
 
 // ── Game state builder ─────────────────────────────────────────────────────────

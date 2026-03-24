@@ -593,11 +593,10 @@ select.gs-select {
   justify-content: center; padding: 12px 8px; gap: 2px;
 }
 .mo-label   { font-size: 11px; font-weight: bold; color: var(--dim); text-align: center; }
-.mo-value   { font-size: 30px; font-weight: bold; color: var(--yellow); line-height: 1.1; }
-.mo-sub     { font-size: 11px; color: var(--dim); }
-.mo-divider  { width: 80%; height: 1px; background: var(--border); margin: 5px 0; }
-.mo-safe     { font-size: 22px; font-weight: bold; color: var(--green); line-height: 1.1; }
-.mo-lo-ref   { font-size: 10px; color: var(--dim); margin-top: 2px; }
+.mo-value      { font-size: 26px; font-weight: bold; color: var(--yellow); line-height: 1.1; }
+.mo-sub        { font-size: 11px; color: var(--dim); }
+.mo-lo-ref     { font-size: 10px; color: var(--dim); margin-top: 2px; }
+.mo-range-sep  { font-size: 18px; font-weight: normal; color: var(--dim); }
 
 /* Value hunting section */
 .value-hunt-section { margin-top: 14px; background: var(--bg1); border-radius: 6px; }

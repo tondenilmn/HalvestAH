@@ -2305,9 +2305,11 @@ function buildBetCol(bet, passes, title, subtitle, rank, colId, minN) {
   const passCls  = (passes && !lowN) ? '' : 'col-weak';
 
   const hasLive  = bet.live && bet.live.live_p != null && bet.live.live_p > 0 && bet.live.live_p < 100;
-  const dispMo   = hasLive ? bet.live.fair_odd.toFixed(2) : bet.mo_mid;
-  const moLabel  = hasLive ? 'LIVE MIN ODDS' : 'MIN ODDS';
-  const moFloor  = hasLive ? `hist. ${bet.mo_mid}` : `floor ${bet.mo_lo}`;
+  const moRange  = hasLive
+    ? `<b>${bet.live.fair_odd.toFixed(2)}</b> <span class="mo-range-sep">live</span>`
+    : `<b>${bet.mo}</b><span class="mo-range-sep"> – </span><b>${bet.mo_mid}</b>`;
+  const moLabel  = hasLive ? 'LIVE ODDS' : 'ODDS RANGE';
+  const moFloor  = hasLive ? `hist. range ${bet.mo} – ${bet.mo_mid}` : `floor: ${bet.mo_lo}`;
 
   let matchesHtml = '';
   if (bet.matches && bet.matches.length) {
@@ -2444,7 +2446,7 @@ function renderBetDashboard(preMap, gsMap) {
       else if (bestZ >= 1.5) tierCls = 'bd-marginal';
       else if (bestZ >= 0)   tierCls = 'bd-weak';
       else                   tierCls = 'bd-negative';
-      const mo = pre?.mo_mid ?? gs?.mo_mid ?? '—';
+      const mo = (pre ?? gs) ? `${(pre ?? gs).mo}–${(pre ?? gs).mo_mid}` : '—';
       const n  = pre?.n ?? gs?.n ?? '—';
       rowsHtml += `<div class="bd-row ${tierCls}">
         <span class="bd-dot"></span>
@@ -2619,14 +2621,10 @@ function renderBetCard(bet, rank) {
         ${matchesHtml}
       </div>
       <div class="bet-right">
-        <div class="mo-label">MIN ODDS</div>
-        <div class="mo-value">${bet.mo}</div>
-        <div class="mo-sub">face value</div>
-        <div class="mo-divider"></div>
-        <div class="mo-label">SAFE MIN</div>
-        <div class="mo-safe">${bet.mo_mid}</div>
-        <div class="mo-sub">midpoint CI</div>
-        <div class="mo-lo-ref">hard floor: ${bet.mo_lo}</div>
+        <div class="mo-label">${moLabel}</div>
+        <div class="mo-value">${moRange}</div>
+        <div class="mo-sub">fair value → conservative</div>
+        <div class="mo-lo-ref">${moFloor}</div>
       </div>
     </div>
     ${liveHtml}
@@ -2664,10 +2662,10 @@ function renderValueHuntCard(bet) {
         </div>
       </div>
       <div class="vh-right">
-        <div class="mo-label">SAFE MIN ODDS</div>
-        <div class="vh-mo-value">${bet.mo_mid}</div>
-        <div class="mo-sub">midpoint CI</div>
-        <div class="mo-lo-ref">hard floor: ${bet.mo_lo}</div>
+        <div class="mo-label">ODDS RANGE</div>
+        <div class="vh-mo-value"><b>${bet.mo}</b><span class="mo-range-sep"> – </span><b>${bet.mo_mid}</b></div>
+        <div class="mo-sub">fair value → conservative</div>
+        <div class="mo-lo-ref">floor: ${bet.mo_lo}</div>
       </div>
     </div>
   </div>`;
@@ -2992,7 +2990,7 @@ function renderScanMatchCard({ match, cfg, bets, bestZ, n }) {
       <span class="scan-bet-label">${b.label}</span>
       <span class="${zCls}">z=${b.z.toFixed(2)}</span>
       <span class="scan-bet-p">${b.p.toFixed(1)}% <span class="scan-bet-bl">vs ${b.bl.toFixed(1)}%</span></span>
-      <span class="scan-bet-mo">min ${b.mo_mid}</span>
+      <span class="scan-bet-mo">${b.mo}–${b.mo_mid}</span>
     </div>`;
   }).join('');
 
