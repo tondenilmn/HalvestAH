@@ -10,7 +10,7 @@
 //   node backtest.js --summary  — suppress individual alerts
 
 const path = require('path');
-const { loadDatabase, buildCfgFromMatch, applyConfig, applyBaselineConfig, scoreBets } = require('./engine');
+const { loadDatabase, buildCfgFromMatch, applyConfig, applyBaselineConfig, applyGameState, scoreBets } = require('./engine');
 
 const cfg = {
   LINE_MOVE_ON:     true,
@@ -34,6 +34,7 @@ const TEST_LABEL = '_02_26_';
 const LINE_THRESH  = 0.13;
 const TL_THRESH    = 0.13;
 const BAYES_MIN_N  = 15;   // min rows per LR cell (hits and misses) to be reliable
+const HT_MIN_N     = 15;   // min rows after HT game state filter
 
 // ── Bet keys that use a side-filtered pool for their baseline ──────────────────
 const FAV_SIDE_BASELINE = {
@@ -196,10 +197,12 @@ function main() {
   console.log(`Test set (Feb 2026)           : ${testRows.length} matches`);
 
   let nChecked = 0, nPassedSignal = 0, nTriggered = 0;
-  const alertsMA    = [];  // Match Analysis gate only
-  const alertsBoth  = [];  // Match Analysis + Bayesian gate
+  const alertsMA    = [];  // Match Analysis gate only (pre-match)
+  const alertsBoth  = [];  // Match Analysis + Bayesian gate (pre-match)
+  const alertsHT    = [];  // Match Analysis + HT game state filter
   let nSuppressedDelta = 0;
   let nKeptUnreliable  = 0;
+  let nHtSkipped = 0;      // test rows missing HT data
 
   for (const testRow of testRows) {
     const odds = rowToOdds(testRow);
@@ -274,6 +277,33 @@ function main() {
         }
       }
     }
+
+    // ── HT game state pass ──────────────────────────────────────────────────
+    // Re-score using actual HT score from test row as game state filter.
+    // Uses HT_MIN_N (15) as lower bar since HT filter reduces sample.
+    const favHt = testRow.fav_ht;
+    const dogHt = testRow.dog_ht;
+    if (favHt == null || dogHt == null || isNaN(favHt) || isNaN(dogHt)) {
+      nHtSkipped++;
+    } else {
+      // Convert fav/dog HT goals → home/away for applyGameState
+      const homeGoals = matchCfg.fav_side === 'HOME' ? favHt : dogHt;
+      const awayGoals = matchCfg.fav_side === 'HOME' ? dogHt : favHt;
+      const gs = { trigger: 'HT', home_goals: homeGoals, away_goals: awayGoals };
+
+      const htRows      = applyGameState(cfgRows, gs);
+      if (htRows.length >= HT_MIN_N) {
+        const htBets      = scoreBets(htRows, blRows, blSide, HT_MIN_N);
+        const htQualifying = htBets.filter(b =>
+          b.z >= cfg.MIN_Z && b.edge >= cfg.MIN_EDGE &&
+          b.n >= HT_MIN_N  && b.bl >= (cfg.MIN_BASELINE ?? 0)
+        );
+        for (const b of htQualifying) {
+          alertsHT.push({ row: testRow, matchCfg, b, hit: testRow[b.k],
+                          htScore: `${homeGoals}-${awayGoals}` });
+        }
+      }
+    }
   }
 
   // ── Print results ──────────────────────────────────────────────────────────
@@ -287,6 +317,8 @@ function main() {
   console.log(`Total alerts (MA+Bayes)  : ${alertsBoth.length}`);
   console.log(`  Suppressed (delta ≤ 0) : ${nSuppressedDelta}`);
   console.log(`  Kept (unreliable LR)   : ${nKeptUnreliable}`);
+  console.log(`Total alerts (MA + HT)   : ${alertsHT.length}`);
+  console.log(`  Test rows missing HT   : ${nHtSkipped}`);
 
   if (!alertsMA.length) {
     console.log('\n⚠  No alerts. Try:');
@@ -303,6 +335,10 @@ function main() {
   console.log('\n── Gate 2: Match Analysis + Bayesian (delta > 0, sparse kept) ─────────');
   const g2 = printGateSummary('MA+Bayes', alertsBoth);
 
+  // ── Gate 3: Match Analysis + HT game state ───────────────────────────────────
+  console.log('\n── Gate 3: Match Analysis + HT score filter (MIN_N=15) ─────────────────');
+  const g3 = printGateSummary('MA+HT', alertsHT);
+
   // ── Delta ────────────────────────────────────────────────────────────────────
   console.log('\n── Bayesian gate impact ────────────────────────────────────────────────');
   console.log(`  Alert reduction   : ${alertsMA.length} → ${alertsBoth.length}  (−${alertsMA.length - alertsBoth.length}, −${pct(alertsMA.length - alertsBoth.length, alertsMA.length)}%)`);
@@ -310,10 +346,16 @@ function main() {
   console.log(`  Edge change       : +${(g1.actualPct - g1.avgBl).toFixed(1)}pp → +${(g2.actualPct - g2.avgBl).toFixed(1)}pp`);
   console.log(`  P&L change        : ${g1.pnl >= 0 ? '+' : ''}${g1.pnl.toFixed(2)} → ${g2.pnl >= 0 ? '+' : ''}${g2.pnl.toFixed(2)} units`);
   console.log(`  ROI change        : ${g1.roi >= 0 ? '+' : ''}${g1.roi.toFixed(1)}% → ${g2.roi >= 0 ? '+' : ''}${g2.roi.toFixed(1)}%`);
+  console.log('\n── HT gate vs pre-match ────────────────────────────────────────────────');
+  console.log(`  Alert change      : ${alertsMA.length} → ${alertsHT.length}  (${alertsHT.length - alertsMA.length >= 0 ? '+' : ''}${alertsHT.length - alertsMA.length})`);
+  console.log(`  Hit rate change   : ${g1.actualPct}% → ${g3.actualPct}%  (${(g3.actualPct - g1.actualPct) >= 0 ? '+' : ''}${(g3.actualPct - g1.actualPct).toFixed(1)}pp)`);
+  console.log(`  Edge change       : +${(g1.actualPct - g1.avgBl).toFixed(1)}pp → +${(g3.actualPct - g3.avgBl).toFixed(1)}pp`);
+  console.log(`  P&L change        : ${g1.pnl >= 0 ? '+' : ''}${g1.pnl.toFixed(2)} → ${g3.pnl >= 0 ? '+' : ''}${g3.pnl.toFixed(2)} units`);
+  console.log(`  ROI change        : ${g1.roi >= 0 ? '+' : ''}${g1.roi.toFixed(1)}% → ${g3.roi >= 0 ? '+' : ''}${g3.roi.toFixed(1)}%`);
 
   // ── Per-bet summary (both gates) ─────────────────────────────────────────────
   if (!SUMMARY) {
-    for (const [label, alerts] of [['MA only', alertsMA], ['MA + Bayesian', alertsBoth]]) {
+    for (const [label, alerts] of [['MA only', alertsMA], ['MA + Bayesian', alertsBoth], ['MA + HT score', alertsHT]]) {
       const byBet = new Map();
       for (const a of alerts) {
         if (!byBet.has(a.b.k)) byBet.set(a.b.k, []);

@@ -47,7 +47,10 @@ module.exports = {
   // 'TOP'       — top 5 EU + Champions/Europa/Conference League only
   // 'MAJOR'     — strong national leagues (Brazil, Argentina, MLS, J1, etc.)
   // 'TOP+MAJOR' — both TOP and MAJOR, excludes obscure/lower leagues
-  LEAGUE_TIER: process.env.LEAGUE_TIER || 'TOP+MAJOR',
+  LEAGUE_TIER:    process.env.LEAGUE_TIER    || 'TOP+MAJOR',
+  // HT alerts use a wider pool — the HT score filter compensates for league noise.
+  // Backtested: ALL gives ~5× more HT alerts at only −1.5pp ROI vs TOP+MAJOR.
+  HT_LEAGUE_TIER: process.env.HT_LEAGUE_TIER || 'ALL',
 
   // ── How often to scan (minutes) ─────────────────────────────────────────────
   SCAN_INTERVAL_MINUTES: parseInt(process.env.SCAN_INTERVAL_MINUTES || '3', 10),
