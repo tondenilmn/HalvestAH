@@ -453,10 +453,8 @@ function computeBayesLRs(rows, activeHt) {
   for (const bet of BETS) {
     lrTable[bet.k] = {};
 
-    // Replicate scoreBets favSideBaseline split
-    const pool = (bet.favSideBaseline)
-      ? rows.filter(r => r.fav_side === bet.favSideBaseline)
-      : rows;
+    // rows is already side-filtered (baseRows passed from runBayesian); no need to re-filter
+    const pool = rows;
 
     const hits   = pool.filter(r => r[bet.k] === true);
     const misses = pool.filter(r => r[bet.k] === false);
@@ -591,11 +589,10 @@ function runBayesian() {
     if (!isNaN(homeGoals) && !isNaN(awayGoals)) {
       const favHt = favSide === 'AWAY' ? awayGoals : homeGoals;
       const dogHt = favSide === 'AWAY' ? homeGoals : awayGoals;
-      const total  = favHt + dogHt;
-      if      (total >= 2)   htSignal = 'multi_goal';
-      else if (favHt > dogHt) htSignal = 'fav_ahead';
+      if      (favHt > dogHt) htSignal = 'fav_ahead';
       else if (dogHt > favHt) htSignal = 'dog_ahead';
-      else                    htSignal = 'level';
+      else if (favHt === 0)   htSignal = 'level_0';
+      else                    htSignal = 'level_goals';
     }
   }
 
@@ -613,9 +610,8 @@ function runBayesian() {
   const { lrTable, n } = computeBayesLRs(baseRows, activeHt);
 
   const results = BETS.map(bet => {
-    const pool = bet.favSideBaseline
-      ? baseRows.filter(r => r.fav_side === bet.favSideBaseline)
-      : baseRows;
+    // baseRows is already side-filtered; favSideBaseline re-filter would zero out opposite-side bets
+    const pool = baseRows;
     const baselineRate = pct(pool, bet.k) / 100;
     const { posterior, delta } = bayesianPosterior(baselineRate, lrTable, bet.k, signals);
 
