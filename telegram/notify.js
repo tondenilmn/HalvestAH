@@ -126,7 +126,7 @@ function tlLine(match) {
   if (tl_o != null && tl_c !== tl_o) {
     dir = tl_c > tl_o ? ' <i>(UP)</i>' : ' <i>(DOWN)</i>';
   }
-  return `📏 TL: <b>${tl_c}</b>${dir}`;
+  return `📏 TL: ${tl_c}${dir}`;
 }
 
 // ── Pre-match / live alert formatter ──────────────────────────────────────────
@@ -136,21 +136,21 @@ function formatMessage(match, bets, matchCfg, gsMap) {
   const ahSide = matchCfg.fav_side === 'HOME' ? 'Home' : 'Away';
   const { label: btLabel, icon: btIcon } = betTypeInfo(match.minute);
   const scoreMin = match.score && match.minute
-    ? `${match.score}  ${match.minute}`
+    ? `${match.score}  (${match.minute})`
     : match.score || 'Pre-match';
   const gsLabel = gsMap && match._gsLabel ? `\n🎯 <i>${match._gsLabel}</i>` : '';
   const tl = tlLine(match);
 
   const header = [
-    `${btIcon} <b>${btLabel}  ·  ${time}</b>`,
+    `${btIcon} ${btLabel}  ·  ${time}`,
+    ``,
     `🏆 <i>${match.league || '—'}</i>`,
     `⚽ <b>${match.home_team} vs ${match.away_team}</b>  <code>${scoreMin}</code>`,
-    `⚖️ <b>${ahSide} -${matchCfg.fav_line}</b>${ahSignalSuffix(matchCfg)}${gsLabel}`,
+    `⚖️ ${ahSide} -${matchCfg.fav_line}${ahSignalSuffix(matchCfg)}${gsLabel}`,
     tl,
-  ].filter(Boolean).join('\n');
+  ].filter(l => l != null).join('\n');
 
-  const SEP = '<code>──────────────────────</code>';
-  return `${SEP}\n${header}\n\n${formatBetLines(bets, gsMap)}`;
+  return `${header}\n\n${formatBetLines(bets, gsMap)}\n`;
 }
 
 // ── Half-time alert formatter ──────────────────────────────────────────────────
@@ -160,15 +160,15 @@ function formatHtMessage(match, bets, matchCfg, homeGoals, awayGoals) {
   const tl = tlLine(match);
 
   const header = [
-    `⏸ <b>Half Time  ·  ${time}</b>`,
+    `⏸ Half Time  ·  ${time}`,
+    ``,
     `🏆 <i>${match.league || '—'}</i>`,
     `⚽ <b>${match.home_team} vs ${match.away_team}</b>  <code>HT ${homeGoals}-${awayGoals}</code>`,
-    `⚖️ <b>${ahSide} -${matchCfg.fav_line}</b>${ahSignalSuffix(matchCfg)}`,
+    `⚖️ ${ahSide} -${matchCfg.fav_line}${ahSignalSuffix(matchCfg)}`,
     tl,
-  ].filter(Boolean).join('\n');
+  ].filter(l => l != null).join('\n');
 
-  const SEP = '<code>──────────────────────</code>';
-  return `${SEP}\n${header}\n\n${formatBetLines(bets)}`;
+  return `${header}\n\n${formatBetLines(bets)}\n`;
 }
 
 // ── Game state builder ─────────────────────────────────────────────────────────
