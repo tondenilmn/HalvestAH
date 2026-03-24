@@ -11,7 +11,8 @@ const cron   = require('node-cron');
 const cfg    = require('./config');
 const { loadDatabase, loadDatabaseFromUrl, buildCfgFromMatch, applyConfig, applyBaselineConfig, applyGameState, scoreBets } = require('./engine');
 
-const HT_MIN_N      = 15;   // min rows after HT game state filter
+const HT_MIN_N      = 20;   // min rows after HT game state filter
+const HT_MIN_Z      = 1.5;  // z-score threshold for HT alerts (lower than pre-match)
 const HT_MIN_MINUTE = 46;   // start of HT window (definitively HT, no 2H goals yet)
 const HT_MAX_MINUTE = 56;   // end of HT window (10-min band covers any scan interval)
 const { fetchLiveMatches } = require('./livescore');
@@ -46,6 +47,17 @@ async function sendTelegram(text) {
   }
 }
 
+// ── Kelly stake calculator ─────────────────────────────────────────────────────
+// Returns the quarter-Kelly fraction (0–1), or null if the bet has no edge at
+// the given odds. Uses min odds as the conservative odds input.
+// Quarter Kelly (25% of full Kelly) is the standard for managing variance.
+function computeKelly(p, mo) {
+  if (!mo || mo <= 1 || p <= 0 || p >= 1) return null;
+  const b = mo - 1;                   // net odds (e.g. 1.85 → 0.85)
+  const fullKelly = (p * b - (1 - p)) / b;
+  return fullKelly > 0 ? fullKelly * 0.25 : null;
+}
+
 // ── Shared bet row renderer ────────────────────────────────────────────────────
 // gsMap: optional Map of betKey → scored gs result (pre-match in-play enrichment)
 function formatBetLines(bets, gsMap = null) {
@@ -53,7 +65,10 @@ function formatBetLines(bets, gsMap = null) {
     const zBadge  = b.z >= 3.0 ? '🔥' : b.z >= 2.5 ? '⚡' : '📌';
     const zStr    = (b.z >= 0 ? '+' : '') + b.z.toFixed(1);
     const edgeStr = (b.edge >= 0 ? '+' : '') + b.edge.toFixed(1) + 'pp';
-    const moStr   = b.mo ? `💰 <b>Min odds: ${b.mo}</b>` : '💰 <b>Min odds: –</b>';
+
+    const moStr = b.mo
+      ? `💰 <b>Min odds: ${b.mo}</b>`
+      : '💰 <b>Min odds: –</b>';
 
     let gsStr = '';
     if (gsMap) {
@@ -318,7 +333,7 @@ async function runScan() {
           const htBets = scoreBets(htRows, htBlRows, htBlSide, HT_MIN_N);
           const htQualifying = htBets.filter(b =>
             !HT_EXCLUDED_BETS.has(b.k) &&
-            b.z >= cfg.MIN_Z &&
+            b.z >= HT_MIN_Z &&
             b.edge >= cfg.MIN_EDGE &&
             b.n >= HT_MIN_N &&
             b.bl >= (cfg.MIN_BASELINE ?? 0)

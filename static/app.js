@@ -431,11 +431,10 @@ function computeFtDist(stateRows, baselineRows) {
 function htBucket(r) {
   const fh = r.fav_ht, dh = r.dog_ht;
   if (fh == null || dh == null || isNaN(fh) || isNaN(dh)) return 'UNKNOWN';
-  const total = fh + dh;
-  if (total >= 2)   return 'multi_goal';
-  if (fh > dh)      return 'fav_ahead';
-  if (dh > fh)      return 'dog_ahead';
-  return 'level';
+  if (fh > dh) return 'fav_ahead';    // any margin: 1-0, 2-0, 2-1, 3-0...
+  if (dh > fh) return 'dog_ahead';    // any margin: 0-1, 0-2, 1-2...
+  if (fh === 0) return 'level_0';     // 0-0
+  return 'level_goals';               // 1-1, 2-2
 }
 
 function computeBayesLRs(rows, activeHt) {
