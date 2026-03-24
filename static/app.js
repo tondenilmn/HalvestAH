@@ -2355,7 +2355,7 @@ function buildBetCol(bet, passes, title, subtitle, rank, colId, minN) {
     <div class="bet-ci">CI [${bet.lo}%–${bet.hi}%]</div>
     <div class="col-min-odds">
       <span class="col-min-odds-label">${moLabel}</span>
-      <span class="col-min-odds-value">${dispMo}</span>
+      <span class="col-min-odds-value">${moRange}</span>
       <span class="col-min-odds-floor">${moFloor}</span>
     </div>
     ${matchesHtml}
