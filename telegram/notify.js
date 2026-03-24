@@ -221,11 +221,27 @@ async function getDb() {
 
 const VERBOSE = process.argv.includes('--verbose');
 
+async function fetchMatches() {
+  // If DATA_URL is set, proxy through our own Cloudflare Pages /api/livescore
+  // endpoint — it handles hash discovery from Cloudflare's edge network, which
+  // works reliably even when direct botbot3.space requests fail from Railway.
+  if (cfg.DATA_URL) {
+    const url = `${cfg.DATA_URL.replace(/\/$/, '')}/api/livescore`;
+    console.log(`Fetching live matches via Cloudflare: ${url}`);
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error(`Cloudflare livescore returned HTTP ${resp.status}`);
+    const json = await resp.json();
+    return json.matches || [];
+  }
+  // Local / direct path (no DATA_URL set)
+  return fetchLiveMatches();
+}
+
 async function runScan() {
   console.log(`[${new Date().toISOString()}] Scanning live matches…`);
   let matches;
   try {
-    matches = await fetchLiveMatches();
+    matches = await fetchMatches();
   } catch (e) {
     console.error(`Livescore fetch failed: ${e.message}`);
     return;
