@@ -219,6 +219,8 @@ async function getDb() {
   return _dbPromise;
 }
 
+const VERBOSE = process.argv.includes('--verbose');
+
 async function runScan() {
   console.log(`[${new Date().toISOString()}] Scanning live matches…`);
   let matches;
@@ -238,8 +240,12 @@ async function runScan() {
   const db = await getDb();
 
   for (const match of matches) {
+    const label = `${match.home_team} vs ${match.away_team}`;
     const matchCfg = buildCfgFromMatch(match.odds, cfg);
-    if (!matchCfg) continue;
+    if (!matchCfg) {
+      if (VERBOSE) console.log(`  SKIP [no cfg]        ${label}`);
+      continue;
+    }
 
     // Signal quality gate — skip matches where every active signal is flat
     if (cfg.REQUIRE_MOVEMENT) {
@@ -249,7 +255,13 @@ async function runScan() {
         (cfg.TL_MOVE_ON    && s.tlMove      !== 'STABLE' && s.tlMove      !== 'UNKNOWN') ||
         (cfg.FAV_ODDS_ON   && s.favOddsMove !== 'STABLE' && s.favOddsMove !== 'UNKNOWN') ||
         (cfg.DOG_ODDS_ON   && s.dogOddsMove !== 'STABLE' && s.dogOddsMove !== 'UNKNOWN');
-      if (!hasMovement) continue;
+      if (!hasMovement) {
+        if (VERBOSE) {
+          const s = matchCfg.signals;
+          console.log(`  SKIP [no movement]   ${label}  LM:${s.lineMove} TL:${s.tlMove}`);
+        }
+        continue;
+      }
     }
 
     // League tier filter — restrict DB to the configured tier before scoring
@@ -261,6 +273,11 @@ async function runScan() {
     const cfgRows = applyConfig(tierDb, matchCfg);
     const blRows  = applyBaselineConfig(tierDb, matchCfg);
     const blSide  = blRows.filter(r => r.fav_side === matchCfg.fav_side);
+
+    if (VERBOSE) {
+      const s = matchCfg.signals;
+      console.log(`  CHECK                ${label}  LM:${s.lineMove} TL:${s.tlMove}  pool:${cfgRows.length}  bl:${blRows.length}`);
+    }
 
     // ── HT window detection ────────────────────────────────────────────────
     const minNum     = match.minute ? parseInt(match.minute, 10) : null;
@@ -275,6 +292,16 @@ async function runScan() {
       b.n >= cfg.MIN_N &&
       b.bl >= (cfg.MIN_BASELINE ?? 0)
     );
+
+    if (VERBOSE && !qualifying.length) {
+      const best = bets.filter(b => b.n >= cfg.MIN_N).sort((a, b) => b.z - a.z)[0];
+      const reason = cfgRows.length < cfg.MIN_N
+        ? `pool too small (${cfgRows.length} < ${cfg.MIN_N})`
+        : best
+          ? `best bet: ${best.label} z=${best.z.toFixed(1)} edge=${best.edge.toFixed(1)}pp bl=${best.bl.toFixed(0)}% — below thresholds`
+          : `no bets with n≥${cfg.MIN_N}`;
+      console.log(`  SKIP [thresholds]    ${label}  ${reason}`);
+    }
 
     // Skip match entirely only if neither pre-match nor HT window applies
     if (!qualifying.length && !isHtWindow) continue;

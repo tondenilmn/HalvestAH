@@ -152,15 +152,25 @@ async function tryCombo(hash, gS, timestamp) {
   let jsText;
   try {
     const resp = await fetch(url, { headers: makeBotbotHeaders(gS, hash) });
-    if (!resp.ok) return null;
+    if (!resp.ok) {
+      console.log(`  botbot3 ${gS}/${hash.slice(0,8)}… → HTTP ${resp.status}`);
+      return null;
+    }
     jsText = await resp.text();
-  } catch { return null; }
+  } catch (e) {
+    console.log(`  botbot3 ${gS}/${hash.slice(0,8)}… → fetch error: ${e.message}`);
+    return null;
+  }
 
   const oddsRows = parseGetData2Calls(jsText);
-  if (oddsRows.length === 0) return null;
+  if (oddsRows.length === 0) {
+    console.log(`  botbot3 ${gS}/${hash.slice(0,8)}… → OK but 0 getData2 calls (${jsText.length} bytes)`);
+    return null;
+  }
 
   const metaRows = parseGetData1Calls(jsText);
   const matches  = mergeMatchData(oddsRows, metaRows);
+  console.log(`  botbot3 ${gS}/${hash.slice(0,8)}… → OK  odds:${oddsRows.length}  meta:${metaRows.length}  merged:${matches.length}`);
   return matches;
 }
 
@@ -168,18 +178,24 @@ async function fetchLiveMatches() {
   const timestamp = Date.now();
 
   // Step 1: fast path
+  console.log(`Livescore: trying fast path (hash=${PINNACLE_HASH.slice(0,8)}…)`);
   let matches = await tryCombo(PINNACLE_HASH, GS_PRIMARY, timestamp);
   if (matches) return matches;
 
   // Step 2: auto-discover hash
+  console.log('Livescore: fast path failed — fetching hash from asianbetsoccer…');
   const discovered = await fetchPinnacleHash();
-  if (discovered && discovered !== PINNACLE_HASH) {
+  if (discovered) {
+    console.log(`Livescore: discovered hash=${discovered.slice(0,8)}… (${discovered === PINNACLE_HASH ? 'same' : 'NEW'})`);
     PINNACLE_HASH = discovered;
     matches = await tryCombo(discovered, GS_PRIMARY, timestamp);
     if (matches) return matches;
+  } else {
+    console.log('Livescore: hash discovery failed (asianbetsoccer unreachable or structure changed)');
   }
 
   // Step 3: sweep
+  console.log('Livescore: sweeping all gS candidates…');
   const hashesToTry = [...new Set([PINNACLE_HASH, ...(discovered ? [discovered] : [])])];
   for (const hash of hashesToTry) {
     for (const gS of GS_CANDIDATES) {
@@ -189,6 +205,7 @@ async function fetchLiveMatches() {
     }
   }
 
+  console.log('Livescore: all attempts failed — returning empty');
   return [];
 }
 
