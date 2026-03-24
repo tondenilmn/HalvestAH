@@ -29,14 +29,25 @@ async function fetchPinnacleHash() {
         'Accept-Language': 'it-IT,it;q=0.9,en-US;q=0.8,en;q=0.7',
       },
     });
-    if (!resp.ok) return null;
+    if (!resp.ok) {
+      console.log(`  hashDiscovery: asianbetsoccer HTTP ${resp.status}`);
+      return null;
+    }
     const html = await resp.text();
+    console.log(`  hashDiscovery: got HTML (${html.length} bytes)`);
     const m1 = html.match(/value="([a-f0-9]{40})"[^>]*>\s*Pinnacle/i);
     if (m1) return m1[1];
     const m2 = html.match(/botbot3\.space\/tables\/v4\/[^/]+\/livegame\/([a-f0-9]{40})\.js/);
     if (m2) return m2[1];
+    console.log(`  hashDiscovery: HTML received but no hash pattern matched`);
+    // Log a snippet to help debug the page structure
+    const snippet = html.slice(0, 500).replace(/\s+/g, ' ');
+    console.log(`  hashDiscovery: HTML snippet: ${snippet}`);
     return null;
-  } catch { return null; }
+  } catch (e) {
+    console.log(`  hashDiscovery: fetch error — ${e.message}`);
+    return null;
+  }
 }
 
 function extractCallArgs(text, start) {
