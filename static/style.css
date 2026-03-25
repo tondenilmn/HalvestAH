@@ -964,7 +964,7 @@ select.gs-select {
 }
 .probe-header {
   display:grid;
-  grid-template-columns: 120px 1fr 60px 60px 1fr 68px;
+  grid-template-columns: 120px 1fr 60px 60px 1fr;
   gap:4px; padding:6px 10px;
   background:var(--bg2); color:var(--dim);
   font-size:10px; text-transform:uppercase; letter-spacing:0.04em;
@@ -979,7 +979,7 @@ select.gs-select {
 .probe-group-sep:first-of-type { border-top:none; }
 .probe-row {
   display:grid;
-  grid-template-columns: 120px 1fr 60px 60px 1fr 68px;
+  grid-template-columns: 120px 1fr 60px 60px 1fr;
   gap:4px; padding:5px 10px;
   border-top:1px solid rgba(255,255,255,0.04);
   align-items:center;
@@ -989,6 +989,7 @@ select.gs-select {
 .probe-label         { color:var(--bright); font-size:11px; }
 .probe-prob          { display:flex; flex-direction:column; gap:1px; }
 .probe-prob b        { font-size:13px; color:var(--text); }
+.probe-prob .probe-delta { display:inline; font-size:11px; margin-left:4px; }
 .probe-ci            { font-size:10px; color:var(--dim); }
 .probe-odds-fair     { font-weight:bold; font-size:14px; color:var(--yellow); }
 .probe-odds-cons     { font-size:12px; color:var(--dim); }

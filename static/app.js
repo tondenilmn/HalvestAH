@@ -2550,11 +2550,10 @@ function renderGsProbePanel(probe, stateLabel) {
   <div class="probe-table">
     <div class="probe-header">
       <span>Outcome</span>
-      <span>P signal+state</span>
+      <span>P signal+state · Δ</span>
       <span style="color:var(--yellow)">Fair</span>
       <span style="color:var(--dim)">Cons.</span>
       <span>State only</span>
-      <span>Δ signal</span>
     </div>`;
 
   let lastGroup = null;
@@ -2577,6 +2576,7 @@ function renderGsProbePanel(probe, stateLabel) {
       <span class="probe-label">${r.label}</span>
       <span class="probe-prob">
         <b>${r.sp.toFixed(1)}%</b>
+        <span class="probe-delta ${dCls}">${dSign}${r.delta.toFixed(1)}pp</span>
         <span class="probe-ci">[${r.slo.toFixed(0)}–${r.shi.toFixed(0)}%]</span>
       </span>
       <span class="probe-odds-fair">${fair}</span>
@@ -2585,7 +2585,6 @@ function renderGsProbePanel(probe, stateLabel) {
         ${r.tp.toFixed(1)}%
         <span class="probe-ci">(${soOdds})</span>
       </span>
-      <span class="probe-delta ${dCls}">${dSign}${r.delta.toFixed(1)}pp</span>
     </div>`;
   }
 
@@ -2610,6 +2609,9 @@ function renderMatchResults({ pre, gs, gsLabel: label, gsProbe }) {
   const gsLow   = gs.gs_n < pre.min_n;
 
   let html = `<h2 class="results-title">BET DASHBOARD</h2>${cfgSummary}`;
+
+  // GSA probe first — it's the primary reference when checking live odds at HT
+  if (gsProbe) html += renderGsProbePanel(gsProbe, label);
 
   html += `<div class="scenarios-summary">
     <div class="sc-stat"><span class="sc-label">Config</span><span class="sc-val">${pre.cfg_n}</span><span class="sc-sub">matches</span></div>
@@ -2659,9 +2661,6 @@ function renderMatchResults({ pre, gs, gsLabel: label, gsProbe }) {
   // Value hunt from pre-match allBets (positive edge but z < MIN_Z)
   const vhBets = pre.allBets.filter(b => Math.abs(b.z) < MIN_Z && b.edge > 0 && b.n >= pre.min_n);
   if (vhBets.length) html += renderValueHuntSection(vhBets);
-
-  // GSA probability probe — absolute probabilities + fair odds at HT state
-  if (gsProbe) html += renderGsProbePanel(gsProbe, label);
 
   right.innerHTML = html;
 }
