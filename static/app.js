@@ -101,6 +101,26 @@ const BET_GROUPS = [
   { label: '1H',         keys: ['favWins1H', 'draw1H', 'favScored1H', 'homeWins1H', 'awayWins1H', 'over05_1H', 'over15_1H', 'under05_1H', 'under15_1H', 'btts1H'] },
 ];
 
+// ── GSA Probe outcomes ────────────────────────────────────────────────────────
+// Absolute probability targets for GSA-style value betting at HT.
+// For each outcome: compare P(signal+state) vs P(state only) to quantify
+// how much the pre-match signal adds on top of the game state alone.
+const GS_PROBE_OUTCOMES = [
+  { k: 'homeWinsFT',   label: 'Home Win FT',   group: 'FT' },
+  { k: 'awayWinsFT',   label: 'Away Win FT',   group: 'FT' },
+  { k: 'drawFT',       label: 'Draw FT',       group: 'FT' },
+  { k: 'over15FT',     label: 'Over 1.5 FT',  group: 'FT' },
+  { k: 'over25FT',     label: 'Over 2.5 FT',  group: 'FT' },
+  { k: 'btts',         label: 'BTTS FT',      group: 'FT' },
+  { k: 'homeWins2H',   label: 'Home Win 2H',  group: '2H' },
+  { k: 'awayWins2H',   label: 'Away Win 2H',  group: '2H' },
+  { k: 'draw2H',       label: 'Draw 2H',      group: '2H' },
+  { k: 'over05_2H',    label: 'Over 0.5 2H',  group: '2H' },
+  { k: 'over15_2H',    label: 'Over 1.5 2H',  group: '2H' },
+  { k: 'homeScored2H', label: 'Home Score 2H', group: '2H' },
+  { k: 'awayScored2H', label: 'Away Score 2H', group: '2H' },
+];
+
 /* ── League tier classification ─────────────────────────────────────────
    TOP   = Top 5 European leagues + main UEFA club competitions
    MAJOR = Other strong national/continental leagues
@@ -402,6 +422,41 @@ function minOdds(p) {
   return p > 0 ? (1 / (p / 100)).toFixed(2) : '—';
 }
 
+// ── GSA Probe ─────────────────────────────────────────────────────────────────
+// Computes absolute probability for each GS_PROBE_OUTCOME under two conditions:
+//   signal+state : cfgRows filtered by game state (pre-match signal + HT score)
+//   state only   : blRows filtered by game state  (no signal — score alone)
+// Returns fair odds (1/P) and conservative odds (1/CI_lower) for each outcome.
+function computeGsProbe(cfgRows, blRows, gs) {
+  if (!cfgRows.length || !blRows.length) return null;
+  const sigRows   = applyGameState(cfgRows, gs);
+  const stateRows = applyGameState(blRows,  gs);
+  const sn = sigRows.length;
+  const tn = stateRows.length;
+  if (!sn || !tn) return null;
+
+  const outcomes = GS_PROBE_OUTCOMES.map(({ k, label, group }) => {
+    const sh = sigRows.filter(r => r[k]).length;
+    const sp = sn ? sh / sn * 100 : 0;
+    const [slo, shi] = wilsonCI(sp, sn);
+
+    const th = stateRows.filter(r => r[k]).length;
+    const tp = tn ? th / tn * 100 : 0;
+
+    return {
+      k, label, group,
+      sn, sh, sp, slo, shi,
+      tn, th, tp,
+      delta:     sp - tp,
+      fairOdds:  sp  > 0 ? (100 / sp)  : null,
+      consOdds:  slo > 0 ? (100 / slo) : null,
+      stateOdds: tp  > 0 ? (100 / tp)  : null,
+    };
+  });
+
+  return { sn, tn, outcomes };
+}
+
 // FT result distribution for the matched rows vs baseline.
 // Used to show full-match context alongside 2H bet signals.
 function computeFtDist(stateRows, baselineRows) {
@@ -528,7 +583,8 @@ function runBayesian() {
     return;
   }
 
-  showLoader();
+  // Don't call showLoader() here — when invoked from useScanMatch the bet
+  // dashboard is already rendered; we append below it.
 
   // --- Read fav side ---
   const hoc = sf(document.getElementById('ho_c').value);
@@ -1883,10 +1939,16 @@ function runMatch() {
     }
   }
 
+  // GSA probe — only for HT trigger (most actionable at half-time)
+  const gsProbe = (state.gsTrigger === 'HT')
+    ? computeGsProbe(cfgRows, baselineRows_pre, gs)
+    : null;
+
   renderMatchResults({
     pre: { cfg_n: cfgRows.length, gs_n: cfgRows.length, allBets: allBets_pre, bets: bets_pre, ftrace: ftrace_pre, min_n: minN, cfg, filterMode: state.filterMode },
     gs:  { cfg_n: cfgRows.length, gs_n: stateRows_gs.length, allBets: allBets_gs, bets: bets_gs, ftrace: ftrace_gs, min_n: minN, cfg, filterMode: state.filterMode },
     gsLabel: gsLabel(gs),
+    gsProbe,
   });
 }
 
@@ -2172,7 +2234,13 @@ function renderBayesianScore(results, n, signals, ctx) {
       </p>
     </div>`;
 
-  document.getElementById('right-panel').innerHTML = html;
+  // Append below whatever is already in the panel (e.g. BET DASHBOARD from runMatch)
+  const rp = document.getElementById('right-panel');
+  if (rp.querySelector('.results-title')) {
+    rp.innerHTML += html;  // bet dashboard already rendered — append Bayes below
+  } else {
+    rp.innerHTML = html;   // standalone render
+  }
 }
 
 function tierClass(z) {
@@ -2462,7 +2530,70 @@ function renderBetDashboard(preMap, gsMap) {
   return html;
 }
 
-function renderMatchResults({ pre, gs, gsLabel: label }) {
+// ── GSA Probe panel ───────────────────────────────────────────────────────────
+function renderGsProbePanel(probe, stateLabel) {
+  if (!probe || !probe.outcomes) return '';
+  const { sn, tn, outcomes } = probe;
+
+  // Confidence badge based on signal+state sample size
+  const confBadge = sn >= 30 ? `<span class="probe-conf green">n=${sn}</span>`
+                  : sn >= 15 ? `<span class="probe-conf yellow">n=${sn} ⚠</span>`
+                  :             `<span class="probe-conf red">n=${sn} ⚠⚠</span>`;
+
+  let html = `
+  <div class="section-label" style="margin-top:20px">GSA PROBABILITY PROBE</div>
+  <p style="font-size:11px;color:var(--dim);margin-bottom:8px">
+    ${stateLabel} · Signal pool ${confBadge} · State-only pool n=${tn}
+    · <span style="color:var(--yellow)">Fair</span> = 1/P
+    · <span style="color:var(--dim)">Cons.</span> = 1/CI₋  (bet only if odds ≥ Cons.)
+  </p>
+  <div class="probe-table">
+    <div class="probe-header">
+      <span>Outcome</span>
+      <span>P signal+state</span>
+      <span style="color:var(--yellow)">Fair</span>
+      <span style="color:var(--dim)">Cons.</span>
+      <span>State only</span>
+      <span>Δ signal</span>
+    </div>`;
+
+  let lastGroup = null;
+  for (const r of outcomes) {
+    if (r.group !== lastGroup) {
+      html += `<div class="probe-group-sep">${r.group}</div>`;
+      lastGroup = r.group;
+    }
+
+    const nCol   = r.sn >= 30 ? 'var(--green)' : r.sn >= 15 ? 'var(--yellow)' : 'var(--red)';
+    const dCls   = r.delta >= 3 ? 'pos' : r.delta <= -3 ? 'neg' : '';
+    const dSign  = r.delta >= 0 ? '+' : '';
+    const fair   = r.fairOdds  ? r.fairOdds.toFixed(2)  : '—';
+    const cons   = r.consOdds  ? r.consOdds.toFixed(2)  : '—';
+    const soOdds = r.stateOdds ? r.stateOdds.toFixed(2) : '—';
+    const lowN   = r.sn < 15 ? ' probe-row-low' : '';
+
+    html += `
+    <div class="probe-row${lowN}">
+      <span class="probe-label">${r.label}</span>
+      <span class="probe-prob">
+        <b>${r.sp.toFixed(1)}%</b>
+        <span class="probe-ci">[${r.slo.toFixed(0)}–${r.shi.toFixed(0)}%]</span>
+      </span>
+      <span class="probe-odds-fair">${fair}</span>
+      <span class="probe-odds-cons">${cons}</span>
+      <span class="probe-state">
+        ${r.tp.toFixed(1)}%
+        <span class="probe-ci">(${soOdds})</span>
+      </span>
+      <span class="probe-delta ${dCls}">${dSign}${r.delta.toFixed(1)}pp</span>
+    </div>`;
+  }
+
+  html += `</div>`;
+  return html;
+}
+
+function renderMatchResults({ pre, gs, gsLabel: label, gsProbe }) {
   const right = document.getElementById('right-panel');
 
   let cfgSummary = '';
@@ -2528,6 +2659,9 @@ function renderMatchResults({ pre, gs, gsLabel: label }) {
   // Value hunt from pre-match allBets (positive edge but z < MIN_Z)
   const vhBets = pre.allBets.filter(b => Math.abs(b.z) < MIN_Z && b.edge > 0 && b.n >= pre.min_n);
   if (vhBets.length) html += renderValueHuntSection(vhBets);
+
+  // GSA probability probe — absolute probabilities + fair odds at HT state
+  if (gsProbe) html += renderGsProbePanel(gsProbe, label);
 
   right.innerHTML = html;
 }
@@ -2893,7 +3027,8 @@ function useScanMatch(id) {
   fillLiveMatchState(entry.match);
   _showActiveMatchBanner(entry.match);
   switchTab('match');
-  runBayesian();
+  runMatch();     // renders BET DASHBOARD + GSA probe
+  runBayesian();  // appends Bayesian signal table below
 }
 
 function _showActiveMatchBanner(match) {

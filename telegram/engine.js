@@ -519,4 +519,9 @@ module.exports = {
   applyBaselineConfig,
   applyGameState,
   scoreBets,
+  pct,
+  zScore,
+  wilsonCI,
+  VALID_LINES,
+  BETS,
 };

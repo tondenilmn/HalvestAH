@@ -949,3 +949,50 @@ select.gs-select {
 .bayes-minodds   { display:inline-block; margin-top:2px; font-size:15px; font-weight:700;
                    color:var(--green); background:rgba(0,229,170,0.1);
                    border-radius:4px; padding:1px 6px; }
+
+/* ── GSA Probability Probe ───────────────────────────────────────────── */
+.probe-conf      { font-size:11px; font-weight:bold; padding:1px 5px; border-radius:3px; }
+.probe-conf.green  { color:#000; background:var(--green); }
+.probe-conf.yellow { color:#000; background:var(--yellow); }
+.probe-conf.red    { color:#fff; background:var(--red); }
+
+.probe-table {
+  margin-top:6px;
+  background:var(--bg1); border:1px solid var(--border);
+  border-radius:8px; overflow:hidden;
+  font-size:12px;
+}
+.probe-header {
+  display:grid;
+  grid-template-columns: 120px 1fr 60px 60px 1fr 68px;
+  gap:4px; padding:6px 10px;
+  background:var(--bg2); color:var(--dim);
+  font-size:10px; text-transform:uppercase; letter-spacing:0.04em;
+  border-bottom:1px solid var(--border);
+}
+.probe-group-sep {
+  padding:3px 10px; font-size:10px; font-weight:bold;
+  color:var(--blue); background:rgba(26,159,255,0.07);
+  letter-spacing:0.06em; text-transform:uppercase;
+  border-top:1px solid var(--border);
+}
+.probe-group-sep:first-of-type { border-top:none; }
+.probe-row {
+  display:grid;
+  grid-template-columns: 120px 1fr 60px 60px 1fr 68px;
+  gap:4px; padding:5px 10px;
+  border-top:1px solid rgba(255,255,255,0.04);
+  align-items:center;
+}
+.probe-row:hover     { background:var(--bg2); }
+.probe-row-low       { opacity:0.5; }
+.probe-label         { color:var(--bright); font-size:11px; }
+.probe-prob          { display:flex; flex-direction:column; gap:1px; }
+.probe-prob b        { font-size:13px; color:var(--text); }
+.probe-ci            { font-size:10px; color:var(--dim); }
+.probe-odds-fair     { font-weight:bold; font-size:14px; color:var(--yellow); }
+.probe-odds-cons     { font-size:12px; color:var(--dim); }
+.probe-state         { display:flex; flex-direction:column; gap:1px; font-size:11px; color:var(--dim); }
+.probe-delta         { font-size:11px; font-weight:bold; text-align:right; }
+.probe-delta.pos     { color:var(--green); }
+.probe-delta.neg     { color:var(--red); }
