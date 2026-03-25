@@ -1300,12 +1300,12 @@ const state = {
   liveOn:       false,
   filterMode:   'ADVANCED', // 'BASIC' or 'ADVANCED'
   // Advanced toggles
-  advLmOn:      false,
+  advLmOn:      true,
   advOddsTolOn: false,
   advOddsDeltaOn: false,
   advHomOn:     false,
   advAomOn:     false,
-  advTlmOn:     false,
+  advTlmOn:     true,
   advOvTolOn:   false,
   advOvmOn:     false,
   advUnTolOn:   false,

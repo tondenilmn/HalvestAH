@@ -11,19 +11,21 @@ const cron   = require('node-cron');
 const cfg    = require('./config');
 const { loadDatabase, loadDatabaseFromUrl, buildCfgFromMatch, applyConfig, applyBaselineConfig, applyGameState, scoreBets } = require('./engine');
 
-const HT_MIN_N      = 20;   // min rows after HT game state filter
-const HT_MIN_Z      = 1.5;  // z-score threshold for HT alerts (lower than pre-match)
 const HT_MIN_MINUTE = 46;   // start of HT window (definitively HT, no 2H goals yet)
 const HT_MAX_MINUTE = 56;   // end of HT window (10-min band covers any scan interval)
 const { fetchLiveMatches } = require('./livescore');
 
-// 1H bets are already determined at HT — exclude to avoid tautologies in HT alerts.
-// e.g. "Under 0.5 1H" is trivially 100% for any 0-0 HT match.
-const HT_EXCLUDED_BETS = new Set([
-  'favWins1H', 'draw1H', 'favScored1H',
-  'homeWins1H', 'awayWins1H',
-  'over05_1H', 'over15_1H', 'under05_1H', 'under15_1H', 'btts1H',
+// GSA probe: restrict HT alerts to these 5 live 2H bets where the signal
+// meaningfully adds above the HT-conditioned baseline and odds are findable.
+const HT_ALLOWED_BETS = new Set([
+  'homeScored2H', 'awayScored2H',
+  'over05_2H', 'over15_2H', 'under15_2H',
 ]);
+
+// GSA actionability thresholds
+const GSA_MIN_DELTA   = 4;    // Δ signal vs HT-conditioned baseline (pp)
+const GSA_MIN_N       = 20;   // min rows after HT game state filter
+const GSA_MAX_CONS_ODDS = 2.20; // conservative odds ceiling (realistic to find)
 
 // ── Telegram ──────────────────────────────────────────────────────────────────
 async function sendTelegram(text) {
@@ -153,6 +155,22 @@ function formatMessage(match, bets, matchCfg, gsMap) {
   return `${header}\n\n${formatBetLines(bets, gsMap)}\n`;
 }
 
+// ── GSA bet row renderer (HT alerts) ──────────────────────────────────────────
+// Shows absolute probability, delta vs HT-conditioned baseline, and fair/cons odds.
+function formatGsaBetLines(bets) {
+  return [...bets].sort((a, b) => b.edge - a.edge).map(b => {
+    const pStr    = b.p.toFixed(0) + '%';
+    const deltaStr = (b.edge >= 0 ? '+' : '') + b.edge.toFixed(1) + 'pp';
+    const blStr   = b.bl.toFixed(0) + '%';
+    const fairStr  = b.mo   ? `@${b.mo}`   : '—';
+    const consStr  = b.mo_mid ? `≤${b.mo_mid}` : '—';
+    return (
+      `🎯 <b>${b.label}</b>\n` +
+      `   P=${pStr} vs ${blStr} (Δ ${deltaStr})  fair ${fairStr}  cons ${consStr}  n=${b.n}`
+    );
+  }).join('\n\n');
+}
+
 // ── Half-time alert formatter ──────────────────────────────────────────────────
 function formatHtMessage(match, bets, matchCfg, homeGoals, awayGoals) {
   const { time } = nowStamp();
@@ -160,7 +178,7 @@ function formatHtMessage(match, bets, matchCfg, homeGoals, awayGoals) {
   const tl = tlLine(match);
 
   const header = [
-    `⏸ Half Time  ·  ${time}`,
+    `⏸ Half Time GSA  ·  ${time}`,
     ``,
     `🏆 <i>${match.league || '—'}</i>`,
     `⚽ <b>${match.home_team} vs ${match.away_team}</b>  <code>HT ${homeGoals}-${awayGoals}</code>`,
@@ -168,7 +186,7 @@ function formatHtMessage(match, bets, matchCfg, homeGoals, awayGoals) {
     tl,
   ].filter(l => l != null).join('\n');
 
-  return `${header}\n\n${formatBetLines(bets)}\n`;
+  return `${header}\n\n${formatGsaBetLines(bets)}\n`;
 }
 
 // ── Game state builder ─────────────────────────────────────────────────────────
@@ -410,16 +428,19 @@ async function runScan() {
         const htBlRows  = applyBaselineConfig(htTierDb, matchCfg);
         const htBlSide  = htBlRows.filter(r => r.fav_side === matchCfg.fav_side);
 
-        const htGs   = { trigger: 'HT', home_goals: homeGoals, away_goals: awayGoals };
+        const htGs = { trigger: 'HT', home_goals: homeGoals, away_goals: awayGoals };
         const htRows = applyGameState(htCfgRows, htGs);
 
-        if (htRows.length >= HT_MIN_N) {
-          const htBets = scoreBets(htRows, htBlRows, htBlSide, HT_MIN_N);
-          const htTotal = homeGoals + awayGoals;
+        // HT-conditioned baseline: same game state applied to signal-stripped pool.
+        // b.edge = P(signal+HT) − P(HT only) — the pure marginal contribution of the signal.
+        const htStateRows = applyGameState(htBlRows,  htGs);
+        const htStateSide = applyGameState(htBlSide, htGs);
+
+        if (htRows.length >= GSA_MIN_N && htStateRows.length >= GSA_MIN_N) {
+          const htBets = scoreBets(htRows, htStateRows, htStateSide, GSA_MIN_N);
           const htQualifying = htBets.filter(b => {
-            if (HT_EXCLUDED_BETS.has(b.k)) return false;
-            if (b.k === 'under25FT' && htTotal === 0) return false;
-            return b.z >= HT_MIN_Z && b.edge >= cfg.MIN_EDGE && b.n >= HT_MIN_N && b.bl >= (cfg.MIN_BASELINE ?? 0);
+            if (!HT_ALLOWED_BETS.has(b.k)) return false;
+            return b.edge >= GSA_MIN_DELTA && b.n >= GSA_MIN_N && b.mo_mid <= GSA_MAX_CONS_ODDS;
           });
 
           if (htQualifying.length) {
