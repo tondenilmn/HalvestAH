@@ -88,8 +88,8 @@ function formatBetLines(bets, gsMap = null) {
     const icon    = zIcon(b.z);
     const zStr    = b.z.toFixed(2);
     const edgeStr = (b.edge >= 0 ? '+' : '') + b.edge.toFixed(1) + 'pp';
-    // mo = fair value (higher), mo_mid = conservative (lower) — show range lo→hi
-    const oddsRange = (b.mo_mid && b.mo) ? `${b.mo_mid}–${b.mo}` : (b.mo || '—');
+    // mo = fair value (lower decimal odds), mo_mid = conservative (higher decimal odds)
+    const oddsRange = (b.mo_mid && b.mo) ? `${b.mo}–${b.mo_mid}` : (b.mo || '—');
 
     let gsLine = '';
     if (gsMap) {
@@ -102,7 +102,7 @@ function formatBetLines(bets, gsMap = null) {
 
     return (
       `${icon} <b>${b.label}</b>\n` +
-      `   <code>${oddsRange}</code>  ${edgeStr}  z=${zStr}  n=${b.n}${gsLine}`
+      `   [<code>${oddsRange}</code>]  ${edgeStr}  z=${zStr}  n=${b.n}${gsLine}`
     );
   }).join('\n\n');
 }
@@ -415,13 +415,12 @@ async function runScan() {
 
         if (htRows.length >= HT_MIN_N) {
           const htBets = scoreBets(htRows, htBlRows, htBlSide, HT_MIN_N);
-          const htQualifying = htBets.filter(b =>
-            !HT_EXCLUDED_BETS.has(b.k) &&
-            b.z >= HT_MIN_Z &&
-            b.edge >= cfg.MIN_EDGE &&
-            b.n >= HT_MIN_N &&
-            b.bl >= (cfg.MIN_BASELINE ?? 0)
-          );
+          const htTotal = homeGoals + awayGoals;
+          const htQualifying = htBets.filter(b => {
+            if (HT_EXCLUDED_BETS.has(b.k)) return false;
+            if (b.k === 'under25FT' && htTotal === 0) return false;
+            return b.z >= HT_MIN_Z && b.edge >= cfg.MIN_EDGE && b.n >= HT_MIN_N && b.bl >= (cfg.MIN_BASELINE ?? 0);
+          });
 
           if (htQualifying.length) {
             const htNewBets = htQualifying.filter(b => !alreadyNotified(matchId, `ht:${b.k}`));

@@ -1055,7 +1055,7 @@ function discover(db, favLine, favSide, inLineMove, inTlMove, gs, minN = DEFAULT
               const [lo] = wilsonCI(p, gsR.length);
               results.push({
                 cfg, k, n: gsR.length, p, bl, z, edge, lo,
-                mo: minOdds(p),
+                mo: minOdds(p), mo_mid: minOdds((p + lo) / 2),
                 label:  b.label  || k,
                 market: b.market || k,
               });
@@ -2718,8 +2718,8 @@ function renderDiscResults(data) {
       </div>
       <div class="disc-right">
         <div class="dp">${r.p.toFixed(1)}%</div>
-        <div class="dl">MIN ODDS</div>
-        <div class="dm">${r.mo}</div>
+        <div class="dl">ODDS RANGE</div>
+        <div class="dm">${r.mo}<span class="mo-range-sep"> – </span>${r.mo_mid}</div>
       </div>
     </div>`;
   }

@@ -380,9 +380,9 @@ function scoreBets(cfgRows, blRows, blSideRows, minN = DEFAULT_MIN_N) {
     const z    = zScore(cfgRows, baseline, b.k);
     const edge = p - bl;
     const [lo, hi] = wilsonCI(p, n);
-    const mo   = minOdds((p + lo) / 2);   // conservative end (midpoint CI)
-    const mo_p = minOdds(p);              // optimistic end (pure hit rate)
-    results.push({ ...b, n, p, bl, z, edge, lo, hi, mo, mo_p });
+    const mo     = minOdds(p);              // fair value (pure hit rate)
+    const mo_mid = minOdds((p + lo) / 2);  // conservative (midpoint CI)
+    results.push({ ...b, n, p, bl, z, edge, lo, hi, mo, mo_mid });
   }
   return results;
 }
