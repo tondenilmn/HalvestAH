@@ -1,7 +1,8 @@
 'use strict';
 // ── HalvestAH Telegram Notifier ───────────────────────────────────────────────
-// GSA-only notifier: fires during the HT window (min 46–56) when the
-// signal-conditioned HT game state shows a meaningful edge on 2H markets.
+// Two alert types during the HT window (min 46–56):
+//   1. RULE alerts — hardcoded conditional rules (AH + HT score, no signal gate)
+//   2. GSA alerts  — signal-conditioned HT game state (Pinnacle movement required)
 //
 // Usage:
 //   node notify.js          — start the scheduler (runs forever)
@@ -29,6 +30,53 @@ const GSA_MIN_DELTA     = 5;     // Δ vs HT-conditioned baseline (pp)
 const GSA_MIN_N         = 30;    // min rows after HT game state filter
 const GSA_MAX_CONS_ODDS = 1.95;  // conservative odds ceiling
 const GSA_MIN_P         = 55;    // minimum absolute hit rate (%)
+
+// ── Rule-based alerts ─────────────────────────────────────────────────────────
+// Each rule fires purely on AH line + HT score — no signal gate.
+// minOdds = minimum to find at ANY bookmaker for +EV (based on 12-month backtest).
+// hitPct / sampleN are displayed in the message for transparency.
+const RULES = [
+  {
+    id:        'protect_lead',
+    name:      'Protect the Lead',
+    // Fav ahead by exactly 1 at HT, close/moderate fav, low-scoring game expected
+    check: (ah, favG, dogG, tl) =>
+      ah >= 0.25 && ah <= 1.00 &&
+      (favG - dogG === 1) &&
+      tl != null && tl <= 2.75,
+    getBet: () => 'Under 1.5 2H',
+    minOdds: 1.70,
+    hitPct:  59.3,
+    sampleN: 3804,
+  },
+  {
+    id:        'fav_must_score',
+    name:      'Fav Must Respond',
+    // Moderate fav, 0-0 at HT — fav needs to push forward in 2H
+    check: (ah, favG, dogG) =>
+      ah >= 0.50 && ah <= 1.00 &&
+      favG === 0 && dogG === 0,
+    getBet: (matchCfg, match) => {
+      const team = matchCfg.fav_side === 'HOME' ? match.home_team : match.away_team;
+      return `${team} scores 2H`;
+    },
+    minOdds: 1.62,
+    hitPct:  62.3,
+    sampleN: 3027,
+  },
+  {
+    id:        'open_game',
+    name:      'Open Game 2H',
+    // Underdog has scored and is level or ahead — game is open, goals likely
+    check: (ah, favG, dogG) =>
+      ah >= 0.25 && ah <= 1.25 &&
+      dogG >= 1 && dogG >= favG,
+    getBet: () => 'Over 1.5 2H',
+    minOdds: 2.25,
+    hitPct:  44.8,
+    sampleN: 5573,
+  },
+];
 
 // ── Telegram ──────────────────────────────────────────────────────────────────
 async function sendTelegram(text) {
@@ -131,6 +179,34 @@ function formatGsaMessage(match, bets, matchCfg, homeGoals, awayGoals) {
   return `${header}\n\n${betLines}\n`;
 }
 
+// ── Rule message formatter ────────────────────────────────────────────────────
+function formatRuleMessage(match, firedRules, matchCfg, homeGoals, awayGoals) {
+  const ahLine   = ahLineDisplay(matchCfg, match.odds);
+  const tl       = tlDisplay(match.odds);
+  const minute   = match.minute ? ` · ${match.minute}` : '';
+  const ahTlLine = [ahLine, tl].filter(Boolean).join('  ');
+
+  const header = [
+    `📌 <b>RULE ALERT</b>  ·  ${nowTime()}`,
+    ``,
+    `🏆 <i>${match.league || '—'}</i>`,
+    `⚽ <b>${match.home_team} vs ${match.away_team}</b>`,
+    `📊 HT <b>${homeGoals}–${awayGoals}</b>${minute}`,
+    `⚖️ ${ahTlLine}`,
+  ].join('\n');
+
+  const ruleLines = firedRules.map(r => {
+    const betLabel = r.getBet(matchCfg, match);
+    return (
+      `<b>${r.name.toUpperCase()}</b>\n` +
+      `  ${betLabel}  →  find ≥ <code>${r.minOdds.toFixed(2)}</code>\n` +
+      `  ${r.hitPct}% historical  ·  n=${r.sampleN.toLocaleString()}`
+    );
+  }).join('\n\n');
+
+  return `${header}\n\n${ruleLines}\n`;
+}
+
 // ── Deduplication ─────────────────────────────────────────────────────────────
 const _notified = new Map(); // key → timestamp, expires after 2h
 
@@ -211,7 +287,30 @@ async function runScan() {
       continue;
     }
 
-    // ── Signal movement gate ──────────────────────────────────────────────
+    // ── Parse HT score ────────────────────────────────────────────────────
+    const [homeGoals, awayGoals] = match.score.split('-').map(v => parseInt(v, 10));
+    if (isNaN(homeGoals) || isNaN(awayGoals)) continue;
+
+    const matchId  = match.id || `${match.home_team}:${match.away_team}`;
+    const favGoals = matchCfg.fav_side === 'HOME' ? homeGoals : awayGoals;
+    const dogGoals = matchCfg.fav_side === 'HOME' ? awayGoals : homeGoals;
+    const ah       = parseFloat(matchCfg.fav_line);
+    const tl       = match.odds.tl_c != null ? parseFloat(match.odds.tl_c) : null;
+
+    // ── Rule-based alerts (no signal gate required) ───────────────────────
+    const firedRules = RULES.filter(r => {
+      if (alreadyNotified(matchId, `rule:${r.id}`)) return false;
+      return r.check(ah, favGoals, dogGoals, tl);
+    });
+
+    if (firedRules.length) {
+      const msg = formatRuleMessage(match, firedRules, matchCfg, homeGoals, awayGoals);
+      console.log(`RULE ALERT → ${label} [${homeGoals}-${awayGoals}]: ${firedRules.map(r => r.name).join(', ')}`);
+      await sendTelegram(msg);
+      for (const r of firedRules) markNotified(matchId, `rule:${r.id}`);
+    }
+
+    // ── GSA: signal movement gate ─────────────────────────────────────────
     if (cfg.REQUIRE_MOVEMENT) {
       const s = matchCfg.signals;
       const hasMovement =
@@ -220,16 +319,12 @@ async function runScan() {
         (cfg.FAV_ODDS_ON  && s.favOddsMove !== 'STABLE' && s.favOddsMove !== 'UNKNOWN') ||
         (cfg.DOG_ODDS_ON  && s.dogOddsMove !== 'STABLE' && s.dogOddsMove !== 'UNKNOWN');
       if (!hasMovement) {
-        if (VERBOSE) console.log(`  SKIP [flat]    ${label}  LM:${matchCfg.signals.lineMove}`);
+        if (VERBOSE) console.log(`  SKIP GSA [flat]  ${label}  LM:${matchCfg.signals.lineMove}`);
         continue;
       }
     }
 
-    // ── Parse HT score ────────────────────────────────────────────────────
-    const [homeGoals, awayGoals] = match.score.split('-').map(v => parseInt(v, 10));
-    if (isNaN(homeGoals) || isNaN(awayGoals)) continue;
-
-    // ── Build DB pools ────────────────────────────────────────────────────
+    // ── GSA: build DB pools ───────────────────────────────────────────────
     const htTier = cfg.HT_LEAGUE_TIER || 'ALL';
     let tierDb = db;
     if      (htTier === 'TOP')       tierDb = db.filter(r => r.league_tier === 'TOP');
@@ -242,20 +337,20 @@ async function runScan() {
 
     if (VERBOSE) {
       const s = matchCfg.signals;
-      console.log(`  HT CHECK  ${label}  [${homeGoals}-${awayGoals}]  LM:${s.lineMove} TL:${s.tlMove}  pool:${cfgRows.length}`);
+      console.log(`  GSA CHECK  ${label}  [${homeGoals}-${awayGoals}]  LM:${s.lineMove} TL:${s.tlMove}  pool:${cfgRows.length}`);
     }
 
-    // ── Apply HT game state ───────────────────────────────────────────────
-    const htGs        = { trigger: 'HT', home_goals: homeGoals, away_goals: awayGoals };
-    const htRows      = applyGameState(cfgRows, htGs);
-    const htBlRows    = applyGameState(blRows,  htGs);
-    const htBlSide    = applyGameState(blSide,  htGs);
+    // ── GSA: apply HT game state ──────────────────────────────────────────
+    const htGs     = { trigger: 'HT', home_goals: homeGoals, away_goals: awayGoals };
+    const htRows   = applyGameState(cfgRows, htGs);
+    const htBlRows = applyGameState(blRows,  htGs);
+    const htBlSide = applyGameState(blSide,  htGs);
 
     if (htRows.length < GSA_MIN_N || htBlRows.length < GSA_MIN_N) continue;
 
-    // ── Score & filter ────────────────────────────────────────────────────
-    const htBets      = scoreBets(htRows, htBlRows, htBlSide, GSA_MIN_N);
-    const qualifying  = htBets.filter(b =>
+    // ── GSA: score & filter ───────────────────────────────────────────────
+    const htBets     = scoreBets(htRows, htBlRows, htBlSide, GSA_MIN_N);
+    const qualifying = htBets.filter(b =>
       HT_ALLOWED_BETS.has(b.k)       &&
       b.edge   >= GSA_MIN_DELTA       &&
       b.n      >= GSA_MIN_N           &&
@@ -265,13 +360,12 @@ async function runScan() {
 
     if (!qualifying.length) continue;
 
-    const matchId = match.id || `${match.home_team}:${match.away_team}`;
     const newBets = qualifying.filter(b => !alreadyNotified(matchId, `ht:${b.k}`));
     if (!newBets.length) continue;
 
-    const msg = formatGsaMessage(match, newBets, matchCfg, homeGoals, awayGoals);
-    console.log(`HT ALERT → ${label} [${homeGoals}-${awayGoals}]: ${newBets.map(b => b.label).join(', ')}`);
-    await sendTelegram(msg);
+    const gsaMsg = formatGsaMessage(match, newBets, matchCfg, homeGoals, awayGoals);
+    console.log(`GSA ALERT → ${label} [${homeGoals}-${awayGoals}]: ${newBets.map(b => b.label).join(', ')}`);
+    await sendTelegram(gsaMsg);
     for (const b of newBets) markNotified(matchId, `ht:${b.k}`);
   }
 }
