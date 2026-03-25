@@ -61,12 +61,13 @@ function betIcon(p, delta) {
 // AH line display: "Away -0.75(-0.50)" — closing(opening), fav-normalised
 function ahLineDisplay(matchCfg, odds) {
   const side    = matchCfg.fav_side === 'HOME' ? 'Home' : 'Away';
-  const closing = matchCfg.fav_line;                          // already |ah_hc|
+  const closing = parseFloat(matchCfg.fav_line);
   const ahHo    = odds.ah_ho;
-  const opening = ahHo != null ? Math.abs(ahHo).toFixed(2) : null;
-  return opening && opening !== closing.toFixed(2)
-    ? `${side} −${closing}(−${opening})`
-    : `${side} −${closing}`;
+  const opening = ahHo != null ? Math.abs(parseFloat(ahHo)).toFixed(2) : null;
+  const closingStr = isNaN(closing) ? matchCfg.fav_line : closing.toFixed(2);
+  return opening && opening !== closingStr
+    ? `${side} −${closingStr}(−${opening})`
+    : `${side} −${closingStr}`;
 }
 
 // TL display: "TL 2.50(2.75)" — closing(opening)
