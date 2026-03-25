@@ -79,6 +79,7 @@
       <div class="tabs">
         <button class="tab-btn active" data-tab="scan"  onclick="switchTab('scan')">LIVE SCAN</button>
         <button class="tab-btn"        data-tab="match" onclick="switchTab('match')">ANALYSE</button>
+        <button class="tab-btn"        data-tab="gsa"   onclick="switchTab('gsa')">GSA</button>
         <button class="tab-btn"        data-tab="disc"  onclick="switchTab('disc')">DISCOVER</button>
       </div>
 
@@ -88,7 +89,7 @@
           Scans all live matches on asianbetsoccer.com and applies the
           <strong style="color:var(--bright)">Basic mode signal filters</strong>.
           Shows only matches with qualifying bets (z ≥ 1.5, edge &gt; 0).<br>
-          Click <strong style="color:var(--bright)">Use this match →</strong> to load into Analyse + auto-run Bayesian.
+          Click <strong style="color:var(--bright)">Use this match →</strong> to load into GSA tab and run half-time analysis.
         </p>
 
         <div class="section-label">LIVESCORE URL</div>
@@ -416,40 +417,7 @@
 
         </div><!-- /adv-inputs -->
 
-        <!-- Game State (shared) -->
-        <div class="section-label">LIVE GAME STATE</div>
-        <div class="gs-triggers">
-          <button class="gs-trigger-btn active" id="gs-btn-HT"          onclick="setGsTrigger('HT')">Half Time</button>
-          <button class="gs-trigger-btn"        id="gs-btn-FIRST_GOAL"  onclick="setGsTrigger('FIRST_GOAL')">First Goal</button>
-          <button class="gs-trigger-btn"        id="gs-btn-INPLAY_2H"   onclick="setGsTrigger('INPLAY_2H')">In-play 2H</button>
-        </div>
-        <div class="gs-panel" id="gs-panel">
-          <!-- filled by renderGsPanel() -->
-        </div>
-
-        <!-- Live Odds Estimator (shared) -->
-        <div class="section-label">LIVE ODDS ESTIMATOR</div>
-        <div class="option-box" id="live-box">
-          <div class="option-box-hdr">
-            <span class="option-box-desc">Adjust probabilities for time remaining in 2H</span>
-            <button class="toggle-btn" id="live-tgl" onclick="toggleLive()">OFF</button>
-          </div>
-          <div id="live-body" style="display:none;margin-top:10px">
-            <div class="live-row">
-              <span class="live-field-label">MATCH MINUTE</span>
-              <input class="score-input" id="live-minute" type="text" value="60" maxlength="3" style="width:64px;font-size:18px">
-            </div>
-            <p style="font-size:11px;color:var(--dim);margin:8px 0 6px">2H goals scored so far (Home – Away)</p>
-            <div class="score-row">
-              <input class="score-input" id="live-home2h" type="text" value="0" maxlength="2">
-              <span class="score-sep"> – </span>
-              <input class="score-input" id="live-away2h" type="text" value="0" maxlength="2">
-              <span class="score-label">  HOME – AWAY</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Min N (shared) -->
+        <!-- Min N -->
         <div class="section-label">MINIMUM MATCHING RECORDS</div>
         <div class="min-n-row">
           <button class="min-n-preset" onclick="setMinN(10)">10</button>
@@ -462,10 +430,42 @@
 
         <!-- Run buttons -->
         <div class="run-btn-group">
-          <button class="run-btn" onclick="runBayesian()">RUN BAYESIAN SCORE →</button>
-          <button class="run-btn run-btn-secondary" onclick="runMatch()">FIND BEST BETS (z-score) →</button>
+          <button class="run-btn" onclick="runMatch()">FIND BEST BETS (z-score) →</button>
         </div>
       </div><!-- /tab-match -->
+
+      <!-- ══ GSA TAB ═══════════════════════════════════════ -->
+      <div id="tab-gsa" class="tab-pane">
+        <p style="color:var(--dim);font-size:11px;margin-bottom:14px;line-height:1.6">
+          Game State Analysis at half-time.<br>
+          Select a match from <strong style="color:var(--bright)">Live Scan</strong>
+          or fill the <strong style="color:var(--bright)">ANALYSE</strong> tab inputs first, then enter the HT score below.
+        </p>
+
+        <div class="section-label">GAME STATE</div>
+        <div class="gs-triggers">
+          <button class="gs-trigger-btn active" id="gsa-gs-btn-HT"         onclick="setGsaTrigger('HT')">Half Time</button>
+          <button class="gs-trigger-btn"        id="gsa-gs-btn-FIRST_GOAL" onclick="setGsaTrigger('FIRST_GOAL')">First Goal</button>
+          <button class="gs-trigger-btn"        id="gsa-gs-btn-INPLAY_2H"  onclick="setGsaTrigger('INPLAY_2H')">In-play 2H</button>
+        </div>
+        <div class="gs-panel" id="gsa-gs-panel">
+          <!-- filled by renderGsPanel() -->
+        </div>
+
+        <div class="section-label" style="margin-top:14px">MINIMUM MATCHING RECORDS</div>
+        <div class="min-n-row">
+          <button class="min-n-preset" onclick="setMinN(10)">10</button>
+          <button class="min-n-preset" onclick="setMinN(15)">15</button>
+          <button class="min-n-preset" onclick="setMinN(20)">20</button>
+          <button class="min-n-preset" onclick="setMinN(30)">30</button>
+          <button class="min-n-preset" onclick="setMinN(50)">50</button>
+          <input class="min-n-input" id="min-n-gsa" type="text" value="15">
+        </div>
+
+        <div class="run-btn-group">
+          <button class="run-btn" onclick="runGsa()">RUN GSA →</button>
+        </div>
+      </div><!-- /tab-gsa -->
 
       <!-- ══ CONFIG DISCOVERY TAB ════════════════════════ -->
       <div id="tab-disc" class="tab-pane">

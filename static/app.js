@@ -1296,6 +1296,7 @@ let _scanDataCache = new Map();   // id → scraped data; populated by runBatchS
 
 const state = {
   gsTrigger:    'HT',
+  gsaTrigger:   'HT',
   dGsTrigger:   'HT',
   liveOn:       false,
   filterMode:   'ADVANCED', // 'BASIC' or 'ADVANCED'
@@ -1333,7 +1334,7 @@ function getDb() {
    ════════════════════════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', () => {
   setupUpload();
-  renderGsPanel('gs-panel', 'HT');
+  renderGsPanel('gsa-gs-panel', 'HT');
   renderGsPanel('d-gs-panel', 'HT');
   updateDbUI({ total: 0, files: [] });
   autoLoadData();
@@ -1382,7 +1383,7 @@ function switchTab(name) {
   document.querySelectorAll('.tab-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.tab === name);
   });
-  ['match', 'disc', 'scan'].forEach(t =>
+  ['match', 'disc', 'scan', 'gsa'].forEach(t =>
     document.getElementById(`tab-${t}`).classList.toggle('active', t === name)
   );
 }
@@ -1812,6 +1813,15 @@ function setGsTrigger(val) {
   renderGsPanel('gs-panel', val);
 }
 
+function setGsaTrigger(val) {
+  state.gsaTrigger = val;
+  ['HT', 'FIRST_GOAL', 'INPLAY_2H'].forEach(v => {
+    const btn = document.getElementById(`gsa-gs-btn-${v}`);
+    if (btn) btn.classList.toggle('active', v === val);
+  });
+  renderGsPanel('gsa-gs-panel', val);
+}
+
 function setDGsTrigger(val) {
   state.dGsTrigger = val;
   ['HT', 'FIRST_GOAL', 'INPLAY_2H'].forEach(v => {
@@ -1823,6 +1833,7 @@ function setDGsTrigger(val) {
 
 function renderGsPanel(panelId, trigger) {
   const panel = document.getElementById(panelId);
+  if (!panel) return;
   if (!trigger) trigger = 'HT';
   if (trigger === 'HT') {
     panel.innerHTML = `
@@ -1899,14 +1910,12 @@ function runMatch() {
 
   showLoader();
 
-  const gs   = getGs('gs-panel', state.gsTrigger);
   const minN = getMinN();
 
   const _activeDb = getDb();
   const cfgRows = applyConfig(_activeDb, cfg);
   const derivedFavSide = cfg.fav_side !== 'ANY' ? cfg.fav_side : cfg.derived_fav_side;
 
-  // --- Scenario 1: pre-match (no game state) ---
   const baselineRows_pre = applyBaselineConfig(_activeDb, cfg);
   const blSide_pre = (derivedFavSide && derivedFavSide !== 'ANY')
     ? baselineRows_pre.filter(r => r.fav_side === derivedFavSide) : null;
@@ -1914,42 +1923,62 @@ function runMatch() {
   const bets_pre    = allBets_pre.filter(b => Math.abs(b.z) >= MIN_Z);
   const ftrace_pre  = traceConfig(_activeDb, cfg, null);
 
-  // --- Scenario 2: in-play (with game state) ---
-  const stateRows_gs    = applyGameState(cfgRows, gs);
-  const baselineRows_gs = applyGameState(baselineRows_pre, gs);
-  const blSide_gs       = blSide_pre ? applyGameState(blSide_pre, gs) : null;
-  const allBets_gs      = scoreBets(stateRows_gs, baselineRows_gs, blSide_gs, 1);
-  const bets_gs         = allBets_gs.filter(b => Math.abs(b.z) >= MIN_Z);
-  const ftrace_gs       = traceConfig(_activeDb, cfg, gs);
+  renderMatchResults({
+    cfg_n:   cfgRows.length,
+    allBets: allBets_pre,
+    bets:    bets_pre,
+    ftrace:  ftrace_pre,
+    min_n:   minN,
+    cfg,
+    filterMode: state.filterMode,
+  });
+}
 
-  // Attach live odds to in-play scenario bets if estimator is ON
-  if (state.liveOn) {
-    const liveMin  = parseInt(document.getElementById('live-minute').value, 10);
-    const lhome2h  = parseInt(document.getElementById('live-home2h').value, 10) || 0;
-    const laway2h  = parseInt(document.getElementById('live-away2h').value, 10) || 0;
-    if (!isNaN(liveMin) && liveMin > 0) {
-      const favLineVal = parseFloat(cfg.fav_line);
-      const favLine = isNaN(favLineVal) ? 0.75 : favLineVal;
-      const favSide = (cfg.fav_side === 'ANY' || !cfg.fav_side) ? 'HOME' : cfg.fav_side;
-      const fgDelta = favSide === 'HOME' ? lhome2h : laway2h;
-      const dgDelta = favSide === 'HOME' ? laway2h : lhome2h;
-      for (const bet of bets_gs) {
-        bet.live = computeLiveOdd(bet.p, bet.k, liveMin, favLine, fgDelta, dgDelta, favSide);
-      }
-    }
+// ── GSA tab entry point ───────────────────────────────────────────────────────
+function runGsa() {
+  if (!_db.length) { showError('No database loaded. Please upload CSV files first.'); return; }
+
+  let cfg;
+  if (state.filterMode === 'BASIC') {
+    cfg = buildBasicCfg();
+  } else {
+    cfg = buildAdvancedCfg();
   }
+  if (!cfg) { showError('Invalid AH line — enter a valid Asian Handicap value.'); return; }
 
-  // GSA probe — only for HT trigger (most actionable at half-time)
-  const gsProbe = (state.gsTrigger === 'HT')
-    ? computeGsProbe(cfgRows, baselineRows_pre, gs)
+  showLoader();
+
+  const gs      = getGs('gsa-gs-panel', state.gsaTrigger);
+  const minN    = getMinN();
+  const activeDb = getDb();
+
+  const cfgRows  = applyConfig(activeDb, cfg);
+  const blRows   = applyBaselineConfig(activeDb, cfg);
+
+  const probe = (state.gsaTrigger === 'HT')
+    ? computeGsProbe(cfgRows, blRows, gs)
     : null;
 
-  renderMatchResults({
-    pre: { cfg_n: cfgRows.length, gs_n: cfgRows.length, allBets: allBets_pre, bets: bets_pre, ftrace: ftrace_pre, min_n: minN, cfg, filterMode: state.filterMode },
-    gs:  { cfg_n: cfgRows.length, gs_n: stateRows_gs.length, allBets: allBets_gs, bets: bets_gs, ftrace: ftrace_gs, min_n: minN, cfg, filterMode: state.filterMode },
-    gsLabel: gsLabel(gs),
-    gsProbe,
-  });
+  const right = document.getElementById('right-panel');
+  const ahSide = cfg.fav_side === 'AWAY' ? 'Away' : 'Home';
+
+  let html = `<h2 class="results-title">GSA PROBABILITY PROBE</h2>`;
+  html += `<div class="cfg-summary">${ahSide} AH −${cfg.fav_line} · Signal pool: ${cfgRows.length} · Baseline: ${blRows.length}</div>`;
+
+  if (!probe) {
+    const gsLbl = gsLabel(gs);
+    html += `<div class="no-bets" style="margin-top:20px">
+      <div class="warn-icon">⚠</div>
+      <p>No GSA data for <b>${gsLbl}</b>.<br>
+      ${state.gsaTrigger !== 'HT' ? 'GSA probe only supports the <b>Half Time</b> trigger.' :
+        cfgRows.length < minN ? `Signal pool too small (${cfgRows.length} rows).` :
+        'No rows match this game state.'}</p>
+    </div>`;
+  } else {
+    html += renderGsProbePanel(probe, gsLabel(gs));
+  }
+
+  right.innerHTML = html;
 }
 
 /* Build cfg from BASIC mode inputs */
@@ -2535,131 +2564,112 @@ function renderGsProbePanel(probe, stateLabel) {
   if (!probe || !probe.outcomes) return '';
   const { sn, tn, outcomes } = probe;
 
-  // Confidence badge based on signal+state sample size
   const confBadge = sn >= 30 ? `<span class="probe-conf green">n=${sn}</span>`
                   : sn >= 15 ? `<span class="probe-conf yellow">n=${sn} ⚠</span>`
                   :             `<span class="probe-conf red">n=${sn} ⚠⚠</span>`;
 
-  let html = `
-  <div class="section-label" style="margin-top:20px">GSA PROBABILITY PROBE</div>
-  <p style="font-size:11px;color:var(--dim);margin-bottom:8px">
-    ${stateLabel} · Signal pool ${confBadge} · State-only pool n=${tn}
-    · <span style="color:var(--yellow)">Fair</span> = 1/P
-    · <span style="color:var(--dim)">Cons.</span> = 1/CI₋  (bet only if odds ≥ Cons.)
-  </p>
-  <div class="probe-table">
-    <div class="probe-header">
-      <span>Outcome</span>
-      <span>P signal+state · Δ</span>
-      <span style="color:var(--yellow)">Fair</span>
-      <span style="color:var(--dim)">Cons.</span>
-      <span>State only</span>
-    </div>`;
-
-  let lastGroup = null;
-  for (const r of outcomes) {
-    if (r.group !== lastGroup) {
-      html += `<div class="probe-group-sep">${r.group}</div>`;
-      lastGroup = r.group;
-    }
-
-    const nCol   = r.sn >= 30 ? 'var(--green)' : r.sn >= 15 ? 'var(--yellow)' : 'var(--red)';
-    const dCls   = r.delta >= 3 ? 'pos' : r.delta <= -3 ? 'neg' : '';
-    const dSign  = r.delta >= 0 ? '+' : '';
-    const fair   = r.fairOdds  ? r.fairOdds.toFixed(2)  : '—';
-    const cons   = r.consOdds  ? r.consOdds.toFixed(2)  : '—';
-    const soOdds = r.stateOdds ? r.stateOdds.toFixed(2) : '—';
-    const lowN   = r.sn < 15 ? ' probe-row-low' : '';
-
-    html += `
-    <div class="probe-row${lowN}">
-      <span class="probe-label">${r.label}</span>
-      <span class="probe-prob">
-        <b>${r.sp.toFixed(1)}%</b>
-        <span class="probe-delta ${dCls}">${dSign}${r.delta.toFixed(1)}pp</span>
-        <span class="probe-ci">[${r.slo.toFixed(0)}–${r.shi.toFixed(0)}%]</span>
-      </span>
-      <span class="probe-odds-fair">${fair}</span>
-      <span class="probe-odds-cons">${cons}</span>
-      <span class="probe-state">
-        ${r.tp.toFixed(1)}%
-        <span class="probe-ci">(${soOdds})</span>
-      </span>
-    </div>`;
+  // Tier: strong (green) / good (blue) / weak (dim) / avoid (red)
+  function cardTier(r) {
+    if (r.delta <= -3)                                    return 'avoid';
+    if (r.delta >= 5 && r.sp >= 55 && r.sn >= 20)        return 'strong';
+    if (r.delta >= 3 && r.sp >= 40 && r.sn >= 15)        return 'good';
+    return 'weak';
   }
 
-  html += `</div>`;
+  let html = `
+  <div class="section-label" style="margin-top:20px">GSA PROBABILITY PROBE</div>
+  <p style="font-size:11px;color:var(--dim);margin-bottom:12px">
+    ${stateLabel} · Signal pool ${confBadge} · State-only n=${tn}
+    · <span style="color:var(--green)">Green</span> = strong edge
+    · <span style="color:var(--blue)">Blue</span> = moderate
+    · <span style="color:var(--red)">Red</span> = avoid
+  </p>`;
+
+  const groups = [...new Set(outcomes.map(r => r.group))];
+  for (const grp of groups) {
+    const rows = outcomes.filter(r => r.group === grp);
+    html += `<div class="probe-group-label">${grp} bets</div><div class="probe-cards">`;
+    for (const r of rows) {
+      const tier    = cardTier(r);
+      const dSign   = r.delta >= 0 ? '+' : '';
+      const fair    = r.fairOdds  ? r.fairOdds.toFixed(2)  : '—';
+      const cons    = r.consOdds  ? r.consOdds.toFixed(2)  : '—';
+      const soOdds  = r.stateOdds ? r.stateOdds.toFixed(2) : '—';
+      const lowN    = r.sn < 15   ? ' probe-card-lown' : '';
+      const nCls    = r.sn >= 30  ? 'green' : r.sn >= 15 ? 'yellow' : 'red';
+
+      html += `
+      <div class="probe-card probe-card-${tier}${lowN}">
+        <div class="pcard-top">
+          <span class="pcard-label">${r.label}</span>
+          <span class="pcard-n probe-conf ${nCls}">n=${r.sn}</span>
+        </div>
+        <div class="pcard-prob">${r.sp.toFixed(1)}<span class="pcard-pct">%</span></div>
+        <div class="pcard-delta probe-delta ${tier === 'avoid' ? 'neg' : tier === 'weak' ? '' : 'pos'}">
+          ${dSign}${r.delta.toFixed(1)}pp vs ${r.tp.toFixed(1)}%
+        </div>
+        <div class="pcard-footer">
+          <div class="pcard-odds-block">
+            <span class="pcard-odds-label">Fair</span>
+            <span class="pcard-odds-fair">${fair}</span>
+          </div>
+          <div class="pcard-sep"></div>
+          <div class="pcard-odds-block">
+            <span class="pcard-odds-label">Cons.</span>
+            <span class="pcard-odds-cons">${cons}</span>
+          </div>
+          <div class="pcard-sep"></div>
+          <div class="pcard-odds-block">
+            <span class="pcard-odds-label">State</span>
+            <span class="pcard-odds-state">${soOdds}</span>
+          </div>
+        </div>
+      </div>`;
+    }
+    html += `</div>`;
+  }
+
   return html;
 }
 
-function renderMatchResults({ pre, gs, gsLabel: label, gsProbe }) {
+function renderMatchResults({ cfg_n, allBets, bets, ftrace, min_n, cfg, filterMode }) {
   const right = document.getElementById('right-panel');
 
-  let cfgSummary = '';
-  if (pre.cfg) {
-    const ahSide = pre.cfg.fav_side === 'AWAY' ? 'Away' : 'Home';
-    cfgSummary = `<div class="cfg-summary">${ahSide} AH −${pre.cfg.fav_line}</div>`;
-  }
+  const ahSide = cfg && cfg.fav_side === 'AWAY' ? 'Away' : 'Home';
+  const cfgSummary = cfg
+    ? `<div class="cfg-summary">${ahSide} AH −${cfg.fav_line} · ${cfg_n} matching records</div>`
+    : '';
 
-  const preMap = new Map(pre.allBets.map(b => [b.k, b]));
-  const gsMap  = new Map(gs.allBets.map(b => [b.k, b]));
-
-  const qualPre = pre.bets.filter(b => b.edge > 0).length;
-  const qualGs  = gs.bets.filter(b => b.edge > 0).length;
-  const gsLow   = gs.gs_n < pre.min_n;
+  const preMap  = new Map(allBets.map(b => [b.k, b]));
+  const qualPre = bets.filter(b => b.edge > 0).length;
 
   let html = `<h2 class="results-title">BET DASHBOARD</h2>${cfgSummary}`;
 
-  // GSA probe first — it's the primary reference when checking live odds at HT
-  if (gsProbe) html += renderGsProbePanel(gsProbe, label);
+  html += buildTraceHtml(ftrace, 'FILTER TRACE');
 
-  html += `<div class="scenarios-summary">
-    <div class="sc-stat"><span class="sc-label">Config</span><span class="sc-val">${pre.cfg_n}</span><span class="sc-sub">matches</span></div>
-    <div class="sc-sep">·</div>
-    <div class="sc-stat"><span class="sc-label">Pre-match</span><span class="sc-val" style="color:${qualPre ? 'var(--green)' : 'var(--dim)'}">${qualPre}</span><span class="sc-sub">qualifying</span></div>
-    <div class="sc-sep">·</div>
-    <div class="sc-stat"><span class="sc-label">In-play ${label}</span><span class="sc-val" style="color:${gsLow ? 'var(--yellow)' : qualGs ? 'var(--green)' : 'var(--dim)'}">${gsLow ? gs.gs_n + ' ⚠' : qualGs}</span><span class="sc-sub">${gsLow ? 'records — low' : 'qualifying'}</span></div>
-  </div>`;
-
-  html += buildTraceHtml(pre.ftrace, 'PRE-MATCH FILTER TRACE');
-  html += buildTraceHtml(gs.ftrace,  `IN-PLAY FILTER TRACE  (${label})`);
-
-  if (pre.filterMode === 'BASIC') {
+  if (filterMode === 'BASIC') {
     const anySignalOn = state.bLmOn || state.bFomOn || state.bDomOn || state.bTlmOn || state.bOvmOn || state.bUnmOn;
     if (!anySignalOn) {
       html += `<div class="basic-mode-notice">
-        ⚠ Basic mode — no movement signals active. Results reflect game state only, not conditioned on market direction.
-        Activate AH or TL signal groups for meaningful edge detection.
+        ⚠ Basic mode — no movement signals active. Results reflect the AH line only.
+        Activate signal groups for meaningful edge detection.
       </div>`;
     }
   }
 
-  // Always-visible bet dashboard (all 34 bets, grouped, color-coded by tier)
-  html += renderBetDashboard(preMap, gsMap);
+  // All bets dashboard (color-coded by tier)
+  html += renderBetDashboard(preMap, new Map());
 
-  // Qualifying bets (z >= MIN_Z in at least one scenario) — full detail cards with odds checker
-  const qualifyingKeys = new Set([...pre.bets.map(b => b.k), ...gs.bets.map(b => b.k)]);
-  if (qualifyingKeys.size > 0) {
-    const mergedBets = Array.from(qualifyingKeys).map(k => ({
-      k,
-      pre:     preMap.get(k) || null,
-      gs:      gsMap.get(k)  || null,
-      prePass: pre.bets.some(b => b.k === k),
-      gsPass:  gs.bets.some(b => b.k === k),
-      minN:    pre.min_n,
-    }));
-    mergedBets.sort((a, b) => {
-      const aBoth = a.prePass && a.gsPass, bBoth = b.prePass && b.gsPass;
-      if (aBoth !== bBoth) return aBoth ? -1 : 1;
-      return ((b.pre?.z || 0) + (b.gs?.z || 0)) - ((a.pre?.z || 0) + (a.gs?.z || 0));
-    });
+  // Qualifying bets — full detail cards
+  if (bets.length > 0) {
+    const sorted = [...bets].sort((a, b) => b.z - a.z);
     html += `<div class="section-label" style="margin-top:18px">QUALIFYING BETS</div>`;
-    html += `<p style="font-size:11px;color:var(--dim);margin-bottom:10px">${mergedBets.length} bet${mergedBets.length !== 1 ? 's' : ''} — sorted by strength · both-pass first</p>`;
-    for (let i = 0; i < mergedBets.length; i++) html += renderMergedBetCard(mergedBets[i], i + 1, label);
+    html += `<p style="font-size:11px;color:var(--dim);margin-bottom:10px">${sorted.length} bet${sorted.length !== 1 ? 's' : ''} · z ≥ ${MIN_Z} · sorted by strength</p>`;
+    for (let i = 0; i < sorted.length; i++) html += renderBetCard(sorted[i], i + 1);
   }
 
-  // Value hunt from pre-match allBets (positive edge but z < MIN_Z)
-  const vhBets = pre.allBets.filter(b => Math.abs(b.z) < MIN_Z && b.edge > 0 && b.n >= pre.min_n);
+  // Value hunt (positive edge but z < MIN_Z)
+  const vhBets = allBets.filter(b => Math.abs(b.z) < MIN_Z && b.edge > 0 && b.n >= min_n);
   if (vhBets.length) html += renderValueHuntSection(vhBets);
 
   right.innerHTML = html;
@@ -3025,9 +3035,8 @@ function useScanMatch(id) {
   fillFromScraped(entry.odds);
   fillLiveMatchState(entry.match);
   _showActiveMatchBanner(entry.match);
-  switchTab('match');
-  runMatch();     // renders BET DASHBOARD + GSA probe
-  runBayesian();  // appends Bayesian signal table below
+  switchTab('gsa');
+  runGsa();
 }
 
 function _showActiveMatchBanner(match) {
@@ -3073,15 +3082,14 @@ function fillLiveMatchState(match) {
 
   const setField = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
 
-  // Populate HT score fields (best proxy for current state; user adjusts if they know the actual HT)
-  setField('gs-panel-home', homeG);
-  setField('gs-panel-away', awayG);
+  // Populate GSA tab HT score fields
+  setField('gsa-gs-panel-home', homeG);
+  setField('gsa-gs-panel-away', awayG);
 
   // If we're in 2H (minute > 45), also pre-fill the 2H in-play fields with 0-0
-  // (we can't split total score into HT + 2H without HT data — user fills 2H goals manually)
   if (!isNaN(minNum) && minNum > 45) {
-    setField('gs-panel-home2h', 0);
-    setField('gs-panel-away2h', 0);
+    setField('gsa-gs-panel-home2h', 0);
+    setField('gsa-gs-panel-away2h', 0);
   }
 }
 

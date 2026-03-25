@@ -951,49 +951,83 @@ select.gs-select {
                    border-radius:4px; padding:1px 6px; }
 
 /* ── GSA Probability Probe ───────────────────────────────────────────── */
-.probe-conf      { font-size:11px; font-weight:bold; padding:1px 5px; border-radius:3px; }
+.probe-conf        { font-size:10px; font-weight:bold; padding:1px 5px; border-radius:3px; white-space:nowrap; }
 .probe-conf.green  { color:#000; background:var(--green); }
 .probe-conf.yellow { color:#000; background:var(--yellow); }
 .probe-conf.red    { color:#fff; background:var(--red); }
 
-.probe-table {
-  margin-top:6px;
-  background:var(--bg1); border:1px solid var(--border);
-  border-radius:8px; overflow:hidden;
-  font-size:12px;
+.probe-group-label {
+  font-size:10px; font-weight:bold; text-transform:uppercase;
+  letter-spacing:0.08em; color:var(--blue);
+  margin:14px 0 6px;
 }
-.probe-header {
+.probe-group-label:first-of-type { margin-top:4px; }
+
+/* Card grid */
+.probe-cards {
   display:grid;
-  grid-template-columns: 120px 1fr 60px 60px 1fr;
-  gap:4px; padding:6px 10px;
-  background:var(--bg2); color:var(--dim);
-  font-size:10px; text-transform:uppercase; letter-spacing:0.04em;
-  border-bottom:1px solid var(--border);
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap:8px;
 }
-.probe-group-sep {
-  padding:3px 10px; font-size:10px; font-weight:bold;
-  color:var(--blue); background:rgba(26,159,255,0.07);
-  letter-spacing:0.06em; text-transform:uppercase;
-  border-top:1px solid var(--border);
+
+/* Individual card */
+.probe-card {
+  background:var(--bg1);
+  border:1px solid var(--border);
+  border-left:3px solid var(--border);
+  border-radius:8px;
+  padding:10px 12px;
+  display:flex; flex-direction:column; gap:4px;
+  transition:background 0.15s;
 }
-.probe-group-sep:first-of-type { border-top:none; }
-.probe-row {
-  display:grid;
-  grid-template-columns: 120px 1fr 60px 60px 1fr;
-  gap:4px; padding:5px 10px;
-  border-top:1px solid rgba(255,255,255,0.04);
-  align-items:center;
+.probe-card:hover { background:var(--bg2); }
+.probe-card-lown  { opacity:0.45; }
+
+/* Tier colours — left border + subtle background tint */
+.probe-card-strong {
+  border-left-color:var(--green);
+  background:rgba(0,229,170,0.06);
 }
-.probe-row:hover     { background:var(--bg2); }
-.probe-row-low       { opacity:0.5; }
-.probe-label         { color:var(--bright); font-size:11px; }
-.probe-prob          { display:flex; flex-direction:column; gap:1px; }
-.probe-prob b        { font-size:13px; color:var(--text); }
-.probe-prob .probe-delta { display:inline; font-size:11px; margin-left:4px; }
-.probe-ci            { font-size:10px; color:var(--dim); }
-.probe-odds-fair     { font-weight:bold; font-size:14px; color:var(--yellow); }
-.probe-odds-cons     { font-size:12px; color:var(--dim); }
-.probe-state         { display:flex; flex-direction:column; gap:1px; font-size:11px; color:var(--dim); }
-.probe-delta         { font-size:11px; font-weight:bold; text-align:right; }
-.probe-delta.pos     { color:var(--green); }
-.probe-delta.neg     { color:var(--red); }
+.probe-card-good {
+  border-left-color:var(--blue);
+  background:rgba(26,159,255,0.05);
+}
+.probe-card-weak {
+  border-left-color:var(--border);
+}
+.probe-card-avoid {
+  border-left-color:var(--red);
+  background:rgba(255,71,71,0.05);
+}
+
+/* Card internals */
+.pcard-top {
+  display:flex; justify-content:space-between; align-items:flex-start; gap:4px;
+}
+.pcard-label {
+  font-size:11px; font-weight:600; color:var(--bright); line-height:1.2;
+}
+.pcard-n { flex-shrink:0; }
+
+.pcard-prob {
+  font-size:28px; font-weight:700; color:var(--text);
+  line-height:1; margin:2px 0;
+}
+.pcard-pct { font-size:14px; font-weight:400; color:var(--dim); margin-left:1px; }
+
+.probe-delta       { font-size:11px; font-weight:600; }
+.probe-delta.pos   { color:var(--green); }
+.probe-delta.neg   { color:var(--red); }
+.probe-delta:not(.pos):not(.neg) { color:var(--dim); }
+
+.pcard-footer {
+  display:flex; align-items:center; gap:0;
+  margin-top:6px; padding-top:6px;
+  border-top:1px solid rgba(255,255,255,0.06);
+}
+.pcard-odds-block  { display:flex; flex-direction:column; align-items:center; flex:1; }
+.pcard-odds-label  { font-size:9px; text-transform:uppercase; letter-spacing:0.05em; color:var(--dim); margin-bottom:1px; }
+.pcard-odds-fair   { font-size:14px; font-weight:700; color:var(--yellow); }
+.pcard-odds-cons   { font-size:12px; font-weight:600; color:var(--text); }
+.pcard-odds-state  { font-size:11px; color:var(--dim); }
+.pcard-sep         { width:1px; height:28px; background:rgba(255,255,255,0.07); flex-shrink:0; }
