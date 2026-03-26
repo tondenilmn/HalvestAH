@@ -119,7 +119,8 @@ function parseGetData1Calls(jsText) {
     const awayTeam = typeof args[22] === 'string' ? args[22] : '';
     const league   = typeof args[6]  === 'string' ? args[6]  : '';
     const rawTime  = typeof args[10] === 'string' ? args[10].replace(/\\'/g, "'") : null;
-    const minute   = rawTime && !rawTime.includes('T') ? rawTime : null;
+    const isHT     = rawTime === 'HT';
+    const minute   = rawTime && (isHT || !rawTime.includes('T')) ? rawTime : null;
     let score = null;
     if (minute && args.length > 23) {
       const hg = typeof args[11] === 'number' ? args[11] : parseInt(args[11], 10);

@@ -368,13 +368,15 @@ function parseGetData1Calls(jsText) {
     const awayTeam = typeof args[22] === 'string' ? args[22] : '';
     const league   = typeof args[6]  === 'string' ? args[6]  : '';
 
-    // [10] is live minute ("5'") for live matches, ISO datetime for upcoming matches
+    // [10] is live minute ("5'") for live/HT matches, ISO datetime for upcoming matches.
+    // 'HT' contains 'T' so we must whitelist it before the ISO check.
     const rawTime  = typeof args[10] === 'string' ? args[10].replace(/\\'/g, "'") : null;
-    const minute   = rawTime && !rawTime.includes('T') ? rawTime : null;
+    const isHT     = rawTime === 'HT';
+    const minute   = rawTime && (isHT || !rawTime.includes('T')) ? rawTime : null;
 
     // Score: args[11] = home goals, args[23] = away goals (confirmed by cross-referencing
     // multiple live matches with known scores — corner kicks are at [24]/[25]).
-    // Only set score for live matches (minute present); upcoming matches have 0s here too.
+    // Only set score for live/HT matches (minute present); upcoming matches have 0s here too.
     let score = null;
     if (minute && args.length > 23) {
       const hg = typeof args[11] === 'number' ? args[11] : parseInt(args[11], 10);

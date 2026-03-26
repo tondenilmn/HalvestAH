@@ -3209,7 +3209,7 @@ async function runBatchScan() {
     qualifying.push({ match, cfg, bets, n: cfgRows.length });
   }
 
-  const parseMin = m => parseInt(String(m?.minute || '999').replace(/'/g, ''), 10) || 999;
+  const parseMin = m => { const s = String(m?.minute || '999').replace(/'/g, '').trim(); return s === 'HT' ? 45 : parseInt(s, 10) || 999; };
   qualifying.sort((a, b) => parseMin(a.match) - parseMin(b.match));
   setScanProgress(`Done — ${qualifying.length} match${qualifying.length !== 1 ? 'es' : ''} with movement from ${total} live`, total, total);
   renderBatchResults(qualifying, total);
@@ -3334,9 +3334,9 @@ function _showActiveMatchBanner(match) {
 function fillLiveMatchState(match) {
   if (!match) return;
 
-  // Live minute — strip apostrophe ("7'" → 7) and populate the estimator field
+  // Live minute — strip apostrophe ("7'" → 7); treat 'HT' as 45
   const rawMin = match.minute ? String(match.minute).replace(/'/g, '').trim() : null;
-  const minNum = rawMin ? parseInt(rawMin, 10) : NaN;
+  const minNum = rawMin === 'HT' ? 45 : rawMin ? parseInt(rawMin, 10) : NaN;
   if (!isNaN(minNum)) {
     const el = document.getElementById('live-minute');
     if (el) el.value = minNum;

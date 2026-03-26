@@ -222,7 +222,8 @@ async function runScan() {
 
   for (const match of matches) {
     const label  = `${match.home_team} vs ${match.away_team}`;
-    const minNum = match.minute ? parseInt(match.minute, 10) : null;
+    const rawMin = match.minute ? String(match.minute).replace(/'/g, '').trim() : null;
+    const minNum = rawMin === 'HT' ? 46 : rawMin ? parseInt(rawMin, 10) : null;
 
     // ── HT window gate ────────────────────────────────────────────────────
     const isHtWindow = minNum != null && !isNaN(minNum) &&
