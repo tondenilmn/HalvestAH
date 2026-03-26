@@ -1,0 +1,70 @@
+Date,Time,League,Home Team,Away Team,Home AH Closing,Home AH Opening,Away AH Closing,Away AH Opening,Home Odds Closing,Home Odds Opening,Away Odds Closing,Away Odds Opening,Total Line Closing,Total Line Opening,Over Odds Closing,Over Odds Opening,Under Odds Closing,Under Odds Opening,HT Result,FT Result
+2025-07-14,17:00,Swedish Allsvenskan,IK Sirius FK,Mjallby AIF,0.0,0.25,0.0,-0.25,1.93,1.93,1.99,1.97,2.75,2.75,1.96,1.89,1.93,1.99,0-2,1-2
+2025-07-14,16:00,Norway Division 4,Tiller,Kristiansund B,0.25,-0.5,-0.25,0.5,1.83,1.91,1.89,1.81,3.75,3.5,1.83,1.79,1.89,1.93,1-1,1-2
+2025-07-14,17:00,Norway Division 4,Assiden,HamKam B,-0.25,-0.75,0.25,0.75,1.91,1.91,1.71,1.81,4.0,4.0,1.9,1.81,1.72,1.91,0-1,0-5
+2025-07-14,17:30,Norway Division 4,Stromsgodset B,Skjetten Fotball,0.75,0.5,-0.75,-0.5,1.91,1.83,1.81,1.89,4.5,4.25,1.89,1.84,1.83,1.88,0-0,0-3
+2025-07-14,10:30,Australian cloth,AC Carina,Virginia United,1.0,0.75,-1.0,-0.75,1.92,1.96,1.92,1.76,4.0,4.0,1.89,1.86,1.93,1.86,0-1,1-5
+2025-07-14,18:30,Iceland Premier Division,IBV Vestmannaeyjar,Stjarnan Gardabaer,0.0,0.0,0.0,0.0,1.97,1.97,1.93,1.87,3.0,3.0,1.89,1.93,1.99,1.89,0-0,1-0
+2025-07-14,19:15,Iceland Premier Division,Akranes,KR Reykjavik,0.75,0.75,-0.75,-0.75,1.93,1.83,1.97,2.01,4.0,4.0,2.02,1.95,1.86,1.87,0-0,1-0
+2025-07-14,14:00,Norway 2.Liga,Brann 2,Jerv,0.75,0.75,-0.75,-0.75,1.91,1.81,1.81,1.91,3.5,3.5,1.85,1.79,1.87,1.93,1-2,2-4
+2025-07-14,15:00,Finland Veikkausliga,Ilves Tampere,Vaasa VPS,-1.25,-1.0,1.25,1.0,2.0,1.89,1.92,2.01,3.0,3.0,1.89,1.92,2.0,1.96,1-0,3-2
+2025-07-14,15:30,Finland Ykkonen,Lahti,TPS Turku,-0.75,-0.5,0.75,0.5,1.89,1.95,2.03,1.89,3.0,3.0,2.07,1.88,1.81,1.94,1-1,2-2
+2025-07-14,01:10,Canadian Premier League,Vancouver FC,Cavalry FC,0.75,0.75,-0.75,-0.75,1.81,1.84,1.91,2.0,2.5,2.5,1.65,1.81,2.07,2.01,0-0,0-0
+2025-07-14,23:00,Brazil Serie A,Juventude,Sport Club do Recife,0.0,0.0,0.0,0.0,2.01,1.81,1.91,2.09,2.0,2.25,1.88,2.02,2.01,1.86,1-0,2-0
+2025-07-14,16:00,Estonia Esi Liiga,Viimsi MRJK,Tallinna FC Ararat TTU,-1.25,-1.5,1.25,1.5,1.92,1.8,1.86,1.98,3.25,3.25,1.91,1.95,1.87,1.83,1-1,2-1
+2025-07-14,22:00,Brazil Serie B,Athletic Club MG,Avai FC,-0.25,0.0,0.25,0.0,1.87,1.77,2.05,2.14,2.0,2.0,1.87,1.95,2.01,1.93,2-0,4-0
+2025-07-14,22:30,"Brasileiro, Serie C",Maringa FC,Brusque FC,-0.5,-0.5,0.5,0.5,1.82,1.77,2.04,2.01,2.25,2.0,2.06,1.75,1.78,2.03,0-1,0-2
+2025-07-14,22:30,"Brasileiro, Serie C",Reet,Centro Sportivo Alagoano,0.0,0.0,0.0,0.0,1.93,1.79,1.93,1.99,2.0,2.0,2.04,1.95,1.8,1.83,0-0,0-0
+2025-07-14,15:30,Finland - Kakkonen Lohko,HJS Akatemia,TPV Tampere,-0.5,-0.25,0.5,0.25,1.83,1.81,2.01,1.97,3.25,3.25,1.87,1.82,1.95,1.96,1-1,3-3
+2025-07-14,16:00,Finland - Kakkonen Lohko,NJS,PPJ Akatemia,0.0,0.25,0.0,-0.25,1.92,1.86,1.92,1.92,3.75,3.5,1.94,1.91,1.88,1.87,3-0,4-1
+2025-07-14,22:00,Argentine Division 1,Banfield,Defensa Y Justicia,0.25,-0.25,-0.25,0.25,1.93,1.82,1.99,2.08,2.0,2.0,1.96,1.87,1.93,2.01,0-0,0-0
+2025-07-14,19:30,Argentine Division 1,Deportivo Riestra,Lanus,0.25,0.25,-0.25,-0.25,2.04,1.77,1.88,2.14,1.5,1.75,1.91,1.94,1.98,1.94,0-0,1-0
+2025-07-14,00:00,Argentine Division 1,River Plate,CA Platense,-0.75,-1.0,0.75,1.0,1.81,2.09,2.12,1.81,2.0,2.0,1.98,2.04,1.91,1.84,2-1,3-1
+2025-07-14,01:00,Primera Division Liga MX,Club Leon,Atletico San Luis,-0.5,-1.0,0.5,1.0,1.89,2.03,2.03,1.87,2.5,3.0,2.05,2.02,1.84,1.86,0-0,0-1
+2025-07-14,22:00,Bolivia Primera Division,Nacional Potosi,Real Oruro,-1.5,-1.0,1.5,1.0,1.96,1.93,1.9,1.91,3.25,3.25,1.95,2.01,1.89,1.81,2-1,2-3
+2025-07-14,15:15,Belarus Cup,FC Belshina Babruisk,FC Molodechno,0.0,0.0,0.0,0.0,1.95,1.95,1.77,1.77,2.25,2.25,1.83,1.83,1.89,1.89,0-1,0-3
+2025-07-14,18:00,Argentina Primera C Metropolitana,Estrella del Sur Alejandro Korn,Argentino de Rosario,-0.5,-0.5,0.5,0.5,2.0,1.99,1.72,1.73,1.75,1.75,1.98,1.91,1.74,1.81,0-0,0-0
+2025-07-14,18:30,Argentina Primera C Metropolitana,Sportivo Barracas,Club Lujan,0.25,0.25,-0.25,-0.25,1.87,1.73,1.85,1.99,1.75,1.75,1.92,1.85,1.8,1.87,0-2,1-2
+2025-07-14,01:00,Mexico Liga MX Femenil,Tigres (W),Toluca (W),-2.0,-1.75,2.0,1.75,1.84,1.95,1.88,1.77,3.25,3.25,1.66,1.81,2.06,1.91,1-0,1-1
+2025-07-14,16:00,Romania Liga I,FC Botosani,Farul Constanta,-0.25,-0.25,0.25,0.25,2.13,1.86,1.78,1.98,2.25,2.5,1.97,2.01,1.91,1.81,0-0,1-1
+2025-07-14,18:30,Romania Liga I,FK Csikszereda Miercurea Ciuc,Dinamo Bucuresti,0.25,0.25,-0.25,-0.25,1.89,1.91,2.01,1.93,2.25,2.25,2.08,1.86,1.8,1.96,2-2,2-2
+2025-07-14,21:30,Primera Division de Paraguay,Atletico Tembetary,Deportivo Recoleta,0.0,-0.25,0.0,0.25,1.86,2.03,2.02,1.81,2.25,2.25,2.06,1.96,1.8,1.86,1-0,2-3
+2025-07-14,17:00,Lithuania - 1.Division,DFK Dainava Alytus,FK Panevezys,0.5,0.75,-0.5,-0.75,1.99,1.97,1.87,1.87,2.25,2.5,1.85,1.91,1.99,1.91,0-2,0-3
+2025-07-14,00:00,USA MLS Next Pro League,Colorado Rapids II,Vancouver Whitecaps Reserve,-1.0,-0.5,1.0,0.5,1.77,1.77,1.95,1.95,3.25,3.25,1.78,1.79,1.94,1.93,0-0,0-0
+2025-07-14,00:00,USA MLS Next Pro League,Houston Dynamo B,North Texas SC,-0.25,-0.25,0.25,0.25,1.95,1.86,1.77,1.86,3.0,3.0,1.7,1.75,2.02,1.97,2-0,3-0
+2025-07-14,02:00,USA MLS Next Pro League,Los Angeles FC II,Portland Timbers Reserve,-0.5,-0.25,0.5,0.25,1.84,1.76,1.88,1.96,3.5,3.5,1.8,1.96,1.92,1.76,0-0,1-0
+2025-07-14,00:00,USA USL League Two,Oly Town FC,Bigfoot,0.0,0.0,0.0,0.0,1.76,1.76,1.96,1.96,3.75,3.75,1.75,1.88,1.97,1.84,2-0,5-1
+2025-07-14,00:30,USA USL League Two,Lonestar SC,Twin City Toucans,-1.0,-1.0,1.0,1.0,1.81,1.81,1.91,1.91,4.0,4.0,1.87,1.79,1.85,1.93,0-1,1-2
+2025-07-14,02:00,USA USL League Two,FC Tucson,Stars FC,-2.75,-3.0,2.75,3.0,1.82,1.76,1.9,1.96,3.75,4.0,1.81,1.79,1.91,1.93,0-0,0-0
+2025-07-14,02:00,USA USL League Two,AMSG FC,Ventura County Fusion,1.0,1.0,-1.0,-1.0,1.83,1.75,1.89,1.97,3.25,3.25,1.77,1.92,1.95,1.8,0-0,0-2
+2025-07-14,23:00,Brazil Serie D,Marcilio Dias SC,Barra FC,-0.25,-0.25,0.25,0.25,1.75,1.85,1.97,1.87,2.25,2.25,2.06,1.99,1.66,1.73,1-0,1-0
+2025-07-14,00:30,Primera Division de Colombiano-Apertura,La Equidad,Aguilas Doradas,-0.25,0.0,0.25,0.0,1.96,1.82,1.96,2.02,2.0,2.0,2.07,1.82,1.81,2.0,0-0,0-0
+2025-07-14,19:00,African Cup of Nations for Women,South Africa (W),Mali (W),-0.75,-1.0,0.75,1.0,1.93,1.89,1.91,1.83,2.25,2.5,1.91,1.83,1.91,1.89,2-0,4-0
+2025-07-14,19:00,African Cup of Nations for Women,Ghana (W),Tanzania (W),-0.5,-0.5,0.5,0.5,1.96,1.89,1.88,1.83,2.25,2.25,1.78,1.81,2.04,1.91,1-1,4-1
+2025-07-14,00:00,Conmebol-Sudamericano Women,Brazil (W),Venezuela  (W),-3.0,-2.75,3.0,2.75,1.8,1.76,1.92,1.96,3.75,3.5,1.69,1.84,2.03,1.88,1-0,2-0
+2025-07-14,21:00,Paraguayan Division 2,Guairena,12 de Junio VH,0.25,0.25,-0.25,-0.25,1.93,1.91,1.79,1.87,2.0,2.25,1.93,2.01,1.79,1.77,0-0,0-1
+2025-07-14,18:30,Paraguayan Division 2,Sportivo San Lorenzo,Sol de America,0.0,-0.25,0.0,0.25,1.77,1.87,2.07,1.91,2.0,2.25,2.0,1.98,1.82,1.8,0-0,0-0
+2025-07-14,18:30,Uruguay Segunda,CA Atenas,Central Espanol,-0.5,-0.5,0.5,0.5,1.9,1.9,1.94,1.88,2.0,2.25,1.98,1.94,1.84,1.84,0-1,0-1
+2025-07-14,15:00,International Friendly,Niger U20,Ivory Coast U20,0.25,0.25,-0.25,-0.25,2.09,1.93,1.75,1.79,2.0,2.0,1.87,1.77,1.95,1.95,0-1,0-1
+2025-07-14,18:00,International Friendly,Burkina Faso U20,Togo U20,0.25,0.25,-0.25,-0.25,1.71,1.77,2.14,1.95,2.0,2.0,2.09,1.91,1.73,1.81,0-1,0-1
+2025-07-14,20:30,Colombia Primera B,Boca Juniors De Cali,Leones,-0.5,0.0,0.5,0.0,1.94,1.83,1.9,2.01,2.25,2.25,1.95,1.93,1.87,1.89,1-0,1-1
+2025-07-14,23:00,Colombia Primera B,Atletico Huila,Deportes Quindio,-0.75,-1.0,0.75,1.0,2.01,1.82,1.83,2.02,2.0,2.25,1.82,1.98,2.0,1.84,2-0,2-1
+2025-07-14,09:30,Calcutta Football League,Diamond Harbour FC,Aryan,-1.5,-1.5,1.5,1.5,1.76,1.78,1.96,2.0,2.5,2.5,1.81,1.89,1.91,1.89,0-0,1-0
+2025-07-14,09:30,Calcutta Football League,Kidderpore SC,Peerless SC,0.25,-0.25,-0.25,0.25,2.01,1.75,1.71,1.97,2.25,2.25,1.84,1.76,1.88,1.96,0-1,1-1
+2025-07-14,17:00,International Club Friendly,Valencia CF Mestalla,Johor Darul Takzim,1.25,1.5,-1.25,-1.5,2.0,1.89,1.78,1.89,3.0,3.0,1.9,1.92,1.88,1.86,1-0,1-0
+2025-07-14,07:00,OFC Nations Cup Women,Tahiti (W),Vanuatu (W),0.75,0.5,-0.75,-0.5,2.12,1.9,1.61,1.82,2.75,2.75,1.91,1.81,1.81,1.91,0-1,0-1
+2025-07-14,03:30,OFC Nations Cup Women,Cook Islands (W),Tonga (W),0.25,-0.25,-0.25,0.25,1.78,1.93,1.94,1.79,2.75,2.75,1.93,1.78,1.79,1.94,0-0,0-1
+2025-07-14,12:00,Bhutan Thimphu League,Transport United FC,Southern City,-2.75,-2.75,2.75,2.75,2.07,1.91,1.77,1.81,3.75,3.75,1.77,1.83,2.05,1.89,2-0,2-0
+2025-07-14,15:30,International Club Friendly,FK Mladost DG,Slaven Belupo,1.5,1.75,-1.5,-1.75,1.94,1.84,1.84,1.94,3.0,3.5,2.11,1.92,1.68,1.86,2-0,2-6
+2025-07-14,18:30,International Club Friendly,Breitenrain,Biel Bienne,0.5,0.5,-0.5,-0.5,1.85,1.81,1.93,1.97,3.5,3.25,1.91,1.83,1.87,1.95,2-0,3-0
+2025-07-14,11:00,Paraguay reserve team league,CA Tembetary Reserves,Deportivo Recoleta Reserves,0.25,0.0,-0.25,0.0,1.92,1.79,1.86,1.99,3.0,3.0,1.85,1.89,1.93,1.89,0-0,1-0
+2025-07-14,13:00,Uruguay Reserve League,Juventud De Las Piedras Reserves,Albion fc Reserves,-0.75,-0.75,0.75,0.75,1.71,1.86,2.07,1.92,3.0,3.0,1.92,1.99,1.86,1.79,1-0,2-0
+2025-07-14,13:30,Uruguay Reserve League,Defensor Sporting Reserve,Penarol Reserve,0.5,0.25,-0.5,-0.25,2.08,1.83,1.7,1.95,2.75,2.5,1.85,1.95,1.93,1.83,1-0,3-1
+2025-07-14,18:00,Uruguay Reserve League,Torque Reserves,La Luz Reserves,-1.0,-1.0,1.0,1.0,1.98,1.95,1.86,1.83,2.25,2.25,1.83,1.83,1.99,1.95,2-0,2-3
+2025-07-14,18:00,Uruguay Reserve League,Nacional de Montevideo Reserves,Danubio Reserves,-0.5,-0.5,0.5,0.5,1.66,1.86,2.21,1.92,2.5,2.5,1.96,1.83,1.86,1.95,0-0,1-0
+2025-07-14,18:00,Uruguay Reserve League,Progreso Reserves,Liverpool Montevideo Reserve,-0.25,-0.25,0.25,0.25,2.09,2.03,1.75,1.75,2.5,2.5,2.0,1.96,1.82,1.82,1-0,2-0
+2025-07-14,18:00,Uruguay Reserve League,Miramar Misiones Reserves,Racing Club de Montevideo Reserves,0.25,0.25,-0.25,-0.25,2.02,1.92,1.82,1.86,2.5,2.5,1.89,1.83,1.93,1.95,1-2,1-3
+2025-07-14,18:00,Uruguay Reserve League,Oriental Reserves,Wanderers FC Reserve,1.0,1.5,-1.0,-1.5,2.05,1.83,1.79,1.95,3.0,3.0,2.01,1.99,1.81,1.79,0-1,0-2
+2025-07-14,14:20,International Club Friendly,Zorya,Sarajevo,0.25,0.25,-0.25,-0.25,1.81,1.81,1.97,1.97,2.75,2.75,1.82,1.9,1.96,1.88,0-0,0-0
+2025-07-14,18:45,International Club Friendly,St Ives Town,Corby Town,0.0,0.0,0.0,0.0,1.78,1.78,2.0,2.0,3.25,3.25,1.95,1.97,1.83,1.81,0-0,0-2
+2025-07-14,15:10,International Club Friendly,Puszcza Niepolomice,Maccabi Bnei Raina,0.25,0.0,-0.25,0.0,2.0,1.81,1.78,1.97,2.5,2.5,1.81,1.86,1.97,1.92,2-0,5-0

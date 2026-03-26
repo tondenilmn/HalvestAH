@@ -1,0 +1,417 @@
+Date,Time,League,Home Team,Away Team,Home AH Closing,Home AH Opening,Away AH Closing,Away AH Opening,Home Odds Closing,Home Odds Opening,Away Odds Closing,Away Odds Opening,Total Line Closing,Total Line Opening,Over Odds Closing,Over Odds Opening,Under Odds Closing,Under Odds Opening,HT Result,FT Result
+2025-07-19,05:00,Victorian State League Division 1,Eastern Lions SC,Western United FC NPL,1.0,1.0,-1.0,-1.0,1.95,1.92,1.91,1.86,3.75,3.75,1.96,1.94,1.88,1.84,1-0,3-3
+2025-07-19,08:00,Victorian State League Division 1,Caroline Springs George Cross,Moreland City,-2.5,-2.25,2.5,2.25,2.02,1.81,1.84,1.97,4.25,4.25,1.96,1.98,1.88,1.8,1-1,6-2
+2025-07-19,05:00,VIC Premier League,Avondale FC,Dandenong City SC,-1.0,-1.5,1.0,1.5,1.89,1.95,2.03,1.89,3.25,3.25,1.9,1.82,1.99,2.0,0-0,1-1
+2025-07-19,07:00,VIC Premier League,South Melbourne,Altona Magic,-1.0,-0.5,1.0,0.5,2.03,1.96,1.89,1.88,3.0,3.0,1.98,1.99,1.91,1.83,1-0,2-0
+2025-07-19,10:00,J1 League,FC Tokyo,Urawa Red Diamonds,0.0,0.0,0.0,0.0,1.8,1.89,2.13,2.01,2.25,2.5,1.86,1.94,2.04,1.94,1-2,3-2
+2025-07-19,10:00,J1 League,Shonan Bellmare,Cerezo Osaka,0.5,0.25,-0.5,-0.25,2.11,1.86,1.82,2.04,2.75,2.75,1.92,1.91,1.98,1.97,2-1,3-3
+2025-07-19,10:00,J3 League,Gainare Tottori,Azul Claro Numazu,-0.25,-0.25,0.25,0.25,1.95,1.94,1.95,1.9,2.25,2.25,2.03,2.03,1.85,1.79,2-1,4-3
+2025-07-19,09:00,J3 League,Kamatamare Sanuki,Kochi United,0.0,0.0,0.0,0.0,2.12,1.98,1.79,1.86,2.25,2.25,1.96,1.92,1.92,1.9,1-0,1-2
+2025-07-19,10:00,J3 League,Zweigen Kanazawa FC,Vanraure Hachinohe FC,0.0,0.0,0.0,0.0,1.78,1.91,2.13,1.93,2.25,2.5,2.06,2.0,1.82,1.82,0-0,0-1
+2025-07-19,09:00,J3 League,AC Nagano Parceiro,Matsumoto Yamaga FC,0.25,0.0,-0.25,0.0,2.0,2.03,1.9,1.81,2.25,2.0,1.98,1.83,1.9,1.99,1-0,1-0
+2025-07-19,09:00,J3 League,Tochigi City,Thespa Kusatsu,-1.0,-0.75,1.0,0.75,2.07,1.78,1.83,2.06,2.75,2.25,1.9,1.86,1.98,1.96,0-0,1-1
+2025-07-19,07:15,Australia Queensland State Leagues,Broadbeach United,Brisbane Strikers,-0.25,-0.25,0.25,0.25,1.88,1.8,1.84,1.92,3.5,3.5,1.96,1.79,1.76,1.93,0-1,3-2
+2025-07-19,08:00,Australia Queensland State Leagues,Logan Lightning,Redlands United FC,-0.5,-0.25,0.5,0.25,1.76,1.77,1.96,1.95,3.25,3.5,1.88,1.8,1.84,1.92,1-1,3-1
+2025-07-19,09:15,Australia Queensland State Leagues,Capalaba Bulldogs,Southside Eagles,-0.5,-0.5,0.5,0.5,1.74,1.8,1.98,1.92,3.75,3.75,1.82,1.87,1.9,1.85,1-0,1-0
+2025-07-19,15:30,Swedish Allsvenskan,Degerfors IF,GAIS,0.5,0.5,-0.5,-0.5,1.93,1.89,1.99,2.01,2.5,2.5,1.86,1.89,2.03,1.99,0-1,0-3
+2025-07-19,13:00,Swedish Allsvenskan,Djurgardens,Elfsborg,-0.75,-0.25,0.75,0.25,1.93,1.84,1.99,2.06,2.75,2.5,1.88,1.84,2.01,2.04,1-0,1-0
+2025-07-19,13:00,Swedish Allsvenskan,Osters IF,Malmo FF,1.0,1.25,-1.0,-1.25,1.92,1.87,2.0,2.03,2.75,2.75,2.06,1.87,1.83,2.01,0-1,0-2
+2025-07-19,13:00,Sweden Superettan,IK Oddevold,Orgryte,0.25,0.0,-0.25,0.0,1.89,2.05,2.03,1.85,2.75,3.0,1.94,1.95,1.94,1.93,0-0,0-1
+2025-07-19,13:00,Sweden Superettan,Ostersunds FK,Falkenberg,0.0,0.0,0.0,0.0,2.03,1.94,1.89,1.96,2.5,2.5,1.83,1.97,2.05,1.91,1-0,3-1
+2025-07-19,15:00,Sweden Superettan,Sandvikens IF,Vasteras SK FK,0.0,0.25,0.0,-0.25,2.03,1.91,1.89,1.99,2.75,3.0,1.96,1.83,1.92,2.05,0-2,0-3
+2025-07-19,13:00,Sweden Superettan,Umea FC,Orebro,0.25,0.25,-0.25,-0.25,2.07,1.83,1.85,2.07,2.75,2.75,1.96,2.02,1.92,1.86,1-0,1-1
+2025-07-19,07:30,NSW Premier League,Spirit FC,Rockdale City Suns,0.0,0.5,0.0,-0.5,2.01,1.92,1.91,1.92,3.0,3.5,1.94,2.01,1.94,1.81,4-0,6-3
+2025-07-19,08:00,NSW Premier League,Wollongong Wolves,Manly United,-0.25,-0.75,0.25,0.75,1.85,1.96,2.07,1.88,2.75,2.75,2.04,1.86,1.84,1.96,0-0,2-0
+2025-07-19,09:15,NSW Premier League,St George City FA,Marconi Stallions,0.25,0.5,-0.25,-0.5,1.98,1.91,1.94,1.93,2.5,3.0,2.03,1.86,1.85,1.96,0-1,2-1
+2025-07-19,09:30,NSW Premier League,Sutherland Sharks,Blacktown City Demons,0.75,0.75,-0.75,-0.75,2.07,2.01,1.85,1.83,2.75,2.75,1.95,1.86,1.93,1.96,0-2,1-2
+2025-07-19,06:45,TAS Premier League,Launceston City,Riverside Olympic,-1.5,-1.5,1.5,1.5,1.84,1.77,1.88,1.95,4.0,4.0,1.84,1.86,1.88,1.86,1-0,4-0
+2025-07-19,04:00,TAS Premier League,South Hobart,Devonport City,-0.75,-1.0,0.75,1.0,1.98,1.96,1.74,1.76,3.5,3.5,1.97,1.91,1.75,1.81,2-1,2-2
+2025-07-19,06:30,Australia New South Wales Super League,Hake Ya Dong in Sydney City,Inter Lions,-0.25,-0.25,0.25,0.25,1.85,1.84,1.87,1.88,3.0,3.25,1.96,1.91,1.76,1.81,0-0,1-1
+2025-07-19,07:00,Australia New South Wales Super League,Bankstown City Lions,Canterbury Bankstown FC,-0.75,-0.75,0.75,0.75,1.78,1.95,1.94,1.77,2.75,2.75,1.71,1.81,2.01,1.91,1-0,1-1
+2025-07-19,07:10,Australia New South Wales Super League,Dulwich Hill SC,Macarthur Rams,0.0,0.0,0.0,0.0,1.79,1.86,1.93,1.86,3.0,3.0,1.87,1.87,1.85,1.85,0-0,1-0
+2025-07-19,07:00,Australia New South Wales Super League,Rydalmere Lions FC,Hills Brumbies,-0.25,-0.25,0.25,0.25,1.74,1.81,1.98,1.91,3.25,3.25,1.8,1.86,1.92,1.86,1-0,2-0
+2025-07-19,07:30,Australia New South Wales Super League,University NSW,Blacktown Spartans,-0.25,-0.5,0.25,0.5,1.82,1.95,1.9,1.77,3.25,3.25,1.71,1.96,2.01,1.76,2-0,3-0
+2025-07-19,09:00,Australia New South Wales Super League,Bonnyrigg White Eagles,Bulls Academy,0.5,0.5,-0.5,-0.5,2.02,1.96,1.7,1.76,3.5,3.25,1.8,1.97,1.92,1.75,0-0,0-0
+2025-07-19,09:00,Australia New South Wales Super League,Mounties Wanderers,Newcastle Jets FC (Youth),0.75,0.75,-0.75,-0.75,1.84,1.91,1.88,1.81,3.25,3.25,1.89,1.97,1.83,1.75,0-1,1-4
+2025-07-19,07:00,Australia New South Wales Super League,SD Raiders FC,Northern Tigers,0.0,0.0,0.0,0.0,1.93,1.96,1.79,1.76,2.75,2.75,1.77,1.85,1.95,1.87,2-0,2-1
+2025-07-19,05:30,South Australian Premier League,Adelaide Panthers,Salisbury United,0.25,0.0,-0.25,0.0,1.84,1.84,2.0,1.94,3.25,3.25,1.88,1.89,1.94,1.89,0-0,0-0
+2025-07-19,05:30,South Australian Premier League,The Cove FC,West Adelaide SC,0.5,1.0,-0.5,-1.0,1.89,1.81,1.95,1.97,3.0,3.25,1.87,1.97,1.95,1.81,0-0,1-0
+2025-07-19,05:30,South Australian Premier League,Fulham United FC,Adelaide Blue Eagles,0.5,0.25,-0.5,-0.25,1.85,1.91,1.99,1.87,3.0,3.0,1.99,1.93,1.83,1.85,2-0,4-2
+2025-07-19,07:30,South Australian Premier League,Sturt Lions,Cumberland United FC,-0.75,-0.75,0.75,0.75,1.96,1.81,1.88,1.97,3.0,3.25,1.82,1.89,2.0,1.89,2-0,2-1
+2025-07-19,09:30,South Australian Premier League,Adelaide Cobras FC,Adelaide Olympic,0.0,-0.25,0.0,0.25,1.92,1.96,1.92,1.82,3.0,3.0,1.85,1.84,1.97,1.94,1-1,1-2
+2025-07-19,02:00,Australia NPL Victoria U23,Avondale U23,Dandenong City U23,0.25,0.25,-0.25,-0.25,1.84,1.84,1.88,1.88,3.5,3.5,1.84,1.84,1.88,1.88,0-1,0-2
+2025-07-19,04:00,Australia NPL Victoria U23,Green Gully U23,Heidelberg United U23,-0.75,-1.0,0.75,1.0,1.86,1.91,1.86,1.81,3.75,3.75,1.73,1.85,1.99,1.87,1-1,2-3
+2025-07-19,05:00,NSW Premier W-League,NWS Spirit (W),Manly Utd (W),-0.25,-0.25,0.25,0.25,1.9,1.9,1.82,1.82,3.25,3.25,1.91,1.91,1.81,1.81,0-0,2-0
+2025-07-19,05:15,NSW Premier W-League,UNSW FC (W),Sydney Olympic FC (W),-0.25,-0.25,0.25,0.25,1.88,1.81,1.84,1.91,3.0,3.0,1.79,1.79,1.93,1.93,2-1,2-1
+2025-07-19,05:00,VIC Women’s Premier League,Alamein (W),Essendon Royals (W),0.25,0.25,-0.25,-0.25,2.28,1.75,1.62,1.97,3.5,3.5,1.96,1.86,1.86,1.86,1-1,1-2
+2025-07-19,04:00,VIC Women’s Premier League,South Melbourne (W),Box Hill (W),-0.5,-0.5,0.5,0.5,2.07,1.91,1.65,1.81,3.25,3.25,1.86,1.86,1.86,1.86,0-1,0-1
+2025-07-19,09:00,Australia Queensland Premier League 2,Samford Ranges,Taringa Rovers,0.0,-0.5,0.0,0.5,1.96,1.95,1.76,1.77,4.0,4.0,1.81,1.81,1.91,1.91,0-4,1-4
+2025-07-19,09:00,Australia Queensland Premier League 2,Grange Thistle SC,Brisbane Knights,-0.5,-0.25,0.5,0.25,1.69,1.78,2.03,1.94,4.5,4.25,1.71,1.91,2.01,1.81,1-0,6-2
+2025-07-19,14:00,Iceland Premier Division,Breidablik,Vestri,-2.0,-1.25,2.0,1.25,2.02,1.83,1.88,2.01,3.75,3.25,2.06,1.99,1.82,1.83,1-0,1-0
+2025-07-19,16:00,Iceland Premier Division,KA Akureyri,Akranes,-0.75,-0.75,0.75,0.75,1.99,1.88,1.91,1.96,3.0,3.25,1.88,1.99,2.0,1.83,1-0,2-0
+2025-07-19,18:30,Argentine Division 2,Almagro,Alvarado Mar del Plata,-0.25,-0.5,0.25,0.5,1.79,1.93,2.09,1.91,1.5,1.75,1.86,1.92,2.0,1.9,0-0,0-0
+2025-07-19,22:00,Argentine Division 2,Ferrol Carril Oeste,Deportivo Madryn,0.0,0.0,0.0,0.0,1.77,1.92,2.12,1.92,1.75,1.75,2.05,1.98,1.81,1.84,0-0,1-1
+2025-07-19,21:45,Argentine Division 2,Los Andes,Atletico Atlanta,0.0,0.25,0.0,-0.25,2.03,1.75,1.85,2.09,1.75,1.75,2.05,1.83,1.81,1.99,2-0,3-0
+2025-07-19,21:30,Argentine Division 2,Quilmes,Arsenal de Sarandi,-0.75,-0.75,0.75,0.75,2.06,2.03,1.82,1.81,1.75,1.75,1.86,1.81,2.0,2.01,2-1,3-1
+2025-07-19,19:40,Argentine Division 2,San Martin Tucuman,Tristan Suarez,-0.5,-0.5,0.5,0.5,1.88,1.8,2.0,2.04,1.75,2.0,1.82,2.06,2.04,1.76,1-1,1-1
+2025-07-19,18:30,Argentine Division 2,CA San Miguel,All Boys,-0.75,-0.75,0.75,0.75,2.04,2.02,1.84,1.82,1.75,1.75,2.02,1.99,1.84,1.83,1-0,1-0
+2025-07-19,17:35,Argentine Division 2,San Telmo,Deportivo Moron,0.0,0.0,0.0,0.0,2.13,1.91,1.76,1.93,1.75,1.75,2.03,1.89,1.83,1.93,1-1,1-2
+2025-07-19,16:00,Iceland Division 1,Volsungur husavik,IR Reykjavik,1.25,0.75,-1.25,-0.75,1.84,1.93,2.02,1.85,3.25,3.25,1.97,1.99,1.87,1.79,1-3,2-3
+2025-07-19,05:00,FFSA Premier League,Adelaide Comets FC,Adelaide Raiders SC,-0.25,-0.25,0.25,0.25,1.79,1.83,2.07,1.95,3.25,3.25,2.06,1.99,1.78,1.79,1-1,2-1
+2025-07-19,05:30,FFSA Premier League,Para Hills Knlghts SC,Campbelltown City SC,0.25,0.25,-0.25,-0.25,1.74,1.92,2.13,1.86,3.25,3.25,1.94,1.81,1.9,1.97,0-3,1-5
+2025-07-19,05:30,FFSA Premier League,Playford City Patriots,Metrostars SC,0.75,0.75,-0.75,-0.75,1.96,1.92,1.9,1.86,3.5,3.5,2.05,1.92,1.79,1.86,0-2,0-3
+2025-07-19,10:00,FFSA Premier League,Croydon Kings,Adelaide City FC,0.0,0.0,0.0,0.0,1.81,1.97,2.05,1.81,3.0,3.25,1.83,1.97,2.01,1.81,0-0,2-2
+2025-07-19,08:15,QLD Premier League,Wynnum Wolves,Peninsula Power,0.75,1.0,-0.75,-1.0,1.86,1.88,2.0,1.96,3.5,3.5,1.98,1.97,1.86,1.85,0-0,1-1
+2025-07-19,07:00,QLD Premier League,Sunshine Coast Wanderers FC,Gold Coast United,0.0,0.0,0.0,0.0,1.92,2.04,1.94,1.8,3.0,3.0,1.98,1.96,1.86,1.86,1-0,1-3
+2025-07-19,07:30,QLD Premier League,Brisbane City,Queensland Lions SC,0.75,0.75,-0.75,-0.75,1.9,1.98,1.96,1.86,3.5,3.5,1.97,1.97,1.87,1.85,1-1,4-2
+2025-07-19,04:30,QLD Premier League,Brisbane Roar (Youth),Gold Coast Knights,0.5,0.5,-0.5,-0.5,1.93,1.86,1.93,1.98,3.0,3.0,1.93,2.01,1.91,1.81,1-0,1-1
+2025-07-19,04:00,Australia Northern NSW Premier League,Charleston City Blues,Cooks Hill United,-0.75,-0.75,0.75,0.75,1.94,1.91,1.78,1.81,3.0,3.0,1.79,1.79,1.93,1.93,0-0,1-2
+2025-07-19,04:00,Australia Northern NSW Premier League,Lambton Jaffas FC,Valentine,-1.25,-1.25,1.25,1.25,1.86,1.91,1.86,1.81,3.25,3.25,1.91,1.91,1.81,1.81,4-0,7-0
+2025-07-19,04:30,Australia Northern NSW Premier League,Belmont Swansea United SC,New Lambton FC,-0.75,-0.75,0.75,0.75,1.88,1.81,1.96,1.91,3.25,3.5,1.84,1.91,1.98,1.81,0-0,0-0
+2025-07-19,12:00,Norway Eliteserien,KFUM Oslo,Brann,0.0,0.25,0.0,-0.25,1.96,1.82,1.96,2.08,2.5,2.5,2.01,1.95,1.89,1.93,2-0,2-0
+2025-07-19,14:00,Norway Eliteserien,Molde,Stromsgodset,-1.25,-1.25,1.25,1.25,1.87,2.08,2.05,1.82,3.25,3.0,1.95,2.0,1.95,1.88,3-1,4-1
+2025-07-19,16:00,Norway Eliteserien,Viking,Bodo Glimt,0.5,0.25,-0.5,-0.25,1.89,1.87,2.03,2.03,3.25,3.25,1.95,2.01,1.95,1.89,2-3,2-4
+2025-07-19,12:00,Norway 2.Liga,Kjelsas,Eidsvold Turn,-0.75,-0.5,0.75,0.5,1.94,1.76,1.78,1.96,3.0,3.0,1.76,1.79,1.96,1.93,0-2,4-5
+2025-07-19,15:00,Norway 2.Liga,Levanger FK,Honefoss BK,0.0,-0.25,0.0,0.25,1.93,1.9,1.79,1.82,3.25,3.25,1.93,1.92,1.79,1.8,1-0,4-0
+2025-07-19,12:00,Norway 2.Liga,Strommen,Asker,-2.25,-1.75,2.25,1.75,1.97,1.91,1.75,1.81,3.5,3.5,1.94,1.9,1.78,1.82,3-0,5-0
+2025-07-19,12:00,Norway 2.Liga,Ullensaker/Kisa IL,Strindheim IL,-1.25,-1.25,1.25,1.25,1.71,1.85,2.01,1.87,3.25,3.25,1.66,1.81,2.06,1.91,1-0,4-1
+2025-07-19,23:30,USL Championship,Charleston Battery,Miami FC,-1.5,-1.5,1.5,1.5,1.97,1.83,1.87,2.01,3.0,3.25,2.0,1.84,1.82,1.98,2-0,3-0
+2025-07-19,23:00,USL Championship,Loudoun United,Oakland Roots,-1.0,-1.0,1.0,1.0,1.85,1.89,2.05,1.95,2.75,2.75,2.05,1.9,1.83,1.92,0-2,0-2
+2025-07-19,20:10,USL Championship,Rhode Island,Hartford Athletic,-0.75,-1.0,0.75,1.0,2.09,2.04,1.81,1.8,2.25,2.75,1.79,2.0,2.09,1.82,0-0,0-0
+2025-07-19,10:00,K League 1,Gangwon FC,Daejeon Citizen,-0.25,-0.25,0.25,0.25,2.11,2.12,1.82,1.79,2.25,2.25,1.91,1.86,1.98,2.02,0-0,2-2
+2025-07-19,10:00,K League 1,Pohang Steelers,Jeonbuk Hyundai Motors,0.75,0.25,-0.75,-0.25,1.86,1.81,2.06,2.09,2.25,2.25,1.91,1.94,1.98,1.94,2-0,2-3
+2025-07-19,10:00,K League 1,Jeju SK FC,FC Anyang,-0.25,-0.25,0.25,0.25,1.93,2.07,1.99,1.83,2.25,2.25,1.89,1.88,2.0,2.0,0-0,2-0
+2025-07-19,14:00,Finland Veikkausliga,Vaasa VPS,KuPs,0.25,0.25,-0.25,-0.25,2.06,2.01,1.86,1.89,2.75,2.75,2.0,2.04,1.89,1.84,0-0,1-1
+2025-07-19,10:00,K League 2,Gimpo FC,Ansan Greeners FC,-0.5,-0.5,0.5,0.5,1.83,1.81,2.05,2.03,2.0,2.0,1.81,1.8,2.05,2.02,1-1,2-2
+2025-07-19,10:00,K League 2,Hwaseong FC,Busan I Park,0.25,0.5,-0.25,-0.5,1.94,1.79,1.94,2.05,2.25,2.25,2.0,2.05,1.86,1.77,0-0,1-0
+2025-07-19,10:00,K League 2,Jeonnam Dragons,Suwon Samsung Bluewings,0.25,0.5,-0.25,-0.5,2.01,1.93,1.87,1.91,3.0,2.75,2.03,1.89,1.83,1.93,0-2,3-4
+2025-07-19,10:00,K League 2,Seoul E-Land FC,Seongnam FC,-0.25,-0.5,0.25,0.5,1.84,2.03,2.04,1.81,2.5,2.5,2.07,1.88,1.79,1.94,0-1,0-1
+2025-07-19,00:00,Primera Division de Ecuador,Independiente del Valle,Sociedad Deportiva Aucas,-0.5,-0.75,0.5,0.75,1.96,1.79,1.88,2.05,2.25,2.5,1.85,1.91,1.97,1.91,2-0,2-1
+2025-07-19,21:30,Primera Division de Ecuador,Orense SC,CD El Nacional,-0.75,-0.75,0.75,0.75,1.79,2.0,2.12,1.84,2.25,2.5,1.95,2.02,1.93,1.8,0-0,1-1
+2025-07-19,19:00,Primera Division de Ecuador,Universidad Catolica,Vinotinto de Ecuador,-0.75,-0.75,0.75,0.75,2.04,1.86,1.86,1.98,2.5,2.75,1.89,2.01,1.99,1.81,1-0,3-0
+2025-07-19,11:00,Finland Ykkonen,KaPa,Lahti,1.25,1.25,-1.25,-1.25,2.02,2.01,1.9,1.83,3.25,3.5,2.05,1.97,1.83,1.85,0-0,2-2
+2025-07-19,13:00,Finland Ykkonen,SJK Akatemia,JaPS,-0.5,-0.5,0.5,0.5,1.95,1.95,1.97,1.89,4.0,3.75,1.86,1.85,2.02,1.97,1-0,4-1
+2025-07-19,15:00,Finland Ykkonen,PK-35 Vantaa,Klubi 04 Helsinki,-0.25,-0.5,0.25,0.5,2.11,1.96,1.82,1.88,3.25,3.25,1.98,2.0,1.9,1.82,0-0,1-1
+2025-07-19,19:00,Chile Primera Division,Colo Colo,Deportes La Serena,-1.0,-1.25,1.0,1.25,1.95,1.85,1.97,2.05,2.5,2.75,1.92,2.0,1.96,1.88,0-0,2-1
+2025-07-19,21:30,Chile Primera Division,Coquimbo Unido,Deportes Iquique,-1.0,-1.0,1.0,1.0,2.07,2.01,1.85,1.89,2.25,2.5,1.85,1.92,2.03,1.96,1-1,4-1
+2025-07-19,16:30,Chile Primera Division,Union Espanola,Union La Calera,0.0,-0.25,0.0,0.25,1.94,2.04,1.98,1.86,2.25,2.25,1.92,1.94,1.96,1.94,0-1,3-1
+2025-07-19,11:00,Chinese Super League,Dalian Zhixing,Shandong Taishan,0.25,0.5,-0.25,-0.5,1.83,1.86,2.05,1.86,2.75,3.0,1.8,1.81,2.06,1.91,1-0,2-0
+2025-07-19,11:35,Chinese Super League,Beijing Guoan,Shanghai Shenhua,-0.25,0.25,0.25,-0.25,1.84,1.76,2.04,1.96,2.75,3.0,1.9,1.97,1.96,1.75,1-2,1-3
+2025-07-19,11:40,Chinese Super League,Shenzhen Xinpengcheng,Qingdao Manatee,-0.5,-0.5,0.5,0.5,1.96,1.93,1.92,1.79,2.5,2.5,2.04,1.86,1.82,1.86,2-0,4-0
+2025-07-19,12:00,Chinese Super League,Henan Football Club,Meizhou Hakka,-1.5,-1.0,1.5,1.0,2.03,1.83,1.85,1.89,3.0,3.0,1.87,1.81,1.99,1.91,0-0,1-1
+2025-07-19,16:00,Estonia Champions League,Levadia Tallinn,Harju JK Laagri,-2.0,-2.25,2.0,2.25,2.01,1.91,1.83,1.87,3.5,3.5,1.84,1.87,1.98,1.91,2-0,3-0
+2025-07-19,07:00,National Premier Leagues Western Australia,Balcatta FC,Bayswater City,1.0,1.0,-1.0,-1.0,1.96,1.84,1.88,1.94,3.25,3.25,2.19,1.92,1.66,1.86,0-2,0-4
+2025-07-19,07:00,National Premier Leagues Western Australia,Fremantle City,Floreat Athena,-0.5,-0.5,0.5,0.5,2.01,1.97,1.83,1.81,3.0,3.25,1.71,1.99,2.12,1.79,0-1,2-2
+2025-07-19,07:00,National Premier Leagues Western Australia,Olympic Kingsway SC,Armadale SC,-1.5,-1.25,1.5,1.25,1.83,1.97,2.01,1.81,3.25,3.25,1.66,1.92,2.19,1.86,1-0,2-0
+2025-07-19,07:00,National Premier Leagues Western Australia,Perth Glory (Youth),Western Knights,-0.25,-0.75,0.25,0.75,2.12,1.89,1.73,1.89,3.25,3.25,1.88,1.81,1.94,1.97,1-1,1-5
+2025-07-19,07:00,National Premier Leagues Western Australia,Perth SC,Perth RedStar,0.0,0.0,0.0,0.0,2.03,2.01,1.81,1.77,3.0,3.0,1.81,1.89,2.01,1.89,1-0,1-2
+2025-07-19,19:00,Chile Primera B,Deportes Santa Cruz,Deportes Recoleta,-0.25,-0.25,0.25,0.25,1.84,1.87,1.88,1.85,2.25,2.25,2.0,1.89,1.72,1.83,0-0,0-0
+2025-07-19,16:30,Chile Primera B,Cobreloa,San Marcos de Arica,-0.75,-0.25,0.75,0.25,1.79,1.8,1.93,1.92,2.25,2.5,1.75,1.94,1.97,1.78,1-0,2-0
+2025-07-19,23:00,Chile Primera B,D. Concepcion,CSD Antofagasta,-0.5,-0.5,0.5,0.5,1.78,1.96,1.94,1.76,2.25,2.5,1.75,1.94,1.97,1.78,0-0,0-0
+2025-07-19,13:00,Latvian Higher League,FK Liepaja,Riga FC,1.25,1.0,-1.25,-1.0,1.89,1.98,1.97,1.86,2.75,2.75,1.94,1.98,1.9,1.84,1-2,2-3
+2025-07-19,15:00,Latvian Higher League,Metta/LU Riga,FK Rigas Futbola skola,2.0,1.75,-2.0,-1.75,1.98,1.99,1.88,1.85,3.25,3.0,1.89,2.02,1.95,1.8,0-2,0-4
+2025-07-19,20:00,Canadian Premier League,York United FC,Vancouver FC,-0.5,-0.5,0.5,0.5,1.81,2.03,2.03,1.81,2.5,2.75,1.76,1.91,2.06,1.91,1-0,4-0
+2025-07-19,13:00,Kazakhstan Premier League,FC Kairat Almaty,Kaisar Kyzylorda,-1.25,-1.5,1.25,1.5,1.91,1.99,1.97,1.85,2.5,2.75,2.01,1.9,1.85,1.92,1-0,1-1
+2025-07-19,15:00,Kazakhstan Premier League,Okzhetpes,Ulytau Zhezkazgan,-0.5,-0.5,0.5,0.5,1.99,1.86,1.89,1.98,2.5,2.25,1.82,1.88,2.04,1.94,1-0,1-0
+2025-07-19,13:00,Kazakhstan Premier League,FK Yelimay Semey,Zhenis,-0.25,-0.75,0.25,0.75,2.04,1.79,1.84,2.05,2.25,2.25,1.97,1.93,1.89,1.89,1-0,1-2
+2025-07-19,19:00,Brazil Serie A,Fortaleza,Bahia,0.0,0.0,0.0,0.0,2.14,1.91,1.77,1.99,2.25,2.25,2.01,2.03,1.87,1.85,1-0,1-1
+2025-07-19,21:30,Brazil Serie A,Mirassol,Santos,0.0,-0.25,0.0,0.25,1.91,2.11,2.01,1.8,2.0,2.0,1.9,1.84,1.99,2.04,0-0,3-0
+2025-07-19,20:30,Brazil Serie A,Vasco da Gama,Gremio (RS),-0.25,-0.25,0.25,0.25,1.85,1.82,2.07,2.08,2.0,2.0,1.84,1.82,2.05,2.06,0-0,1-1
+2025-07-19,08:00,Korea Challengers League,Busan Transportation Corporation,Gyeongju KHNP,0.25,0.25,-0.25,-0.25,1.97,1.95,1.91,1.89,2.25,2.25,1.93,1.95,1.93,1.87,1-0,2-1
+2025-07-19,07:50,Korea Challengers League,Jeonbuk Hyundai Motors II,Paju Citizen FC,0.25,0.25,-0.25,-0.25,1.9,1.79,1.98,2.05,2.25,2.25,1.95,1.86,1.91,1.96,0-1,1-1
+2025-07-19,09:00,Korea Challengers League,Yangpyeong,Chuncheon Citizen,-0.25,-0.25,0.25,0.25,1.83,1.93,2.05,1.91,2.0,2.25,1.91,2.05,1.95,1.77,2-1,2-1
+2025-07-19,23:30,USA Major League Soccer,Atlanta United,Charlotte FC,-0.25,-0.25,0.25,0.25,2.01,1.85,1.91,2.05,3.0,3.0,1.87,1.83,2.03,2.05,1-0,2-3
+2025-07-19,23:30,USA Major League Soccer,Montreal Impact,Chicago Fire,0.25,0.25,-0.25,-0.25,1.87,1.81,2.05,2.09,3.0,3.0,1.9,1.95,2.0,1.93,0-1,0-2
+2025-07-19,23:30,USA Major League Soccer,New England Revolution,Orlando City,0.25,0.25,-0.25,-0.25,1.96,1.83,1.96,2.07,3.0,2.75,1.94,2.0,1.96,1.88,0-1,1-2
+2025-07-19,23:40,USA Major League Soccer,New York Red Bulls,Inter Miami CF,0.0,0.0,0.0,0.0,1.86,2.05,2.06,1.85,3.25,3.0,2.0,1.85,1.9,2.03,1-3,1-5
+2025-07-19,16:00,Estonia Esi Liiga,Elva,Viimsi MRJK,0.75,0.25,-0.75,-0.25,1.78,1.96,1.94,1.76,2.75,3.0,1.83,1.91,1.89,1.81,0-1,0-3
+2025-07-19,10:00,Chinese Football Association Jia League,Yanbian Longding,Qingdao Red Lions,-0.75,-0.75,0.75,0.75,1.98,1.9,1.86,1.94,2.25,2.25,1.9,1.93,1.92,1.89,1-0,1-0
+2025-07-19,11:00,Chinese Football Association Jia League,Liaoning Tieren,Chongqing Tonglianglong,0.0,-0.25,0.0,0.25,1.88,2.03,1.96,1.81,2.25,2.25,1.86,1.8,1.96,2.02,4-1,4-2
+2025-07-19,11:00,Chinese Football Association Jia League,Suzhou Dongwu,Foshan Nanshi,-1.0,-0.75,1.0,0.75,1.86,1.87,1.98,1.97,2.25,2.25,1.89,1.89,1.93,1.93,0-0,0-1
+2025-07-19,11:30,Chinese Football Association Jia League,Shijiazhuang Kungfu,Nantong Zhiyun,-0.25,-0.25,0.25,0.25,2.09,2.06,1.75,1.78,2.25,2.25,1.89,1.91,1.93,1.91,0-0,3-1
+2025-07-19,21:30,Brazil Serie B,Avai FC,Vila Nova,-0.25,-0.25,0.25,0.25,1.85,1.82,2.05,2.08,1.75,2.0,1.97,2.08,1.91,1.8,0-0,1-1
+2025-07-19,21:30,Brazil Serie B,Coritiba PR,SC Paysandu Para,-1.0,-0.75,1.0,0.75,1.95,1.94,1.95,1.96,2.0,2.0,1.87,1.88,2.01,2.0,1-3,2-5
+2025-07-19,00:30,Brazil Serie B,Ferroviaria SP,Athletic Club MG,0.0,-0.25,0.0,0.25,1.89,2.11,2.01,1.8,2.0,2.0,1.94,1.95,1.94,1.93,1-1,1-2
+2025-07-19,19:00,Brazil Serie B,Goias,Cuiaba,-0.5,-0.5,0.5,0.5,1.85,2.01,2.05,1.89,2.0,2.0,2.09,1.97,1.79,1.91,1-0,3-1
+2025-07-19,23:30,Brazil Serie B,Volta Redonda,Atletico Paranaense,0.0,0.0,0.0,0.0,1.91,2.02,1.99,1.88,1.75,2.0,1.81,2.02,2.07,1.86,0-2,3-2
+2025-07-19,20:00,"Brasileiro, Serie C",ABC RN,Maringa FC,-0.25,-0.5,0.25,0.5,2.0,2.03,1.86,1.81,2.0,2.25,1.79,2.04,2.05,1.78,1-0,3-3
+2025-07-19,20:00,"Brasileiro, Serie C",Ituano SP,Botafogo PB,-0.75,-0.5,0.75,0.5,2.08,1.93,1.78,1.91,2.0,1.75,1.94,1.86,1.9,1.96,0-1,0-3
+2025-07-19,22:30,"Brasileiro, Serie C",Londrina PR,Itabaiana(SE),-1.25,-0.75,1.25,0.75,2.13,1.82,1.74,2.02,2.25,2.25,1.97,1.97,1.87,1.85,2-0,2-0
+2025-07-19,22:30,"Brasileiro, Serie C",Ponte Preta,Floresta CE,-0.75,-0.5,0.75,0.5,1.89,1.87,1.97,1.97,2.0,1.75,2.12,1.86,1.73,1.96,0-0,2-1
+2025-07-19,08:00,Japan Football League,Yokohama SCC,Maruyasu Industries,-0.25,0.0,0.25,0.0,2.0,1.9,1.9,1.94,2.5,2.5,2.07,1.9,1.81,1.92,0-1,2-1
+2025-07-19,09:00,Japan Football League,Verspah Oita,Honda FC,-0.25,-0.25,0.25,0.25,2.0,1.94,1.9,1.9,2.0,2.0,2.04,1.9,1.84,1.92,0-1,2-1
+2025-07-19,09:30,Japan Football League,Criacao Shinjuku,Briobecca Urayasu,-0.25,-0.25,0.25,0.25,2.19,1.82,1.74,2.02,2.0,2.0,1.92,1.87,1.96,1.95,0-0,0-1
+2025-07-19,10:00,Japan Football League,Veertien Kuwana,Porvenir Asuka SC,-0.5,-0.5,0.5,0.5,2.07,1.96,1.83,1.88,2.5,2.75,1.96,1.94,1.92,1.88,0-0,0-0
+2025-07-19,11:00,Chinese Football Association Yi League,Ganzhou Ruishi,Guangdong Mingtu,-0.25,-0.25,0.25,0.25,1.84,1.93,1.88,1.79,2.25,2.25,1.83,1.86,1.89,1.86,1-2,2-2
+2025-07-19,11:50,Chinese Football Association Yi League,Guangxi Lanhang,Shenzhen 2028,1.75,1.5,-1.75,-1.5,1.98,1.81,1.74,1.91,3.0,2.5,1.69,1.94,2.03,1.78,0-0,0-2
+2025-07-19,11:30,Chinese Football Association Yi League,Wenzhou Professional,Guangxi Hengchen,1.25,1.25,-1.25,-1.25,1.75,1.76,1.97,1.96,2.0,2.0,1.86,1.82,1.86,1.9,0-1,0-1
+2025-07-19,11:30,Chinese Football Association Yi League,Wuhan Three Towns B,Kunming City Star,-1.25,-1.25,1.25,1.25,2.2,1.94,1.55,1.78,2.25,2.25,2.03,1.86,1.69,1.86,0-0,1-0
+2025-07-19,08:30,Chinese Football Association Yi League,Shanghai Port B,Shandong Taishan B,0.5,0.5,-0.5,-0.5,1.66,1.79,2.06,1.93,2.25,2.25,1.66,1.91,2.06,1.81,1-0,2-0
+2025-07-19,05:00,Australia Capital Gatorade Premier League,Cooma Tigers,Queanbeyan City,-1.0,-1.0,1.0,1.0,1.93,1.85,1.79,1.87,3.5,3.5,1.96,1.9,1.76,1.82,0-0,1-0
+2025-07-19,05:00,Australia Capital Gatorade Premier League,OConnor Knights,Yoogali SC,-0.5,-0.75,0.5,0.75,1.96,1.95,1.76,1.77,3.5,3.75,1.84,1.81,1.88,1.91,0-0,0-2
+2025-07-19,13:00,Finland - Kakkonen Lohko,Lahden Reipas,PEPO Lappeenranta,-0.5,-0.25,0.5,0.25,1.95,1.8,1.89,1.98,3.5,3.5,1.96,1.91,1.86,1.87,1-1,1-2
+2025-07-19,14:00,Finland - Kakkonen Lohko,Honka Espoo,HAPK,-4.5,-4.5,4.5,4.5,1.98,1.96,1.86,1.88,5.5,5.5,1.87,1.91,1.95,1.91,0-0,5-0
+2025-07-19,16:00,Finland - Kakkonen Lohko,FC Vaajakoski,Puiu,0.25,0.0,-0.25,0.0,1.93,1.84,1.91,1.94,3.25,3.5,1.96,1.89,1.86,1.89,0-0,1-2
+2025-07-19,14:00,Finland - Kakkonen Lohko,Kiffen Helsinki,NJS,-1.5,-1.25,1.5,1.25,1.84,1.87,2.0,1.91,3.75,3.75,1.78,1.9,2.04,1.88,1-0,1-1
+2025-07-19,15:00,Finland - Kakkonen Lohko,JS Hercules,SJK Akatemia B,0.5,1.0,-0.5,-1.0,1.94,1.94,1.9,1.84,4.75,4.5,1.81,1.86,2.01,1.92,0-1,0-6
+2025-07-19,16:00,Finland - Kakkonen Lohko,VIFK,Narpes Kraft,-0.75,-0.75,0.75,0.75,1.92,1.84,1.92,1.94,3.75,3.5,1.98,1.87,1.84,1.91,0-1,0-2
+2025-07-19,13:00,Finland - Kakkonen Lohko,EPS Espoo,OLS Oulu,0.75,1.25,-0.75,-1.25,1.95,1.8,1.95,2.04,3.25,3.25,1.92,1.84,1.96,1.98,1-1,1-4
+2025-07-19,13:00,Finland - Kakkonen Lohko,RoPS Rovaniemi,Inter Turku II,0.0,0.5,0.0,-0.5,2.03,2.02,1.87,1.82,3.5,3.25,1.95,1.81,1.93,2.01,2-1,3-1
+2025-07-19,14:00,Finland - Kakkonen Lohko,Jyvaskyla JK,Tampere United,-0.25,-0.25,0.25,0.25,2.04,1.91,1.86,1.93,2.75,3.0,1.89,1.93,1.99,1.89,0-3,1-4
+2025-07-19,15:00,Finland - Kakkonen Lohko,PK Keski Uusimaa,Atlantis,-0.5,-0.75,0.5,0.75,1.89,1.83,2.01,2.01,3.5,3.25,2.02,1.81,1.86,2.01,0-0,0-0
+2025-07-19,00:30,Argentine Division 1,Atletico Tucuman,Central Cordoba SDE,-0.25,-0.5,0.25,0.5,1.91,2.05,2.01,1.85,1.75,2.25,1.79,2.06,2.11,1.82,1-0,1-1
+2025-07-19,21:45,Argentine Division 1,Godoy Cruz Antonio Tomba,Sarmiento Junin,-0.75,-0.5,0.75,0.5,2.09,1.95,1.83,1.95,1.75,2.0,1.86,2.01,2.03,1.87,0-0,0-0
+2025-07-19,19:30,Argentine Division 1,Lanus,Rosario Central,-0.25,-0.25,0.25,0.25,1.86,2.08,2.06,1.82,1.75,1.75,1.88,1.95,2.01,1.93,0-0,0-1
+2025-07-19,21:45,Argentine Division 1,CA Platense,Velez Sarsfield,-0.25,0.0,0.25,0.0,2.13,1.79,1.8,2.12,1.5,1.75,1.91,2.06,1.98,1.82,0-0,0-0
+2025-07-19,17:30,Argentine Division 1,San Lorenzo,Gimnasia La Plata,-0.5,-0.25,0.5,0.25,1.99,1.84,1.93,2.06,1.5,1.75,1.84,2.03,2.05,1.85,0-0,0-0
+2025-07-19,14:00,Scotland League Cup,Cove Rangers,Falkirk,1.75,1.75,-1.75,-1.75,1.88,1.84,1.9,1.94,3.5,3.25,1.96,1.8,1.82,1.98,0-0,0-0
+2025-07-19,14:00,Scotland League Cup,Spartans,Brechin City,-1.25,-1.0,1.25,1.0,1.77,1.88,2.01,1.9,3.0,3.0,1.97,1.95,1.81,1.83,1-0,2-0
+2025-07-19,14:00,Scotland League Cup,Edinburgh City,Stranraer,0.25,-0.25,-0.25,0.25,1.87,1.85,1.91,1.93,2.75,2.75,1.94,1.91,1.84,1.87,0-0,0-0
+2025-07-19,14:00,Scotland League Cup,Queen of South,Ross County,0.75,0.75,-0.75,-0.75,2.01,1.89,1.77,1.89,2.75,2.75,1.85,1.84,1.93,1.94,0-0,0-1
+2025-07-19,14:00,Scotland League Cup,Alloa Athletic,Dundee,1.25,1.25,-1.25,-1.25,1.95,1.86,1.83,1.92,3.0,3.0,1.96,1.88,1.82,1.9,0-0,1-0
+2025-07-19,14:00,Scotland League Cup,Montrose,Bonnyrigg Rose,-1.0,-0.75,1.0,0.75,1.96,1.83,1.82,1.95,2.75,2.75,1.98,1.95,1.8,1.83,0-1,4-1
+2025-07-19,14:00,Scotland League Cup,Ayr United,Arbroath,-0.75,-1.0,0.75,1.0,1.79,1.96,1.99,1.82,2.5,2.75,1.84,1.94,1.94,1.84,1-0,4-0
+2025-07-19,14:00,Scotland League Cup,Saint Mirren,Annan Athletic,-2.75,-2.25,2.75,2.25,1.93,1.91,1.85,1.87,3.5,3.25,1.82,1.91,1.96,1.87,3-1,8-2
+2025-07-19,14:00,Scotland League Cup,Dumbarton,Dunfermline Athletic,1.0,1.0,-1.0,-1.0,1.89,1.92,1.89,1.86,2.5,2.5,1.87,1.79,1.91,1.99,0-2,0-4
+2025-07-19,16:15,Scotland League Cup,Stirling Albion,Heart of Midlothian,3.0,3.25,-3.0,-3.25,1.78,1.9,2.0,1.88,4.25,4.25,1.98,1.92,1.8,1.86,0-3,0-4
+2025-07-19,14:00,Scotland League Cup,Elgin City,East Kilbride,0.5,0.5,-0.5,-0.5,1.91,1.8,1.87,1.98,3.25,2.75,1.93,1.97,1.85,1.81,1-2,1-4
+2025-07-19,14:00,Scotland League Cup,Inverness,Saint Johnstone,0.75,1.0,-0.75,-1.0,1.8,1.89,1.98,1.89,2.25,2.5,1.81,1.92,1.97,1.86,0-0,0-1
+2025-07-19,14:00,Scotland League Cup,Peterhead,Clyde,-0.25,-0.5,0.25,0.5,1.92,1.87,1.86,1.91,2.5,2.5,1.89,1.92,1.89,1.86,0-0,1-2
+2025-07-19,14:00,Scotland League Cup,Stenhousemuir,Motherwell,1.5,1.25,-1.5,-1.25,1.98,1.85,1.8,1.93,2.75,2.5,1.95,1.89,1.83,1.89,0-1,0-1
+2025-07-19,14:00,Scotland League Cup,Kelty Hearts,East Fife,-0.25,0.25,0.25,-0.25,1.77,1.77,2.01,2.01,2.5,2.75,1.8,1.9,1.98,1.88,0-0,0-1
+2025-07-19,14:00,Scotland League Cup,Livingston,Brora Rangers,-2.75,-2.5,2.75,2.5,1.79,1.92,1.99,1.86,3.75,3.25,1.91,1.86,1.87,1.92,1-0,2-0
+2025-07-19,10:00,AFF U23 Championship,Laos U23,Vietnam U23,2.75,2.5,-2.75,-2.5,1.98,1.91,1.74,1.81,3.5,3.5,1.72,1.88,2.0,1.84,0-1,0-3
+2025-07-19,13:00,AFF U23 Championship,Timor Leste U23,Thailand U23,2.75,2.5,-2.75,-2.5,1.97,1.84,1.75,1.88,4.0,3.75,1.8,1.9,1.92,1.82,0-2,0-4
+2025-07-19,01:00,Primera Division Liga MX,Necaxa,Queretaro FC,-0.75,-1.0,0.75,1.0,2.04,1.98,1.88,1.92,2.75,3.0,2.0,1.98,1.89,1.9,2-1,3-1
+2025-07-19,03:00,Primera Division Liga MX,Atletico San Luis,Monterrey,0.25,0.5,-0.25,-0.5,2.01,1.93,1.91,1.97,2.75,3.0,1.97,2.05,1.92,1.83,0-1,0-1
+2025-07-19,03:00,Primera Division Liga MX,Mazatlan FC,Puebla,-0.25,-0.25,0.25,0.25,2.01,2.03,1.91,1.87,2.0,2.25,1.86,1.93,2.03,1.95,2-0,2-1
+2025-07-19,19:00,Bolivia Primera Division,Academia del Balompie Boliviano,Aurora,0.0,0.0,0.0,0.0,1.72,1.95,2.16,1.89,2.5,3.25,1.78,1.95,2.06,1.87,2-1,2-1
+2025-07-19,21:30,Bolivia Primera Division,Bolivar,Oriente Petrolero,-2.25,-2.0,2.25,2.0,1.83,1.82,2.03,2.02,4.25,3.75,1.96,1.84,1.88,1.98,0-0,1-0
+2025-07-19,18:00,BRA SPC,Sao Caetano,Oeste,-0.25,-0.25,0.25,0.25,1.77,1.74,2.01,2.04,2.0,2.0,2.03,1.94,1.75,1.84,0-0,2-0
+2025-07-19,18:15,Poland Ekstraklasa,GKS Katowice,Rakow Czestochowa,0.5,0.75,-0.5,-0.75,1.86,1.85,2.04,1.99,2.75,2.75,2.0,1.93,1.88,1.89,0-0,0-1
+2025-07-19,12:45,Poland Ekstraklasa,Widzew lodz,Zaglebie Lubin,-0.5,-0.25,0.5,0.25,1.85,1.86,2.05,1.98,2.5,2.25,2.01,1.8,1.87,2.02,1-0,1-0
+2025-07-19,15:30,Poland Ekstraklasa,Wisla Plock,Korona Kielce,0.0,-0.25,0.0,0.25,1.83,2.05,2.07,1.79,2.25,2.5,1.91,1.91,1.97,1.91,1-0,2-0
+2025-07-19,13:00,AFC Women’s Asian Cup Qualifying Tournament,Singapore (W),Lebanon (W),2.25,2.25,-2.25,-2.25,1.8,1.74,1.92,1.98,2.75,2.75,1.79,1.79,1.93,1.93,0-0,0-1
+2025-07-19,16:00,AFC Women’s Asian Cup Qualifying Tournament,Iran (W),Jordan (W),0.0,0.0,0.0,0.0,1.93,1.96,1.79,1.76,2.75,3.0,1.9,1.94,1.82,1.78,0-0,2-1
+2025-07-19,12:00,Danish 1st Division,Kolding FC,Aalborg,-0.25,0.0,0.25,0.0,1.93,1.95,1.99,1.95,2.75,2.75,1.95,2.02,1.93,1.86,0-0,1-0
+2025-07-19,12:00,Danish 1st Division,Hillerod Fodbold,Middelfart G og,-1.25,-1.25,1.25,1.25,2.0,1.97,1.92,1.93,2.75,3.25,2.03,2.02,1.85,1.86,1-1,2-1
+2025-07-19,14:00,Danish 1st Division,AC Horsens,Aarhus Fremad,-0.75,-1.0,0.75,1.0,1.95,1.94,1.97,1.96,3.0,3.0,1.94,1.9,1.94,1.98,0-0,0-0
+2025-07-19,12:30,Poland Liga 1,Pogon Grodzisk Mazowiecki,Stal Rzeszow,0.0,0.0,0.0,0.0,1.78,1.81,2.08,2.03,2.75,2.75,1.99,1.98,1.85,1.84,2-0,2-1
+2025-07-19,15:30,Poland Liga 1,Gornik Leczna,Polonia Bytom,0.25,0.0,-0.25,0.0,1.88,2.05,1.98,1.79,2.5,2.75,1.94,2.01,1.9,1.81,0-1,0-3
+2025-07-19,17:35,Poland Liga 1,GKS Tychy,Miedz Legnica,0.0,0.25,0.0,-0.25,2.04,1.81,1.8,2.03,2.25,2.25,1.91,1.86,1.91,1.96,0-0,4-3
+2025-07-19,12:30,Russia Premier League,Akron Togliatti,Krylya Sovetov,0.0,-0.25,0.0,0.25,1.85,1.93,2.07,1.91,2.5,2.75,1.88,1.86,2.01,1.96,1-0,1-1
+2025-07-19,15:00,Russia Premier League,Lokomotiv Moscow,FK Sochi,-0.75,-0.75,0.75,0.75,2.04,1.84,1.88,2.0,2.75,2.75,1.87,1.86,2.02,1.96,0-0,3-0
+2025-07-19,17:30,Russia Premier League,Spartak Moscow,FK Makhachkala,-1.5,-1.0,1.5,1.0,2.08,1.81,1.84,2.03,2.5,2.5,1.85,1.86,2.04,1.96,1-0,1-0
+2025-07-19,15:00,Czech Republic Gambrinus Liga,Bohemians 1905,Banik Ostrava,0.5,0.0,-0.5,0.0,1.98,1.91,1.92,1.93,2.75,2.75,1.9,1.95,1.98,1.87,1-0,1-0
+2025-07-19,18:00,Czech Republic Gambrinus Liga,Baumit Jablonec,Sparta Praha,0.25,0.25,-0.25,-0.25,2.02,1.99,1.88,1.85,2.5,2.75,1.86,1.96,2.02,1.86,1-0,1-1
+2025-07-19,15:00,Czech Republic Gambrinus Liga,MFK Karvina,Dukla Prague,-0.5,-0.25,0.5,0.25,1.91,1.81,1.99,2.03,2.75,2.75,2.01,1.88,1.87,1.94,1-0,2-0
+2025-07-19,15:00,Czech Republic Gambrinus Liga,Teplice,Tescoma Zlin,-0.5,-0.5,0.5,0.5,1.99,1.93,1.91,1.91,2.25,2.5,1.95,2.0,1.93,1.82,1-0,1-3
+2025-07-19,16:00,Czech Republic 2.Liga,Slavia Kromeriz,Viktoria Zizkov,-0.5,0.0,0.5,0.0,2.04,1.92,1.82,1.92,3.0,2.5,2.03,1.86,1.81,1.96,0-0,1-2
+2025-07-19,15:00,Czech Republic 2.Liga,FK MAS Taborsko,SK Prostejov,-0.75,-0.75,0.75,0.75,1.91,1.83,1.95,2.01,2.5,2.5,1.98,2.0,1.86,1.82,1-0,1-0
+2025-07-19,19:00,Bulgaria Premier League,Botev Plovdiv,CSKA Sofia,0.75,1.0,-0.75,-1.0,2.02,1.99,1.84,1.85,2.5,2.5,1.85,1.85,1.99,1.97,1-1,1-1
+2025-07-19,17:00,Bulgaria Premier League,Ludogorets Razgrad,Septemvri Sofia,-1.75,-2.0,1.75,2.0,1.9,2.01,1.94,1.83,3.0,3.0,1.97,1.99,1.85,1.83,1-0,5-0
+2025-07-19,18:00,Serbian Superliga,Crvena Zvezda,Habitpharm Javor,-2.75,-3.0,2.75,3.0,1.95,1.87,1.89,1.91,4.0,4.25,1.92,1.91,1.9,1.87,2-0,4-0
+2025-07-19,18:00,Serbian Superliga,Cukaricki Stankom,FK Napredak Krusevac,-0.75,-0.75,0.75,0.75,1.94,1.81,1.9,1.97,2.5,2.5,1.98,1.96,1.84,1.82,0-0,1-0
+2025-07-19,18:15,Slovenia 1.Liga,NK Olimpija Ljubljana,NK Mura 05,-1.75,-1.5,1.75,1.5,1.96,1.94,1.88,1.9,2.75,3.0,1.72,1.95,2.11,1.87,0-0,1-0
+2025-07-19,15:30,Slovenia 1.Liga,NK Primorje,Domzale,-0.25,0.0,0.25,0.0,1.88,1.8,1.96,2.04,2.75,2.75,2.01,2.01,1.81,1.81,0-1,3-2
+2025-07-19,17:00,Moldova Divizia Nationala,Dacia-Buiucani,FC Milsami,1.0,1.0,-1.0,-1.0,1.7,1.97,2.02,1.75,2.5,2.5,1.88,1.88,1.84,1.84,0-0,1-2
+2025-07-19,15:30,Romania Liga I,Universitaea Cluj,UTA Arad,-0.75,-0.5,0.75,0.5,1.8,1.81,2.11,2.03,2.5,2.25,1.91,1.83,1.97,1.99,0-1,1-1
+2025-07-19,18:30,Romania Liga I,Petrolul Ploiesti,FC Steaua Bucuresti,0.5,0.5,-0.5,-0.5,2.11,1.9,1.8,1.94,2.25,2.25,1.95,1.98,1.93,1.84,0-0,0-1
+2025-07-19,17:30,Israel Ligat Al Toto Cup,Maccabi Haifa,Beitar Jerusalem,0.25,0.0,-0.25,0.0,1.84,1.8,2.02,2.06,3.0,2.75,1.92,1.88,1.92,1.96,0-0,0-2
+2025-07-19,19:00,Primera Division de Paraguay,Clud Libertad,FC Nacional Asuncion,-0.5,-0.5,0.5,0.5,2.06,1.87,1.82,1.97,2.0,2.0,1.98,1.9,1.88,1.92,0-1,0-1
+2025-07-19,21:30,Primera Division de Paraguay,Olimpia Asuncion,Atletico Tembetary,-1.0,-1.0,1.0,1.0,1.8,2.05,2.08,1.79,2.5,2.5,2.04,2.0,1.82,1.82,2-1,3-1
+2025-07-19,16:00,Lithuania - 1.Division,FK Zalgiris Vilnius,Dziugas Telsiai,-1.0,-0.75,1.0,0.75,1.99,1.73,1.87,2.05,2.75,2.5,1.93,1.99,1.91,1.79,0-0,2-0
+2025-07-19,18:30,Argentina Primera B Metropolitana,Deportivo Merlo,CA Fenix Pilar,-1.0,-1.0,1.0,1.0,1.94,1.94,1.78,1.78,2.0,2.0,1.97,1.87,1.75,1.85,0-0,0-1
+2025-07-19,18:30,Argentina Primera B Metropolitana,Deportivo Armenio,Comunicaciones BsAs,-0.25,0.0,0.25,0.0,1.74,1.75,1.98,1.97,1.75,1.75,1.89,1.89,1.83,1.83,2-0,3-0
+2025-07-19,18:30,Argentina Primera B Metropolitana,Real Pilar,Argentino de Quilmes,-0.5,-0.5,0.5,0.5,1.82,1.83,1.9,1.89,2.0,1.75,1.89,1.72,1.83,2.0,0-0,1-0
+2025-07-19,22:00,Argentina Primera B Metropolitana,San Martin Burzaco,Liniers,-0.25,-0.25,0.25,0.25,1.98,1.97,1.74,1.75,1.75,2.0,1.79,1.88,1.93,1.84,0-0,0-0
+2025-07-19,18:30,Argentina Primera B Metropolitana,Sportivo Italiano,CA Brown Adrogue,0.0,-0.25,0.0,0.25,1.72,2.03,2.0,1.69,1.5,1.5,1.78,1.86,1.94,1.86,1-0,4-0
+2025-07-19,18:30,Argentina Primera B Metropolitana,UAI Urquiza,Argentino de Merlo,0.0,0.0,0.0,0.0,2.03,2.03,1.69,1.69,1.75,1.75,1.81,1.74,1.91,1.98,0-0,0-0
+2025-07-19,18:30,Argentina Primera B Metropolitana,Villa San Carlos,Villa Dalmine,0.0,-0.5,0.0,0.5,1.72,1.92,2.0,1.8,1.5,1.75,1.78,1.74,1.94,1.98,1-0,2-2
+2025-07-19,02:30,Central Premier League,Miramar Rangers,Upper Hutt City,-3.0,-3.0,3.0,3.0,1.97,1.89,1.75,1.83,4.5,4.5,1.87,1.92,1.85,1.8,2-0,4-2
+2025-07-19,02:30,Central Premier League,Waterside Karori,Western Suburbs,2.25,2.25,-2.25,-2.25,1.77,1.95,1.95,1.89,4.5,4.5,1.9,2.05,1.82,1.77,0-4,0-6
+2025-07-19,03:00,Northern New Zealand League,Auckland United,Tauranga City United,-1.0,-1.0,1.0,1.0,1.76,1.96,2.02,1.82,3.75,3.5,1.86,1.82,1.92,1.96,0-0,2-0
+2025-07-19,03:00,Northern New Zealand League,Auckland FC Reserves,Manurewa AFC,-0.5,-0.5,0.5,0.5,1.88,1.94,1.9,1.84,3.5,3.5,2.02,1.96,1.76,1.82,2-1,4-1
+2025-07-19,03:00,Northern New Zealand League,Eastern Suburbs AFC,East Coast Bays,-0.75,-0.75,0.75,0.75,1.92,1.97,1.86,1.81,3.25,3.25,1.93,1.97,1.85,1.81,1-0,1-1
+2025-07-19,03:00,Northern New Zealand League,Bay Olympic,Auckland City,0.5,0.5,-0.5,-0.5,2.0,1.94,1.78,1.84,3.0,3.0,1.76,1.8,2.02,1.98,1-0,1-0
+2025-07-19,02:45,New Zealand South Premier League,Ferrymead Bays,University of Canterbury,-2.25,-2.25,2.25,2.25,1.81,1.84,1.91,1.88,3.75,3.75,1.85,1.82,1.87,1.9,2-2,4-2
+2025-07-19,02:45,New Zealand South Premier League,Nomads,Cashmere Technical,0.75,0.75,-0.75,-0.75,2.0,1.87,1.72,1.85,3.0,3.0,1.8,1.87,1.92,1.85,0-2,2-3
+2025-07-19,01:10,Primera Division de Colombiano-Apertura,Deportes Tolima,Independiente Santa Fe,-0.25,-0.25,0.25,0.25,1.82,1.9,2.11,1.94,2.0,2.0,1.83,2.02,2.05,1.8,0-0,0-1
+2025-07-19,19:00,Primera Division de Colombiano-Apertura,Aguilas Doradas,Atletico Junior Barranquilla,-0.25,0.0,0.25,0.0,2.06,1.81,1.84,2.03,2.0,2.25,2.12,2.05,1.77,1.77,1-0,2-3
+2025-07-19,21:10,Primera Division de Colombiano-Apertura,Alianza Petrolera,Deportivo Pereira,-0.25,-0.25,0.25,0.25,1.85,1.79,2.07,2.05,2.0,2.25,2.01,1.85,1.87,1.97,1-0,1-0
+2025-07-19,23:20,Primera Division de Colombiano-Apertura,Atletico Nacional Medellin,La Equidad,-1.75,-2.0,1.75,2.0,2.01,1.83,1.91,2.01,2.75,3.25,2.06,1.99,1.82,1.83,2-0,3-1
+2025-07-19,00:00,Conmebol-Sudamericano Women,Argentina (W),Chile (W),-0.25,-0.25,0.25,0.25,1.82,1.76,2.02,1.96,2.25,2.25,1.88,1.86,1.94,1.86,0-1,2-1
+2025-07-19,21:00,Conmebol-Sudamericano Women,Venezuela  (W),Bolivia (W),-3.5,-3.5,3.5,3.5,1.91,1.86,1.81,1.86,4.5,4.25,1.96,1.93,1.76,1.79,3-1,7-1
+2025-07-19,13:00,Paraguayan Division 2,Sol de America,Independiente Luque,-0.25,-0.25,0.25,0.25,1.9,1.89,1.88,1.89,2.0,2.0,1.92,1.74,1.86,2.04,0-1,0-2
+2025-07-19,18:00,Paraguayan Division 2,12 de Junio VH,resistencia SC,-0.25,-0.5,0.25,0.5,1.95,1.93,1.83,1.85,2.25,2.5,2.01,1.82,1.77,1.96,1-2,2-2
+2025-07-19,16:00,Russian National Football League,Arsenal Tula,KAMAZ Naberezhnye Chelny,-0.5,-0.5,0.5,0.5,1.84,2.02,2.04,1.82,2.0,2.0,1.91,1.82,1.95,2.0,0-0,1-1
+2025-07-19,13:30,Russian National Football League,Shinnik Yaroslavl,Ural Sverdlovsk Oblast,0.5,0.5,-0.5,-0.5,1.9,1.81,1.98,2.03,2.25,2.25,2.02,2.02,1.84,1.8,0-1,0-1
+2025-07-19,13:00,Russian National Football League,FC Ufa,SKA Khabarovsk,-0.25,0.0,0.25,0.0,2.06,1.81,1.82,2.03,2.0,2.0,1.99,1.77,1.87,2.05,1-1,1-1
+2025-07-19,14:00,Russian National Football League,Volga Ulyanovsk,Rotor Volgograd,0.25,0.25,-0.25,-0.25,1.8,1.77,2.08,2.07,2.0,2.0,1.87,2.01,1.99,1.81,0-1,1-2
+2025-07-19,00:00,Peru Primera Division,Deportivo Garcilaso,Los Chankas,-0.5,-0.5,0.5,0.5,2.02,1.88,1.82,1.96,2.25,2.5,1.79,1.89,2.03,1.93,1-0,3-0
+2025-07-19,02:00,Peru Primera Division,Universitario De Deportes,Comerciantes Unidos,-2.75,-2.75,2.75,2.75,2.0,1.98,1.84,1.86,3.25,3.5,1.97,1.98,1.85,1.84,2-1,3-1
+2025-07-19,18:00,Peru Primera Division,UTC Cajamarca,FBC Melgar,0.75,0.5,-0.75,-0.5,1.98,1.99,1.92,1.85,2.25,2.25,1.94,1.91,1.94,1.91,0-1,1-2
+2025-07-19,20:15,Peru Primera Division,AD Tarma,Cienciano,-0.25,-0.25,0.25,0.25,1.98,1.96,1.86,1.88,2.75,2.75,2.02,1.98,1.8,1.84,0-0,1-0
+2025-07-19,23:00,Peru Primera Division,Cusco FC,Alianza Lima,-0.5,-0.5,0.5,0.5,1.97,2.04,1.93,1.8,2.25,2.25,2.02,1.87,1.86,1.95,0-0,2-0
+2025-07-19,11:00,Ireland FAI Cup,Cork City,Leicester Celtic,-3.75,-3.25,3.75,3.25,1.8,1.79,1.92,1.93,4.25,4.25,1.63,1.86,2.09,1.86,0-0,3-0
+2025-07-19,13:00,Ireland FAI Cup,Salthill Devon FC,Saint Michaels FC,-0.75,-0.75,0.75,0.75,1.81,1.95,1.91,1.77,3.0,3.0,1.87,1.85,1.85,1.87,1-0,1-0
+2025-07-19,14:00,Ireland FAI Cup,Bangor Celtic,Cobh Ramblers,1.5,1.75,-1.5,-1.75,1.82,1.86,1.9,1.86,3.0,3.0,1.79,1.76,1.93,1.96,0-0,0-2
+2025-07-19,17:00,Ireland FAI Cup,Fairview Rangers,Shelbourne,3.5,3.0,-3.5,-3.0,1.86,1.86,1.86,1.86,4.5,4.0,1.97,1.89,1.75,1.83,0-2,0-4
+2025-07-19,00:00,USA MLS Next Pro League,Huntsville City,Columbus Crew B,-1.25,-1.25,1.25,1.25,1.73,1.97,2.05,1.87,2.75,3.0,1.78,1.87,2.0,1.95,0-0,2-1
+2025-07-19,03:00,USA MLS Next Pro League,Portland Timbers Reserve,MINNESOTA United B,0.0,0.25,0.0,-0.25,1.96,1.81,1.82,2.03,3.25,3.0,1.93,1.92,1.85,1.9,1-1,1-1
+2025-07-19,00:30,USA MLS Next Pro League,Sporting Kansas City(R),North Texas SC,0.5,0.5,-0.5,-0.5,1.64,1.83,2.16,2.01,3.5,3.25,1.86,1.95,1.92,1.87,0-3,1-4
+2025-07-19,18:30,Republic of Ireland National League Women,Yalong City (W),Galway LFC (W),-0.5,-0.5,0.5,0.5,1.91,1.91,1.81,1.81,2.75,2.75,1.88,1.91,1.84,1.81,1-0,1-1
+2025-07-19,14:00,Republic of Ireland National League Women,Bohemians Dublin (W),Waterford United (W),-1.75,-1.25,1.75,1.25,1.84,1.91,1.88,1.81,3.25,3.0,1.81,1.91,1.91,1.81,1-0,1-0
+2025-07-19,14:00,Republic of Ireland National League Women,Sligo Rovers (W),Wexford Youths (W),1.5,1.0,-1.5,-1.0,1.62,1.96,2.11,1.76,2.75,2.5,1.87,1.82,1.85,1.9,0-1,0-3
+2025-07-19,16:00,Republic of Ireland National League Women,Cork City (W),FC Treaty United (W),0.75,0.75,-0.75,-0.75,1.76,1.91,1.96,1.81,3.0,3.0,1.84,1.91,1.88,1.81,0-1,1-3
+2025-07-19,16:00,Republic of Ireland National League Women,Peamount Utd (W),Shelbourne (W),1.5,1.75,-1.5,-1.75,1.73,1.86,1.99,1.86,3.0,3.0,1.9,1.86,1.82,1.86,1-1,1-4
+2025-07-19,16:00,Republic of Ireland National League Women,Shamrock Rovers (W),DLR Waves (W),-2.0,-2.0,2.0,2.0,1.81,1.81,1.91,1.91,3.25,3.25,1.81,1.81,1.91,1.91,0-1,0-1
+2025-07-19,23:00,USA MLS Next Pro League,Crown Legacy FC,Philadelphia Union II,0.5,0.5,-0.5,-0.5,1.98,1.83,1.8,2.01,3.0,3.0,1.78,1.86,2.0,1.96,0-2,0-4
+2025-07-19,23:00,USA MLS Next Pro League,Chattanooga,International Miami B,-1.0,-1.25,1.0,1.25,2.09,1.89,1.69,1.95,3.5,3.5,1.99,1.87,1.79,1.95,1-1,2-2
+2025-07-19,23:30,USA MLS Next Pro League,Carolina Core,Atlanta United FC II,-0.5,-0.75,0.5,0.75,1.96,2.01,1.82,1.83,3.0,3.25,1.99,1.95,1.79,1.87,1-0,1-1
+2025-07-19,19:00,Brazil Serie D,Ah so Santa SP,Nova Iguacu,-0.25,-0.25,0.25,0.25,1.92,1.76,1.8,1.96,2.0,2.0,1.8,1.8,1.92,1.92,1-0,2-1
+2025-07-19,19:00,Brazil Serie D,Boavista S.C.,Rio Branco-ES,0.0,0.0,0.0,0.0,2.0,1.76,1.72,1.96,2.25,2.25,1.97,1.97,1.75,1.75,0-0,0-2
+2025-07-19,18:00,Brazil Serie D,Cianorte PR,Itabirito,-0.75,-0.5,0.75,0.5,1.8,1.76,1.92,1.96,2.0,2.0,1.8,1.91,1.92,1.81,2-1,3-1
+2025-07-19,20:00,Brazil Serie D,Lagarto,Barcelona BA,-0.5,-0.75,0.5,0.75,1.92,1.76,1.8,1.96,2.0,2.0,1.81,1.76,1.91,1.96,2-0,2-0
+2025-07-19,18:00,Brazil Serie D,Santa Cruz RN,Ferroviario CE,0.0,0.0,0.0,0.0,1.81,1.92,1.91,1.8,2.0,2.0,1.78,1.78,1.94,1.94,1-1,1-2
+2025-07-19,20:00,Brazil Serie D,Uberlandia MG,Inter de Limeira,-0.5,-0.25,0.5,0.25,1.81,2.0,1.91,1.72,2.0,2.0,1.8,1.87,1.92,1.85,0-1,0-3
+2025-07-19,12:30,Georgia Cup,Samtredia,Dinamo Tbilisi,1.0,1.0,-1.0,-1.0,1.89,1.89,1.89,1.89,2.5,2.5,1.96,1.96,1.82,1.82,1-0,1-0
+2025-07-19,19:00,UEFA European Womens Championship,France (W),Germany (W),-0.25,-0.25,0.25,0.25,2.03,1.99,1.85,1.85,2.5,2.75,1.87,2.01,1.99,1.81,1-1,1-1
+2025-07-19,21:00,Brazil Serie D,Mixto EC,Aparecidense GO,0.25,0.25,-0.25,-0.25,1.64,1.71,2.08,2.01,2.25,2.25,1.86,1.86,1.86,1.86,0-0,0-0
+2025-07-19,05:00,FFSA SLR,Sturt Lions Reserves,Cumberland United Reserves,-1.0,-1.0,1.0,1.0,1.76,1.76,1.96,1.96,4.25,4.25,1.81,1.81,1.91,1.91,1-1,2-1
+2025-07-19,02:45,FFSA SLR,Adelaide Comets Reserve,Adelaide Raiders SC Reserve,-0.5,-0.5,0.5,0.5,1.71,1.91,2.01,1.81,3.0,3.0,1.89,1.89,1.83,1.83,1-0,2-1
+2025-07-19,06:30,Australia Darwin Premier League,Mindil Aces,Hellenic AC,0.25,0.25,-0.25,-0.25,2.0,1.94,1.84,1.9,3.5,3.5,1.85,1.85,1.97,1.97,0-2,0-2
+2025-07-19,10:30,Australia Darwin Premier League,Darwin Olympics,Casuarina FC,-1.0,-1.0,1.0,1.0,1.85,1.97,1.99,1.87,3.5,3.5,1.99,1.97,1.83,1.85,1-0,2-0
+2025-07-19,07:15,Australia New South Wales League 2,South Coast Flame FC,Hearst Neville,0.25,0.25,-0.25,-0.25,2.01,1.9,1.71,1.82,3.0,3.0,1.71,1.95,2.01,1.77,1-1,1-2
+2025-07-19,05:15,Australia Queensland State Womens Premier League,Brisbane City (W),Queensland Lions(W),-0.5,-0.5,0.5,0.5,1.8,1.8,1.92,1.92,4.0,4.0,2.08,1.91,1.64,1.81,2-1,3-2
+2025-07-19,05:00,International Club Friendly,Wellington Phoenix,Wrexham,2.25,2.25,-2.25,-2.25,1.84,1.92,2.0,1.92,3.25,3.25,1.87,1.88,1.95,1.94,0-0,1-0
+2025-07-19,09:30,International Club Friendly,Helsingor,Fremad Amager,0.0,0.0,0.0,0.0,1.82,2.02,2.02,1.82,2.75,2.75,1.82,1.82,2.0,2.0,2-1,2-1
+2025-07-19,10:00,International Club Friendly,Swansea City,Stevenage Borough,0.0,-0.25,0.0,0.25,2.04,1.91,1.8,1.93,2.5,2.5,1.86,1.83,1.96,1.99,2-2,3-2
+2025-07-19,12:00,International Club Friendly,Luzern,FC Rapperswil-Jona,-1.75,-1.75,1.75,1.75,2.0,1.93,1.84,1.91,3.5,3.5,1.94,1.94,1.88,1.88,1-0,3-0
+2025-07-19,12:00,International Club Friendly,NAC Breda,Olympiakos Piraeus,0.5,0.75,-0.5,-0.75,1.89,1.91,1.95,1.93,3.0,3.0,1.96,1.82,1.86,2.0,0-3,2-3
+2025-07-19,12:00,International Club Friendly,Bradford Park Avenue,Folkestone,0.75,0.25,-0.75,-0.25,1.85,1.74,1.87,1.98,3.0,3.0,1.77,1.77,1.95,1.95,0-0,0-2
+2025-07-19,13:30,International Club Friendly,Caernarfon,Aberystwyth Town,-0.75,-1.5,0.75,1.5,1.87,1.77,1.85,1.95,3.5,3.75,1.88,1.92,1.84,1.8,3-0,7-0
+2025-07-19,14:30,International Club Friendly,Thun,Aarau,-1.0,-1.0,1.0,1.0,1.81,1.81,1.91,1.91,3.0,3.0,1.76,1.71,1.96,2.01,1-1,4-1
+2025-07-19,14:00,International Club Friendly,Accrington Stanley,Wigan Athletic,0.75,0.5,-0.75,-0.5,1.94,1.8,1.78,1.92,2.5,2.5,1.97,1.97,1.75,1.75,1-0,2-4
+2025-07-19,14:00,International Club Friendly,Hitchin Town,Real Bedford,0.5,0.5,-0.5,-0.5,1.94,1.79,1.78,1.93,3.5,3.5,2.01,1.93,1.71,1.79,0-1,0-1
+2025-07-19,14:00,International Club Friendly,Macclesfield Town,Halifax Town,-0.25,0.0,0.25,0.0,1.67,1.86,2.05,1.86,2.75,2.75,1.95,1.95,1.77,1.77,0-0,0-1
+2025-07-19,15:00,International Club Friendly,Tatran Presov,Kisvarda FC,0.25,0.25,-0.25,-0.25,2.06,1.8,1.66,1.92,2.75,2.75,1.81,1.81,1.91,1.91,0-1,1-2
+2025-07-19,16:00,International Club Friendly,FSV Frankfurt,Eintracht Frankfurt,3.5,3.75,-3.5,-3.75,1.76,1.91,1.96,1.81,5.0,5.0,2.01,1.81,1.71,1.91,1-2,2-3
+2025-07-19,16:00,International Club Friendly,Diosgyor VTK,FK Kosice,-0.25,-0.25,0.25,0.25,1.86,1.86,1.86,1.86,2.75,2.75,1.85,1.79,1.87,1.93,1-0,1-1
+2025-07-19,16:30,International Club Friendly,Racing Genk,Rayo Vallecano,-0.5,-0.25,0.5,0.25,1.76,1.96,2.08,1.88,2.5,2.5,1.88,1.83,1.94,1.99,0-0,1-1
+2025-07-19,16:30,International Club Friendly,ZalaegerzsegTE,Leicester City,1.25,1.25,-1.25,-1.25,1.56,2.02,2.38,1.82,3.0,3.0,2.01,1.96,1.81,1.86,0-0,0-1
+2025-07-19,17:00,International Club Friendly,Westerlo,Samsunspor,-0.5,-0.75,0.5,0.75,1.91,2.01,1.93,1.83,3.0,3.0,1.96,1.91,1.86,1.91,1-1,3-1
+2025-07-19,17:00,International Club Friendly,Granada CF,Orlando Pirates,-0.5,-0.5,0.5,0.5,1.86,1.96,1.98,1.88,2.5,2.5,2.13,2.02,1.7,1.8,0-0,0-2
+2025-07-19,14:00,International Club Friendly,Sturm Graz,Hamburger SV,-0.25,-0.25,0.25,0.25,1.99,1.93,1.85,1.91,3.0,3.0,2.02,2.02,1.8,1.8,2-0,2-1
+2025-07-19,13:00,International Club Friendly,Almere City FC,Umm Salal,-1.5,-1.5,1.5,1.5,1.73,1.81,1.99,1.91,3.5,3.5,2.04,1.96,1.68,1.76,2-2,5-2
+2025-07-19,13:30,International Club Friendly,Kickers Emden,Werder Bremen,1.75,1.75,-1.75,-1.75,1.71,1.94,2.14,1.9,3.75,3.75,2.12,1.91,1.71,1.91,1-1,1-3
+2025-07-19,19:00,International Club Friendly,Sporting Braga,Celta Vigo,-0.75,-0.75,0.75,0.75,2.01,2.0,1.83,1.84,3.0,3.0,1.91,2.0,1.91,1.82,2-0,3-1
+2025-07-19,18:30,International Club Friendly,Lugano,Pro Vercelli,-1.5,-1.75,1.5,1.75,2.29,2.0,1.61,1.84,3.25,3.25,1.95,1.95,1.87,1.87,1-0,2-0
+2025-07-19,18:00,International Club Friendly,Athletic Bilbao,Ponferradina,-4.0,-4.0,4.0,4.0,2.01,1.81,1.71,2.03,5.0,5.0,1.93,1.83,1.79,1.99,1-0,1-0
+2025-07-19,17:00,International Club Friendly,Dinamo Zagreb,Kryvbas,-1.25,-1.0,1.25,1.0,1.8,1.9,1.92,1.82,3.0,3.0,1.95,1.97,1.77,1.75,2-1,5-1
+2025-07-19,10:00,International Club Friendly,Volendam,Norwich City,0.0,0.5,0.0,-0.5,2.09,1.9,1.75,1.94,3.25,3.25,2.01,2.01,1.81,1.81,0-0,1-1
+2025-07-19,11:00,International Club Friendly,FC Liefering,Unterhaching,-0.25,-0.25,0.25,0.25,1.94,1.94,1.78,1.78,3.25,3.25,1.81,1.89,1.91,1.83,2-1,2-3
+2025-07-19,12:00,International Club Friendly,Schalke 04,FC Twente Enschede,0.5,0.25,-0.5,-0.25,1.8,1.85,2.04,1.99,3.0,3.0,1.96,1.94,1.86,1.88,0-0,0-0
+2025-07-19,10:00,International Club Friendly,HNK Gorica,Charlton Athletic,0.0,0.5,0.0,-0.5,2.06,1.97,1.78,1.87,2.25,2.5,1.8,2.01,2.02,1.81,0-0,0-2
+2025-07-19,09:30,International Club Friendly,Racing Santander,Eibar,-0.5,-0.25,0.5,0.25,1.84,2.04,2.0,1.8,2.5,2.5,1.93,1.93,1.89,1.89,1-0,2-0
+2025-07-19,11:00,International Club Friendly,Feyenoord,KAA Gent,-0.75,-0.75,0.75,0.75,1.85,1.85,1.99,1.99,3.25,3.25,1.9,1.9,1.92,1.92,1-1,1-2
+2025-07-19,11:00,International Club Friendly,Lichtenberg 47,Berliner FC Dynamo,1.0,1.0,-1.0,-1.0,1.97,1.89,1.75,1.83,3.5,3.5,2.04,1.88,1.68,1.84,1-1,2-2
+2025-07-19,14:00,International Club Friendly,Hansa Rostock,Aston Villa,1.0,1.25,-1.0,-1.25,1.71,2.0,2.14,1.84,3.5,3.5,1.9,1.84,1.92,1.98,0-1,3-1
+2025-07-19,15:00,International Club Friendly,Torino,Ingolstadt,-1.0,-1.0,1.0,1.0,2.08,1.92,1.76,1.92,3.0,3.0,2.02,1.97,1.8,1.85,0-1,1-1
+2025-07-19,15:30,International Club Friendly,Nantes,Guingamp,-0.5,-0.5,0.5,0.5,2.03,2.01,1.81,1.83,2.5,2.5,1.96,1.89,1.86,1.93,1-1,1-2
+2025-07-19,16:00,International Club Friendly,FC Blau Weiss Linz,Ipswich Town,0.5,0.25,-0.5,-0.25,2.03,2.02,1.81,1.82,2.5,2.5,1.88,1.83,1.94,1.99,1-2,1-4
+2025-07-19,17:00,International Club Friendly,CF Peralada,RCD Espanyol,2.5,2.5,-2.5,-2.5,2.07,1.97,1.77,1.87,4.0,4.0,2.12,2.01,1.71,1.81,1-1,1-4
+2025-07-19,17:00,International Club Friendly,SD Tarazona,SD Huesca,1.25,1.25,-1.25,-1.25,1.76,1.95,2.08,1.89,2.5,2.5,2.08,2.03,1.74,1.79,0-0,0-1
+2025-07-19,18:00,International Club Friendly,Valencia,Castellon,-0.5,-0.5,0.5,0.5,2.07,2.03,1.77,1.81,2.75,2.75,1.76,1.91,2.06,1.91,0-2,1-2
+2025-07-19,16:00,International Club Friendly,Patro Eisden,Alemannia Aachen,0.5,0.5,-0.5,-0.5,1.86,1.86,1.86,1.86,3.0,3.0,1.9,1.82,1.82,1.9,2-0,4-0
+2025-07-19,16:00,International Club Friendly,Grazer AK,Kapfenberg,-1.25,-1.25,1.25,1.25,1.81,1.96,2.03,1.88,2.5,2.5,1.61,1.84,2.26,1.98,0-0,2-0
+2025-07-19,16:00,International Club Friendly,Trencin,MSK Puchov,-1.25,-1.0,1.25,1.0,1.79,2.01,2.05,1.83,3.0,3.0,1.71,1.86,2.12,1.96,0-0,0-0
+2025-07-19,11:00,International Club Friendly,Greuther Furth,SV Waldhof Mannheim,-0.75,-0.5,0.75,0.5,1.86,1.97,1.98,1.87,3.25,3.0,1.84,1.96,1.98,1.86,3-1,4-1
+2025-07-19,13:10,International Club Friendly,Manchester United,Leeds United,-0.75,-0.75,0.75,0.75,2.14,1.91,1.71,1.93,3.0,3.0,2.06,1.81,1.76,2.01,0-0,0-0
+2025-07-19,07:00,Australia Northern NSW Women’s Premier League,Lake Macquarie (W),New Lambton FC (W),0.75,0.75,-0.75,-0.75,1.88,1.85,1.84,1.87,3.75,3.75,1.78,1.86,1.94,1.86,0-3,0-3
+2025-07-19,05:00,Australia Brisbane Capital League 2,Canberra Juventus,Brindabella Blues FC,-0.5,-0.5,0.5,0.5,1.69,1.87,2.03,1.85,3.5,3.5,1.81,1.81,1.91,1.91,0-1,0-3
+2025-07-19,05:00,Australia Brisbane Capital League 2,West Canberra Wanderers,Wagga City Wanderers,1.25,1.25,-1.25,-1.25,1.7,1.76,2.02,1.96,4.0,4.0,1.81,1.86,1.91,1.86,1-2,5-3
+2025-07-19,02:30,Australia Capital Territory U23 League,OConnor Knights U23,Yoogali SC U23,-1.0,-1.0,1.0,1.0,1.85,1.91,1.87,1.81,3.25,3.25,1.79,1.84,1.93,1.88,2-0,3-0
+2025-07-19,05:00,Australia Victoria PL 1 U23,Brunswick City U23,Manningham United Blues U23,1.0,0.75,-1.0,-0.75,1.78,1.91,1.94,1.81,4.5,4.5,1.86,1.91,1.86,1.81,0-3,0-4
+2025-07-19,02:30,Australia Capital Territory U23 League,Cooma Tigers U23,Queanbeyan City U23,-2.5,-2.5,2.5,2.5,1.73,1.79,1.99,1.93,4.0,4.0,1.79,1.87,1.93,1.85,0-2,1-4
+2025-07-19,16:00,African Cup of Nations for Women,Algeria (W),Ghana (W),0.5,0.25,-0.5,-0.25,1.93,2.01,1.91,1.83,2.0,2.0,1.88,1.96,1.94,1.86,0-0,0-0
+2025-07-19,19:00,African Cup of Nations for Women,South Africa (W),Senegal (W),-1.0,-1.0,1.0,1.0,2.13,2.04,1.72,1.8,2.25,2.5,2.03,1.91,1.79,1.91,0-0,0-0
+2025-07-19,02:00,Nicaragua Apertura league,Diriangen,Rancho Santana FC,-2.0,-2.0,2.0,2.0,1.93,1.93,1.79,1.79,3.5,3.5,1.91,1.91,1.81,1.81,2-0,6-0
+2025-07-19,07:00,OFC Nations Cup Women,Papua New Guinea (W),Solomon Islands (W),-1.0,-1.0,1.0,1.0,1.82,1.86,1.9,1.86,2.75,2.75,1.78,1.81,1.94,1.91,1-2,2-2
+2025-07-19,09:00,International Club Friendly,Oud Heverlee,Seraing United,-1.0,-1.25,1.0,1.25,1.93,1.97,1.91,1.87,2.75,2.75,2.06,1.85,1.76,1.97,1-1,2-1
+2025-07-19,12:30,International Club Friendly,Eintracht Braunschweig,Holstein Kiel,0.75,0.5,-0.75,-0.5,2.03,2.01,1.81,1.83,3.25,3.25,1.91,1.96,1.91,1.86,0-0,1-4
+2025-07-19,11:00,International Club Friendly,Buriram United,BG Pathum United,-1.0,-1.0,1.0,1.0,1.7,1.86,2.02,1.86,3.25,3.25,1.77,1.78,1.95,1.94,1-1,2-1
+2025-07-19,13:00,International Club Friendly,Caen,Angers,0.5,0.5,-0.5,-0.5,1.94,1.94,1.9,1.9,2.5,2.5,1.95,1.9,1.87,1.92,0-1,0-1
+2025-07-19,13:00,International Club Friendly,Hannover 96,SC Paderborn 07,0.0,0.0,0.0,0.0,1.85,1.85,1.99,1.99,3.75,4.25,1.97,1.96,1.85,1.86,2-1,2-3
+2025-07-19,13:00,International Club Friendly,Grasshopper,West Ham United,1.25,1.25,-1.25,-1.25,2.01,1.81,1.83,2.03,2.75,2.75,1.86,1.86,1.96,1.96,0-1,1-3
+2025-07-19,14:00,International Club Friendly,Mansfield Town,Middlesbrough,1.0,0.75,-1.0,-0.75,1.91,2.02,1.93,1.82,2.75,2.75,2.0,2.0,1.82,1.82,0-3,3-3
+2025-07-19,13:00,International Club Friendly,FC United of Manchester,Exeter City,2.0,2.0,-2.0,-2.0,1.86,1.86,1.86,1.86,3.5,3.5,2.03,1.95,1.69,1.77,0-2,1-4
+2025-07-19,13:00,International Club Friendly,Dundee United,Oldham Athletic,-0.5,-0.5,0.5,0.5,1.95,1.91,1.89,1.93,2.75,2.75,1.86,1.81,1.96,2.01,0-0,0-0
+2025-07-19,13:00,International Club Friendly,Hibernian,Bolton Wanderers,-0.25,-0.25,0.25,0.25,1.81,1.99,2.03,1.85,2.75,2.75,1.98,1.98,1.84,1.84,0-0,0-2
+2025-07-19,13:40,International Club Friendly,TSG Hoffenheim,SV Elversberg,0.0,-0.25,0.0,0.25,1.83,2.01,2.01,1.83,3.0,3.0,1.71,1.86,2.12,1.96,2-1,5-2
+2025-07-19,14:00,International Club Friendly,Birmingham City,Burton Albion,-0.75,-0.75,0.75,0.75,2.01,2.01,1.83,1.83,2.75,2.75,2.01,2.01,1.81,1.81,0-1,0-1
+2025-07-19,14:00,International Club Friendly,Shrewsbury Town,Kidderminster Harriers,-0.5,-0.5,0.5,0.5,1.78,1.91,1.94,1.81,2.25,2.25,1.83,1.77,1.89,1.95,1-0,3-0
+2025-07-19,14:00,International Club Friendly,Metz,Red Star FC 93,-0.75,-0.75,0.75,0.75,1.75,1.85,2.09,1.99,2.75,2.75,1.88,1.88,1.94,1.94,2-0,4-0
+2025-07-19,14:00,International Club Friendly,Reading,Tottenham Hotspur,1.5,1.25,-1.5,-1.25,2.2,1.93,1.67,1.91,3.25,3.25,1.76,1.96,2.06,1.86,0-0,0-2
+2025-07-19,14:00,International Club Friendly,Nottingham Forest,Monaco,0.25,0.25,-0.25,-0.25,1.94,1.92,1.9,1.92,2.75,2.75,1.82,1.82,2.0,2.0,0-0,0-0
+2025-07-19,14:00,International Club Friendly,Celtic FC,Newcastle United,0.5,0.75,-0.5,-0.75,1.71,1.83,2.14,2.01,3.25,3.25,1.94,1.88,1.88,1.94,2-0,4-0
+2025-07-19,14:30,International Club Friendly,AZ Alkmaar,NK Lokomotiva Zagreb,-1.5,-1.5,1.5,1.5,2.12,2.01,1.73,1.83,3.0,3.0,1.96,1.96,1.86,1.86,1-1,2-1
+2025-07-19,16:00,International Club Friendly,SV Austria Salzburg,Borussia Dortmund (Youth),1.0,0.75,-1.0,-0.75,1.8,1.9,1.92,1.82,3.0,3.0,1.82,1.77,1.9,1.95,1-1,1-2
+2025-07-19,15:00,International Club Friendly,Wolfsberger AC,Istra 1961 Pula,-0.5,-0.5,0.5,0.5,1.71,1.92,2.14,1.92,2.5,2.5,1.95,1.95,1.87,1.87,1-0,1-0
+2025-07-19,16:00,International Club Friendly,Lorient,Osasuna,0.25,0.0,-0.25,0.0,1.97,1.83,1.87,2.01,2.5,2.5,1.81,1.81,2.01,2.01,0-0,1-1
+2025-07-19,16:00,International Club Friendly,MFK Skalica,Zlate Moravce,-0.75,-0.5,0.75,0.5,1.97,1.83,1.75,1.89,2.5,2.5,1.79,1.79,1.93,1.93,0-1,1-2
+2025-07-19,16:30,International Club Friendly,Royal Antwerp,Willem II,-0.75,-0.5,0.75,0.5,1.73,1.91,2.12,1.93,2.75,2.75,1.91,1.96,1.91,1.86,0-0,2-0
+2025-07-19,17:30,International Club Friendly,UE Olot,Girona,1.25,1.5,-1.25,-1.5,1.81,1.99,2.03,1.85,3.25,3.25,2.12,1.99,1.71,1.83,0-3,0-5
+2025-07-19,18:00,International Club Friendly,AD Alcorcon,Harborough Town,-2.75,-2.75,2.75,2.75,1.8,1.91,1.92,1.81,3.5,3.5,1.91,1.91,1.81,1.81,0-0,0-1
+2025-07-19,19:00,International Club Friendly,Sevilla,Sunderland A.F.C,-0.25,-0.25,0.25,0.25,2.03,1.94,1.81,1.9,2.5,2.5,1.89,1.89,1.93,1.93,0-1,1-1
+2025-07-19,12:00,International Club Friendly,Bulle,Yverdon,1.75,1.75,-1.75,-1.75,1.76,1.76,1.96,1.96,3.0,3.0,2.01,1.93,1.71,1.79,0-1,1-1
+2025-07-19,12:00,International Club Friendly,Gainsborough Trinity,Scunthorpe United,1.25,1.25,-1.25,-1.25,1.81,1.81,1.91,1.91,3.5,3.5,2.03,1.95,1.69,1.77,0-0,1-0
+2025-07-19,05:00,Australia Western Australia U23 League,Perth SC U23,Perth RedStar FC U23,0.0,0.0,0.0,0.0,1.77,1.77,1.95,1.95,3.25,3.25,1.86,1.86,1.86,1.86,1-2,1-4
+2025-07-19,05:00,Australia Western Australia U23 League,Olympic Kingsway U23,Armadale U23,-1.5,-1.5,1.5,1.5,1.78,1.78,1.94,1.94,4.0,4.0,1.84,1.87,1.88,1.85,3-0,3-0
+2025-07-19,05:00,Australia Western Australia U23 League,Balcatta U23,Bayswater City U23,0.25,0.25,-0.25,-0.25,1.86,1.86,1.86,1.86,3.25,3.25,1.76,1.86,1.96,1.86,1-1,1-2
+2025-07-19,05:00,Australia Western Australia U23 League,Fremantle City FC U23,Floreat Athena U23,-1.25,-1.25,1.25,1.25,1.96,1.93,1.76,1.79,3.75,3.75,1.81,1.81,1.91,1.91,0-1,1-1
+2025-07-19,00:00,Primera Division de Venezuela,Academia Anzoategui,Caracas FC,0.25,0.5,-0.25,-0.5,1.98,1.91,1.74,1.81,2.25,2.25,1.85,1.88,1.87,1.84,0-1,0-1
+2025-07-19,21:00,Primera Division de Venezuela,Universidad Central de Venezuela,Deportivo Tachira,0.25,0.5,-0.25,-0.5,1.7,1.86,2.02,1.86,2.25,2.0,1.9,1.77,1.82,1.95,1-0,1-2
+2025-07-19,22:20,Primera Division de Venezuela,Carabobo FC,Academia Puerto Cabello,-0.25,-0.25,0.25,0.25,1.66,1.78,2.06,1.94,2.0,2.0,1.76,1.77,1.96,1.95,2-0,2-0
+2025-07-19,23:10,Primera Division de Venezuela,Monagas SC,Estudiantes Merida FC,-0.5,-0.25,0.5,0.25,1.89,2.0,1.83,1.72,2.75,2.5,1.85,1.96,1.87,1.76,0-0,1-0
+2025-07-19,04:45,Australia Queensland State Womens Premier League,Moreton City Excelsior (W),Dare southwest Queensland (W),-0.25,-0.5,0.25,0.5,1.96,1.88,1.76,1.84,3.75,3.75,1.86,1.86,1.86,1.86,3-0,3-2
+2025-07-19,05:00,Australia NPL Queensland U23,Broadbeach United U23,Brisbane Strikers U23,0.75,0.75,-0.75,-0.75,1.91,1.91,1.81,1.81,3.5,3.5,1.86,1.86,1.86,1.86,0-2,1-5
+2025-07-19,13:00,Iceland 4 Deild,KH Hlidarendi,KFS Vestmannaeyjar,-2.75,-2.5,2.75,2.5,1.88,1.81,1.96,1.91,4.75,4.5,1.92,1.93,1.9,1.79,4-0,5-1
+2025-07-19,17:00,International Club Friendly,Atromitos Athens,Asteras Tripolis,0.0,0.0,0.0,0.0,1.77,1.77,2.07,2.07,2.25,2.25,2.01,1.96,1.81,1.86,0-0,0-0
+2025-07-19,14:00,International Club Friendly,AFC Fylde,Carlisle United,0.75,0.75,-0.75,-0.75,1.82,1.82,1.9,1.9,3.0,3.0,2.05,1.97,1.67,1.75,0-2,0-2
+2025-07-19,14:00,International Club Friendly,Blackburn Rovers,Everton,0.25,0.25,-0.25,-0.25,2.08,1.91,1.76,1.93,2.5,2.5,2.01,1.91,1.81,1.91,1-0,1-0
+2025-07-19,14:00,International Club Friendly,Blackpool,West Bromwich(WBA),0.25,0.25,-0.25,-0.25,1.97,1.93,1.87,1.91,2.5,2.5,1.86,1.81,1.96,2.01,2-1,2-1
+2025-07-19,14:00,International Club Friendly,Chelmsford City,Brackley Town,0.5,0.5,-0.5,-0.5,1.76,1.76,1.96,1.96,2.5,2.5,1.94,1.86,1.78,1.86,0-0,2-3
+2025-07-19,14:00,International Club Friendly,Chester FC,Salford City,0.5,0.5,-0.5,-0.5,1.82,1.82,1.9,1.9,2.5,2.5,1.94,1.86,1.78,1.86,0-2,0-3
+2025-07-19,14:00,International Club Friendly,Chippenham Town,Swindon Town,1.5,1.5,-1.5,-1.5,1.91,1.83,1.81,1.89,3.25,3.25,2.05,1.97,1.67,1.75,0-4,1-5
+2025-07-19,14:00,International Club Friendly,Dordrecht,Excelsior SBV,0.25,0.25,-0.25,-0.25,1.93,1.87,1.91,1.97,3.25,3.25,2.01,1.96,1.81,1.86,1-1,2-2
+2025-07-19,14:00,International Club Friendly,Gloucester City,Barry Town United,0.0,0.0,0.0,0.0,1.82,1.82,1.9,1.9,3.0,3.0,1.99,1.91,1.73,1.81,0-0,1-2
+2025-07-19,14:00,International Club Friendly,Harrogate Town,Barnsley,0.0,0.25,0.0,-0.25,1.89,1.93,1.83,1.79,2.5,2.5,1.84,1.84,1.88,1.88,0-2,0-3
+2025-07-19,14:00,International Club Friendly,Leatherhead,Tonbridge Angels,1.25,1.25,-1.25,-1.25,1.77,1.77,1.95,1.95,3.25,3.25,2.05,1.97,1.67,1.75,1-2,2-2
+2025-07-19,14:00,International Club Friendly,Marine,Morecambe,0.5,0.5,-0.5,-0.5,1.78,1.78,1.94,1.94,2.5,2.5,1.97,1.97,1.75,1.75,1-0,1-1
+2025-07-19,14:00,International Club Friendly,Sudbury,Braintree Town,1.25,1.25,-1.25,-1.25,1.84,1.84,1.88,1.88,3.25,3.25,1.85,1.85,1.87,1.87,0-3,0-3
+2025-07-19,09:00,International Club Friendly,Sturm Graz,ASK Voitsberg,-0.75,-0.75,0.75,0.75,1.86,1.82,1.98,2.02,3.0,3.25,1.97,2.01,1.85,1.81,0-0,3-0
+2025-07-19,16:00,International Club Friendly,Basel,Villarreal,0.0,0.0,0.0,0.0,1.74,1.89,2.11,1.95,3.25,3.25,2.06,1.91,1.76,1.91,2-2,3-3
+2025-07-19,17:00,International Club Friendly,Zulte-Waregem,Norwich City,0.0,0.0,0.0,0.0,2.03,2.03,1.81,1.81,3.0,3.0,1.96,1.91,1.86,1.91,0-1,1-1
+2025-07-19,08:30,International Club Friendly,Tatran LM,Sport Podbrezova,0.75,0.75,-0.75,-0.75,1.84,1.91,1.88,1.87,2.75,2.75,1.84,1.9,1.88,1.88,0-1,0-2
+2025-07-19,13:30,International Club Friendly,SSV Ulm 1846,FC Zurich,0.5,0.5,-0.5,-0.5,1.91,1.93,1.93,1.91,2.75,2.75,1.86,1.81,1.96,2.01,1-0,3-0
+2025-07-19,13:30,International Club Friendly,LASK Linz,Union Berlin,0.25,-0.25,-0.25,0.25,2.14,1.9,1.71,1.94,2.5,2.5,1.9,1.88,1.92,1.94,0-1,0-2
+2025-07-19,15:00,International Club Friendly,Floridsdorfer AC,FC Magna Wiener Neustadt,-0.75,-1.0,0.75,1.0,2.02,1.78,1.7,1.94,3.0,3.0,1.89,1.79,1.83,1.93,3-0,3-1
+2025-07-19,14:00,International Club Friendly,Boston United,Peterborough United,1.0,1.0,-1.0,-1.0,1.85,1.85,1.87,1.87,3.0,3.0,1.86,1.78,1.86,1.94,0-1,0-1
+2025-07-19,03:00,Australia Victoria PL 1 U23,Langwarrin U23,Melbourne City U23,0.75,0.5,-0.75,-0.5,2.23,1.88,1.53,1.84,3.5,3.5,1.77,1.88,1.95,1.84,0-0,1-2
+2025-07-19,09:00,Japan Regional League,Nankatsu SC,Joyful Honda Tsukuba,-0.75,-0.75,0.75,0.75,1.87,1.93,1.85,1.79,3.0,3.0,1.75,1.8,1.97,1.92,3-3,4-3
+2025-07-19,09:00,Japan Regional League,VONDS Ichihara,Ryutsu Keizai University,-1.5,-2.0,1.5,2.0,1.96,1.91,1.76,1.81,2.75,3.25,1.96,1.93,1.76,1.79,0-0,0-0
+2025-07-19,09:00,Japan Regional League,Mitsubishi Motors Mizushima,Baleine Shimonoseki,0.25,0.0,-0.25,0.0,1.97,1.95,1.75,1.77,2.75,2.75,1.91,1.87,1.81,1.85,1-0,1-2
+2025-07-19,12:30,International Club Friendly,Persebaya Surabaya,PSS Sleman,-1.25,-1.25,1.25,1.25,1.8,1.81,1.92,1.91,2.5,2.5,1.73,1.79,1.99,1.93,0-0,1-0
+2025-07-19,15:00,International Club Friendly,Goztepe,HNK Vukovar 91,-0.75,-0.75,0.75,0.75,1.82,1.82,2.02,2.02,2.75,2.75,1.89,1.89,1.93,1.93,1-2,2-2
+2025-07-19,16:00,International Club Friendly,ACD Virtus Entella,Livorno,-1.75,-1.75,1.75,1.75,2.05,1.93,1.79,1.91,2.75,2.75,1.86,1.86,1.96,1.96,3-0,4-1
+2025-07-19,16:00,International Club Friendly,Wiener Viktoria,SV Donau,-0.25,-0.75,0.25,0.75,1.92,1.79,1.8,1.93,3.5,3.5,1.91,1.91,1.81,1.81,1-0,2-1
+2025-07-19,14:30,Ireland U20 League,Finn Harps U20,Drogheda United U20,-0.25,-0.25,0.25,0.25,1.79,1.75,1.93,1.97,2.5,2.5,2.0,1.91,1.72,1.81,1-1,1-1
+2025-07-19,13:00,Ireland U20 League,UCD U20,Cork city U20,-0.25,-0.25,0.25,0.25,1.72,1.91,2.0,1.81,3.0,3.0,1.91,1.91,1.81,1.81,2-1,2-1
+2025-07-19,11:00,Ireland U20 League,Dundalk U20,Bray Wanderers U20,-0.5,-0.5,0.5,0.5,1.91,1.91,1.81,1.81,2.75,2.75,1.91,1.91,1.81,1.81,3-0,5-1
+2025-07-19,14:00,International Club Friendly,Rugby Town,Alvechurch,1.0,1.0,-1.0,-1.0,1.87,1.87,1.85,1.85,3.0,3.0,1.87,1.77,1.85,1.95,1-1,1-1
+2025-07-19,14:00,International Club Friendly,South Shields,Shildon,-0.5,-0.75,0.5,0.75,1.93,1.79,1.79,1.93,3.0,3.0,2.01,1.97,1.71,1.75,0-0,1-1
+2025-07-19,14:00,International Club Friendly,Rotherham United,Sheffield United,0.25,0.5,-0.25,-0.5,1.84,2.03,2.0,1.81,2.5,2.5,1.98,1.93,1.84,1.89,0-1,0-5
+2025-07-19,15:00,International Club Friendly,Huracan (W),Racing Club (W),0.0,0.25,0.0,-0.25,1.71,1.91,2.01,1.81,2.5,2.75,1.93,1.85,1.79,1.87,0-0,1-1
+2025-07-19,15:30,International Club Friendly,Ethnikos Achnas FC,Akritas Chloraka,-0.75,-0.75,0.75,0.75,1.94,1.76,1.78,1.96,3.0,2.75,1.85,1.78,1.87,1.94,2-1,2-3
+2025-07-19,05:30,Australia SA Premier League Women Reserves,West Torrens Birkalla Reserves (W),Salisbury Inter Reserves (W),-1.5,-1.5,1.5,1.5,1.71,1.91,2.01,1.81,4.25,4.25,1.91,1.91,1.81,1.81,0-0,0-0
