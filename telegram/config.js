@@ -1,10 +1,6 @@
 // ── HalvestAH Telegram Notifier — configuration ───────────────────────────────
 // Values are read from environment variables first (for Railway/cloud),
 // then fall back to the hardcoded defaults below (for local use).
-//
-// To run locally without env vars: just edit the defaults here.
-// To deploy on Railway: set the env vars in the Railway dashboard and leave
-// the defaults as-is (they are never sent to Railway).
 
 module.exports = {
   // ── Telegram credentials ─────────────────────────────────────────────────────
@@ -12,46 +8,37 @@ module.exports = {
   TELEGRAM_CHAT_ID: process.env.TELEGRAM_CHAT_ID || '569463264',
 
   // ── Data source ──────────────────────────────────────────────────────────────
-  // DATA_URL: base URL of your deployed Cloudflare Pages site.
-  //   Set this env var on Railway so the notifier fetches CSVs over HTTP.
-  //   Example: https://halvest-ah.pages.dev
-  //   Leave null to use the local DATA_DIR path instead (default for local runs).
   DATA_URL: process.env.DATA_URL || null,
- 
-
-  // Local CSV folder — used when DATA_URL is null (relative to this file)
   DATA_DIR: process.env.DATA_DIR || '../static/data',
 
-  // ── Signal filters (mirrors the Basic mode toggles in the web app) ──────────
-  LINE_MOVE_ON:  true,   // AH line move (DEEPER / STABLE / SHRANK)
-  TL_MOVE_ON:    true,   // TL move (UP / STABLE / DOWN)
-  FAV_ODDS_ON:   false,  // Fav odds move (STEAM / STABLE / DRIFT)
-  DOG_ODDS_ON:   false,  // Dog odds move
+  // ── Baseline filters (AH line + AH closing odds ±tol + TL closing) ──────────
+  // These are applied to BOTH the baseline pool and the signal pool.
+  ODDS_TOLERANCE: 0.05,  // AH closing odds tolerance (0 = exact, 0.05 = default)
+  ODDS_SIDE:      'FAV', // which side(s) to match odds: 'FAV' | 'DOG' | 'BOTH'
 
-  // ── Thresholds to trigger a notification ────────────────────────────────────
-  MIN_N:        35,   // minimum pre-match sample size
-  MIN_Z:        2.0,  // minimum z-score
-  MIN_EDGE:     6,    // minimum edge in percentage points above baseline
-  MIN_BASELINE: 25,   // minimum baseline hit rate % — suppresses low base-rate bets
-                      // (e.g. Home Over 1.5 2H at 8%, Away wins 1H at 7%) that
-                      // historically underperform out-of-sample despite high z-scores
+  // ── Signal filters (applied on top of baseline — movement only) ──────────────
+  LINE_MOVE_ON:   true,   // AH line move (DEEPER / SHRANK)
+  TL_MOVE_ON:     true,   // TL move (UP / DOWN)
+  FAV_ODDS_ON:    false,  // Fav odds move (IN / OUT)
+  DOG_ODDS_ON:    false,  // Dog odds move
+  OVER_ODDS_ON:   false,  // Over odds move
+  UNDER_ODDS_ON:  false,  // Under odds move
 
-  // ── Signal quality gate ──────────────────────────────────────────────────────
-  // Only notify matches where at least one active signal shows real movement
-  // (i.e. not STABLE and not UNKNOWN). Prevents alerts on flat-signal matches
-  // where the AH line + TL combination alone happens to show historical edge.
+  // Require at least one active signal to show real movement (not STABLE/UNKNOWN).
+  // Prevents alerts on flat-market matches where AH+TL+HT alone shows spurious edge.
   REQUIRE_MOVEMENT: true,
 
+  // ── GSA notification thresholds ──────────────────────────────────────────────
+  GSA_MIN_N:         20,    // min rows in signal+HT pool
+  GSA_MIN_DELTA:     5,     // min improvement: signal% − baseline% (pp)
+  GSA_MIN_P_2H:      50,    // min absolute hit rate for 2H bets (%)
+  GSA_MIN_P_FT:      40,    // min absolute hit rate for FT bets (%)
+  GSA_MAX_CONS_ODDS: 2.50,  // max conservative odds (Wilson CI lower bound) — don't alert above this
+
   // ── League tier filter ───────────────────────────────────────────────────────
-  // 'ALL'       — all leagues
-  // 'TOP'       — top 5 EU + Champions/Europa/Conference League only
-  // 'MAJOR'     — strong national leagues (Brazil, Argentina, MLS, J1, etc.)
-  // 'TOP+MAJOR' — both TOP and MAJOR, excludes obscure/lower leagues
-  LEAGUE_TIER:    process.env.LEAGUE_TIER    || 'TOP+MAJOR',
-  // HT alerts use a wider pool — the HT score filter compensates for league noise.
-  // Backtested: ALL gives ~5× more HT alerts at only −1.5pp ROI vs TOP+MAJOR.
+  // 'ALL' | 'TOP' | 'MAJOR' | 'TOP+MAJOR'
   HT_LEAGUE_TIER: process.env.HT_LEAGUE_TIER || 'ALL',
 
-  // ── How often to scan (minutes) ─────────────────────────────────────────────
+  // ── Scan frequency ───────────────────────────────────────────────────────────
   SCAN_INTERVAL_MINUTES: parseInt(process.env.SCAN_INTERVAL_MINUTES || '3', 10),
 };

@@ -1341,6 +1341,7 @@ const state = {
   gsaDomOn: false,
   gsaOvmOn: false,
   gsaUnmOn: false,
+  gsaHtOn:  false,
   leagueTier: 'ALL',
 };
 
@@ -1999,7 +2000,7 @@ function runGsa() {
     const cfgRows = applyConfig(activeDb, sigCfg);
     const blSide  = blRows.filter(r => r.fav_side === sigCfg.fav_side);
 
-    const probe = (state.gsaTrigger === 'HT')
+    const probe = (state.gsaHtOn && state.gsaTrigger === 'HT')
       ? computeGsProbe(cfgRows, blRows, gs)
       : null;
 
@@ -2067,12 +2068,13 @@ function _renderScanGsaPanel({ cfgRows, blRows, blSide, minN, probe, gs, sigCfg 
         html += `<div class="no-bets"><p>Not enough data — signal pool has ${cfgRows.length} rows (need ≥${minN}).</p></div>`;
       } else {
         const sorted = [...bets].sort((a, b) => b.edge - a.edge);
-        html += `<p style="font-size:11px;color:var(--dim);margin-bottom:10px">${bets.length} bets · sorted by Δ vs baseline</p>`;
+        html += `<p style="font-size:11px;color:var(--dim);margin-bottom:10px">${bets.length} bets · sorted by Δ vs baseline · MIN ODDS = Wilson 95% CI lower bound</p>`;
         html += `<div class="htlive-table">
           <div class="htlive-thead">
             <span class="htlive-th-label">Bet</span>
             <span class="htlive-th-prob">Signal%</span>
             <span class="htlive-th-delta">Δ vs Baseline</span>
+            <span class="htlive-th-minodds">MIN ODDS</span>
             <span class="htlive-th-n">n</span>
           </div>`;
         for (const b of sorted) {
@@ -2084,6 +2086,7 @@ function _renderScanGsaPanel({ cfgRows, blRows, blSide, minN, probe, gs, sigCfg 
             <span class="htlive-col-label">${b.label}</span>
             <span class="htlive-col-prob">${b.p.toFixed(1)}% <span style="color:var(--dim)">bl ${b.bl.toFixed(1)}%</span></span>
             <span class="htlive-col-delta probe-delta ${b.edge >= 0 ? 'pos' : 'neg'}">${dSign}${b.edge.toFixed(1)}pp</span>
+            <span class="htlive-col-minodds htlive-minodds-${tier}">${b.mo_lo}</span>
             <span class="htlive-col-n probe-conf ${nCls}">${b.n}</span>
           </div>`;
         }
@@ -3277,6 +3280,15 @@ function _updateGsaMovementBadges() {
     el.textContent = label[val] || val || '—';
     el.className = 'sdrow-val' + (val ? ` ${val}` : '');
   }
+  // Update HT score badge
+  const htEl = document.getElementById('gsa-sig-ht');
+  if (htEl) {
+    const home = document.getElementById('gsa-gs-panel-home')?.value;
+    const away = document.getElementById('gsa-gs-panel-away')?.value;
+    htEl.textContent = (home !== '' && away !== '' && home != null && away != null)
+      ? `${home}–${away}` : '—';
+    htEl.className = 'sdrow-val';
+  }
 }
 
 function toggleGsaMovement(signal) {
@@ -3286,6 +3298,14 @@ function toggleGsaMovement(signal) {
   state[key] = !state[key];
   const btn = document.getElementById(`gsa-${signal}-tgl`);
   if (btn) { btn.textContent = state[key] ? 'ON ' : 'OFF'; btn.classList.toggle('on', state[key]); }
+}
+
+function toggleGsaHt() {
+  state.gsaHtOn = !state.gsaHtOn;
+  const btn = document.getElementById('gsa-ht-tgl');
+  if (btn) { btn.textContent = state.gsaHtOn ? 'ON ' : 'OFF'; btn.classList.toggle('on', state.gsaHtOn); }
+  const panel = document.getElementById('gsa-gs-panel-wrap');
+  if (panel) panel.style.display = state.gsaHtOn ? '' : 'none';
 }
 
 function _showActiveMatchBanner(match) {
@@ -3340,6 +3360,9 @@ function fillLiveMatchState(match) {
     setField('gsa-gs-panel-home2h', 0);
     setField('gsa-gs-panel-away2h', 0);
   }
+
+  // Refresh HT score badge in movement filters
+  _updateGsaMovementBadges();
 }
 
 function renderBatchResults(results, totalScanned) {

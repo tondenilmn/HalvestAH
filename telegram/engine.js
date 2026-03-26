@@ -338,6 +338,12 @@ function applyConfig(db, cfg) {
   }
   if (cfg.fav_side != null && cfg.fav_side !== 'ANY')
     rows = rows.filter(r => r.fav_side === cfg.fav_side);
+  if (cfg.odds_tolerance != null) {
+    for (const key of ['fav_oc', 'dog_oc']) {
+      const val = cfg[key];
+      if (val != null) rows = rows.filter(r => r[key] != null && Math.abs(r[key] - val) <= cfg.odds_tolerance);
+    }
+  }
   if (cfg.line_move != null && cfg.line_move !== 'ANY' && cfg.line_move !== 'UNKNOWN')
     rows = rows.filter(r => r.line_move === cfg.line_move);
   if (cfg.fav_odds_move != null && cfg.fav_odds_move !== 'ANY' && cfg.fav_odds_move !== 'UNKNOWN')
@@ -350,6 +356,10 @@ function applyConfig(db, cfg) {
   }
   if (cfg.tl_move != null && cfg.tl_move !== 'ANY' && cfg.tl_move !== 'UNKNOWN')
     rows = rows.filter(r => r.tl_move === cfg.tl_move);
+  if (cfg.over_move != null && cfg.over_move !== 'ANY' && cfg.over_move !== 'UNKNOWN')
+    rows = rows.filter(r => r.over_move === cfg.over_move);
+  if (cfg.under_move != null && cfg.under_move !== 'ANY' && cfg.under_move !== 'UNKNOWN')
+    rows = rows.filter(r => r.under_move === cfg.under_move);
   return rows;
 }
 
@@ -412,16 +422,26 @@ function buildCfgFromMatch(odds, cfg_flags) {
   const favOddsMove = oddsDir(favOc, favOo);
   const dogOddsMove = oddsDir(dogOc, dogOo);
   const tlMove      = moveDir(odds.tl_c, odds.tl_o, TL_THRESH);
+  const overMove    = oddsDir(odds.ov_c, odds.ov_o);
+  const underMove   = oddsDir(odds.un_c, odds.un_o);
+
+  const oddsTol  = cfg_flags.ODDS_TOLERANCE ?? null;
+  const oddsSide = cfg_flags.ODDS_SIDE      ?? 'FAV';
 
   return {
     fav_line:      favLine.toFixed(2),
     fav_side:      favSide,
-    line_move:     cfg_flags.LINE_MOVE_ON  ? lineMove     : 'ANY',
-    fav_odds_move: cfg_flags.FAV_ODDS_ON   ? favOddsMove  : 'ANY',
-    dog_odds_move: cfg_flags.DOG_ODDS_ON   ? dogOddsMove  : 'ANY',
+    odds_tolerance: oddsTol,
+    fav_oc:        oddsSide !== 'DOG'  ? favOc : null,
+    dog_oc:        oddsSide !== 'FAV'  ? dogOc : null,
+    line_move:     cfg_flags.LINE_MOVE_ON   ? lineMove     : 'ANY',
+    fav_odds_move: cfg_flags.FAV_ODDS_ON    ? favOddsMove  : 'ANY',
+    dog_odds_move: cfg_flags.DOG_ODDS_ON    ? dogOddsMove  : 'ANY',
     tl_c:          odds.tl_c,
-    tl_move:       cfg_flags.TL_MOVE_ON   ? tlMove       : 'ANY',
-    signals: { lineMove, favOddsMove, dogOddsMove, tlMove, favSide, favLine },
+    tl_move:       cfg_flags.TL_MOVE_ON    ? tlMove       : 'ANY',
+    over_move:     cfg_flags.OVER_ODDS_ON  ? overMove     : 'ANY',
+    under_move:    cfg_flags.UNDER_ODDS_ON ? underMove    : 'ANY',
+    signals: { lineMove, favOddsMove, dogOddsMove, tlMove, overMove, underMove, favSide, favLine },
   };
 }
 

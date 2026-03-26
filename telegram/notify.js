@@ -1,82 +1,53 @@
 'use strict';
-// ── HalvestAH Telegram Notifier ───────────────────────────────────────────────
-// Two alert types during the HT window (min 46–56):
-//   1. RULE alerts — hardcoded conditional rules (AH + HT score, no signal gate)
-//   2. GSA alerts  — signal-conditioned HT game state (Pinnacle movement required)
+// ── HalvestAH Telegram Notifier — GSA HT alerts ───────────────────────────────
+//
+// Fires during HT window (minute 46–56) when:
+//   1. AH line OR TL shows real movement (DEEPER/SHRANK or UP/DOWN)
+//   2. Signal+HT pool passes all 4 GSA filters:
+//        n >= GSA_MIN_N        (enough historical matches)
+//        delta >= GSA_MIN_DELTA (movement adds improvement vs baseline)
+//        signal% >= GSA_MIN_P  (absolute hit rate high enough)
+//        consOdds <= GSA_MAX_CONS_ODDS (odds are realistic to find)
+//
+// Two pools per match:
+//   baseline = AH line + AH closing odds ±tol + TL closing  (no movement)
+//   signal   = baseline + active movement filters (LM, TLM, etc.)
+// Both pools are then filtered by the HT score before scoring.
 //
 // Usage:
-//   node notify.js          — start the scheduler (runs forever)
-//   node notify.js --once   — run one scan immediately and exit (for testing)
+//   node notify.js          — start scheduler (runs every N minutes)
+//   node notify.js --once   — single scan + exit (for testing)
 
 const path = require('path');
 const cron = require('node-cron');
 const cfg  = require('./config');
-const { loadDatabase, loadDatabaseFromUrl, buildCfgFromMatch,
-        applyConfig, applyBaselineConfig, applyGameState, scoreBets } = require('./engine');
+const {
+  loadDatabase, loadDatabaseFromUrl, buildCfgFromMatch,
+  applyConfig, applyGameState, scoreBets,
+} = require('./engine');
 const { fetchLiveMatches } = require('./livescore');
 
 // ── HT window ─────────────────────────────────────────────────────────────────
 const HT_MIN_MINUTE = 46;
-const HT_MAX_MINUTE = 56;
+const HT_MAX_MINUTE = 50;
 
-// ── Allowed 2H bets for GSA alerts ────────────────────────────────────────────
-const HT_ALLOWED_BETS = new Set([
-  'homeScored2H', 'awayScored2H',
+// ── Allowed bet keys — 2H and FT only ────────────────────────────────────────
+const BETS_2H = new Set([
   'over05_2H', 'over15_2H', 'under15_2H',
+  'favScored2H', 'homeScored2H', 'awayScored2H',
+  'favWins2H', 'homeWins2H', 'awayWins2H', 'draw2H',
+]);
+const BETS_FT = new Set([
+  'over15FT', 'over25FT', 'under25FT',
+  'homeWinsFT', 'awayWinsFT', 'drawFT', 'btts',
 ]);
 
 // ── GSA thresholds ────────────────────────────────────────────────────────────
-const GSA_MIN_DELTA     = 5;     // Δ vs HT-conditioned baseline (pp)
-const GSA_MIN_N         = 30;    // min rows after HT game state filter
-const GSA_MAX_CONS_ODDS = 1.95;  // conservative odds ceiling
-const GSA_MIN_P         = 55;    // minimum absolute hit rate (%)
-
-// ── Rule-based alerts ─────────────────────────────────────────────────────────
-// Each rule fires purely on AH line + HT score — no signal gate.
-// minOdds = minimum to find at ANY bookmaker for +EV (based on 12-month backtest).
-// hitPct / sampleN are displayed in the message for transparency.
-const RULES = [
-  {
-    id:        'protect_lead',
-    name:      'Protect the Lead',
-    // Fav ahead by exactly 1 at HT, close/moderate fav, low-scoring game expected
-    check: (ah, favG, dogG, tl) =>
-      ah >= 0.25 && ah <= 1.00 &&
-      (favG - dogG === 1) &&
-      tl != null && tl <= 2.75,
-    getBet: () => 'Under 1.5 2H',
-    minOdds: 1.70,
-    hitPct:  59.3,
-    sampleN: 3804,
-  },
-  {
-    id:        'fav_must_score',
-    name:      'Fav Must Respond',
-    // Moderate fav, 0-0 at HT — fav needs to push forward in 2H
-    check: (ah, favG, dogG) =>
-      ah >= 0.50 && ah <= 1.00 &&
-      favG === 0 && dogG === 0,
-    getBet: (matchCfg, match) => {
-      const team = matchCfg.fav_side === 'HOME' ? match.home_team : match.away_team;
-      return `${team} scores 2H`;
-    },
-    minOdds: 1.62,
-    hitPct:  62.3,
-    sampleN: 3027,
-  },
-  {
-    id:        'open_game',
-    name:      'Open Game 2H',
-    // Underdog has scored and is level or ahead — game is open, goals likely
-    check: (ah, favG, dogG) =>
-      ah >= 0.25 && ah <= 1.25 &&
-      dogG >= 1 && dogG >= favG,
-    getBet: () => 'Over 1.5 2H',
-    minOdds: 2.25,
-    hitPct:  44.8,
-    sampleN: 5573,
-  },
-];
+const MIN_N         = cfg.GSA_MIN_N         ?? 20;
+const MIN_DELTA     = cfg.GSA_MIN_DELTA     ?? 5;
+const MIN_P_2H      = cfg.GSA_MIN_P_2H      ?? 50;
+const MIN_P_FT      = cfg.GSA_MIN_P_FT      ?? 40;
+const MAX_CONS_ODDS = cfg.GSA_MAX_CONS_ODDS ?? 2.50;
 
 // ── Telegram ──────────────────────────────────────────────────────────────────
 async function sendTelegram(text) {
@@ -99,112 +70,84 @@ function nowTime() {
   return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
 }
 
-// Tier icon based on hit rate + delta
-function betIcon(p, delta) {
+function tierIcon(p, delta) {
   if (p >= 75 && delta >= 10) return '🔥';
-  if (p >= 68 && delta >= 7)  return '⚡';
+  if (p >= 65 && delta >= 7)  return '⚡';
   return '✅';
 }
 
-// AH line display: "Away -0.75(-0.50)" — closing(opening), fav-normalised
-function ahLineDisplay(matchCfg, odds) {
+function ahDisplay(matchCfg, odds) {
   const side    = matchCfg.fav_side === 'HOME' ? 'Home' : 'Away';
   const closing = parseFloat(matchCfg.fav_line);
-  const ahHo    = odds.ah_ho;
-  const opening = ahHo != null ? Math.abs(parseFloat(ahHo)).toFixed(2) : null;
-  const closingStr = isNaN(closing) ? matchCfg.fav_line : closing.toFixed(2);
-  return opening && opening !== closingStr
-    ? `${side} −${closingStr}(−${opening})`
-    : `${side} −${closingStr}`;
+  const opening = odds.ah_ho != null ? Math.abs(parseFloat(odds.ah_ho)).toFixed(2) : null;
+  const cStr    = isNaN(closing) ? matchCfg.fav_line : closing.toFixed(2);
+  return opening && opening !== cStr ? `${side} −${cStr}(−${opening})` : `${side} −${cStr}`;
 }
 
-// TL display: "TL 2.50(2.75)" — closing(opening)
 function tlDisplay(odds) {
   const { tl_c, tl_o } = odds;
   if (tl_c == null) return null;
-  return tl_o != null && tl_o !== tl_c
-    ? `TL ${tl_c}(${tl_o})`
-    : `TL ${tl_c}`;
+  return tl_o != null && tl_o !== tl_c ? `TL ${tl_c}(${tl_o})` : `TL ${tl_c}`;
 }
 
-// Compact signal summary: STEAM / DRIFT / Fav↓ / Fav↑ etc.
-function signalSummary(matchCfg) {
-  const sig   = matchCfg.signals;
+function signalSummary(sig) {
   const parts = [];
-  if (sig.lineMove === 'DEEPER')        parts.push('STEAM');
-  else if (sig.lineMove === 'SHRANK')   parts.push('DRIFT');
-  if (cfg.FAV_ODDS_ON && sig.favOddsMove === 'SHORTER')  parts.push('Fav↓');
-  else if (cfg.FAV_ODDS_ON && sig.favOddsMove === 'DRIFTED') parts.push('Fav↑');
-  if (cfg.DOG_ODDS_ON && sig.dogOddsMove === 'SHORTER')  parts.push('Dog↓');
-  else if (cfg.DOG_ODDS_ON && sig.dogOddsMove === 'DRIFTED') parts.push('Dog↑');
+  if      (sig.lineMove === 'DEEPER') parts.push('LINE STEAM');
+  else if (sig.lineMove === 'SHRANK') parts.push('LINE DRIFT');
+  if      (sig.tlMove   === 'UP')     parts.push('TL UP');
+  else if (sig.tlMove   === 'DOWN')   parts.push('TL DOWN');
+  if (cfg.FAV_ODDS_ON) {
+    if      (sig.favOddsMove === 'IN')  parts.push('Fav STEAM');
+    else if (sig.favOddsMove === 'OUT') parts.push('Fav DRIFT');
+  }
+  if (cfg.DOG_ODDS_ON) {
+    if      (sig.dogOddsMove === 'IN')  parts.push('Dog STEAM');
+    else if (sig.dogOddsMove === 'OUT') parts.push('Dog DRIFT');
+  }
+  if (cfg.OVER_ODDS_ON) {
+    if      (sig.overMove === 'IN')  parts.push('Over↓');
+    else if (sig.overMove === 'OUT') parts.push('Over↑');
+  }
+  if (cfg.UNDER_ODDS_ON) {
+    if      (sig.underMove === 'IN')  parts.push('Under↓');
+    else if (sig.underMove === 'OUT') parts.push('Under↑');
+  }
   return parts.join(' · ');
 }
 
-// ── GSA message formatter ─────────────────────────────────────────────────────
-function formatGsaMessage(match, bets, matchCfg, homeGoals, awayGoals) {
-  const ahLine  = ahLineDisplay(matchCfg, match.odds);
+// ── Message formatter ─────────────────────────────────────────────────────────
+function formatMessage(match, bets, matchCfg, homeGoals, awayGoals, sigN, blN) {
+  const ah      = ahDisplay(matchCfg, match.odds);
   const tl      = tlDisplay(match.odds);
-  const signals = signalSummary(matchCfg);
-  const minute  = match.minute ? ` · ${match.minute}` : '';
-
-  // AH + TL on one line, signals on next
-  const ahTlLine = [ahLine, tl].filter(Boolean).join('  ');
+  const signals = signalSummary(matchCfg.signals);
+  const ahTl    = [ah, tl].filter(Boolean).join('  ');
 
   const header = [
-    `⏸ <b>HALF TIME GSA</b>  ·  ${nowTime()}`,
+    `⏸ <b>HT GSA ALERT</b>  ·  ${nowTime()}`,
     ``,
     `🏆 <i>${match.league || '—'}</i>`,
     `⚽ <b>${match.home_team} vs ${match.away_team}</b>`,
-    `📊 HT <b>${homeGoals}–${awayGoals}</b>${minute}`,
-    `⚖️ ${ahTlLine}`,
+    `📊 HT <b>${homeGoals}–${awayGoals}</b>  ·  ${match.minute || ''}`,
+    `⚖️ ${ahTl}`,
     signals ? `📡 ${signals}` : null,
+    ``,
+    `Signal n=<b>${sigN}</b>  ·  Baseline n=${blN}`,
   ].filter(l => l != null).join('\n');
 
   const betLines = [...bets]
-    .sort((a, b) => (b.p + b.edge) - (a.p + a.edge))
+    .sort((a, b) => b.edge - a.edge)
     .map(b => {
-      const icon      = betIcon(b.p, b.edge);
-      const oddsRange = (b.mo && b.mo_mid)
-        ? `<code>[${b.mo} – ${b.mo_mid}]</code>`
-        : (b.mo_mid ? `<code>≥ ${b.mo_mid}</code>` : '—');
+      const icon  = tierIcon(b.p, b.edge);
       const delta = (b.edge >= 0 ? '+' : '') + b.edge.toFixed(1) + 'pp';
-
+      const type  = BETS_2H.has(b.k) ? '2H' : 'FT';
       return (
-        `${icon} <b>${b.label}</b>  ${oddsRange}\n` +
-        `   ${b.p.toFixed(0)}% vs ${b.bl.toFixed(0)}% (<b>${delta}</b>)  ·  n=${b.n}`
+        `${icon} <b>[${type}] ${b.label}</b>\n` +
+        `   ${b.p.toFixed(0)}% vs ${b.bl.toFixed(0)}% (<b>${delta}</b>)  ·  find ≥ <code>${b.mo_lo}</code>  ·  n=${b.n}`
       );
     })
     .join('\n\n');
 
   return `${header}\n\n${betLines}\n`;
-}
-
-// ── Rule message formatter ────────────────────────────────────────────────────
-function formatRuleMessage(match, firedRules, matchCfg, homeGoals, awayGoals) {
-  const ahLine   = ahLineDisplay(matchCfg, match.odds);
-  const tl       = tlDisplay(match.odds);
-  const minute   = match.minute ? ` · ${match.minute}` : '';
-  const ahTlLine = [ahLine, tl].filter(Boolean).join('  ');
-
-  const header = [
-    `📌 <b>RULE ALERT</b>  ·  ${nowTime()}`,
-    ``,
-    `🏆 <i>${match.league || '—'}</i>`,
-    `⚽ <b>${match.home_team} vs ${match.away_team}</b>`,
-    `📊 HT <b>${homeGoals}–${awayGoals}</b>${minute}`,
-    `⚖️ ${ahTlLine}`,
-  ].join('\n');
-
-  const ruleLines = firedRules.map(r => {
-    const betLabel = r.getBet(matchCfg, match);
-    return (
-      `<b>${r.name.toUpperCase()}</b>\n` +
-      `  ${betLabel}  →  find ≥ <code>${r.minOdds.toFixed(2)}</code>\n` +
-      `  ${r.hitPct}% historical  ·  n=${r.sampleN.toLocaleString()}`
-    );
-  }).join('\n\n');
-
-  return `${header}\n\n${ruleLines}\n`;
 }
 
 // ── Deduplication ─────────────────────────────────────────────────────────────
@@ -220,6 +163,14 @@ function alreadyNotified(matchId, betKey) {
 
 function markNotified(matchId, betKey) {
   _notified.set(`${matchId}:${betKey}`, Date.now());
+}
+
+// ── Tier filter ───────────────────────────────────────────────────────────────
+function filterByTier(db, tier) {
+  if (tier === 'TOP')       return db.filter(r => r.league_tier === 'TOP');
+  if (tier === 'MAJOR')     return db.filter(r => r.league_tier === 'MAJOR');
+  if (tier === 'TOP+MAJOR') return db.filter(r => r.league_tier === 'TOP' || r.league_tier === 'MAJOR');
+  return db; // ALL
 }
 
 // ── Database loader ───────────────────────────────────────────────────────────
@@ -261,12 +212,8 @@ async function runScan() {
   console.log(`[${new Date().toISOString()}] Scanning…`);
 
   let matches;
-  try {
-    matches = await fetchMatches();
-  } catch (e) {
-    console.error(`Livescore fetch failed: ${e.message}`);
-    return;
-  }
+  try { matches = await fetchMatches(); }
+  catch (e) { console.error(`Livescore fetch failed: ${e.message}`); return; }
 
   if (!matches.length) { console.log('No live matches.'); return; }
   console.log(`Found ${matches.length} match(es).`);
@@ -274,16 +221,14 @@ async function runScan() {
   const db = await getDb();
 
   for (const match of matches) {
+    const label  = `${match.home_team} vs ${match.away_team}`;
+    const minNum = match.minute ? parseInt(match.minute, 10) : null;
+
     // ── HT window gate ────────────────────────────────────────────────────
-    const minNum     = match.minute ? parseInt(match.minute, 10) : null;
     const isHtWindow = minNum != null && !isNaN(minNum) &&
                        minNum >= HT_MIN_MINUTE && minNum <= HT_MAX_MINUTE;
-    if (!isHtWindow || !match.score) continue;
-
-    const label    = `${match.home_team} vs ${match.away_team}`;
-    const matchCfg = buildCfgFromMatch(match.odds, cfg);
-    if (!matchCfg) {
-      if (VERBOSE) console.log(`  SKIP [no cfg]  ${label}`);
+    if (!isHtWindow || !match.score) {
+      if (VERBOSE) console.log(`  SKIP [not HT]  ${label}  min=${match.minute}`);
       continue;
     }
 
@@ -291,82 +236,103 @@ async function runScan() {
     const [homeGoals, awayGoals] = match.score.split('-').map(v => parseInt(v, 10));
     if (isNaN(homeGoals) || isNaN(awayGoals)) continue;
 
-    const matchId  = match.id || `${match.home_team}:${match.away_team}`;
-    const favGoals = matchCfg.fav_side === 'HOME' ? homeGoals : awayGoals;
-    const dogGoals = matchCfg.fav_side === 'HOME' ? awayGoals : homeGoals;
-    const ah       = parseFloat(matchCfg.fav_line);
-    const tl       = match.odds.tl_c != null ? parseFloat(match.odds.tl_c) : null;
-
-    // ── Rule-based alerts (no signal gate required) ───────────────────────
-    const firedRules = RULES.filter(r => {
-      if (alreadyNotified(matchId, `rule:${r.id}`)) return false;
-      return r.check(ah, favGoals, dogGoals, tl);
-    });
-
-    if (firedRules.length) {
-      const msg = formatRuleMessage(match, firedRules, matchCfg, homeGoals, awayGoals);
-      console.log(`RULE ALERT → ${label} [${homeGoals}-${awayGoals}]: ${firedRules.map(r => r.name).join(', ')}`);
-      await sendTelegram(msg);
-      for (const r of firedRules) markNotified(matchId, `rule:${r.id}`);
+    // ── Build match cfg (carries all signal values + odds fields) ─────────
+    const matchCfg = buildCfgFromMatch(match.odds, cfg);
+    if (!matchCfg) {
+      if (VERBOSE) console.log(`  SKIP [no cfg]  ${label}`);
+      continue;
     }
 
-    // ── GSA: signal movement gate ─────────────────────────────────────────
+    const sig     = matchCfg.signals;
+    const matchId = match.id || `${match.home_team}:${match.away_team}`;
+
+    // ── Movement gate — at least one active signal must be a real move ────
     if (cfg.REQUIRE_MOVEMENT) {
-      const s = matchCfg.signals;
-      const hasMovement =
-        (cfg.LINE_MOVE_ON && s.lineMove    !== 'STABLE' && s.lineMove    !== 'UNKNOWN') ||
-        (cfg.TL_MOVE_ON   && s.tlMove      !== 'STABLE' && s.tlMove      !== 'UNKNOWN') ||
-        (cfg.FAV_ODDS_ON  && s.favOddsMove !== 'STABLE' && s.favOddsMove !== 'UNKNOWN') ||
-        (cfg.DOG_ODDS_ON  && s.dogOddsMove !== 'STABLE' && s.dogOddsMove !== 'UNKNOWN');
-      if (!hasMovement) {
-        if (VERBOSE) console.log(`  SKIP GSA [flat]  ${label}  LM:${matchCfg.signals.lineMove}`);
+      const hasMove =
+        (cfg.LINE_MOVE_ON  && !['STABLE','UNKNOWN'].includes(sig.lineMove))  ||
+        (cfg.TL_MOVE_ON    && !['STABLE','UNKNOWN'].includes(sig.tlMove));
+      if (!hasMove) {
+        if (VERBOSE) console.log(`  SKIP [flat]  ${label}  LM:${sig.lineMove} TL:${sig.tlMove}`);
         continue;
       }
     }
 
-    // ── GSA: build DB pools ───────────────────────────────────────────────
-    const htTier = cfg.HT_LEAGUE_TIER || 'ALL';
-    let tierDb = db;
-    if      (htTier === 'TOP')       tierDb = db.filter(r => r.league_tier === 'TOP');
-    else if (htTier === 'MAJOR')     tierDb = db.filter(r => r.league_tier === 'MAJOR');
-    else if (htTier === 'TOP+MAJOR') tierDb = db.filter(r => r.league_tier === 'TOP' || r.league_tier === 'MAJOR');
+    // ── Build baseline cfg: AH line + odds tol + TL closing, no movement ─
+    const blCfg = {
+      fav_line:       matchCfg.fav_line,
+      fav_side:       matchCfg.fav_side,
+      odds_tolerance: matchCfg.odds_tolerance,
+      fav_oc:         matchCfg.fav_oc,
+      dog_oc:         matchCfg.dog_oc,
+      tl_c:           matchCfg.tl_c,
+      line_move:      'ANY',
+      fav_odds_move:  'ANY',
+      dog_odds_move:  'ANY',
+      tl_move:        'ANY',
+      over_move:      'ANY',
+      under_move:     'ANY',
+    };
 
-    const cfgRows = applyConfig(tierDb, matchCfg);
-    const blRows  = applyBaselineConfig(tierDb, matchCfg);
-    const blSide  = blRows.filter(r => r.fav_side === matchCfg.fav_side);
+    // ── Build signal cfg: baseline + active movement filters ──────────────
+    const sigCfg = {
+      ...blCfg,
+      line_move:     cfg.LINE_MOVE_ON  && !['STABLE','UNKNOWN'].includes(sig.lineMove)    ? sig.lineMove    : 'ANY',
+      tl_move:       cfg.TL_MOVE_ON    && !['STABLE','UNKNOWN'].includes(sig.tlMove)      ? sig.tlMove      : 'ANY',
+      fav_odds_move: cfg.FAV_ODDS_ON   && !['STABLE','UNKNOWN'].includes(sig.favOddsMove) ? sig.favOddsMove : 'ANY',
+      dog_odds_move: cfg.DOG_ODDS_ON   && !['STABLE','UNKNOWN'].includes(sig.dogOddsMove) ? sig.dogOddsMove : 'ANY',
+      over_move:     cfg.OVER_ODDS_ON  && !['STABLE','UNKNOWN'].includes(sig.overMove)    ? sig.overMove    : 'ANY',
+      under_move:    cfg.UNDER_ODDS_ON && !['STABLE','UNKNOWN'].includes(sig.underMove)   ? sig.underMove   : 'ANY',
+    };
+
+    // ── Apply tier filter and build DB pools ──────────────────────────────
+    const tierDb  = filterByTier(db, cfg.HT_LEAGUE_TIER || 'ALL');
+    const blRows  = applyConfig(tierDb, blCfg);
+    const cfgRows = applyConfig(tierDb, sigCfg);
+    const blSide  = blRows.filter(r => r.fav_side === sigCfg.fav_side);
 
     if (VERBOSE) {
-      const s = matchCfg.signals;
-      console.log(`  GSA CHECK  ${label}  [${homeGoals}-${awayGoals}]  LM:${s.lineMove} TL:${s.tlMove}  pool:${cfgRows.length}`);
+      console.log(`  CHECK  ${label}  [${homeGoals}-${awayGoals}]  LM:${sig.lineMove} TL:${sig.tlMove}  bl:${blRows.length} sig:${cfgRows.length}`);
     }
 
-    // ── GSA: apply HT game state ──────────────────────────────────────────
-    const htGs     = { trigger: 'HT', home_goals: homeGoals, away_goals: awayGoals };
-    const htRows   = applyGameState(cfgRows, htGs);
-    const htBlRows = applyGameState(blRows,  htGs);
-    const htBlSide = applyGameState(blSide,  htGs);
+    // ── Apply HT game state to both pools ─────────────────────────────────
+    const htGs      = { trigger: 'HT', home_goals: homeGoals, away_goals: awayGoals };
+    const htSigRows = applyGameState(cfgRows, htGs);
+    const htBlRows  = applyGameState(blRows,  htGs);
+    const htBlSide  = applyGameState(blSide,  htGs);
 
-    if (htRows.length < GSA_MIN_N || htBlRows.length < GSA_MIN_N) continue;
+    if (htSigRows.length < MIN_N) {
+      if (VERBOSE) console.log(`  SKIP [n=${htSigRows.length} < ${MIN_N}]  ${label}`);
+      continue;
+    }
 
-    // ── GSA: score & filter ───────────────────────────────────────────────
-    const htBets     = scoreBets(htRows, htBlRows, htBlSide, GSA_MIN_N);
-    const qualifying = htBets.filter(b =>
-      HT_ALLOWED_BETS.has(b.k)       &&
-      b.edge   >= GSA_MIN_DELTA       &&
-      b.n      >= GSA_MIN_N           &&
-      b.mo_mid <= GSA_MAX_CONS_ODDS   &&
-      b.p      >= GSA_MIN_P
-    );
+    // ── Score bets and apply 4 GSA filters ───────────────────────────────
+    const bets = scoreBets(htSigRows, htBlRows, htBlSide, MIN_N);
+
+    const qualifying = bets.filter(b => {
+      const is2H  = BETS_2H.has(b.k);
+      const isFT  = BETS_FT.has(b.k);
+      if (!is2H && !isFT) return false;
+      const minP  = is2H ? MIN_P_2H : MIN_P_FT;
+      const cons  = parseFloat(b.mo_lo);
+      return (
+        b.n     >= MIN_N         &&   // enough data
+        b.edge  >= MIN_DELTA     &&   // signal adds edge
+        b.p     >= minP          &&   // absolute hit rate high enough
+        !isNaN(cons) && cons <= MAX_CONS_ODDS  // odds realistic to find
+      );
+    });
 
     if (!qualifying.length) continue;
 
-    const newBets = qualifying.filter(b => !alreadyNotified(matchId, `ht:${b.k}`));
+    // ── Deduplicate ───────────────────────────────────────────────────────
+    const newBets = qualifying.filter(b => !alreadyNotified(matchId, b.k));
     if (!newBets.length) continue;
 
-    const gsaMsg = formatGsaMessage(match, newBets, matchCfg, homeGoals, awayGoals);
-    console.log(`GSA ALERT → ${label} [${homeGoals}-${awayGoals}]: ${newBets.map(b => b.label).join(', ')}`);
-    await sendTelegram(gsaMsg);
-    for (const b of newBets) markNotified(matchId, `ht:${b.k}`);
+    // ── Send alert ────────────────────────────────────────────────────────
+    const msg = formatMessage(match, newBets, matchCfg, homeGoals, awayGoals, htSigRows.length, htBlRows.length);
+    console.log(`ALERT → ${label} [${homeGoals}-${awayGoals}]: ${newBets.map(b => b.label).join(', ')}`);
+    await sendTelegram(msg);
+    for (const b of newBets) markNotified(matchId, b.k);
   }
 }
 
@@ -376,11 +342,6 @@ async function main() {
   await getDb();
 
   if (once) { await runScan(); process.exit(0); }
-
-  if (cfg.TELEGRAM_TOKEN === 'YOUR_BOT_TOKEN_HERE') {
-    console.error('ERROR: Fill in TELEGRAM_TOKEN and TELEGRAM_CHAT_ID in config.js');
-    process.exit(1);
-  }
 
   console.log(`Scheduler started — every ${cfg.SCAN_INTERVAL_MINUTES} min.`);
   await runScan();

@@ -489,16 +489,23 @@
             <span class="sdrow-val" id="gsa-sig-unm">—</span>
             <button class="toggle-btn"    id="gsa-unm-tgl" onclick="toggleGsaMovement('unm')">OFF</button>
           </div>
+          <div class="signal-detect-row" style="margin-top:8px;border-top:1px solid var(--border);padding-top:8px">
+            <span class="sdrow-key">HT SCORE</span>
+            <span class="sdrow-val" id="gsa-sig-ht">—</span>
+            <button class="toggle-btn" id="gsa-ht-tgl" onclick="toggleGsaHt()">OFF</button>
+          </div>
         </div>
 
-        <div class="section-label">GAME STATE (HT SCORE — optional)</div>
-        <div class="gs-triggers">
-          <button class="gs-trigger-btn active" id="gsa-gs-btn-HT"         onclick="setGsaTrigger('HT')">Half Time</button>
-          <button class="gs-trigger-btn"        id="gsa-gs-btn-FIRST_GOAL" onclick="setGsaTrigger('FIRST_GOAL')">First Goal</button>
-          <button class="gs-trigger-btn"        id="gsa-gs-btn-INPLAY_2H"  onclick="setGsaTrigger('INPLAY_2H')">In-play 2H</button>
-        </div>
-        <div class="gs-panel" id="gsa-gs-panel">
-          <!-- filled by renderGsPanel() -->
+        <div id="gsa-gs-panel-wrap" style="display:none">
+          <div class="section-label">GAME STATE</div>
+          <div class="gs-triggers">
+            <button class="gs-trigger-btn active" id="gsa-gs-btn-HT"         onclick="setGsaTrigger('HT')">Half Time</button>
+            <button class="gs-trigger-btn"        id="gsa-gs-btn-FIRST_GOAL" onclick="setGsaTrigger('FIRST_GOAL')">First Goal</button>
+            <button class="gs-trigger-btn"        id="gsa-gs-btn-INPLAY_2H"  onclick="setGsaTrigger('INPLAY_2H')">In-play 2H</button>
+          </div>
+          <div class="gs-panel" id="gsa-gs-panel">
+            <!-- filled by renderGsPanel() -->
+          </div>
         </div>
 
         <div class="section-label" style="margin-top:14px">MINIMUM MATCHING RECORDS</div>
