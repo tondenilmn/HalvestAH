@@ -106,19 +106,31 @@ const BET_GROUPS = [
 // For each outcome: compare P(signal+state) vs P(state only) to quantify
 // how much the pre-match signal adds on top of the game state alone.
 const GS_PROBE_OUTCOMES = [
-  { k: 'homeWinsFT',   label: 'Home Win FT',   group: 'FT' },
-  { k: 'awayWinsFT',   label: 'Away Win FT',   group: 'FT' },
-  { k: 'drawFT',       label: 'Draw FT',       group: 'FT' },
-  { k: 'over15FT',     label: 'Over 1.5 FT',  group: 'FT' },
-  { k: 'over25FT',     label: 'Over 2.5 FT',  group: 'FT' },
-  { k: 'btts',         label: 'BTTS FT',      group: 'FT' },
-  { k: 'homeWins2H',   label: 'Home Win 2H',  group: '2H' },
-  { k: 'awayWins2H',   label: 'Away Win 2H',  group: '2H' },
-  { k: 'draw2H',       label: 'Draw 2H',      group: '2H' },
-  { k: 'over05_2H',    label: 'Over 0.5 2H',  group: '2H' },
-  { k: 'over15_2H',    label: 'Over 1.5 2H',  group: '2H' },
-  { k: 'homeScored2H', label: 'Home Score 2H', group: '2H' },
-  { k: 'awayScored2H', label: 'Away Score 2H', group: '2H' },
+  // 2H totals — highest probability, most achievable live odds
+  { k: 'over05_2H',     label: 'Over 0.5 in 2H',   group: '2H Goals' },
+  { k: 'over15_2H',     label: 'Over 1.5 in 2H',   group: '2H Goals' },
+  { k: 'under05_2H',    label: 'Under 0.5 in 2H',  group: '2H Goals' },
+  { k: 'under15_2H',    label: 'Under 1.5 in 2H',  group: '2H Goals' },
+  // 2H result markets
+  { k: 'favWins2H',     label: 'Fav wins 2H',       group: '2H Result' },
+  { k: 'homeWins2H',    label: 'Home wins 2H',      group: '2H Result' },
+  { k: 'awayWins2H',    label: 'Away wins 2H',      group: '2H Result' },
+  { k: 'draw2H',        label: 'Draw 2H',           group: '2H Result' },
+  // 2H scoring markets
+  { k: 'favScored2H',   label: 'Fav scores 2H',     group: '2H Scoring' },
+  { k: 'homeScored2H',  label: 'Home scores 2H',    group: '2H Scoring' },
+  { k: 'awayScored2H',  label: 'Away scores 2H',    group: '2H Scoring' },
+  { k: 'homeOver15_2H', label: 'Home over 1.5 2H',  group: '2H Scoring' },
+  { k: 'awayOver15_2H', label: 'Away over 1.5 2H',  group: '2H Scoring' },
+  // FT remaining — conditional on HT score known
+  { k: 'over15FT',      label: 'Over 1.5 FT',       group: 'FT Remaining' },
+  { k: 'over25FT',      label: 'Over 2.5 FT',       group: 'FT Remaining' },
+  { k: 'over35FT',      label: 'Over 3.5 FT',       group: 'FT Remaining' },
+  { k: 'under25FT',     label: 'Under 2.5 FT',      group: 'FT Remaining' },
+  { k: 'btts',          label: 'BTTS FT',           group: 'FT Remaining' },
+  { k: 'homeWinsFT',    label: 'Home win FT',        group: 'FT Remaining' },
+  { k: 'awayWinsFT',    label: 'Away win FT',        group: 'FT Remaining' },
+  { k: 'drawFT',        label: 'Draw FT',            group: 'FT Remaining' },
 ];
 
 /* ── League tier classification ─────────────────────────────────────────
@@ -1952,33 +1964,47 @@ function runGsa() {
   const minN    = getMinN();
   const activeDb = getDb();
 
-  const cfgRows  = applyConfig(activeDb, cfg);
-  const blRows   = applyBaselineConfig(activeDb, cfg);
+  // Strip closing odds tolerance for GSA: the HT score already splits the pool;
+  // applying odds tolerance on top shrinks n below reliable thresholds.
+  // AH line + movement signals + HT score is sufficient.
+  const gsaCfg = { ...cfg, odds_tolerance: null, fav_oc: null, dog_oc: null, fav_oo: null, dog_oo: null };
+
+  const cfgRows  = applyConfig(activeDb, gsaCfg);
+  const blRows   = applyBaselineConfig(activeDb, gsaCfg);
 
   const probe = (state.gsaTrigger === 'HT')
     ? computeGsProbe(cfgRows, blRows, gs)
     : null;
 
   const right = document.getElementById('right-panel');
-  const ahSide = cfg.fav_side === 'AWAY' ? 'Away' : 'Home';
+  const ahSide = gsaCfg.fav_side === 'AWAY' ? 'Away' : 'Home';
 
-  let html = `<h2 class="results-title">GSA PROBABILITY PROBE</h2>`;
-  html += `<div class="cfg-summary">${ahSide} AH −${cfg.fav_line} · Signal pool: ${cfgRows.length} · Baseline: ${blRows.length}</div>`;
+  try {
+    let html = `<h2 class="results-title">HT LIVE VIEW</h2>`;
+    html += `<div class="cfg-summary">${ahSide} AH −${gsaCfg.fav_line} · Signal pool: ${cfgRows.length} · Baseline: ${blRows.length}</div>`;
 
-  if (!probe) {
-    const gsLbl = gsLabel(gs);
-    html += `<div class="no-bets" style="margin-top:20px">
+    if (!probe) {
+      const gsLbl = gsLabel(gs);
+      const reason = state.gsaTrigger !== 'HT'
+        ? 'This view only supports the <b>Half Time</b> trigger.'
+        : cfgRows.length < minN
+          ? `Signal pool too small (${cfgRows.length} rows).`
+          : 'No rows match this HT score.';
+      html += `<div class="no-bets" style="margin-top:20px">
+        <div class="warn-icon">⚠</div>
+        <p>No data for <b>${gsLbl}</b>.<br>${reason}</p>
+      </div>`;
+    } else {
+      html += renderHtLivePanel(probe, gsLabel(gs));
+    }
+
+    right.innerHTML = html;
+  } catch (err) {
+    right.innerHTML = `<div class="no-bets" style="margin-top:20px">
       <div class="warn-icon">⚠</div>
-      <p>No GSA data for <b>${gsLbl}</b>.<br>
-      ${state.gsaTrigger !== 'HT' ? 'GSA probe only supports the <b>Half Time</b> trigger.' :
-        cfgRows.length < minN ? `Signal pool too small (${cfgRows.length} rows).` :
-        'No rows match this game state.'}</p>
+      <p>Render error: ${err.message}</p>
     </div>`;
-  } else {
-    html += renderGsProbePanel(probe, gsLabel(gs));
   }
-
-  right.innerHTML = html;
 }
 
 /* Build cfg from BASIC mode inputs */
@@ -2627,6 +2653,99 @@ function renderGsProbePanel(probe, stateLabel) {
       </div>`;
     }
     html += `</div>`;
+  }
+
+  return html;
+}
+
+// ── HT Live Panel ─────────────────────────────────────────────────────────
+// Replaces the generic GSA probe for the HT trigger.
+// Designed for live use at half-time: shows only bets where the signal+HT
+// pool beats the state-only baseline, sorted by conservative odds ascending
+// (most achievable markets first). The "MIN ODDS" column is the Wilson
+// lower-bound threshold — any soft book offering above it is +EV.
+function renderHtLivePanel(probe, stateLabel) {
+  if (!probe || !probe.outcomes) return '';
+  const { sn, tn, outcomes } = probe;
+
+  const confCls = sn >= 30 ? 'green' : sn >= 15 ? 'yellow' : 'red';
+  const confBadge = `<span class="probe-conf ${confCls}">n=${sn}</span>`;
+
+  const reliabilityNote = sn >= 50 ? 'High confidence'
+    : sn >= 30 ? 'Moderate confidence'
+    : sn >= 15 ? 'Low confidence — treat as indicative'
+    : 'Very low confidence — unreliable';
+
+  // Only bets where signal+HT pool is better than state-only, and consOdds available
+  const positive = outcomes.filter(r => r.delta > 0 && r.consOdds != null);
+  const skipped  = outcomes.length - positive.length;
+
+  let html = `
+  <div class="htlive-header">
+    <div class="htlive-title">HT LIVE — ${stateLabel}</div>
+    <div class="htlive-meta">
+      Signal pool ${confBadge} · State-only n=${tn} ·
+      <span class="htlive-reliability ${confCls}">${reliabilityNote}</span>
+    </div>
+    <div class="htlive-legend">
+      MIN ODDS = conservative threshold (Wilson 95% CI lower bound) — bet only above this ·
+      Fair = raw hit-rate odds
+    </div>
+  </div>`;
+
+  if (!positive.length) {
+    return html + `<div class="no-bets" style="margin-top:16px">
+      <p>No bets improve on the state-only baseline at this HT score.<br>
+      <span style="color:var(--dim)">Try a looser configuration or check a different HT score.</span></p>
+    </div>`;
+  }
+
+  function rowTier(r) {
+    if (r.delta >= 8 && r.sn >= 20) return 'strong';
+    if (r.delta >= 4 && r.sn >= 15) return 'good';
+    return 'weak';
+  }
+
+  const groups = [...new Set(positive.map(r => r.group))];
+
+  for (const grp of groups) {
+    const rows = positive
+      .filter(r => r.group === grp)
+      .sort((a, b) => a.consOdds - b.consOdds); // ascending = most achievable first
+
+    html += `<div class="probe-group-label">${grp}</div>
+    <div class="htlive-table">
+      <div class="htlive-thead">
+        <span class="htlive-th-label">Bet</span>
+        <span class="htlive-th-prob">Hit%</span>
+        <span class="htlive-th-delta">vs Baseline</span>
+        <span class="htlive-th-minodds">MIN ODDS</span>
+        <span class="htlive-th-fair">Fair</span>
+        <span class="htlive-th-n">n</span>
+      </div>`;
+
+    for (const r of rows) {
+      const tier  = rowTier(r);
+      const nCls  = r.sn >= 30 ? 'green' : r.sn >= 15 ? 'yellow' : 'red';
+      const dSign = r.delta >= 0 ? '+' : '';
+      const fair  = r.fairOdds ? r.fairOdds.toFixed(2) : '—';
+      const cons  = r.consOdds.toFixed(2);
+
+      html += `
+      <div class="htlive-row htlive-row-${tier}">
+        <span class="htlive-col-label">${r.label}</span>
+        <span class="htlive-col-prob">${r.sp.toFixed(1)}%</span>
+        <span class="htlive-col-delta probe-delta pos">${dSign}${r.delta.toFixed(1)}pp</span>
+        <span class="htlive-col-minodds htlive-minodds-${tier}">${cons}</span>
+        <span class="htlive-col-fair">${fair}</span>
+        <span class="htlive-col-n probe-conf ${nCls}">${r.sn}</span>
+      </div>`;
+    }
+    html += `</div>`;
+  }
+
+  if (skipped > 0) {
+    html += `<div class="htlive-skipped">${skipped} bet${skipped > 1 ? 's' : ''} hidden — no improvement vs state baseline</div>`;
   }
 
   return html;

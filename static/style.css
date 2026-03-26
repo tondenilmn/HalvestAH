@@ -1031,3 +1031,91 @@ select.gs-select {
 .pcard-odds-cons   { font-size:12px; font-weight:600; color:var(--text); }
 .pcard-odds-state  { font-size:11px; color:var(--dim); }
 .pcard-sep         { width:1px; height:28px; background:rgba(255,255,255,0.07); flex-shrink:0; }
+
+/* ── HT Live Panel ────────────────────────────────────────────────────────
+   Row-based layout optimised for quick scanning at half-time.
+   Primary CTA is MIN ODDS (Wilson lower bound) — bet only above it.
+   ──────────────────────────────────────────────────────────────────────── */
+.htlive-header {
+  margin-bottom:14px; padding:10px 12px;
+  background:rgba(26,159,255,0.06);
+  border:1px solid rgba(26,159,255,0.18);
+  border-radius:6px;
+}
+.htlive-title {
+  font-size:13px; font-weight:700; color:var(--bright); margin-bottom:4px;
+}
+.htlive-meta {
+  font-size:11px; color:var(--dim); margin-bottom:3px;
+}
+.htlive-reliability       { font-weight:600; }
+.htlive-reliability.green  { color:var(--green); }
+.htlive-reliability.yellow { color:var(--yellow); }
+.htlive-reliability.red    { color:var(--red); }
+.htlive-legend {
+  font-size:10px; color:var(--dim); font-style:italic; line-height:1.4;
+}
+
+/* Column grid: label | hit% | delta | MIN ODDS | fair | n */
+.htlive-table  { margin-bottom:6px; }
+.htlive-thead,
+.htlive-row    {
+  display:grid;
+  grid-template-columns: 1fr 50px 66px 72px 46px 30px;
+  align-items:center; gap:4px; padding:4px 6px;
+}
+.htlive-thead {
+  border-bottom:1px solid var(--border);
+  margin-bottom:2px;
+}
+.htlive-th-label,
+.htlive-th-prob,
+.htlive-th-delta,
+.htlive-th-minodds,
+.htlive-th-fair,
+.htlive-th-n {
+  font-size:9px; text-transform:uppercase; letter-spacing:0.06em;
+  color:var(--dim); font-weight:600;
+}
+.htlive-th-prob,
+.htlive-th-delta  { text-align:right; }
+.htlive-th-minodds,
+.htlive-th-fair,
+.htlive-th-n      { text-align:center; }
+
+/* Row styling */
+.htlive-row {
+  border-radius:4px; border-left:3px solid transparent;
+  margin-bottom:2px; background:var(--bg1);
+}
+.htlive-row:hover          { background:var(--bg2); }
+.htlive-row-strong         { border-left-color:var(--green);  background:rgba(0,229,170,0.05); }
+.htlive-row-good           { border-left-color:var(--blue);   background:rgba(26,159,255,0.04); }
+.htlive-row-weak           { border-left-color:var(--border); }
+
+/* Cell styles */
+.htlive-col-label  { font-size:12px; font-weight:600; color:var(--bright); }
+.htlive-col-prob   { font-size:12px; font-weight:700; color:var(--text);   text-align:right; }
+.htlive-col-delta  { font-size:11px; text-align:right; }
+.htlive-col-fair   { font-size:11px; color:var(--dim); text-align:center; }
+.htlive-col-n      { text-align:center; }
+
+/* MIN ODDS pill — the number the user needs to beat at the soft book */
+.htlive-col-minodds         { text-align:center; }
+.htlive-minodds-strong,
+.htlive-minodds-good,
+.htlive-minodds-weak        {
+  display:inline-block; padding:2px 7px; border-radius:3px;
+  font-size:13px; font-weight:700;
+}
+.htlive-minodds-strong { color:#000; background:var(--green); }
+.htlive-minodds-good   { color:#000; background:var(--yellow); }
+.htlive-minodds-weak   {
+  color:var(--text); background:var(--bg2);
+  border:1px solid var(--border);
+}
+
+.htlive-skipped {
+  font-size:10px; color:var(--dim); text-align:right;
+  margin-top:8px; font-style:italic;
+}
