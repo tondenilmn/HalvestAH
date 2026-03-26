@@ -87,9 +87,9 @@
       <div id="tab-scan" class="tab-pane active">
         <p style="color:var(--dim);font-size:11px;margin-bottom:12px;line-height:1.6">
           Scans all live matches on asianbetsoccer.com and applies the
-          <strong style="color:var(--bright)">Basic mode signal filters</strong>.
-          Shows only matches with qualifying bets (z ≥ 1.5, edge &gt; 0).<br>
-          Click <strong style="color:var(--bright)">Use this match →</strong> to load into GSA tab and run half-time analysis.
+          Shows matches where the <strong style="color:var(--bright)">AH line or TL has moved</strong>.<br>
+          Top 3 bets scored by AH closing line · AH closing odds (±tolerance) · TL closing.<br>
+          Click <strong style="color:var(--bright)">Use this match →</strong> to load into GSA tab.
         </p>
 
         <div class="section-label">LIVESCORE URL</div>
@@ -103,6 +103,21 @@
         <p style="color:var(--dim);font-size:10px;margin-bottom:10px">
           Uses the HT / First Goal / In-play 2H setting from the Analyse tab.
         </p>
+        <div class="section-label">AH CLOSING ODDS TOLERANCE</div>
+        <div class="min-n-row">
+          <button class="min-n-preset" onclick="document.getElementById('scan-odds-tol').value='0'">EXACT</button>
+          <button class="min-n-preset" onclick="document.getElementById('scan-odds-tol').value='0.03'">0.03</button>
+          <button class="min-n-preset" onclick="document.getElementById('scan-odds-tol').value='0.05'">0.05</button>
+          <button class="min-n-preset" onclick="document.getElementById('scan-odds-tol').value='0.07'">0.07</button>
+          <button class="min-n-preset" onclick="document.getElementById('scan-odds-tol').value='0.10'">0.10</button>
+          <input class="min-n-input" id="scan-odds-tol" type="text" value="0.05">
+        </div>
+        <div class="min-n-row" style="margin-top:6px">
+          <button class="toggle-btn on" id="scan-odds-side-fav"  onclick="setScanOddsSide('FAV')">FAV</button>
+          <button class="toggle-btn"    id="scan-odds-side-dog"  onclick="setScanOddsSide('DOG')">DOG</button>
+          <button class="toggle-btn"    id="scan-odds-side-both" onclick="setScanOddsSide('BOTH')">BOTH</button>
+        </div>
+
         <div class="section-label">MINIMUM MATCHING RECORDS</div>
         <div class="min-n-row">
           <button class="min-n-preset" onclick="document.getElementById('scan-min-n').value=10">10</button>
@@ -437,12 +452,46 @@
       <!-- ══ GSA TAB ═══════════════════════════════════════ -->
       <div id="tab-gsa" class="tab-pane">
         <p style="color:var(--dim);font-size:11px;margin-bottom:14px;line-height:1.6">
-          Game State Analysis at half-time.<br>
-          Select a match from <strong style="color:var(--bright)">Live Scan</strong>
-          or fill the <strong style="color:var(--bright)">ANALYSE</strong> tab inputs first, then enter the HT score below.
+          Click a match from <strong style="color:var(--bright)">Live Scan</strong> to load it here.
+          Movement filters show how each bet improves or worsens vs the baseline.
+          Add HT score to restrict to 2H / FT bets only.
         </p>
 
-        <div class="section-label">GAME STATE</div>
+        <div class="section-label">MOVEMENT FILTERS</div>
+        <div style="margin-bottom:14px">
+          <div class="signal-detect-row">
+            <span class="sdrow-key">LINE MOVE</span>
+            <span class="sdrow-val" id="gsa-sig-lm">—</span>
+            <button class="toggle-btn on" id="gsa-lm-tgl"  onclick="toggleGsaMovement('lm')">ON </button>
+          </div>
+          <div class="signal-detect-row">
+            <span class="sdrow-key">TL MOVE</span>
+            <span class="sdrow-val" id="gsa-sig-tlm">—</span>
+            <button class="toggle-btn on" id="gsa-tlm-tgl" onclick="toggleGsaMovement('tlm')">ON </button>
+          </div>
+          <div class="signal-detect-row">
+            <span class="sdrow-key">FAV ODDS</span>
+            <span class="sdrow-val" id="gsa-sig-fom">—</span>
+            <button class="toggle-btn"    id="gsa-fom-tgl" onclick="toggleGsaMovement('fom')">OFF</button>
+          </div>
+          <div class="signal-detect-row">
+            <span class="sdrow-key">DOG ODDS</span>
+            <span class="sdrow-val" id="gsa-sig-dom">—</span>
+            <button class="toggle-btn"    id="gsa-dom-tgl" onclick="toggleGsaMovement('dom')">OFF</button>
+          </div>
+          <div class="signal-detect-row">
+            <span class="sdrow-key">OVER ODDS</span>
+            <span class="sdrow-val" id="gsa-sig-ovm">—</span>
+            <button class="toggle-btn"    id="gsa-ovm-tgl" onclick="toggleGsaMovement('ovm')">OFF</button>
+          </div>
+          <div class="signal-detect-row">
+            <span class="sdrow-key">UNDER ODDS</span>
+            <span class="sdrow-val" id="gsa-sig-unm">—</span>
+            <button class="toggle-btn"    id="gsa-unm-tgl" onclick="toggleGsaMovement('unm')">OFF</button>
+          </div>
+        </div>
+
+        <div class="section-label">GAME STATE (HT SCORE — optional)</div>
         <div class="gs-triggers">
           <button class="gs-trigger-btn active" id="gsa-gs-btn-HT"         onclick="setGsaTrigger('HT')">Half Time</button>
           <button class="gs-trigger-btn"        id="gsa-gs-btn-FIRST_GOAL" onclick="setGsaTrigger('FIRST_GOAL')">First Goal</button>

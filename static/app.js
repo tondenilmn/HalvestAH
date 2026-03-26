@@ -1304,7 +1304,8 @@ function computeLiveOdd(pHtPct,betKey,matchMinute,favLine=0.75,
    ════════════════════════════════════════════════════════════ */
 let _db       = [];
 let _fileInfo = [];
-let _scanDataCache = new Map();   // id → scraped data; populated by runBatchScan
+let _scanDataCache  = new Map();   // id → { odds, match, cfg }; populated by runBatchScan
+let _activeScanCfg  = null;        // cfg of the match currently loaded from scan
 
 const state = {
   gsTrigger:    'HT',
@@ -1324,7 +1325,8 @@ const state = {
   advUnTolOn:   false,
   advUnmOn:     false,
   advTlRange:   '2.25-2.75',
-  bOddsSide: 'FAV',   // which side(s) to apply odds tolerance: 'FAV' | 'DOG' | 'BOTH'
+  bOddsSide: 'FAV',      // which side(s) to apply odds tolerance: 'FAV' | 'DOG' | 'BOTH'
+  scanOddsSide: 'FAV',  // scan tab odds side filter: 'FAV' | 'DOG' | 'BOTH'
   // Basic signal toggles
   bLmOn:  true,
   bFomOn: false,
@@ -1332,6 +1334,13 @@ const state = {
   bTlmOn: true,
   bOvmOn: false,
   bUnmOn: false,
+  // GSA tab movement toggles (scan mode)
+  gsaLmOn:  true,
+  gsaTlmOn: true,
+  gsaFomOn: false,
+  gsaDomOn: false,
+  gsaOvmOn: false,
+  gsaUnmOn: false,
   leagueTier: 'ALL',
 };
 
@@ -1687,6 +1696,14 @@ function setBasicTol(v) {
   if (inp) inp.value = v;
 }
 
+function setScanOddsSide(side) {
+  state.scanOddsSide = side;
+  ['FAV', 'DOG', 'BOTH'].forEach(s => {
+    const btn = document.getElementById(`scan-odds-side-${s.toLowerCase()}`);
+    if (btn) btn.classList.toggle('on', s === side);
+  });
+}
+
 function setBasicOddsSide(side) {
   state.bOddsSide = side;
   ['FAV', 'DOG', 'BOTH'].forEach(s => {
@@ -1950,60 +1967,133 @@ function runMatch() {
 function runGsa() {
   if (!_db.length) { showError('No database loaded. Please upload CSV files first.'); return; }
 
-  let cfg;
-  if (state.filterMode === 'BASIC') {
-    cfg = buildBasicCfg();
-  } else {
-    cfg = buildAdvancedCfg();
-  }
-  if (!cfg) { showError('Invalid AH line — enter a valid Asian Handicap value.'); return; }
-
   showLoader();
 
-  const gs      = getGs('gsa-gs-panel', state.gsaTrigger);
-  const minN    = getMinN();
   const activeDb = getDb();
+  const minN     = getMinN();
+  const gs       = getGs('gsa-gs-panel', state.gsaTrigger);
 
-  // Strip closing odds tolerance for GSA: the HT score already splits the pool;
-  // applying odds tolerance on top shrinks n below reliable thresholds.
-  // AH line + movement signals + HT score is sufficient.
+  // ── Scan GSA mode: match was loaded from Live Scan ────────────────────────
+  if (_activeScanCfg) {
+    const sig = _activeScanCfg._signals;
+
+    // Baseline: AH line + AH closing odds ±tol + TL closing — no movement filter
+    const blCfg = {
+      ..._activeScanCfg,
+      line_move: 'ANY', fav_odds_move: 'ANY', dog_odds_move: 'ANY',
+      tl_move:   'ANY', over_move:     'ANY', under_move:    'ANY',
+    };
+
+    // Signal: same base + active movement filters (only when the signal is a real move)
+    const sigCfg = {
+      ..._activeScanCfg,
+      line_move:     state.gsaLmOn  && !['STABLE','UNKNOWN'].includes(sig.lineMove)    ? sig.lineMove    : 'ANY',
+      fav_odds_move: state.gsaFomOn && !['STABLE','UNKNOWN'].includes(sig.favOddsMove) ? sig.favOddsMove : 'ANY',
+      dog_odds_move: state.gsaDomOn && !['STABLE','UNKNOWN'].includes(sig.dogOddsMove) ? sig.dogOddsMove : 'ANY',
+      tl_move:       state.gsaTlmOn && !['STABLE','UNKNOWN'].includes(sig.tlMove)      ? sig.tlMove      : 'ANY',
+      over_move:     state.gsaOvmOn && !['STABLE','UNKNOWN'].includes(sig.overMove)    ? sig.overMove    : 'ANY',
+      under_move:    state.gsaUnmOn && !['STABLE','UNKNOWN'].includes(sig.underMove)   ? sig.underMove   : 'ANY',
+    };
+
+    const blRows  = applyConfig(activeDb, blCfg);
+    const cfgRows = applyConfig(activeDb, sigCfg);
+    const blSide  = blRows.filter(r => r.fav_side === sigCfg.fav_side);
+
+    const probe = (state.gsaTrigger === 'HT')
+      ? computeGsProbe(cfgRows, blRows, gs)
+      : null;
+
+    _renderScanGsaPanel({ cfgRows, blRows, blSide, minN, probe, gs, sigCfg });
+    return;
+  }
+
+  // ── Manual mode: BASIC / ADVANCED form inputs ─────────────────────────────
+  let cfg;
+  if (state.filterMode === 'BASIC') cfg = buildBasicCfg();
+  else                               cfg = buildAdvancedCfg();
+  if (!cfg) { showError('Invalid AH line — enter a valid Asian Handicap value.'); return; }
+
+  // Strip closing odds tolerance for GSA: HT score already splits the pool
   const gsaCfg = { ...cfg, odds_tolerance: null, fav_oc: null, dog_oc: null, fav_oo: null, dog_oo: null };
 
-  const cfgRows  = applyConfig(activeDb, gsaCfg);
-  const blRows   = applyBaselineConfig(activeDb, gsaCfg);
+  const cfgRows = applyConfig(activeDb, gsaCfg);
+  const blRows  = applyBaselineConfig(activeDb, gsaCfg);
+  const probe   = (state.gsaTrigger === 'HT') ? computeGsProbe(cfgRows, blRows, gs) : null;
 
-  const probe = (state.gsaTrigger === 'HT')
-    ? computeGsProbe(cfgRows, blRows, gs)
-    : null;
-
-  const right = document.getElementById('right-panel');
+  const right  = document.getElementById('right-panel');
   const ahSide = gsaCfg.fav_side === 'AWAY' ? 'Away' : 'Home';
 
   try {
     let html = `<h2 class="results-title">HT LIVE VIEW</h2>`;
     html += `<div class="cfg-summary">${ahSide} AH −${gsaCfg.fav_line} · Signal pool: ${cfgRows.length} · Baseline: ${blRows.length}</div>`;
-
     if (!probe) {
-      const gsLbl = gsLabel(gs);
+      const gsLbl  = gsLabel(gs);
       const reason = state.gsaTrigger !== 'HT'
         ? 'This view only supports the <b>Half Time</b> trigger.'
-        : cfgRows.length < minN
-          ? `Signal pool too small (${cfgRows.length} rows).`
-          : 'No rows match this HT score.';
-      html += `<div class="no-bets" style="margin-top:20px">
-        <div class="warn-icon">⚠</div>
-        <p>No data for <b>${gsLbl}</b>.<br>${reason}</p>
-      </div>`;
+        : cfgRows.length < minN ? `Signal pool too small (${cfgRows.length} rows).` : 'No rows match this HT score.';
+      html += `<div class="no-bets" style="margin-top:20px"><div class="warn-icon">⚠</div><p>No data for <b>${gsLbl}</b>.<br>${reason}</p></div>`;
     } else {
       html += renderHtLivePanel(probe, gsLabel(gs));
+    }
+    right.innerHTML = html;
+  } catch (err) {
+    right.innerHTML = `<div class="no-bets" style="margin-top:20px"><div class="warn-icon">⚠</div><p>Render error: ${err.message}</p></div>`;
+  }
+}
+
+// ── Scan GSA results panel ───────────────────────────────────────────────────
+function _renderScanGsaPanel({ cfgRows, blRows, blSide, minN, probe, gs, sigCfg }) {
+  const right  = document.getElementById('right-panel');
+  const ahSide = sigCfg.fav_side === 'AWAY' ? 'Away' : 'Home';
+
+  try {
+    let html = `<h2 class="results-title">MATCH ANALYSIS</h2>`;
+    html += `<div class="cfg-summary">${ahSide} AH −${sigCfg.fav_line} · Signal n=${cfgRows.length} · Baseline n=${blRows.length}</div>`;
+
+    if (probe) {
+      // HT entered → show 2H + FT bets only
+      if (!probe.sn) {
+        html += `<div class="no-bets" style="margin-top:20px"><div class="warn-icon">⚠</div>
+          <p>No data for <b>${gsLabel(gs)}</b>.<br>
+          ${cfgRows.length < minN ? `Signal pool too small (${cfgRows.length} rows).` : 'No rows match this HT score.'}</p>
+        </div>`;
+      } else {
+        html += renderHtLivePanel(probe, gsLabel(gs));
+      }
+    } else {
+      // No HT → all bets, sorted by delta vs baseline
+      const bets = scoreBets(cfgRows, blRows, blSide, minN);
+      if (!bets.length) {
+        html += `<div class="no-bets"><p>Not enough data — signal pool has ${cfgRows.length} rows (need ≥${minN}).</p></div>`;
+      } else {
+        const sorted = [...bets].sort((a, b) => b.edge - a.edge);
+        html += `<p style="font-size:11px;color:var(--dim);margin-bottom:10px">${bets.length} bets · sorted by Δ vs baseline</p>`;
+        html += `<div class="htlive-table">
+          <div class="htlive-thead">
+            <span class="htlive-th-label">Bet</span>
+            <span class="htlive-th-prob">Signal%</span>
+            <span class="htlive-th-delta">Δ vs Baseline</span>
+            <span class="htlive-th-n">n</span>
+          </div>`;
+        for (const b of sorted) {
+          const dSign = b.edge >= 0 ? '+' : '';
+          const tier  = b.edge >= 5 ? 'strong' : b.edge >= 0 ? 'good' : 'weak';
+          const nCls  = b.n >= 30 ? 'green' : b.n >= 15 ? 'yellow' : 'red';
+          html += `
+          <div class="htlive-row htlive-row-${tier}">
+            <span class="htlive-col-label">${b.label}</span>
+            <span class="htlive-col-prob">${b.p.toFixed(1)}% <span style="color:var(--dim)">bl ${b.bl.toFixed(1)}%</span></span>
+            <span class="htlive-col-delta probe-delta ${b.edge >= 0 ? 'pos' : 'neg'}">${dSign}${b.edge.toFixed(1)}pp</span>
+            <span class="htlive-col-n probe-conf ${nCls}">${b.n}</span>
+          </div>`;
+        }
+        html += `</div>`;
+      }
     }
 
     right.innerHTML = html;
   } catch (err) {
-    right.innerHTML = `<div class="no-bets" style="margin-top:20px">
-      <div class="warn-icon">⚠</div>
-      <p>Render error: ${err.message}</p>
-    </div>`;
+    right.innerHTML = `<div class="no-bets"><div class="warn-icon">⚠</div><p>Render error: ${err.message}</p></div>`;
   }
 }
 
@@ -3027,8 +3117,10 @@ function buildCfgFromMatchData(data) {
     over_move:     state.bOvmOn ? overMove     : 'ANY',
     under_move:    state.bUnmOn ? underMove    : 'ANY',
     tl_c: data.tl_c, tl_range: null, tl_cluster: null,
-    tl_move: state.bTlmOn ? tlMove : 'ANY', tl_max: null,
-    odds_tolerance: 0, fav_oc: null, fav_oo: null, dog_oc: null, dog_oo: null,
+    tl_move: 'ANY', tl_max: null,
+    odds_tolerance: getScanOddsTol(),
+    fav_oc: state.scanOddsSide !== 'DOG'  ? favOc : null, fav_oo: null,
+    dog_oc: state.scanOddsSide !== 'FAV'  ? dogOc : null, dog_oo: null,
     ov_c: null, ov_tol: null, un_c: null, un_tol: null,
     // passthrough for display only (not used by applyConfig):
     _signals: { lineMove, favOddsMove, dogOddsMove, tlMove, overMove, underMove, favSide, favLine },
@@ -3102,19 +3194,22 @@ async function runBatchScan() {
 
     if (cfgRows.length < minN) continue;
 
-    // Scan card always shows pre-match bets (no GS filter) for a clean signal
-    const bets     = scoreBets(cfgRows, blRows, blSide, minN);
-    const qualBets = bets.filter(b => Math.abs(b.z) >= MIN_Z && b.edge > 0);
-    if (!qualBets.length) continue;
+    // Show match if AH line moved (DEEPER/SHRANK) or TL moved (UP/DOWN)
+    const sig = cfg._signals;
+    const hasMovement = ['DEEPER', 'SHRANK'].includes(sig.lineMove) || ['UP', 'DOWN'].includes(sig.tlMove);
+    if (!hasMovement) continue;
 
-    _scanDataCache.set(match.id, { odds: data, match });
-    const bestZ = Math.max(...qualBets.map(b => Math.abs(b.z)));
-    qualifying.push({ match, cfg, bets: qualBets, bestZ, n: cfgRows.length });
+    // Scan card always shows pre-match bets (no GS filter) for a clean signal
+    const bets  = scoreBets(cfgRows, blRows, blSide, minN);
+    const bestZ = bets.length ? Math.max(...bets.map(b => Math.abs(b.z))) : 0;
+
+    _scanDataCache.set(match.id, { odds: data, match, cfg });
+    qualifying.push({ match, cfg, bets, bestZ, n: cfgRows.length });
   }
 
   const parseMin = m => parseInt(String(m?.minute || '999').replace(/'/g, ''), 10) || 999;
   qualifying.sort((a, b) => parseMin(a.match) - parseMin(b.match));
-  setScanProgress(`Done — ${qualifying.length} qualifying match${qualifying.length !== 1 ? 'es' : ''} from ${total} live`, total, total);
+  setScanProgress(`Done — ${qualifying.length} match${qualifying.length !== 1 ? 'es' : ''} with movement from ${total} live`, total, total);
   renderBatchResults(qualifying, total);
 }
 
@@ -3148,14 +3243,49 @@ function getScanMinN() {
   return isNaN(v) || v < 1 ? 15 : v;
 }
 
+function getScanOddsTol() {
+  const v = parseFloat(document.getElementById('scan-odds-tol')?.value);
+  return isNaN(v) || v < 0 ? 0.05 : v;
+}
+
 function useScanMatch(id) {
   const entry = _scanDataCache.get(id);
   if (!entry) return;
   fillFromScraped(entry.odds);
   fillLiveMatchState(entry.match);
   _showActiveMatchBanner(entry.match);
+  _activeScanCfg = entry.cfg;
+  _updateGsaMovementBadges();
   switchTab('gsa');
   runGsa();
+}
+
+function _updateGsaMovementBadges() {
+  const sig = _activeScanCfg?._signals;
+  const rows = [
+    ['gsa-sig-lm',  sig?.lineMove],
+    ['gsa-sig-tlm', sig?.tlMove],
+    ['gsa-sig-fom', sig?.favOddsMove],
+    ['gsa-sig-dom', sig?.dogOddsMove],
+    ['gsa-sig-ovm', sig?.overMove],
+    ['gsa-sig-unm', sig?.underMove],
+  ];
+  const label = { IN:'STEAM', OUT:'DRIFT', DEEPER:'DEEPER', SHRANK:'SHRANK', UP:'UP', DOWN:'DOWN', STABLE:'STABLE', UNKNOWN:'—' };
+  for (const [id, val] of rows) {
+    const el = document.getElementById(id);
+    if (!el) continue;
+    el.textContent = label[val] || val || '—';
+    el.className = 'sdrow-val' + (val ? ` ${val}` : '');
+  }
+}
+
+function toggleGsaMovement(signal) {
+  const keyMap = { lm:'gsaLmOn', tlm:'gsaTlmOn', fom:'gsaFomOn', dom:'gsaDomOn', ovm:'gsaOvmOn', unm:'gsaUnmOn' };
+  const key = keyMap[signal];
+  if (!key) return;
+  state[key] = !state[key];
+  const btn = document.getElementById(`gsa-${signal}-tgl`);
+  if (btn) { btn.textContent = state[key] ? 'ON ' : 'OFF'; btn.classList.toggle('on', state[key]); }
 }
 
 function _showActiveMatchBanner(match) {
@@ -3216,13 +3346,12 @@ function renderBatchResults(results, totalScanned) {
   const container = document.getElementById('scan-results');
   if (!results.length) {
     container.innerHTML = `<div class="no-bets"><div class="warn-icon">⚠️</div>
-      <p>No qualifying matches.<br>Scanned ${totalScanned} live matches.<br>
-      Adjust signal filters or min N.</p></div>`;
+      <p>No matches with AH line or TL movement.<br>Scanned ${totalScanned} live matches.</p></div>`;
     return;
   }
-  let html = `<h2 class="results-title">LIVE SCAN — ${results.length} match${results.length !== 1 ? 'es' : ''} qualify</h2>
+  let html = `<h2 class="results-title">LIVE SCAN — ${results.length} match${results.length !== 1 ? 'es' : ''} with movement</h2>
     <p style="font-size:11px;color:var(--dim);margin-bottom:12px">
-      Pre-match · ${totalScanned} live scanned · sorted by minute</p>`;
+      AH line or TL changed · ${totalScanned} live scanned · sorted by minute</p>`;
   for (const item of results) html += renderScanMatchCard(item);
   container.innerHTML = html;
 }
