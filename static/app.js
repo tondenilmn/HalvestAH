@@ -3203,11 +3203,10 @@ async function runBatchScan() {
     if (!hasMovement) continue;
 
     // Scan card always shows pre-match bets (no GS filter) for a clean signal
-    const bets  = scoreBets(cfgRows, blRows, blSide, minN);
-    const bestZ = bets.length ? Math.max(...bets.map(b => Math.abs(b.z))) : 0;
+    const bets = scoreBets(cfgRows, blRows, blSide, minN);
 
     _scanDataCache.set(match.id, { odds: data, match, cfg });
-    qualifying.push({ match, cfg, bets, bestZ, n: cfgRows.length });
+    qualifying.push({ match, cfg, bets, n: cfgRows.length });
   }
 
   const parseMin = m => parseInt(String(m?.minute || '999').replace(/'/g, ''), 10) || 999;
@@ -3379,27 +3378,27 @@ function renderBatchResults(results, totalScanned) {
   container.innerHTML = html;
 }
 
-function renderScanMatchCard({ match, cfg, bets, bestZ, n }) {
-  const sig  = cfg._signals;
-  const tier = tierClass(bestZ);
+function renderScanMatchCard({ match, cfg, bets, n }) {
+  const sig = cfg._signals;
 
+  // Always show LM and TLM (the scan criteria); show others only when they have real movement
   const badges = [
-    state.bLmOn  && sig.lineMove    !== 'UNKNOWN' ? sigBadge('LM',    sig.lineMove)    : '',
-    state.bFomOn && sig.favOddsMove !== 'UNKNOWN' ? sigBadge('FAV',   sig.favOddsMove) : '',
-    state.bDomOn && sig.dogOddsMove !== 'UNKNOWN' ? sigBadge('DOG',   sig.dogOddsMove) : '',
-    state.bTlmOn && sig.tlMove      !== 'UNKNOWN' ? sigBadge('TLM',   sig.tlMove)      : '',
-    state.bOvmOn && sig.overMove    !== 'UNKNOWN' ? sigBadge('OVER',  sig.overMove)    : '',
-    state.bUnmOn && sig.underMove   !== 'UNKNOWN' ? sigBadge('UNDER', sig.underMove)   : '',
+    sig.lineMove    !== 'UNKNOWN' ? sigBadge('LM',    sig.lineMove)    : '',
+    sig.tlMove      !== 'UNKNOWN' ? sigBadge('TLM',   sig.tlMove)      : '',
+    sig.favOddsMove !== 'UNKNOWN' && sig.favOddsMove !== 'STABLE' ? sigBadge('FAV',   sig.favOddsMove) : '',
+    sig.dogOddsMove !== 'UNKNOWN' && sig.dogOddsMove !== 'STABLE' ? sigBadge('DOG',   sig.dogOddsMove) : '',
+    sig.overMove    !== 'UNKNOWN' && sig.overMove    !== 'STABLE' ? sigBadge('OVER',  sig.overMove)    : '',
+    sig.underMove   !== 'UNKNOWN' && sig.underMove   !== 'STABLE' ? sigBadge('UNDER', sig.underMove)   : '',
   ].join('');
 
   const topBets = bets.slice(0, 3).map(b => {
-    const above = b.edge > 0;
-    const zCls  = above ? 'badge-z badge-z-pos' : 'badge-z badge-z-neg';
+    const dSign = b.edge >= 0 ? '+' : '';
+    const dCls  = b.edge >= 5 ? 'badge-z-pos' : b.edge >= 0 ? 'badge-z-ok' : 'badge-z-neg';
     return `<div class="scan-bet-row">
       <span class="scan-bet-label">${b.label}</span>
-      <span class="${zCls}">z=${b.z.toFixed(2)}</span>
+      <span class="badge-z ${dCls}">${dSign}${b.edge.toFixed(1)}pp</span>
       <span class="scan-bet-p">${b.p.toFixed(1)}% <span class="scan-bet-bl">vs ${b.bl.toFixed(1)}%</span></span>
-      <span class="scan-bet-mo">${b.mo}–${b.mo_mid}</span>
+      <span class="scan-bet-mo">≥${b.mo_lo}</span>
     </div>`;
   }).join('');
 
@@ -3408,7 +3407,7 @@ function renderScanMatchCard({ match, cfg, bets, bestZ, n }) {
   const leagueStr = match.league ? `<span class="scan-league">${match.league}</span>` : '';
   const ahStr = `AH ${sig.favSide === 'HOME' ? '−' : '+'}${sig.favLine}`;
 
-  return `<div class="scan-card tier-${tier}">
+  return `<div class="scan-card">
     <div class="scan-card-header">
       <div class="scan-match-name">
         <span class="scan-home">${match.home_team || 'Home'}</span>
