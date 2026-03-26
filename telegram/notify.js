@@ -223,11 +223,12 @@ async function runScan() {
   for (const match of matches) {
     const label  = `${match.home_team} vs ${match.away_team}`;
     const rawMin = match.minute ? String(match.minute).replace(/'/g, '').trim() : null;
-    const minNum = rawMin === 'HT' ? 46 : rawMin ? parseInt(rawMin, 10) : null;
+    const minNum = rawMin ? parseInt(rawMin, 10) : null;
 
-    // ── HT window gate ────────────────────────────────────────────────────
-    const isHtWindow = minNum != null && !isNaN(minNum) &&
-                       minNum >= HT_MIN_MINUTE && minNum <= HT_MAX_MINUTE;
+    // ── HT window gate — accepts explicit 'HT' string or minute 46–50 ─────
+    const isHtWindow = rawMin === 'HT' ||
+                       (minNum != null && !isNaN(minNum) &&
+                        minNum >= HT_MIN_MINUTE && minNum <= HT_MAX_MINUTE);
     if (!isHtWindow || !match.score) {
       if (VERBOSE) console.log(`  SKIP [not HT]  ${label}  min=${match.minute}`);
       continue;
