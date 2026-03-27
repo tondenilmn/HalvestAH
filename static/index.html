@@ -15,7 +15,7 @@
       <span class="version-pill">v3.2</span>
       <span class="header-title">HALVEST AH</span>
     </div>
-    <span class="header-sub">Scan live  →  Bayesian check  →  place</span>
+    <span class="header-sub">1. Scan live  ·  2. HT Analysis  ·  3. Place</span>
   </header>
 
   <!-- ── Main split ────────────────────────────────────── -->
@@ -75,34 +75,43 @@
       <!-- Active Match Banner — global, visible across all tabs -->
       <div id="active-match-banner" style="display:none"></div>
 
-      <!-- Tabs -->
+      <!-- Workflow step indicator -->
+      <div class="workflow-bar">
+        <div class="wf-step wf-current" id="wf-1">
+          <span class="wf-num">1</span>
+          <span class="wf-name">SCAN</span>
+        </div>
+        <span class="wf-arr">→</span>
+        <div class="wf-step" id="wf-2">
+          <span class="wf-num">2</span>
+          <span class="wf-name">HT ANALYSIS</span>
+        </div>
+        <span class="wf-arr">→</span>
+        <div class="wf-step wf-place" id="wf-3">
+          <span class="wf-num">3</span>
+          <span class="wf-name">PLACE</span>
+        </div>
+      </div>
+
+      <!-- Tabs (order matches workflow: SCAN → HT ANALYSIS → ANALYSE → DISCOVER) -->
       <div class="tabs">
         <button class="tab-btn active" data-tab="scan"  onclick="switchTab('scan')">LIVE SCAN</button>
+        <button class="tab-btn"        data-tab="gsa"   onclick="switchTab('gsa')">HT ANALYSIS</button>
         <button class="tab-btn"        data-tab="match" onclick="switchTab('match')">ANALYSE</button>
-        <button class="tab-btn"        data-tab="gsa"   onclick="switchTab('gsa')">GSA</button>
         <button class="tab-btn"        data-tab="disc"  onclick="switchTab('disc')">DISCOVER</button>
       </div>
 
       <!-- ══ LIVE SCAN TAB ═══════════════════════════════════ -->
       <div id="tab-scan" class="tab-pane active">
         <p style="color:var(--dim);font-size:11px;margin-bottom:12px;line-height:1.6">
-          Scans all live matches on asianbetsoccer.com and applies the
-          Shows matches where the <strong style="color:var(--bright)">AH line or TL has moved</strong>.<br>
-          Top 3 bets scored by AH closing line · AH closing odds (±tolerance) · TL closing.<br>
-          Click <strong style="color:var(--bright)">Use this match →</strong> to load into GSA tab.
+          Shows live matches where the <strong style="color:var(--bright)">AH line or TL has moved</strong>.
+          Top 3 bets per match — scored vs the historical DB.<br>
+          Click <strong style="color:var(--green)">Use this match →</strong> to load into HT Analysis.
         </p>
 
-        <div class="section-label">LIVESCORE URL</div>
-        <div class="url-import-col" style="margin-bottom:12px">
-          <input id="scan-url-input" type="text" class="url-import-input"
-                 value="https://www.asianbetsoccer.com/it/livescore.html"
-                 placeholder="https://www.asianbetsoccer.com/it/livescore.html">
-        </div>
-
-        <div class="section-label">GAME STATE</div>
-        <p style="color:var(--dim);font-size:10px;margin-bottom:10px">
-          Uses the HT / First Goal / In-play 2H setting from the Analyse tab.
-        </p>
+        <!-- scan-url-input kept for JS but hidden -->
+        <input id="scan-url-input" type="hidden"
+               value="https://www.asianbetsoccer.com/it/livescore.html">
         <div class="section-label">AH CLOSING ODDS TOLERANCE</div>
         <div class="min-n-row">
           <button class="min-n-preset" onclick="document.getElementById('scan-odds-tol').value='0'">EXACT</button>
@@ -452,9 +461,9 @@
       <!-- ══ GSA TAB ═══════════════════════════════════════ -->
       <div id="tab-gsa" class="tab-pane">
         <p style="color:var(--dim);font-size:11px;margin-bottom:14px;line-height:1.6">
-          Click a match from <strong style="color:var(--bright)">Live Scan</strong> to load it here.
-          Movement filters show how each bet improves or worsens vs the baseline.
-          Add HT score to restrict to 2H / FT bets only.
+          <strong style="color:var(--bright)">Step 2:</strong> match loaded from Live Scan.
+          Enter the HT score below, then click <strong style="color:var(--green)">RUN GSA →</strong>
+          to see which 2H / FT bets have statistical edge and their fair target odds.
         </p>
 
         <div class="section-label">MOVEMENT FILTERS</div>
@@ -599,7 +608,10 @@
     <div class="right-panel" id="right-panel">
       <div class="placeholder">
         <div class="icon">📊</div>
-        <p>Results will appear here<br>after you run the analysis</p>
+        <p><strong style="color:var(--bright)">Start with LIVE SCAN</strong><br>
+        Click <span style="color:var(--green)">SCAN LIVE MATCHES →</span><br>
+        then <span style="color:var(--green)">Use this match →</span> on any card<br>
+        to load it into HT Analysis.</p>
       </div>
     </div>
 

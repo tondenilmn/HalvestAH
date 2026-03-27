@@ -540,6 +540,7 @@ module.exports = {
   applyBaselineConfig,
   applyGameState,
   scoreBets,
+  classifyLeague,
   pct,
   zScore,
   wilsonCI,

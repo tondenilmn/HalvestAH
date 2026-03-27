@@ -8,36 +8,25 @@ module.exports = {
   TELEGRAM_CHAT_ID: process.env.TELEGRAM_CHAT_ID || '569463264',
 
   // ── Data source ──────────────────────────────────────────────────────────────
-  DATA_URL: process.env.DATA_URL || null,
+  DATA_URL: process.env.DATA_URL || null,   // set to your Cloudflare Pages URL for Railway
   DATA_DIR: process.env.DATA_DIR || '../static/data',
 
-  // ── Baseline filters (AH line + AH closing odds ±tol + TL closing) ──────────
-  // These are applied to BOTH the baseline pool and the signal pool.
-  ODDS_TOLERANCE: 0.05,  // AH closing odds tolerance (0 = exact, 0.05 = default)
-  ODDS_SIDE:      'FAV', // which side(s) to match odds: 'FAV' | 'DOG' | 'BOTH'
-
-  // ── Signal filters (applied on top of baseline — movement only) ──────────────
-  LINE_MOVE_ON:   true,   // AH line move (DEEPER / SHRANK)
-  TL_MOVE_ON:     true,   // TL move (UP / DOWN)
-  FAV_ODDS_ON:    false,  // Fav odds move (IN / OUT)
-  DOG_ODDS_ON:    false,  // Dog odds move
-  OVER_ODDS_ON:   false,  // Over odds move
-  UNDER_ODDS_ON:  false,  // Under odds move
-
-  // Require at least one active signal to show real movement (not STABLE/UNKNOWN).
-  // Prevents alerts on flat-market matches where AH+TL+HT alone shows spurious edge.
-  REQUIRE_MOVEMENT: true,
-
-  // ── GSA notification thresholds ──────────────────────────────────────────────
-  GSA_MIN_N:         20,    // min rows in signal+HT pool
-  GSA_MIN_DELTA:     5,     // min improvement: signal% − baseline% (pp)
-  GSA_MIN_P_2H:      50,    // min absolute hit rate for 2H bets (%)
-  GSA_MIN_P_FT:      40,    // min absolute hit rate for FT bets (%)
-  GSA_MAX_CONS_ODDS: 2.50,  // max conservative odds (Wilson CI lower bound) — don't alert above this
+  // ── Steam strategy thresholds ────────────────────────────────────────────────
+  // Alert when the AH line has moved at least LM_STEAM_MIN toward the favourite.
+  // 0.45 captures "at least 2 steps" (0.50 movement), e.g. −0.25 → −0.75.
+  // Backtest (TOP+MAJOR, 12 months OOS): 55.8% win rate · +21% ROI · n=934
+  LM_STEAM_MIN: parseFloat(process.env.LM_STEAM_MIN || '0.45'),
 
   // ── League tier filter ───────────────────────────────────────────────────────
   // 'ALL' | 'TOP' | 'MAJOR' | 'TOP+MAJOR'
-  HT_LEAGUE_TIER: process.env.HT_LEAGUE_TIER || 'ALL',
+  // TOP+MAJOR is recommended — obscure leagues pollute the signal.
+  LEAGUE_TIER: process.env.LEAGUE_TIER || 'TOP+MAJOR',
+
+  // ── Alert window ─────────────────────────────────────────────────────────────
+  // Fire alerts only when the match is live between minute MIN and MAX.
+  // Minutes 1–5 = just kicked off, pre-match AH odds still actionable.
+  ALERT_MIN_MINUTE: parseInt(process.env.ALERT_MIN_MINUTE || '1',  10),
+  ALERT_MAX_MINUTE: parseInt(process.env.ALERT_MAX_MINUTE || '5', 10),
 
   // ── Scan frequency ───────────────────────────────────────────────────────────
   SCAN_INTERVAL_MINUTES: parseInt(process.env.SCAN_INTERVAL_MINUTES || '3', 10),

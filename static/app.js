@@ -1408,6 +1408,11 @@ function switchTab(name) {
   ['match', 'disc', 'scan', 'gsa'].forEach(t =>
     document.getElementById(`tab-${t}`).classList.toggle('active', t === name)
   );
+  // Highlight workflow step bar
+  const stepMap = { scan: 'wf-1', gsa: 'wf-2' };
+  document.querySelectorAll('.wf-step').forEach(s => s.classList.remove('wf-current'));
+  const stepId = stepMap[name];
+  if (stepId) document.getElementById(stepId)?.classList.add('wf-current');
 }
 
 /* ════════════════════════════════════════════════════════════
@@ -2086,7 +2091,7 @@ function _renderScanGsaPanel({ cfgRows, blRows, blSide, minN, probe, gs, sigCfg 
             <span class="htlive-col-label">${b.label}</span>
             <span class="htlive-col-prob">${b.p.toFixed(1)}% <span style="color:var(--dim)">bl ${b.bl.toFixed(1)}%</span></span>
             <span class="htlive-col-delta probe-delta ${b.edge >= 0 ? 'pos' : 'neg'}">${dSign}${b.edge.toFixed(1)}pp</span>
-            <span class="htlive-col-minodds htlive-minodds-${tier}">${b.mo_lo}</span>
+            <span class="htlive-col-minodds htlive-minodds-${tier}">${b.mo}</span>
             <span class="htlive-col-n probe-conf ${nCls}">${b.n}</span>
           </div>`;
         }
@@ -2519,9 +2524,9 @@ function buildBetCol(bet, passes, title, subtitle, rank, colId, minN) {
   const hasLive  = bet.live && bet.live.live_p != null && bet.live.live_p > 0 && bet.live.live_p < 100;
   const moRange  = hasLive
     ? `<b>${bet.live.fair_odd.toFixed(2)}</b> <span class="mo-range-sep">live</span>`
-    : `<b>${bet.mo}</b><span class="mo-range-sep"> – </span><b>${bet.mo_mid}</b>`;
-  const moLabel  = hasLive ? 'LIVE ODDS' : 'ODDS RANGE';
-  const moFloor  = hasLive ? `hist. range ${bet.mo} – ${bet.mo_mid}` : `floor: ${bet.mo_lo}`;
+    : `<b>${bet.mo}</b>`;
+  const moLabel  = hasLive ? 'LIVE ODDS' : 'FAIR ODDS';
+  const moFloor  = hasLive ? `hist. ${bet.mo} – ${bet.mo_mid}` : `CI range ${bet.mo} – ${bet.mo_mid}`;
 
   let matchesHtml = '';
   if (bet.matches && bet.matches.length) {
@@ -2974,7 +2979,7 @@ function renderBetCard(bet, rank) {
       <div class="bet-right">
         <div class="mo-label">${moLabel}</div>
         <div class="mo-value">${moRange}</div>
-        <div class="mo-sub">fair value → conservative</div>
+        <div class="mo-sub">target odds at bookmaker</div>
         <div class="mo-lo-ref">${moFloor}</div>
       </div>
     </div>
@@ -3013,10 +3018,10 @@ function renderValueHuntCard(bet) {
         </div>
       </div>
       <div class="vh-right">
-        <div class="mo-label">ODDS RANGE</div>
-        <div class="vh-mo-value"><b>${bet.mo}</b><span class="mo-range-sep"> – </span><b>${bet.mo_mid}</b></div>
-        <div class="mo-sub">fair value → conservative</div>
-        <div class="mo-lo-ref">floor: ${bet.mo_lo}</div>
+        <div class="mo-label">FAIR ODDS</div>
+        <div class="vh-mo-value"><b>${bet.mo}</b></div>
+        <div class="mo-sub">target odds at bookmaker</div>
+        <div class="mo-lo-ref">CI range ${bet.mo} – ${bet.mo_mid}</div>
       </div>
     </div>
   </div>`;
@@ -3073,8 +3078,8 @@ function renderDiscResults(data) {
       </div>
       <div class="disc-right">
         <div class="dp">${r.p.toFixed(1)}%</div>
-        <div class="dl">ODDS RANGE</div>
-        <div class="dm">${r.mo}<span class="mo-range-sep"> – </span>${r.mo_mid}</div>
+        <div class="dl">FAIR ODDS</div>
+        <div class="dm">${r.mo}</div>
       </div>
     </div>`;
   }
@@ -3398,7 +3403,7 @@ function renderScanMatchCard({ match, cfg, bets, n }) {
       <span class="scan-bet-label">${b.label}</span>
       <span class="badge-z ${dCls}">${dSign}${b.edge.toFixed(1)}pp</span>
       <span class="scan-bet-p">${b.p.toFixed(1)}% <span class="scan-bet-bl">vs ${b.bl.toFixed(1)}%</span></span>
-      <span class="scan-bet-mo">≥${b.mo_lo}</span>
+      <span class="scan-bet-mo">≥${b.mo}</span>
     </div>`;
   }).join('');
 
