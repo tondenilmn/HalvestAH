@@ -113,8 +113,15 @@ function roiRef(favLc) {
   return '+21% ROI hist';
 }
 
+// Human-readable tier label
+function tierLabel(tier) {
+  if (tier === 'TOP')   return '⭐ TOP League';
+  if (tier === 'MAJOR') return '🔵 MAJOR League';
+  return '⚪ Minor League';
+}
+
 // ── Message formatter ─────────────────────────────────────────────────────────
-function formatMessage(match, steam) {
+function formatMessage(match, steam, tier) {
   const { favSide, favLc, favLo, dogOc } = steam;
   const steamMag = favLc - favLo;
 
@@ -122,25 +129,22 @@ function formatMessage(match, steam) {
   const dogTeam = favSide === 'HOME' ? match.away_team : match.home_team;
   const dogLine = favLc.toFixed(2);   // dog gets +favLc
 
-  const liveMin    = parseLiveMinute(match.minute);
-  const statusLine = `🕐 <b>${match.minute}'</b>  Score: <b>${match.score || '0–0'}</b>`;
-
   const steps = Math.round(steamMag / 0.25);
   const stepsLabel = `${steps} step${steps !== 1 ? 's' : ''}  (+${steamMag.toFixed(2)})`;
 
   const lines = [
     `${steamLabel(steamMag)} <b>DOG AH ALERT</b>  ·  ${nowTime()}`,
     ``,
-    `🏆 <i>${match.league || '—'}</i>`,
+    `🏆 <i>${match.league || '—'}</i>  ·  ${tierLabel(tier)}`,
     `⚽ <b>${match.home_team} vs ${match.away_team}</b>`,
-    statusLine,
+    `🕐 <b>${match.minute}'</b>  Score: <b>${match.score || '0–0'}</b>`,
     ``,
     `📉 <b>${favTeam}</b> fav steamed ${stepsLabel}`,
     `   AH: ${ahLabel(favLc, favLo)}`,
     ``,
     `💰 BET: <b>${dogTeam}  +${dogLine}  @  ${dogOc.toFixed(2)}</b>`,
     ``,
-    `📈 ${roiRef(favLc)}  ·  55.8% win rate  (OOS, TOP+MAJOR)`,
+    `📈 ${roiRef(favLc)}  ·  55.8% win rate  (OOS, ALL leagues)`,
   ];
 
   return lines.join('\n');

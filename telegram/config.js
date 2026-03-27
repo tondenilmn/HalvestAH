@@ -20,7 +20,7 @@ module.exports = {
   // ── League tier filter ───────────────────────────────────────────────────────
   // 'ALL' | 'TOP' | 'MAJOR' | 'TOP+MAJOR'
   // TOP+MAJOR is recommended — obscure leagues pollute the signal.
-  LEAGUE_TIER: process.env.LEAGUE_TIER || 'TOP+MAJOR',
+  LEAGUE_TIER: process.env.LEAGUE_TIER || 'ALL',
 
   // ── Alert window ─────────────────────────────────────────────────────────────
   // Fire alerts only when the match is live between minute MIN and MAX.
