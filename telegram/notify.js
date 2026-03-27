@@ -103,16 +103,6 @@ function steamLabel(steam) {
   return '⚡ STEAM';
 }
 
-// ROI reference by closing line (from backtest_lm2.js results)
-function roiRef(favLc) {
-  if (Math.abs(favLc - 1.50) < 0.13) return '+43% ROI hist';
-  if (Math.abs(favLc - 1.25) < 0.13) return '+33% ROI hist';
-  if (Math.abs(favLc - 1.00) < 0.13) return '+20% ROI hist';
-  if (Math.abs(favLc - 0.75) < 0.13) return '+18% ROI hist';
-  if (Math.abs(favLc - 0.50) < 0.13) return '+10% ROI hist';
-  return '+21% ROI hist';
-}
-
 // Human-readable tier label
 function tierLabel(tier) {
   if (tier === 'TOP')   return '⭐ TOP League';
@@ -143,8 +133,6 @@ function formatMessage(match, steam, tier) {
     `   AH: ${ahLabel(favLc, favLo)}`,
     ``,
     `💰 BET: <b>${dogTeam}  +${dogLine}  @  ${dogOc.toFixed(2)}</b>`,
-    ``,
-    `📈 ${roiRef(favLc)}  ·  55.8% win rate  (OOS, ALL leagues)`,
   ];
 
   return lines.join('\n');
