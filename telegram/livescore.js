@@ -118,16 +118,17 @@ function parseGetData1Calls(jsText) {
     const homeTeam = typeof args[9]  === 'string' ? args[9]  : '';
     const awayTeam = typeof args[22] === 'string' ? args[22] : '';
     const league   = typeof args[6]  === 'string' ? args[6]  : '';
-    const rawTime  = typeof args[10] === 'string' ? args[10].replace(/\\'/g, "'") : null;
-    const isHT     = rawTime === 'HT';
-    const minute   = rawTime && (isHT || !rawTime.includes('T')) ? rawTime : null;
+    const rawTime     = typeof args[10] === 'string' ? args[10].replace(/\\'/g, "'") : null;
+    const isHT        = rawTime === 'HT';
+    const minute      = rawTime && (isHT || !rawTime.includes('T')) ? rawTime : null;
+    const kickoffTime = rawTime && rawTime.includes('T') && !isHT ? rawTime : null;
     let score = null;
     if (minute && args.length > 23) {
       const hg = typeof args[11] === 'number' ? args[11] : parseInt(args[11], 10);
       const ag = typeof args[23] === 'number' ? args[23] : parseInt(args[23], 10);
       if (!isNaN(hg) && !isNaN(ag) && hg >= 0 && ag >= 0) score = `${hg}-${ag}`;
     }
-    results.push({ matchId, homeTeam, awayTeam, league, minute, score });
+    results.push({ matchId, homeTeam, awayTeam, league, minute, kickoffTime, score });
   }
   return results;
 }
@@ -148,11 +149,12 @@ function mergeMatchData(oddsRows, metaRows) {
     if (odds.ah_hc === null && odds.ho_c === null && odds.tl_c === null) continue;
     matches.push({
       id, url,
-      home_team: meta.homeTeam || '',
-      away_team: meta.awayTeam || '',
-      league:    meta.league   || '',
-      minute:    meta.minute   || null,
-      score:     meta.score    || null,
+      home_team:    meta.homeTeam    || '',
+      away_team:    meta.awayTeam    || '',
+      league:       meta.league      || '',
+      minute:       meta.minute      || null,
+      kickoff_time: meta.kickoffTime || null,
+      score:        meta.score       || null,
       odds,
     });
   }

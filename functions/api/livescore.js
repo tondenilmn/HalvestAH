@@ -370,9 +370,10 @@ function parseGetData1Calls(jsText) {
 
     // [10] is live minute ("5'") for live/HT matches, ISO datetime for upcoming matches.
     // 'HT' contains 'T' so we must whitelist it before the ISO check.
-    const rawTime  = typeof args[10] === 'string' ? args[10].replace(/\\'/g, "'") : null;
-    const isHT     = rawTime === 'HT';
-    const minute   = rawTime && (isHT || !rawTime.includes('T')) ? rawTime : null;
+    const rawTime    = typeof args[10] === 'string' ? args[10].replace(/\\'/g, "'") : null;
+    const isHT       = rawTime === 'HT';
+    const minute     = rawTime && (isHT || !rawTime.includes('T')) ? rawTime : null;
+    const kickoffTime = rawTime && rawTime.includes('T') && !isHT ? rawTime : null;
 
     // Score: args[11] = home goals, args[23] = away goals (confirmed by cross-referencing
     // multiple live matches with known scores — corner kicks are at [24]/[25]).
@@ -384,7 +385,7 @@ function parseGetData1Calls(jsText) {
       if (!isNaN(hg) && !isNaN(ag) && hg >= 0 && ag >= 0) score = `${hg}-${ag}`;
     }
 
-    results.push({ matchId, homeTeam, awayTeam, league, minute, score });
+    results.push({ matchId, homeTeam, awayTeam, league, minute, kickoffTime, score });
   }
 
   return results;
@@ -450,11 +451,12 @@ function mergeMatchData(oddsRows, metaRows) {
     matches.push({
       id,
       url,
-      home_team: meta.homeTeam || '',
-      away_team: meta.awayTeam || '',
-      league:    meta.league   || '',
-      minute:    meta.minute   || null,
-      score:     meta.score    || null,
+      home_team:    meta.homeTeam    || '',
+      away_team:    meta.awayTeam    || '',
+      league:       meta.league      || '',
+      minute:       meta.minute      || null,
+      kickoff_time: meta.kickoffTime || null,
+      score:        meta.score       || null,
       odds,
     });
   }

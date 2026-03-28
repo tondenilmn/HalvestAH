@@ -138,6 +138,34 @@ function formatMessage(match, steam, tier) {
   return lines.join('\n');
 }
 
+function formatUpcomingMessage(match, steam, tier, minsToKickoff) {
+  const { favSide, favLc, favLo, dogOc } = steam;
+  const steamMag = favLc - favLo;
+
+  const favTeam = favSide === 'HOME' ? match.home_team : match.away_team;
+  const dogTeam = favSide === 'HOME' ? match.away_team : match.home_team;
+  const dogLine = favLc.toFixed(2);
+
+  const steps = Math.round(steamMag / 0.25);
+  const stepsLabel = `${steps} step${steps !== 1 ? 's' : ''}  (+${steamMag.toFixed(2)})`;
+  const minsLabel  = minsToKickoff <= 1 ? 'kicks off now' : `kicks off in ${Math.round(minsToKickoff)} min`;
+
+  const lines = [
+    `${steamLabel(steamMag)} <b>PRE-KICK DOG AH</b>  ·  ${nowTime()}`,
+    ``,
+    `🏆 <i>${match.league || '—'}</i>  ·  ${tierLabel(tier)}`,
+    `⚽ <b>${match.home_team} vs ${match.away_team}</b>`,
+    `⏳ <b>${minsLabel}</b>`,
+    ``,
+    `📉 <b>${favTeam}</b> fav steamed ${stepsLabel}`,
+    `   AH: ${ahLabel(favLc, favLo)}`,
+    ``,
+    `💰 BET: <b>${dogTeam}  +${dogLine}  @  ${dogOc.toFixed(2)}</b>`,
+  ];
+
+  return lines.join('\n');
+}
+
 // ── Deduplication ─────────────────────────────────────────────────────────────
 // Keyed by matchId. Expires after 3 hours (one match lifespan).
 const _notified = new Map();
@@ -180,9 +208,23 @@ async function runScan() {
     const label   = `${match.home_team} vs ${match.away_team}`;
     const liveMin = parseLiveMinute(match.minute);
 
-    // Only alert when the match is live between minute ALERT_MIN and ALERT_MAX
-    if (liveMin == null || liveMin < cfg.ALERT_MIN_MINUTE || liveMin > cfg.ALERT_MAX_MINUTE) {
-      if (VERBOSE) console.log(`  SKIP [min=${liveMin ?? 'upcoming'}]  ${label}`);
+    // Determine if this is an upcoming match within the pre-kick window
+    let minsToKickoff = null;
+    if (liveMin == null && match.kickoff_time) {
+      const kickoff = new Date(match.kickoff_time).getTime();
+      minsToKickoff = (kickoff - Date.now()) / 60000;
+    }
+
+    const isLive     = liveMin != null && liveMin >= cfg.ALERT_MIN_MINUTE && liveMin <= cfg.ALERT_MAX_MINUTE;
+    const isUpcoming = minsToKickoff != null && minsToKickoff >= 0 && minsToKickoff <= cfg.UPCOMING_WINDOW_MINUTES;
+
+    if (!isLive && !isUpcoming) {
+      if (VERBOSE) {
+        const reason = minsToKickoff != null
+          ? `min_to_ko=${minsToKickoff.toFixed(1)}`
+          : `min=${liveMin ?? 'no_time'}`;
+        console.log(`  SKIP [${reason}]  ${label}`);
+      }
       continue;
     }
 
@@ -226,9 +268,15 @@ async function runScan() {
     }
 
     // Fire alert
-    const msg = formatMessage(match, steam);
     const steps = Math.round(steamMag / 0.25);
-    console.log(`ALERT → ${label}  steam=+${steamMag.toFixed(2)} (${steps} steps)  dog_oc=${dogOc.toFixed(2)}  tier=${tier}`);
+    let msg;
+    if (isUpcoming) {
+      msg = formatUpcomingMessage(match, steam, tier, minsToKickoff);
+      console.log(`ALERT (pre-kick) → ${label}  ko_in=${minsToKickoff.toFixed(1)}min  steam=+${steamMag.toFixed(2)} (${steps} steps)  dog_oc=${dogOc.toFixed(2)}  tier=${tier}`);
+    } else {
+      msg = formatMessage(match, steam, tier);
+      console.log(`ALERT (live) → ${label}  steam=+${steamMag.toFixed(2)} (${steps} steps)  dog_oc=${dogOc.toFixed(2)}  tier=${tier}`);
+    }
     await sendTelegram(msg);
     markNotified(matchId);
   }
