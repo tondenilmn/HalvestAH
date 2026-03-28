@@ -35,4 +35,11 @@ module.exports = {
 
   // ── Scan frequency ───────────────────────────────────────────────────────────
   SCAN_INTERVAL_MINUTES: parseInt(process.env.SCAN_INTERVAL_MINUTES || '3', 10),
+
+  // ── Site timezone offset ─────────────────────────────────────────────────────
+  // botbot3.space returns kickoff times in this UTC offset (set by _cookie_GMT=1
+  // in livescore.js). The datetime strings have no timezone suffix, so we must
+  // apply the offset manually when computing minutes-to-kickoff.
+  // Italy = GMT+1 (CET) standard / GMT+2 (CEST) summer. Default: 1.
+  SITE_GMT_OFFSET: parseInt(process.env.SITE_GMT_OFFSET || '1', 10),
 };

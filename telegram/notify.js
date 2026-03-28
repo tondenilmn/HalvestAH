@@ -208,10 +208,22 @@ async function runScan() {
     const label   = `${match.home_team} vs ${match.away_team}`;
     const liveMin = parseLiveMinute(match.minute);
 
-    // Determine if this is an upcoming match within the pre-kick window
+    // Determine if this is an upcoming match within the pre-kick window.
+    // kickoff_time from botbot3.space has no timezone suffix but is in GMT+cfg.SITE_GMT_OFFSET.
+    // Append the offset explicitly so Date.parse gives the correct UTC ms regardless
+    // of the server's local timezone.
     let minsToKickoff = null;
     if (liveMin == null && match.kickoff_time) {
-      const kickoff = new Date(match.kickoff_time).getTime();
+      const raw = match.kickoff_time;
+      const hasZone = raw.endsWith('Z') || raw.includes('+') || (raw.lastIndexOf('-') > 7);
+      let kickoffStr = raw;
+      if (!hasZone) {
+        const off = cfg.SITE_GMT_OFFSET;
+        const sign = off >= 0 ? '+' : '-';
+        const abs  = Math.abs(off);
+        kickoffStr = `${raw}${sign}${String(Math.floor(abs)).padStart(2,'0')}:${String((abs % 1) * 60).padStart(2,'0')}`;
+      }
+      const kickoff = new Date(kickoffStr).getTime();
       minsToKickoff = (kickoff - Date.now()) / 60000;
     }
 
