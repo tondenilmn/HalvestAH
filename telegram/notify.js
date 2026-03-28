@@ -94,9 +94,9 @@ function parseMatchSteam(odds) {
 
 // Tier badge (compact)
 function tierBadge(tier) {
-  if (tier === 'TOP')   return '⭐ TOP';
-  if (tier === 'MAJOR') return '🔵 MAJOR';
-  return '⚪ OTHER';
+  if (tier === 'TOP')   return 'TOP';
+  if (tier === 'MAJOR') return 'MAJOR';
+  return 'OTHER';
 }
 
 // AH arrow: "−0.25 → −0.75  +0.50"
@@ -119,7 +119,6 @@ function kickoffTimeLabel(kickoffTimeStr) {
 // ── Message formatters ────────────────────────────────────────────────────────
 function formatMessage(match, steam, tier) {
   const { favSide, favLc, favLo, dogOc } = steam;
-  const steamMag = favLc - favLo;
 
   const homeLabel = `${match.home_team} (H)`;
   const awayLabel = `${match.away_team} (A)`;
@@ -140,12 +139,9 @@ function formatMessage(match, steam, tier) {
 
 function formatUpcomingMessage(match, steam, tier, minsToKickoff) {
   const { favSide, favLc, favLo, dogOc } = steam;
-  const steamMag = favLc - favLo;
 
-  const homeLabel = `${match.home_team} (H)`;
-  const awayLabel = `${match.away_team} (A)`;
-  const favTeam   = favSide === 'HOME' ? homeLabel : awayLabel;
-  const dogTeam   = favSide === 'HOME' ? awayLabel : homeLabel;
+  const favTeam = favSide === 'HOME' ? match.home_team : match.away_team;
+  const dogTeam = favSide === 'HOME' ? match.away_team : match.home_team;
 
   const koTime  = match.kickoff_time ? kickoffTimeLabel(match.kickoff_time) : null;
   const minsRnd = Math.round(minsToKickoff);
@@ -153,15 +149,27 @@ function formatUpcomingMessage(match, steam, tier, minsToKickoff) {
     ? `🕐 ${koTime}  (${minsRnd <= 1 ? 'now' : `in ${minsRnd} min`})`
     : `⏳ ${minsRnd <= 1 ? 'kicks off now' : `kicks off in ${minsRnd} min`}`;
 
+  // Bet365 dog odds (same side as Pinnacle dog)
+  let b365Line = '';
+  if (match.bet365_odds) {
+    const b = match.bet365_odds;
+    const b365DogOc = favSide === 'HOME' ? b.ao_c : b.ho_c;
+    const b365Hc    = b.ah_hc != null ? Math.abs(b.ah_hc) : favLc;
+    if (b365DogOc && b365DogOc > 1.0) {
+      b365Line = `\n🎯 Bet365: ${dogTeam} +${b365Hc.toFixed(2)} @${b365DogOc.toFixed(2)}`;
+    }
+  }
+
   return [
     `⏰ <b>PRE-KICK STEAM · DOG AH</b>  ${nowTime()}`,
     ``,
-    `⚽ <b>${homeLabel} vs ${awayLabel}</b>`,
-    `🏆 <i>${match.league || '—'}</i>  ·  ${tierBadge(tier)}  ·  ${timing}`,
+    `⚽ <b>${match.home_team} vs ${match.away_team}</b>`,
+    `🏆 <i>${match.league || '—'}</i>  [${tierBadge(tier)}]`,
+    `${timing}`,
     ``,
-    `📉 ${favTeam} (fav)  ${ahArrow(favLc, favLo)}`,
+    `📉 Fav: ${favTeam}  ${ahArrow(favLc, favLo)}`,
     ``,
-    `💰 BET: <b>${dogTeam}  +${favLc.toFixed(2)}  @  ${dogOc.toFixed(2)}</b>`,
+    `📌 Pinnacle: ${dogTeam} +${favLc.toFixed(2)} @${dogOc.toFixed(2)}${b365Line}`,
   ].join('\n');
 }
 

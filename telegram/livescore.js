@@ -4,6 +4,7 @@
 // Uses built-in fetch (Node >= 18).
 
 let PINNACLE_HASH = '555a04df41c008dbb9fae7894ff184cfe09692ec';
+let BET365_HASH   = '41910f492bc33ad4e34237a6e6f10c23b1f70f2f';
 const GS_PRIMARY    = 'Q';
 const GS_CANDIDATES = ['Q', '1', '2', '3', 'AH', 'S', 'EU', 'A', 'ah', 's', '4', '5', '10', '6', '7', '8', 'B', 'F'];
 
@@ -35,6 +36,14 @@ async function fetchPinnacleHash() {
     }
     const html = await resp.text();
     console.log(`  hashDiscovery: got HTML (${html.length} bytes)`);
+
+    // Extract Bet365 hash (side effect — updates module-level BET365_HASH)
+    const mB365 = html.match(/value="([a-f0-9]{40})"[^>]*>\s*[Bb]et\s*365/);
+    if (mB365) {
+      BET365_HASH = mB365[1];
+      console.log(`  hashDiscovery: bet365 hash=${BET365_HASH.slice(0, 8)}…`);
+    }
+
     const m1 = html.match(/value="([a-f0-9]{40})"[^>]*>\s*Pinnacle/i);
     if (m1) return m1[1];
     const m2 = html.match(/botbot3\.space\/tables\/v4\/[^/]+\/livegame\/([a-f0-9]{40})\.js/);
@@ -271,24 +280,67 @@ async function fetchLiveMatches() {
   return [];
 }
 
+// Fetch Bet365 AH odds from a tablenext JS file and return a Map<matchId, odds>.
+// Tries the hardcoded hash first; if that fails, returns an empty map (non-fatal).
+async function fetchBet365OddsMap(timestamp) {
+  if (!BET365_HASH) return new Map();
+  const url = `https://botbot3.space/tables/v4/${GS_PRIMARY}/tablenext/day0/${BET365_HASH}.js?date=${timestamp}&_=${timestamp + 1}`;
+  let jsText;
+  try {
+    const resp = await fetch(url, { headers: makeBotbotHeaders(GS_PRIMARY, BET365_HASH) });
+    if (!resp.ok) {
+      console.log(`  bet365 tablenext/${BET365_HASH.slice(0, 8)}… → HTTP ${resp.status}`);
+      return new Map();
+    }
+    jsText = await resp.text();
+  } catch (e) {
+    console.log(`  bet365 tablenext: fetch error — ${e.message}`);
+    return new Map();
+  }
+  const oddsRows = parseGetData2Calls(jsText);
+  console.log(`  bet365 tablenext/${BET365_HASH.slice(0, 8)}… → ${oddsRows.length} rows`);
+  const map = new Map();
+  for (const row of oddsRows) {
+    if (row.matchId) map.set(row.matchId, row.odds);
+  }
+  return map;
+}
+
 async function fetchNextMatches() {
   const timestamp = Date.now();
   console.log(`NextGame: trying hash=${PINNACLE_HASH.slice(0,8)}…`);
   let matches = await tryNextCombo(PINNACLE_HASH, GS_PRIMARY, timestamp);
-  if (matches) return matches;
 
-  // Re-discover hash (same hash as livegame)
-  console.log('NextGame: fast path failed — fetching hash…');
-  const discovered = await fetchPinnacleHash();
-  if (discovered) {
-    console.log(`NextGame: discovered hash=${discovered.slice(0,8)}… (${discovered === PINNACLE_HASH ? 'same' : 'NEW'})`);
-    PINNACLE_HASH = discovered;
-    matches = await tryNextCombo(discovered, GS_PRIMARY, timestamp);
-    if (matches) return matches;
+  if (!matches) {
+    // Re-discover hash (also updates BET365_HASH as side effect)
+    console.log('NextGame: fast path failed — fetching hash…');
+    const discovered = await fetchPinnacleHash();
+    if (discovered) {
+      console.log(`NextGame: discovered hash=${discovered.slice(0,8)}… (${discovered === PINNACLE_HASH ? 'same' : 'NEW'})`);
+      PINNACLE_HASH = discovered;
+      matches = await tryNextCombo(discovered, GS_PRIMARY, timestamp);
+    }
   }
 
-  console.log('NextGame: all attempts failed — returning empty');
-  return [];
+  if (!matches) {
+    console.log('NextGame: all attempts failed — returning empty');
+    return [];
+  }
+
+  // Attach Bet365 AH odds to each match (non-fatal if unavailable)
+  const b365Map = await fetchBet365OddsMap(timestamp);
+  if (b365Map.size > 0) {
+    let attached = 0;
+    for (const m of matches) {
+      if (m.id && b365Map.has(m.id)) {
+        m.bet365_odds = b365Map.get(m.id);
+        attached++;
+      }
+    }
+    console.log(`  bet365: attached to ${attached}/${matches.length} next matches`);
+  }
+
+  return matches;
 }
 
 module.exports = { fetchLiveMatches, fetchNextMatches };
