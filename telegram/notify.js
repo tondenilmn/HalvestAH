@@ -39,8 +39,12 @@ async function sendTelegram(text) {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function nowTime() {
-  const d = new Date();
-  return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+  return new Intl.DateTimeFormat('it-IT', {
+    timeZone: cfg.DISPLAY_TZ,
+    hour:     '2-digit',
+    minute:   '2-digit',
+    hour12:   false,
+  }).format(new Date());
 }
 
 // Parse live minute from match.minute field.
