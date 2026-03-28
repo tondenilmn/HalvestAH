@@ -31,7 +31,7 @@ module.exports = {
   // ── Upcoming match pre-kick alert ────────────────────────────────────────────
   // Fire a pre-kick alert when a match is within this many minutes of its
   // scheduled start time and the AH steam threshold is met.
-  UPCOMING_WINDOW_MINUTES: parseInt(process.env.UPCOMING_WINDOW_MINUTES || '5', 10),
+  UPCOMING_WINDOW_MINUTES: parseInt(process.env.UPCOMING_WINDOW_MINUTES || '10', 10),
 
   // ── Scan frequency ───────────────────────────────────────────────────────────
   SCAN_INTERVAL_MINUTES: parseInt(process.env.SCAN_INTERVAL_MINUTES || '3', 10),

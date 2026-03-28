@@ -14,11 +14,10 @@
 //   node notify.js          — start scheduler (runs every N minutes)
 //   node notify.js --once   — single scan + exit (for testing)
 
-const path = require('path');
 const cron = require('node-cron');
 const cfg  = require('./config');
 const { classifyLeague } = require('./engine');
-const { fetchLiveMatches } = require('./livescore');
+const { fetchLiveMatches, fetchNextMatches } = require('./livescore');
 
 const VERBOSE = process.argv.includes('--verbose');
 
@@ -68,7 +67,7 @@ function parseMatchSteam(odds) {
   if (ahHc == null || ahHo == null || hoC == null || aoC == null) return null;
 
   // Derive fav side from closing handicap sign
-  let favSide, favLc, favLo, dogOc, favTeam, dogTeam;
+  let favSide, favLc, favLo, dogOc;
   if (ahHc < -0.01) {
     // Home is fav
     favSide = 'HOME';
@@ -93,81 +92,77 @@ function parseMatchSteam(odds) {
   return { favSide, favLc, favLo, steam, dogOc };
 }
 
-// Format the AH line for display: e.g. "−0.75 (was −0.25)"
-function ahLabel(favLc, favLo) {
-  const cStr = favLc.toFixed(2);
-  const oStr = favLo.toFixed(2);
-  return `−${cStr}  (was −${oStr})`;
+// Tier badge (compact)
+function tierBadge(tier) {
+  if (tier === 'TOP')   return '⭐ TOP';
+  if (tier === 'MAJOR') return '🔵 MAJOR';
+  return '⚪ OTHER';
 }
 
-// Strength label based on steam magnitude
-function steamLabel(steam) {
-  if (steam >= 0.75) return '🔥🔥 MASSIVE STEAM';
-  if (steam >= 0.50) return '🔥 STEAM';
-  return '⚡ STEAM';
+// AH arrow: "−0.25 → −0.75  +0.50"
+function ahArrow(favLc, favLo) {
+  const steamMag = favLc - favLo;
+  const oStr     = favLo < 0.01 ? '0.00' : `−${favLo.toFixed(2)}`;
+  return `${oStr} → −${favLc.toFixed(2)}  <b>+${steamMag.toFixed(2)}</b>`;
 }
 
-// Human-readable tier label
-function tierLabel(tier) {
-  if (tier === 'TOP')   return '⭐ TOP League';
-  if (tier === 'MAJOR') return '🔵 MAJOR League';
-  return '⚪ Minor League';
+// Kickoff time in Italian timezone (for prematch)
+function kickoffTimeLabel(kickoffTimeStr) {
+  return new Intl.DateTimeFormat('it-IT', {
+    timeZone: cfg.DISPLAY_TZ,
+    hour:     '2-digit',
+    minute:   '2-digit',
+    hour12:   false,
+  }).format(new Date(kickoffTimeStr));
 }
 
-// ── Message formatter ─────────────────────────────────────────────────────────
+// ── Message formatters ────────────────────────────────────────────────────────
 function formatMessage(match, steam, tier) {
   const { favSide, favLc, favLo, dogOc } = steam;
   const steamMag = favLc - favLo;
 
-  const favTeam = favSide === 'HOME' ? match.home_team : match.away_team;
-  const dogTeam = favSide === 'HOME' ? match.away_team : match.home_team;
-  const dogLine = favLc.toFixed(2);   // dog gets +favLc
+  const homeLabel = `${match.home_team} (H)`;
+  const awayLabel = `${match.away_team} (A)`;
+  const favTeam   = favSide === 'HOME' ? homeLabel : awayLabel;
+  const dogTeam   = favSide === 'HOME' ? awayLabel : homeLabel;
 
-  const steps = Math.round(steamMag / 0.25);
-  const stepsLabel = `${steps} step${steps !== 1 ? 's' : ''}  (+${steamMag.toFixed(2)})`;
-
-  const lines = [
-    `${steamLabel(steamMag)} <b>DOG AH ALERT</b>  ·  ${nowTime()}`,
+  return [
+    `🚨 <b>LIVE STEAM · DOG AH</b>  ${nowTime()}`,
     ``,
-    `🏆 <i>${match.league || '—'}</i>  ·  ${tierLabel(tier)}`,
-    `⚽ <b>${match.home_team} vs ${match.away_team}</b>`,
-    `🕐 <b>${match.minute}'</b>  Score: <b>${match.score || '0–0'}</b>`,
+    `⚽ <b>${homeLabel} vs ${awayLabel}</b>`,
+    `🏆 <i>${match.league || '—'}</i>  ·  ${tierBadge(tier)}  ·  ⏱ ${match.minute}'  ${match.score || '0–0'}`,
     ``,
-    `📉 <b>${favTeam}</b> fav steamed ${stepsLabel}`,
-    `   AH: ${ahLabel(favLc, favLo)}`,
+    `📉 ${favTeam} (fav)  ${ahArrow(favLc, favLo)}`,
     ``,
-    `💰 BET: <b>${dogTeam}  +${dogLine}  @  ${dogOc.toFixed(2)}</b>`,
-  ];
-
-  return lines.join('\n');
+    `💰 BET: <b>${dogTeam}  +${favLc.toFixed(2)}  @  ${dogOc.toFixed(2)}</b>`,
+  ].join('\n');
 }
 
 function formatUpcomingMessage(match, steam, tier, minsToKickoff) {
   const { favSide, favLc, favLo, dogOc } = steam;
   const steamMag = favLc - favLo;
 
-  const favTeam = favSide === 'HOME' ? match.home_team : match.away_team;
-  const dogTeam = favSide === 'HOME' ? match.away_team : match.home_team;
-  const dogLine = favLc.toFixed(2);
+  const homeLabel = `${match.home_team} (H)`;
+  const awayLabel = `${match.away_team} (A)`;
+  const favTeam   = favSide === 'HOME' ? homeLabel : awayLabel;
+  const dogTeam   = favSide === 'HOME' ? awayLabel : homeLabel;
 
-  const steps = Math.round(steamMag / 0.25);
-  const stepsLabel = `${steps} step${steps !== 1 ? 's' : ''}  (+${steamMag.toFixed(2)})`;
-  const minsLabel  = minsToKickoff <= 1 ? 'kicks off now' : `kicks off in ${Math.round(minsToKickoff)} min`;
+  const koTime  = match.kickoff_time ? kickoffTimeLabel(match.kickoff_time) : null;
+  const minsRnd = Math.round(minsToKickoff);
+  const timing  = koTime
+    ? `🕐 ${koTime}  (${minsRnd <= 1 ? 'now' : `in ${minsRnd} min`})`
+    : `⏳ ${minsRnd <= 1 ? 'kicks off now' : `kicks off in ${minsRnd} min`}`;
 
-  const lines = [
-    `${steamLabel(steamMag)} <b>PRE-KICK DOG AH</b>  ·  ${nowTime()}`,
+  return [
+    `⏰ <b>PRE-KICK STEAM · DOG AH</b>  ${nowTime()}`,
     ``,
-    `🏆 <i>${match.league || '—'}</i>  ·  ${tierLabel(tier)}`,
-    `⚽ <b>${match.home_team} vs ${match.away_team}</b>`,
-    `⏳ <b>${minsLabel}</b>`,
+    `⚽ <b>${homeLabel} vs ${awayLabel}</b>`,
+    `🏆 <i>${match.league || '—'}</i>  ·  ${tierBadge(tier)}  ·  ${timing}`,
     ``,
-    `📉 <b>${favTeam}</b> fav steamed ${stepsLabel}`,
-    `   AH: ${ahLabel(favLc, favLo)}`,
+    `📉 ${favTeam} (fav)  ${ahArrow(favLc, favLo)}`,
     ``,
-    `💰 BET: <b>${dogTeam}  +${dogLine}  @  ${dogOc.toFixed(2)}</b>`,
-  ];
-
-  return lines.join('\n');
+    `💰 BET: <b>${dogTeam}  +${favLc.toFixed(2)}  @  ${dogOc.toFixed(2)}</b>`,
+  ].join('\n');
 }
 
 // ── Deduplication ─────────────────────────────────────────────────────────────
@@ -186,15 +181,33 @@ function markNotified(matchId) {
   _notified.set(matchId, Date.now());
 }
 
-// ── Live match fetcher ────────────────────────────────────────────────────────
+// ── Match fetcher (live + upcoming) ──────────────────────────────────────────
 async function fetchMatches() {
+  let liveMatches;
   if (cfg.DATA_URL) {
     const url  = `${cfg.DATA_URL.replace(/\/$/, '')}/api/livescore`;
     const resp = await fetch(url);
     if (!resp.ok) throw new Error(`Cloudflare livescore returned HTTP ${resp.status}`);
-    return (await resp.json()).matches || [];
+    liveMatches = (await resp.json()).matches || [];
+  } else {
+    liveMatches = await fetchLiveMatches();
   }
-  return fetchLiveMatches();
+
+  // Always fetch upcoming matches from tablenext (no Cloudflare endpoint yet)
+  let nextMatches = [];
+  try { nextMatches = await fetchNextMatches(); }
+  catch (e) { console.error(`NextGame fetch failed: ${e.message}`); }
+
+  // Merge — deduplicate by matchId
+  const seen = new Set(liveMatches.map(m => m.id).filter(Boolean));
+  for (const m of nextMatches) {
+    if (!m.id || !seen.has(m.id)) {
+      liveMatches.push(m);
+      if (m.id) seen.add(m.id);
+    }
+  }
+
+  return liveMatches;
 }
 
 // ── Core scan ─────────────────────────────────────────────────────────────────
@@ -212,16 +225,19 @@ async function runScan() {
     const label   = `${match.home_team} vs ${match.away_team}`;
     const liveMin = parseLiveMinute(match.minute);
 
-    // Determine if this is an upcoming match within the pre-kick window.
-    // botbot3 kickoff_time has no timezone suffix and is in GMT+SITE_GMT_OFFSET.
-    // Compare both times in GMT+1: treat raw string as GMT+1 wall-clock time,
-    // shift Date.now() to GMT+1 as well — same reference on both sides.
+    // Compute minutes to kickoff for non-live matches.
+    // tablenext times have a Z suffix (real UTC) → compare directly with Date.now().
+    // livegame getDatalast1 times have no suffix (Italian wall-clock) → shift now by SITE_GMT_OFFSET.
     let minsToKickoff = null;
     if (liveMin == null && match.kickoff_time) {
-      const raw        = match.kickoff_time.replace(/Z$|[+-]\d{2}:\d{2}$/, ''); // strip any existing zone
-      const kickoffMs  = new Date(raw + 'Z').getTime();                          // read raw as wall-clock ms
-      const nowMs      = Date.now() + cfg.SITE_GMT_OFFSET * 3600000;             // current time in GMT+1
-      minsToKickoff    = (kickoffMs - nowMs) / 60000;
+      const kt = match.kickoff_time;
+      if (/Z$|[+-]\d{2}:\d{2}$/.test(kt)) {
+        minsToKickoff = (new Date(kt).getTime() - Date.now()) / 60000;
+      } else {
+        const kickoffMs = new Date(kt + 'Z').getTime();
+        const nowMs     = Date.now() + cfg.SITE_GMT_OFFSET * 3600000;
+        minsToKickoff   = (kickoffMs - nowMs) / 60000;
+      }
     }
 
     const isLive     = liveMin != null && liveMin >= cfg.ALERT_MIN_MINUTE && liveMin <= cfg.ALERT_MAX_MINUTE;
@@ -263,7 +279,7 @@ async function runScan() {
       continue;
     }
 
-    // Dog odds sanity check (must be a valid decimal odds)
+    // Dog odds sanity check
     if (!dogOc || dogOc < 1.01 || dogOc > 20) {
       if (VERBOSE) console.log(`  SKIP [invalid dog_oc=${dogOc}]  ${label}`);
       continue;

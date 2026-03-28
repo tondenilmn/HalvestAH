@@ -161,6 +161,54 @@ function mergeMatchData(oddsRows, metaRows) {
   return matches;
 }
 
+// ── tablenext parser ──────────────────────────────────────────────────────────
+// getDatanext1(rowIdx, ?, leagueKey, encodedOdds, statusCode,
+//   matchId, leagueName, homeTeam, kickoffTimeUTC, h1X2c, dX2c, a1X2c,
+//   h1X2o, dX2o, a1X2o, awayTeam)
+function parseGetDatanext1Calls(jsText) {
+  const re = /\bmatch1text\s*\+=\s*getDatanext1\s*\(/g;
+  const results = [];
+  let m;
+  while ((m = re.exec(jsText)) !== null) {
+    const args = extractCallArgs(jsText, m.index + m[0].length);
+    if (args.length < 16) continue;
+    const matchId     = (typeof args[5] === 'string' && /^[a-f0-9]{20,}$/i.test(args[5])) ? args[5] : null;
+    const league      = typeof args[6]  === 'string' ? args[6]  : '';
+    const homeTeam    = typeof args[7]  === 'string' ? args[7]  : '';
+    const kickoffTime = typeof args[8]  === 'string' ? args[8]  : null;  // UTC ISO with Z
+    const awayTeam    = typeof args[15] === 'string' ? args[15] : '';
+    results.push({ matchId, homeTeam, awayTeam, league, minute: null, kickoffTime, score: null });
+  }
+  return results;
+}
+
+async function tryNextCombo(hash, gS, timestamp) {
+  const url = `https://botbot3.space/tables/v4/${gS}/tablenext/day0/${hash}.js?date=${timestamp}&_=${timestamp + 1}`;
+  let jsText;
+  try {
+    const resp = await fetch(url, { headers: makeBotbotHeaders(gS, hash) });
+    if (!resp.ok) {
+      console.log(`  nextgame ${gS}/${hash.slice(0,8)}… → HTTP ${resp.status}`);
+      return null;
+    }
+    jsText = await resp.text();
+  } catch (e) {
+    console.log(`  nextgame ${gS}/${hash.slice(0,8)}… → fetch error: ${e.message}`);
+    return null;
+  }
+
+  const oddsRows = parseGetData2Calls(jsText);
+  if (oddsRows.length === 0) {
+    console.log(`  nextgame ${gS}/${hash.slice(0,8)}… → OK but 0 getData2 calls (${jsText.length} bytes)`);
+    return null;
+  }
+
+  const metaRows = parseGetDatanext1Calls(jsText);
+  const matches  = mergeMatchData(oddsRows, metaRows);
+  console.log(`  nextgame ${gS}/${hash.slice(0,8)}… → OK  odds:${oddsRows.length}  meta:${metaRows.length}  merged:${matches.length}`);
+  return matches;
+}
+
 async function tryCombo(hash, gS, timestamp) {
   const url = `https://botbot3.space/tables/v4/${gS}/livegame/${hash}.js?date=${timestamp}&_=${timestamp + 1}`;
   let jsText;
@@ -223,4 +271,24 @@ async function fetchLiveMatches() {
   return [];
 }
 
-module.exports = { fetchLiveMatches };
+async function fetchNextMatches() {
+  const timestamp = Date.now();
+  console.log(`NextGame: trying hash=${PINNACLE_HASH.slice(0,8)}…`);
+  let matches = await tryNextCombo(PINNACLE_HASH, GS_PRIMARY, timestamp);
+  if (matches) return matches;
+
+  // Re-discover hash (same hash as livegame)
+  console.log('NextGame: fast path failed — fetching hash…');
+  const discovered = await fetchPinnacleHash();
+  if (discovered) {
+    console.log(`NextGame: discovered hash=${discovered.slice(0,8)}… (${discovered === PINNACLE_HASH ? 'same' : 'NEW'})`);
+    PINNACLE_HASH = discovered;
+    matches = await tryNextCombo(discovered, GS_PRIMARY, timestamp);
+    if (matches) return matches;
+  }
+
+  console.log('NextGame: all attempts failed — returning empty');
+  return [];
+}
+
+module.exports = { fetchLiveMatches, fetchNextMatches };
