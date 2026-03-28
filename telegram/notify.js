@@ -213,22 +213,15 @@ async function runScan() {
     const liveMin = parseLiveMinute(match.minute);
 
     // Determine if this is an upcoming match within the pre-kick window.
-    // kickoff_time from botbot3.space has no timezone suffix but is in GMT+cfg.SITE_GMT_OFFSET.
-    // Append the offset explicitly so Date.parse gives the correct UTC ms regardless
-    // of the server's local timezone.
+    // botbot3 kickoff_time has no timezone suffix and is in GMT+SITE_GMT_OFFSET.
+    // Compare both times in GMT+1: treat raw string as GMT+1 wall-clock time,
+    // shift Date.now() to GMT+1 as well — same reference on both sides.
     let minsToKickoff = null;
     if (liveMin == null && match.kickoff_time) {
-      const raw = match.kickoff_time;
-      const hasZone = raw.endsWith('Z') || raw.includes('+') || (raw.lastIndexOf('-') > 7);
-      let kickoffStr = raw;
-      if (!hasZone) {
-        const off = cfg.SITE_GMT_OFFSET;
-        const sign = off >= 0 ? '+' : '-';
-        const abs  = Math.abs(off);
-        kickoffStr = `${raw}${sign}${String(Math.floor(abs)).padStart(2,'0')}:${String((abs % 1) * 60).padStart(2,'0')}`;
-      }
-      const kickoff = new Date(kickoffStr).getTime();
-      minsToKickoff = (kickoff - Date.now()) / 60000;
+      const raw        = match.kickoff_time.replace(/Z$|[+-]\d{2}:\d{2}$/, ''); // strip any existing zone
+      const kickoffMs  = new Date(raw + 'Z').getTime();                          // read raw as wall-clock ms
+      const nowMs      = Date.now() + cfg.SITE_GMT_OFFSET * 3600000;             // current time in GMT+1
+      minsToKickoff    = (kickoffMs - nowMs) / 60000;
     }
 
     const isLive     = liveMin != null && liveMin >= cfg.ALERT_MIN_MINUTE && liveMin <= cfg.ALERT_MAX_MINUTE;
