@@ -112,29 +112,6 @@ function kickoffTimeLabel(kickoffTimeStr) {
   }).format(new Date(kickoffTimeStr));
 }
 
-// ── Over 0.5 HT signal parser ─────────────────────────────────────────────────
-// Strategy: AH ~-0.25 · LM SHRANK · TL UP → fired live at ≥25' when score is 0-0.
-// Thresholds match engine constants: LINE_THRESH=0.12, TL_THRESH=0.12.
-// Backtest (ALL leagues, pre-match signals): 74.2% hit · z=4.64 · n=977
-const HT_MIN_MINUTE = 25;
-const HT_MAX_MINUTE = 44;
-
-function parseOver05HTSignal(match) {
-  const { ah_hc: ahHc, ah_ho: ahHo, tl_c: tlC, tl_o: tlO } = match.odds || {};
-  if (ahHc == null || ahHo == null || tlC == null || tlO == null) return null;
-
-  let favSide, favLc, favLo;
-  if      (ahHc < -0.01) { favSide = 'HOME'; favLc = Math.abs(ahHc); favLo = Math.abs(ahHo); }
-  else if (ahHc >  0.01) { favSide = 'AWAY'; favLc = Math.abs(ahHc); favLo = Math.abs(ahHo); }
-  else return null;  // level ball excluded
-
-  if (Math.abs(favLc - 0.25) > 0.12) return null;  // AH line must be ~0.25
-  if (favLc > favLo - 0.12)          return null;  // LM must be SHRANK
-  if (tlC   < tlO  + 0.12)           return null;  // TL must be UP
-
-  return { favSide, favLc, favLo, tlC, tlO };
-}
-
 // ── Message formatters ────────────────────────────────────────────────────────
 function formatMessage(match, steam, tier, b365DogOc) {
   const { favSide, favLc, favLo, dogOc } = steam;
@@ -188,26 +165,6 @@ function formatUpcomingMessage(match, steam, tier, minsToKickoff, b365DogOc) {
     ``,
     `📌 Pinnacle: ${dogTeam} +${favLc.toFixed(2)} @${dogOc.toFixed(2)}`,
     b365Line,
-  ].join('\n');
-}
-
-function formatOver05HTMessage(match, signal, tier, liveMin) {
-  const { favSide, favLc, favLo, tlC, tlO } = signal;
-  const favTeam  = favSide === 'HOME' ? match.home_team : match.away_team;
-  const lmShrink = (favLo - favLc).toFixed(2);
-  const tlRise   = (tlC - tlO).toFixed(2);
-
-  return [
-    `⚡ <b>LIVE: Over 0.5 HT</b>  ${nowTime()}`,
-    ``,
-    `⚽ <b>${match.home_team} vs ${match.away_team}</b>`,
-    `🏆 <i>${match.league || '—'}</i>  [${tierBadge(tier)}]`,
-    `⏱ ${liveMin}'  <b>0-0</b>`,
-    ``,
-    `📊 Fav: ${favTeam}  AH -${favLc.toFixed(2)} (SHRANK −${lmShrink})  ·  TL UP +${tlRise}`,
-    ``,
-    `💰 Bet: <b>Over 0.5 HT</b>  @1.35–1.37`,
-    `📈 74%  (base 67%  +7pp  z=4.64  n=977)`,
   ].join('\n');
 }
 
@@ -578,33 +535,6 @@ async function runScan() {
     }
   }
 
-  // ── Over 0.5 HT scan (AH ~0.25 + dog steam + TL up) ─────────────────────────
-  // Separate pass: no tier filter, uses its own dedup key prefix.
-  // Fired when: live minute 25–44, score explicitly 0-0.
-  for (const match of matches) {
-    const label   = `${match.home_team} vs ${match.away_team}`;
-    const liveMin = parseLiveMinute(match.minute);
-
-    if (liveMin == null || liveMin < HT_MIN_MINUTE || liveMin > HT_MAX_MINUTE) continue;
-    if (match.score !== '0-0') continue;
-
-    const signal = parseOver05HTSignal(match);
-    if (!signal) {
-      if (VERBOSE) console.log(`  SKIP [no ht05 signal]  ${label}`);
-      continue;
-    }
-
-    const tier    = classifyLeague(match.league || '');
-    const matchId = `ht05_${match.id || `${match.home_team}:${match.away_team}`}`;
-    if (alreadyNotified(matchId)) {
-      if (VERBOSE) console.log(`  SKIP [ht05 already notified]  ${label}`);
-      continue;
-    }
-
-    console.log(`ALERT (ht05) → ${label}  min=${liveMin}  score=0-0  tier=${tier}`);
-    await sendTelegram(formatOver05HTMessage(match, signal, tier, liveMin));
-    markNotified(matchId);
-  }
 }
 
 // ── Entry point ──────────────────────────────────────────────────────────────
@@ -620,7 +550,6 @@ async function main() {
   console.log(`Strategy 1: AH steam ≥ ${cfg.LM_STEAM_MIN} → bet dog AH  (window=${cfg.ALERT_MIN_MINUTE}–${cfg.ALERT_MAX_MINUTE}')`);
   console.log(`Strategy 2: Strong fav AH ≥ 1.00 not winning at HT → over05_2H alert at 65–70'`);
   console.log(`Strategy 3: TLM=IN + TL ≥ ${cfg.TLM1H_MIN_TL} + 0-0 at ${cfg.TLM1H_MIN_MINUTE}–${cfg.TLM1H_MAX_MINUTE}' → Over 0.5 1H`);
-  console.log(`Strategy HT05: AH ~0.25 + dog steam + TL up + 0-0 at 25–44' → Over 0.5 HT`);
   console.log(`Tier filter: ${cfg.LEAGUE_TIER}`);
   await runScan();
   cron.schedule(`*/${cfg.SCAN_INTERVAL_MINUTES} * * * *`, runScan);
