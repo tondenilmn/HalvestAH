@@ -11,6 +11,14 @@ module.exports = {
   DATA_URL: process.env.DATA_URL || null,   // set to your Cloudflare Pages URL for Railway
   DATA_DIR: process.env.DATA_DIR || '../static/data',
 
+  // ── Strategy 3: TLM=IN + high TL → no 1H goal by ~30' → Over 0.5 1H ─────────
+  // Fire when TL steamed up (tl_c - tl_o >= MIN_STEAM) AND closing TL >= MIN_TL
+  // AND the match is still 0-0 in the alert window (minutes MIN–MAX of 1H).
+  TLM1H_MIN_TL:     parseFloat(process.env.TLM1H_MIN_TL     || '2.5'),   // 2.5–3 and >3 clusters
+  TLM1H_MIN_STEAM:  parseFloat(process.env.TLM1H_MIN_STEAM  || '0.25'),  // 1 step minimum
+  TLM1H_MIN_MINUTE: parseInt(process.env.TLM1H_MIN_MINUTE   || '25', 10),
+  TLM1H_MAX_MINUTE: parseInt(process.env.TLM1H_MAX_MINUTE   || '32', 10),
+
   // ── Steam strategy thresholds ────────────────────────────────────────────────
   // Alert when the AH line has moved at least LM_STEAM_MIN toward the favourite.
   // 0.45 captures "at least 2 steps" (0.50 movement), e.g. −0.25 → −0.75.
