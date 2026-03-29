@@ -230,6 +230,42 @@ function formatStrongFavHTMessage(match, htScore, steam, tier, liveMin) {
   ].join('\n');
 }
 
+// ── Strategy 4: Fav +1 at HT, AH 0.25–1.00, TL ≤ 2.75 → Under 1.5 2H ────────
+// Fires immediately at HT interval when fav leads by exactly 1.
+// Backtest: 59.3% hit rate, σ=2.1%, n=3,804 (TOP+MAJOR, 12m OOS). BE odds 1.69.
+const _notifiedUnder15HT = new Map();
+const UNDER15HT_TTL = 3 * 60 * 60 * 1000;
+
+function alreadyNotifiedUnder15HT(matchId) {
+  const ts = _notifiedUnder15HT.get(matchId);
+  if (!ts) return false;
+  if (Date.now() - ts > UNDER15HT_TTL) { _notifiedUnder15HT.delete(matchId); return false; }
+  return true;
+}
+function markNotifiedUnder15HT(matchId) { _notifiedUnder15HT.set(matchId, Date.now()); }
+
+function formatUnder15HTMessage(match, steam, tier, htScore) {
+  const { favSide, favLc } = steam;
+  const favTeam = favSide === 'HOME' ? match.home_team : match.away_team;
+  const tlC     = match.odds.tl_c;
+  const htStr   = `${htScore.home}-${htScore.away}`;
+
+  return [
+    `🛡 <b>UNDER 1.5 2H — HT</b>  ·  ${nowTime()}`,
+    ``,
+    `⚽ <b>${match.home_team} vs ${match.away_team}</b>`,
+    `🏆 <i>${match.league || '—'}</i>  [${tierBadge(tier)}]`,
+    `🕐 HT  Score: <b>${htStr}</b>`,
+    ``,
+    `📊 <b>${favTeam}</b> −${favLc.toFixed(2)}  ·  TL ${tlC.toFixed(2)}`,
+    `   Fav leads +1 at HT in a low-scoring game`,
+    ``,
+    `💰 BET: <b>Under 1.5 2H</b>  (in-play, 2nd half goals)`,
+    `   ⚠️ Min odds: <b>1.75</b>  ·  59% hit rate  ·  σ=2.1%  ·  n=3,804`,
+    `   Skip if odds < 1.70`,
+  ].join('\n');
+}
+
 // ── Strategy 3: TLM=IN + high TL + no 1H goal at 25–32' → Over 0.5 1H ────────
 const _notifiedTLM1H = new Map();
 const TLM1H_TTL = 3 * 60 * 60 * 1000;
@@ -489,6 +525,34 @@ async function runScan() {
         }
       }
 
+      // ── Strategy 4: Fav +1 at HT, AH 0.25–1.00, TL ≤ 2.75 → Under 1.5 2H ──
+      if (isHTWindow && match.odds) {
+        const rawMin4 = String(match.minute || '').replace(/'/g, '').trim();
+        if (rawMin4 === 'HT' || liveMin >= 45) {
+          const score4 = parseScoreStr(match.score);
+          if (score4) {
+            const favGoals4 = steam.favSide === 'HOME' ? score4.home : score4.away;
+            const dogGoals4 = steam.favSide === 'HOME' ? score4.away : score4.home;
+            const tlC4      = match.odds.tl_c;
+
+            if (favGoals4 - dogGoals4 === 1 &&
+                steam.favLc >= 0.13 && steam.favLc <= 1.12 &&
+                tlC4 != null && tlC4 <= 2.75) {
+              if (alreadyNotifiedUnder15HT(matchId)) {
+                if (VERBOSE) console.log(`  [U15HT] SKIP [already notified]  ${label}`);
+              } else {
+                const msg = formatUnder15HTMessage(match, steam, tier, score4);
+                await sendTelegram(msg);
+                markNotifiedUnder15HT(matchId);
+                console.log(`[U15HT] ALERT → ${label}  HT=${score4.home}-${score4.away}  AH=-${steam.favLc.toFixed(2)}  TL=${tlC4.toFixed(2)}  tier=${tier}`);
+              }
+            } else if (VERBOSE) {
+              console.log(`  [U15HT] SKIP [margin=${favGoals4 - dogGoals4} AH=${steam.favLc.toFixed(2)} TL=${tlC4}]  ${label}`);
+            }
+          }
+        }
+      }
+
       // Fire alert at 65–70' if still no goal in 2H
       if (isSFHTAlert) {
         const cand = _htCandidates.get(matchId);
@@ -510,29 +574,8 @@ async function runScan() {
       }
     }
 
-    // ── Strategy 3: TLM=IN + TL ≥ 2.5 + still 0-0 at 25–32' → Over 0.5 1H ───
-    if (isTLM1HWindow && match.odds) {
-      const tlC = match.odds.tl_c;
-      const tlO = match.odds.tl_o;
-
-      if (tlC != null && tlO != null && tlC >= cfg.TLM1H_MIN_TL && (tlC - tlO) >= cfg.TLM1H_MIN_STEAM) {
-        const score      = parseScoreStr(match.score);
-        const isGoalless = score != null && score.home === 0 && score.away === 0;
-
-        if (!isGoalless) {
-          if (VERBOSE) console.log(`  [TLM1H] SKIP [goal scored: ${match.score}]  ${label}`);
-        } else if (alreadyNotifiedTLM1H(matchId)) {
-          if (VERBOSE) console.log(`  [TLM1H] SKIP [already notified]  ${label}`);
-        } else {
-          const msg = formatTLM1HMessage(match, tlC, tlO, tier, liveMin);
-          await sendTelegram(msg);
-          markNotifiedTLM1H(matchId);
-          console.log(`[TLM1H] ALERT → ${label}  min=${liveMin}  tl=${tlO.toFixed(2)}→${tlC.toFixed(2)}  steam=+${(tlC - tlO).toFixed(2)}  tier=${tier}`);
-        }
-      } else if (VERBOSE && tlC != null && tlO != null) {
-        console.log(`  [TLM1H] SKIP [tl=${tlC} steam=${(tlC - tlO).toFixed(2)}]  ${label}`);
-      }
-    }
+    // ── Strategy 3: DISABLED (backtest shows ~52% hit rate, BE odds 1.94 — not profitable)
+    // if (isTLM1HWindow && match.odds) { ... }
   }
 
 }
@@ -547,10 +590,11 @@ async function main() {
   }
 
   console.log(`Scheduler started — every ${cfg.SCAN_INTERVAL_MINUTES} min.`);
-  console.log(`Strategy 1: AH steam ≥ ${cfg.LM_STEAM_MIN} → bet dog AH  (window=${cfg.ALERT_MIN_MINUTE}–${cfg.ALERT_MAX_MINUTE}')`);
-  console.log(`Strategy 2: Strong fav AH ≥ 1.00 not winning at HT → over05_2H alert at 65–70'`);
-  console.log(`Strategy 3: TLM=IN + TL ≥ ${cfg.TLM1H_MIN_TL} + 0-0 at ${cfg.TLM1H_MIN_MINUTE}–${cfg.TLM1H_MAX_MINUTE}' → Over 0.5 1H`);
-  console.log(`Tier filter: ${cfg.LEAGUE_TIER}`);
+  console.log(`Strategy 1: AH steam ≥ ${cfg.LM_STEAM_MIN} → bet dog AH  (window=${cfg.ALERT_MIN_MINUTE}–${cfg.ALERT_MAX_MINUTE}', pre-kick ${cfg.UPCOMING_WINDOW_MINUTES}min)`);
+  console.log(`Strategy 2: Strong fav AH ≥ 1.00 not winning at HT → Over 0.5 2H at 65–70'  (min odds 1.23)`);
+  console.log(`Strategy 3: DISABLED (Over 0.5 1H — backtest: ~52% hit, BE 1.94, not profitable)`);
+  console.log(`Strategy 4: Fav +1 at HT, AH 0.25–1.00, TL ≤ 2.75 → Under 1.5 2H  (min odds 1.75)`);
+  console.log(`Tier filter: ${cfg.LEAGUE_TIER}  [fixed: was ALL, now TOP+MAJOR]`);
   await runScan();
   cron.schedule(`*/${cfg.SCAN_INTERVAL_MINUTES} * * * *`, runScan);
 }
