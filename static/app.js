@@ -2021,9 +2021,31 @@ function runGsa() {
 
   showLoader();
 
-  const activeDb = getDb();
-  const minN     = getMinN();
-  const gs       = getGs('gsa-gs-panel', state.gsaTrigger);
+  const activeDb   = getDb();
+  const minN       = getMinN();
+  const gs         = getGs('gsa-gs-panel', state.gsaTrigger);
+  const htAsSignal = !!(document.getElementById('gsa-ht-as-signal')?.checked);
+
+  // ── HT-as-signal mode: compare HT state pool vs full pre-HT baseline ─────
+  if (htAsSignal && gs) {
+    let favLine, favSide;
+    if (_activeScanCfg) {
+      favLine = String(_activeScanCfg.fav_line);
+      favSide = _activeScanCfg.fav_side;
+    } else {
+      const tempCfg = state.filterMode === 'BASIC' ? buildBasicCfg() : buildAdvancedCfg();
+      if (!tempCfg) { showError('Invalid AH line — enter a valid Asian Handicap value.'); return; }
+      favLine = String(tempCfg.fav_line);
+      favSide = tempCfg.fav_side;
+    }
+    setTimeout(() => {
+      try {
+        const results = discover(activeDb, favLine, favSide, 'ANY', 'ANY', gs, minN, 'ANY', true);
+        renderDiscResults({ results });
+      } catch(e) { showError(e.message); }
+    }, 20);
+    return;
+  }
 
   // ── Scan GSA mode: match was loaded from Live Scan ────────────────────────
   if (_activeScanCfg) {
@@ -2334,7 +2356,6 @@ function runDisc() {
   const tlMoveI   = document.getElementById('disc-tlm').value;
   const gs        = getGs('d-gs-panel', state.dGsTrigger);
   const minN      = getMinN();
-  const htAsSignal = !!(document.getElementById('disc-ht-as-signal')?.checked);
 
   // Diagnostic check for TL data
   let diagMsg = null;
@@ -2358,7 +2379,7 @@ function runDisc() {
   // Yield to browser so loader renders before heavy computation
   setTimeout(() => {
     try {
-      const results = discover(getDb(), favLine, favSide, lineMoveI, tlMoveI, gs, minN, tlRaw, htAsSignal);
+      const results = discover(getDb(), favLine, favSide, lineMoveI, tlMoveI, gs, minN, tlRaw);
       renderDiscResults({ results, diag_msg: diagMsg });
     } catch (e) {
       showError(e.message);

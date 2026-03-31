@@ -529,6 +529,14 @@
           </div>
         </div>
 
+        <!-- HT as signal toggle -->
+        <div style="margin-top:12px;margin-bottom:4px">
+          <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--dim);cursor:pointer">
+            <input type="checkbox" id="gsa-ht-as-signal" style="cursor:pointer">
+            <span><strong style="color:var(--bright)">HT as signal</strong> — compare HT state vs pre-HT baseline (ignores signal filters)</span>
+          </label>
+        </div>
+
         <div class="section-label" style="margin-top:14px">MINIMUM MATCHING RECORDS</div>
         <div class="min-n-row">
           <button class="min-n-preset" onclick="setMinN(10)">10</button>
@@ -588,14 +596,6 @@
               <option>STABLE</option><option>DOWN</option>
             </select>
           </div>
-        </div>
-
-        <!-- HT as signal toggle -->
-        <div style="margin-top:12px;margin-bottom:4px">
-          <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--dim);cursor:pointer">
-            <input type="checkbox" id="disc-ht-as-signal" style="cursor:pointer">
-            <span><strong style="color:var(--bright)">HT as signal</strong> — compare HT state vs pre-HT baseline (no signal sweep)</span>
-          </label>
         </div>
 
         <!-- Game State (discovery) -->
