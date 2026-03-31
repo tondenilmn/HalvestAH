@@ -2878,6 +2878,40 @@ function renderGsProbePanel(probe, stateLabel) {
 // Designed for live use at half-time: shows only bets where the signal+HT
 // pool beats the state-only baseline, sorted by conservative odds ascending
 // (most achievable markets first). The "MIN ODDS" column is the Wilson
+function calcKelly(inputEl, pObs, pLo, fairOdds, minOdds) {
+  const outputEl = inputEl.parentElement.nextElementSibling;
+  const offered  = parseFloat(inputEl.value);
+
+  if (isNaN(offered) || offered <= 1.0) {
+    outputEl.textContent = '—';
+    outputEl.className = 'htlive-col-kelly';
+    return;
+  }
+  if (offered <= fairOdds) {
+    outputEl.textContent = 'NO VALUE';
+    outputEl.className = 'htlive-col-kelly kelly-none';
+    return;
+  }
+
+  const b = offered - 1;
+  let kellyPct;
+
+  if (offered >= minOdds) {
+    // Above MIN: half-Kelly with conservative rate (p_lo)
+    const f = (pLo * b - (1 - pLo)) / b;
+    kellyPct = Math.max(0, f / 2 * 100);
+    outputEl.className = 'htlive-col-kelly kelly-strong';
+  } else {
+    // Between fair and MIN: quarter-Kelly × scale
+    const scale = (offered - fairOdds) / (minOdds - fairOdds);
+    const f     = (pObs * b - (1 - pObs)) / b;
+    kellyPct = Math.max(0, 0.25 * f * scale * 100);
+    outputEl.className = 'htlive-col-kelly kelly-grey';
+  }
+
+  outputEl.textContent = kellyPct.toFixed(1) + '%';
+}
+
 // lower-bound threshold — any soft book offering above it is +EV.
 function renderHtLivePanel(probe, stateLabel) {
   if (!probe || !probe.outcomes) return '';
@@ -2937,14 +2971,20 @@ function renderHtLivePanel(probe, stateLabel) {
         <span class="htlive-th-minodds">MIN ODDS</span>
         <span class="htlive-th-fair">Fair</span>
         <span class="htlive-th-n">n</span>
+        <span class="htlive-th-offered">Offered</span>
+        <span class="htlive-th-kelly">Kelly%</span>
       </div>`;
 
     for (const r of rows) {
-      const tier  = rowTier(r);
-      const nCls  = r.sn >= 30 ? 'green' : r.sn >= 15 ? 'yellow' : 'red';
-      const dSign = r.delta >= 0 ? '+' : '';
-      const fair  = r.fairOdds ? r.fairOdds.toFixed(2) : '—';
-      const cons  = r.consOdds.toFixed(2);
+      const tier   = rowTier(r);
+      const nCls   = r.sn >= 30 ? 'green' : r.sn >= 15 ? 'yellow' : 'red';
+      const dSign  = r.delta >= 0 ? '+' : '';
+      const fair   = r.fairOdds ? r.fairOdds.toFixed(2) : '—';
+      const cons   = r.consOdds.toFixed(2);
+      const pObs   = (r.sp  / 100).toFixed(4);
+      const pLo    = (r.slo / 100).toFixed(4);
+      const fOdds  = r.fairOdds ? r.fairOdds.toFixed(3) : '0';
+      const mOdds  = r.consOdds.toFixed(3);
 
       html += `
       <div class="htlive-row htlive-row-${tier}">
@@ -2954,6 +2994,11 @@ function renderHtLivePanel(probe, stateLabel) {
         <span class="htlive-col-minodds htlive-minodds-${tier}">${cons}</span>
         <span class="htlive-col-fair">${fair}</span>
         <span class="htlive-col-n probe-conf ${nCls}">${r.sn}</span>
+        <span class="htlive-col-offered">
+          <input class="kelly-input" type="number" min="1.01" step="0.01" placeholder="odds"
+            oninput="calcKelly(this,${pObs},${pLo},${fOdds},${mOdds})">
+        </span>
+        <span class="htlive-col-kelly">—</span>
       </div>`;
     }
     html += `</div>`;

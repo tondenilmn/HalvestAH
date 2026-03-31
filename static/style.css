@@ -1089,7 +1089,7 @@ select.gs-select {
 .htlive-thead,
 .htlive-row    {
   display:grid;
-  grid-template-columns: 1fr 50px 66px 72px 46px 30px;
+  grid-template-columns: 1fr 50px 66px 72px 46px 30px 58px 46px;
   align-items:center; gap:4px; padding:4px 6px;
 }
 .htlive-thead {
@@ -1101,7 +1101,9 @@ select.gs-select {
 .htlive-th-delta,
 .htlive-th-minodds,
 .htlive-th-fair,
-.htlive-th-n {
+.htlive-th-n,
+.htlive-th-offered,
+.htlive-th-kelly {
   font-size:9px; text-transform:uppercase; letter-spacing:0.06em;
   color:var(--dim); font-weight:600;
 }
@@ -1109,7 +1111,9 @@ select.gs-select {
 .htlive-th-delta  { text-align:right; }
 .htlive-th-minodds,
 .htlive-th-fair,
-.htlive-th-n      { text-align:center; }
+.htlive-th-n,
+.htlive-th-offered,
+.htlive-th-kelly  { text-align:center; }
 
 /* Row styling */
 .htlive-row {
@@ -1122,11 +1126,23 @@ select.gs-select {
 .htlive-row-weak           { border-left-color:var(--border); }
 
 /* Cell styles */
-.htlive-col-label  { font-size:12px; font-weight:600; color:var(--bright); }
-.htlive-col-prob   { font-size:12px; font-weight:700; color:var(--text);   text-align:right; }
-.htlive-col-delta  { font-size:11px; text-align:right; }
-.htlive-col-fair   { font-size:11px; color:var(--dim); text-align:center; }
-.htlive-col-n      { text-align:center; }
+.htlive-col-label   { font-size:12px; font-weight:600; color:var(--bright); }
+.htlive-col-prob    { font-size:12px; font-weight:700; color:var(--text);   text-align:right; }
+.htlive-col-delta   { font-size:11px; text-align:right; }
+.htlive-col-fair    { font-size:11px; color:var(--dim); text-align:center; }
+.htlive-col-n       { text-align:center; }
+.htlive-col-offered { text-align:center; }
+.htlive-col-kelly   { font-size:11px; font-weight:700; text-align:center; color:var(--dim); }
+
+.kelly-input {
+  width:50px; background:var(--bg2); border:1px solid var(--border);
+  color:var(--text); font-size:11px; padding:2px 4px; border-radius:3px;
+  text-align:center;
+}
+.kelly-input:focus { outline:none; border-color:var(--blue); }
+.kelly-strong { color:var(--green) !important; }
+.kelly-grey   { color:var(--yellow) !important; }
+.kelly-none   { color:var(--red) !important; font-size:9px; }
 
 /* MIN ODDS pill — the number the user needs to beat at the soft book */
 .htlive-col-minodds         { text-align:center; }
