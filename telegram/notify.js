@@ -43,6 +43,11 @@ async function sendTelegram(text) {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+// Escape HTML special chars in dynamic strings (team/league names may contain < >)
+function esc(s) {
+  return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 function nowTime() {
   return new Intl.DateTimeFormat('it-IT', {
     timeZone: cfg.DISPLAY_TZ,
@@ -122,8 +127,8 @@ function kickoffTimeLabel(kickoffTimeStr) {
 function formatMessage(match, steam, tier, b365DogOc) {
   const { favSide, favLc, favLo, dogOc } = steam;
 
-  const homeLabel = `${match.home_team} (H)`;
-  const awayLabel = `${match.away_team} (A)`;
+  const homeLabel = `${esc(match.home_team)} (H)`;
+  const awayLabel = `${esc(match.away_team)} (A)`;
   const favTeam   = favSide === 'HOME' ? homeLabel : awayLabel;
   const dogTeam   = favSide === 'HOME' ? awayLabel : homeLabel;
 
@@ -135,7 +140,7 @@ function formatMessage(match, steam, tier, b365DogOc) {
     `🚨 <b>LIVE STEAM · DOG AH</b>  ${nowTime()}`,
     ``,
     `⚽ <b>${homeLabel} vs ${awayLabel}</b>`,
-    `🏆 <i>${match.league || '—'}</i>  [${tierBadge(tier)}]  ·  ⏱ ${match.minute}'  ${match.score || '0–0'}`,
+    `🏆 <i>${esc(match.league) || '—'}</i>  [${tierBadge(tier)}]  ·  ⏱ ${esc(match.minute)}'  ${esc(match.score) || '0–0'}`,
     ``,
     `📉 ${favTeam} (fav)  ${ahArrow(favLc, favLo)}`,
     ``,
@@ -147,8 +152,8 @@ function formatMessage(match, steam, tier, b365DogOc) {
 function formatUpcomingMessage(match, steam, tier, minsToKickoff, b365DogOc) {
   const { favSide, favLc, favLo, dogOc } = steam;
 
-  const favTeam = favSide === 'HOME' ? match.home_team : match.away_team;
-  const dogTeam = favSide === 'HOME' ? match.away_team : match.home_team;
+  const favTeam = favSide === 'HOME' ? esc(match.home_team) : esc(match.away_team);
+  const dogTeam = favSide === 'HOME' ? esc(match.away_team) : esc(match.home_team);
 
   const koTime  = match.kickoff_time ? kickoffTimeLabel(match.kickoff_time) : null;
   const minsRnd = Math.round(minsToKickoff);
@@ -163,8 +168,8 @@ function formatUpcomingMessage(match, steam, tier, minsToKickoff, b365DogOc) {
   return [
     `⏰ <b>PRE-KICK STEAM · DOG AH</b>  ${nowTime()}`,
     ``,
-    `⚽ <b>${match.home_team} vs ${match.away_team}</b>`,
-    `🏆 <i>${match.league || '—'}</i>  [${tierBadge(tier)}]`,
+    `⚽ <b>${esc(match.home_team)} vs ${esc(match.away_team)}</b>`,
+    `🏆 <i>${esc(match.league) || '—'}</i>  [${tierBadge(tier)}]`,
     `${timing}`,
     ``,
     `📉 Fav: ${favTeam}  ${ahArrow(favLc, favLo)}`,
@@ -217,16 +222,16 @@ function markNotifiedSFHT(matchId) {
 
 function formatStrongFavHTMessage(match, htScore, steam, tier, liveMin) {
   const { favSide, favLc } = steam;
-  const favTeam  = favSide === 'HOME' ? match.home_team : match.away_team;
+  const favTeam  = favSide === 'HOME' ? esc(match.home_team) : esc(match.away_team);
   const htStr    = `${htScore.home}-${htScore.away}`;
   const minsLeft = 90 - liveMin;
 
   return [
     `⏰ <b>STRONG FAV — NO 2H GOAL YET</b>  ·  ${nowTime()}`,
     ``,
-    `🏆 <i>${match.league || '—'}</i>  [${tierBadge(tier)}]`,
-    `⚽ <b>${match.home_team} vs ${match.away_team}</b>`,
-    `🕐 <b>${liveMin}'</b>  Score: <b>${match.score || htStr}</b>  (HT: ${htStr})`,
+    `🏆 <i>${esc(match.league) || '—'}</i>  [${tierBadge(tier)}]`,
+    `⚽ <b>${esc(match.home_team)} vs ${esc(match.away_team)}</b>`,
+    `🕐 <b>${liveMin}'</b>  Score: <b>${esc(match.score) || htStr}</b>  (HT: ${htStr})`,
     ``,
     `📊 <b>${favTeam}</b>  AH −${favLc.toFixed(2)}  ·  not winning at HT`,
     `   ~${minsLeft} min left, no goal scored in 2nd half`,
@@ -285,7 +290,7 @@ function markNotifiedHtGs(matchId) { _notifiedHtGs.set(matchId, Date.now()); }
 function formatHtAsSignalMessage(match, signals, htScore, baseN, gsN, bets, tier) {
   const htStr   = `${htScore.home}-${htScore.away}`;
   const { favSide, favLine, lineMove, favOddsMove, dogOddsMove, tlMove } = signals;
-  const favTeam = favSide === 'HOME' ? match.home_team : match.away_team;
+  const favTeam = favSide === 'HOME' ? esc(match.home_team) : esc(match.away_team);
 
   const sigBadges = [
     lineMove    !== 'STABLE' && lineMove    !== 'UNKNOWN' ? `LM:${lineMove}`    : null,
@@ -308,8 +313,8 @@ function formatHtAsSignalMessage(match, signals, htScore, baseN, gsN, bets, tier
   return [
     `🔍 <b>HT SIGNAL</b>  ·  ${nowTime()}`,
     ``,
-    `⚽ <b>${match.home_team} vs ${match.away_team}</b>`,
-    `🏆 <i>${match.league || '—'}</i>  [${tierBadge(tier)}]  HT: <b>${htStr}</b>`,
+    `⚽ <b>${esc(match.home_team)} vs ${esc(match.away_team)}</b>`,
+    `🏆 <i>${esc(match.league) || '—'}</i>  [${tierBadge(tier)}]  HT: <b>${htStr}</b>`,
     ``,
     `📊 ${favTeam} −${Number(favLine).toFixed(2)}  ·  ` +
       `pool ${baseN} → HT filter: ${gsN}`,
@@ -319,7 +324,7 @@ function formatHtAsSignalMessage(match, signals, htScore, baseN, gsN, bets, tier
     ``,
     `⚠️ Open Bet365 in-play:`,
     `   offered > min odds → bet (Kelly% of bankroll)`,
-    `   fair < offered < min → small bet only if z ≥ 3.0`,
+    `   fair &lt; offered &lt; min → small bet only if z ≥ 3.0`,
     `   offered ≤ fair → skip`,
   ].join('\n');
 }
@@ -340,15 +345,15 @@ function markNotifiedUnder15HT(matchId) { _notifiedUnder15HT.set(matchId, Date.n
 
 function formatUnder15HTMessage(match, steam, tier, htScore) {
   const { favSide, favLc } = steam;
-  const favTeam = favSide === 'HOME' ? match.home_team : match.away_team;
+  const favTeam = favSide === 'HOME' ? esc(match.home_team) : esc(match.away_team);
   const tlC     = match.odds.tl_c;
   const htStr   = `${htScore.home}-${htScore.away}`;
 
   return [
     `🛡 <b>UNDER 1.5 2H — HT</b>  ·  ${nowTime()}`,
     ``,
-    `⚽ <b>${match.home_team} vs ${match.away_team}</b>`,
-    `🏆 <i>${match.league || '—'}</i>  [${tierBadge(tier)}]`,
+    `⚽ <b>${esc(match.home_team)} vs ${esc(match.away_team)}</b>`,
+    `🏆 <i>${esc(match.league) || '—'}</i>  [${tierBadge(tier)}]`,
     `🕐 HT  Score: <b>${htStr}</b>`,
     ``,
     `📊 <b>${favTeam}</b> −${favLc.toFixed(2)}  ·  TL ${tlC.toFixed(2)}`,
@@ -356,7 +361,7 @@ function formatUnder15HTMessage(match, steam, tier, htScore) {
     ``,
     `💰 BET: <b>Under 1.5 2H</b>  (in-play, 2nd half goals)`,
     `   ⚠️ Min odds: <b>1.75</b>  ·  59% hit rate  ·  σ=2.1%  ·  n=3,804`,
-    `   Skip if odds < 1.70`,
+    `   Skip if odds &lt; 1.70`,
   ].join('\n');
 }
 
@@ -375,13 +380,13 @@ function markNotifiedTLM1H(matchId) { _notifiedTLM1H.set(matchId, Date.now()); }
 function formatTLM1HMessage(match, tlC, tlO, tier, liveMin) {
   const tlSteam  = tlC - tlO;
   const minsLeft = 45 - liveMin;
-  const cluster  = tlC >= 3.0 ? `>3.0` : `2.5–3.0`;
+  const cluster  = tlC >= 3.0 ? `&gt;3.0` : `2.5–3.0`;
 
   return [
     `⚡ <b>OVER 0.5 1H — STILL 0-0</b>  ·  ${nowTime()}`,
     ``,
-    `🏆 <i>${match.league || '—'}</i>  [${tierBadge(tier)}]`,
-    `⚽ <b>${match.home_team} vs ${match.away_team}</b>`,
+    `🏆 <i>${esc(match.league) || '—'}</i>  [${tierBadge(tier)}]`,
+    `⚽ <b>${esc(match.home_team)} vs ${esc(match.away_team)}</b>`,
     `🕐 <b>${liveMin}'</b>  Score: <b>0-0</b>  (~${minsLeft} min left in 1H)`,
     ``,
     `📈 TL steamed:  ${tlO.toFixed(2)} → ${tlC.toFixed(2)}  (+${tlSteam.toFixed(2)})`,
