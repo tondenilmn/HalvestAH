@@ -237,29 +237,37 @@ function formatStrongFavHTMessage(match, htScore, steam, tier, liveMin) {
 }
 
 // ── Strategy 5: HT-as-signal (DB-based) ──────────────────────────────────────
-// Historical database — loaded once at startup, pre-filtered by league tier.
-let _db = null;
+// Historical database — loaded once at startup.
+// _db      = tier-filtered (TOP+MAJOR) — used by strategies 1–4
+// _dbAll   = all leagues               — used by Strategy 5 (larger baseline)
+let _db    = null;
+let _dbAll = null;
 
 async function loadDb() {
   try {
+    let raw;
     if (cfg.DATA_URL) {
       console.log(`[DB] Loading from ${cfg.DATA_URL}…`);
-      _db = await loadDatabaseFromUrl(cfg.DATA_URL);
+      raw = await loadDatabaseFromUrl(cfg.DATA_URL);
     } else {
       const dataDir = path.resolve(__dirname, cfg.DATA_DIR);
       console.log(`[DB] Loading from ${dataDir}…`);
-      _db = loadDatabase(dataDir);
+      raw = loadDatabase(dataDir);
     }
-    // Pre-filter by tier (same filter applied to live matches)
+    // Strategy 5 uses the full DB (all leagues) for the largest possible baseline
+    _dbAll = raw;
+    // Strategies 1–4 use the tier-filtered DB
     if (cfg.LEAGUE_TIER === 'TOP+MAJOR') {
-      _db = _db.filter(r => r.league_tier === 'TOP' || r.league_tier === 'MAJOR');
+      _db = raw.filter(r => r.league_tier === 'TOP' || r.league_tier === 'MAJOR');
     } else if (cfg.LEAGUE_TIER === 'TOP') {
-      _db = _db.filter(r => r.league_tier === 'TOP');
+      _db = raw.filter(r => r.league_tier === 'TOP');
+    } else {
+      _db = raw;
     }
-    console.log(`[DB] Ready — ${_db.length} rows (${cfg.LEAGUE_TIER})`);
+    console.log(`[DB] Ready — ${_db.length} rows (${cfg.LEAGUE_TIER}) / ${_dbAll.length} rows (ALL)`);
   } catch (e) {
     console.error(`[DB] Load failed: ${e.message}`);
-    _db = [];
+    _db = []; _dbAll = [];
   }
 }
 
@@ -664,15 +672,15 @@ async function runScan() {
     // if (isTLM1HWindow && match.odds) { ... }
 
     // ── Strategy 5: HT-as-signal (DB-based) ──────────────────────────────────
-    if (isHTWindow && _db && _db.length && match.odds) {
+    if (isHTWindow && _dbAll && _dbAll.length && match.odds) {
       const rawMin5 = String(match.minute || '').replace(/'/g, '').trim();
       if (rawMin5 === 'HT' || liveMin >= 45) {
         const score5 = parseScoreStr(match.score);
         if (score5) {
           const matchCfg = buildCfgFromMatch(match.odds, {});
           if (matchCfg) {
-            // Filter DB: AH line + fav side only (no signal filters — baseline)
-            const base = applyBaselineConfig(_db, {
+            // Filter DB: AH line + fav side only (no signal filters — baseline, all leagues)
+            const base = applyBaselineConfig(_dbAll, {
               fav_line: matchCfg.fav_line,
               fav_side: matchCfg.fav_side,
             });
