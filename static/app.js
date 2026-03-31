@@ -455,10 +455,11 @@ function computeGsProbe(cfgRows, blRows, gs) {
     const th = stateRows.filter(r => r[k]).length;
     const tp = tn ? th / tn * 100 : 0;
 
+    const z = zScore(sigRows, stateRows, k);
     return {
       k, label, group,
       sn, sh, sp, slo, shi,
-      tn, th, tp,
+      tn, th, tp, z,
       delta:     sp - tp,
       fairOdds:  sp  > 0 ? (100 / sp)  : null,
       consOdds:  slo > 0 ? (100 / slo) : null,
@@ -2065,10 +2066,11 @@ function runGsa() {
           const [slo, shi] = wilsonCI(sp, sn);
           const th = base.filter(r => r[k]).length;
           const tp = tn ? th / tn * 100 : 0;
+          const z  = zScore(baseGs, base, k);
           return {
             k, label, group,
             sn, sh, sp, slo, shi,
-            tn, th, tp,
+            tn, th, tp, z,
             delta:     sp - tp,
             fairOdds:  sp  > 0 ? (100 / sp)  : null,
             consOdds:  slo > 0 ? (100 / slo) : null,
@@ -2971,6 +2973,7 @@ function renderHtLivePanel(probe, stateLabel) {
         <span class="htlive-th-minodds">MIN ODDS</span>
         <span class="htlive-th-fair">Fair</span>
         <span class="htlive-th-n">n</span>
+        <span class="htlive-th-z">z</span>
         <span class="htlive-th-offered">Offered</span>
         <span class="htlive-th-kelly">Kelly%</span>
       </div>`;
@@ -2994,6 +2997,7 @@ function renderHtLivePanel(probe, stateLabel) {
         <span class="htlive-col-minodds htlive-minodds-${tier}">${cons}</span>
         <span class="htlive-col-fair">${fair}</span>
         <span class="htlive-col-n probe-conf ${nCls}">${r.sn}</span>
+        <span class="htlive-col-z">${r.z != null ? r.z.toFixed(2) : '—'}</span>
         <span class="htlive-col-offered">
           <input class="kelly-input" type="number" min="1.01" step="0.01" placeholder="odds"
             oninput="calcKelly(this,${pObs},${pLo},${fOdds},${mOdds})">
