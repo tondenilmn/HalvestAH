@@ -2029,20 +2029,58 @@ function runGsa() {
 
   // ── HT-as-signal mode: compare HT state pool vs full pre-HT baseline ─────
   if (htAsSignal && gs) {
-    let favLine, favSide;
+    let base, sigCfgForHeader;
     if (_activeScanCfg) {
-      favLine = String(_activeScanCfg.fav_line);
-      favSide = _activeScanCfg.fav_side;
+      const oddsOverride = { odds_tolerance: null, fav_oc: null, dog_oc: null, fav_oo: null, dog_oo: null };
+      const blCfg = { ..._activeScanCfg, ...oddsOverride, line_move: 'ANY', fav_odds_move: 'ANY', dog_odds_move: 'ANY', tl_move: 'ANY', over_move: 'ANY', under_move: 'ANY' };
+      base = applyConfig(activeDb, blCfg);
+      sigCfgForHeader = _activeScanCfg;
     } else {
       const tempCfg = state.filterMode === 'BASIC' ? buildBasicCfg() : buildAdvancedCfg();
       if (!tempCfg) { showError('Invalid AH line — enter a valid Asian Handicap value.'); return; }
-      favLine = String(tempCfg.fav_line);
-      favSide = tempCfg.fav_side;
+      const gsaCfg = { ...tempCfg, odds_tolerance: null, fav_oc: null, dog_oc: null, fav_oo: null, dog_oo: null };
+      base = applyBaselineConfig(activeDb, gsaCfg);
+      sigCfgForHeader = gsaCfg;
     }
+
     setTimeout(() => {
       try {
-        const results = discover(activeDb, favLine, favSide, 'ANY', 'ANY', gs, minN, 'ANY', true);
-        renderDiscResults({ results });
+        const baseGs = applyGameState(base, gs);
+        const sn = baseGs.length;
+        const tn = base.length;
+        const right   = document.getElementById('right-panel');
+        const ahSide  = sigCfgForHeader.fav_side === 'AWAY' ? 'Away' : 'Home';
+
+        if (sn < minN) {
+          right.innerHTML = `<h2 class="results-title">HT LIVE VIEW</h2>
+            <div class="cfg-summary">${ahSide} AH −${sigCfgForHeader.fav_line} · HT pool: ${sn} · Pre-HT baseline: ${tn}</div>
+            <div class="no-bets" style="margin-top:20px"><div class="warn-icon">⚠</div>
+            <p>HT pool too small (${sn} rows, need ≥${minN}).<br>Try a different HT score or a broader AH line.</p></div>`;
+          return;
+        }
+
+        const outcomes = GS_PROBE_OUTCOMES.map(({ k, label, group }) => {
+          const sh = baseGs.filter(r => r[k]).length;
+          const sp = sn ? sh / sn * 100 : 0;
+          const [slo, shi] = wilsonCI(sp, sn);
+          const th = base.filter(r => r[k]).length;
+          const tp = tn ? th / tn * 100 : 0;
+          return {
+            k, label, group,
+            sn, sh, sp, slo, shi,
+            tn, th, tp,
+            delta:     sp - tp,
+            fairOdds:  sp  > 0 ? (100 / sp)  : null,
+            consOdds:  slo > 0 ? (100 / slo) : null,
+            stateOdds: tp  > 0 ? (100 / tp)  : null,
+          };
+        });
+
+        const probe = { sn, tn, outcomes };
+        let html = `<h2 class="results-title">HT LIVE VIEW</h2>`;
+        html += `<div class="cfg-summary">${ahSide} AH −${sigCfgForHeader.fav_line} · HT pool: ${sn} · Pre-HT baseline: ${tn}</div>`;
+        html += renderHtLivePanel(probe, gsLabel(gs));
+        right.innerHTML = html;
       } catch(e) { showError(e.message); }
     }, 20);
     return;
