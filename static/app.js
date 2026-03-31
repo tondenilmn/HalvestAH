@@ -1356,6 +1356,7 @@ const state = {
   gsaUnmOn:       false,
   gsaHtOn:        false,
   gsaFavVsDogOn:  false,  // filter by fav_oc vs dog_oc (auto-detected from scan)
+  gsaOddsTolOn:   false,  // apply closing AH odds ±tolerance from scan (off by default)
   leagueTier: 'ALL',
 };
 
@@ -1999,9 +2000,15 @@ function runGsa() {
   if (_activeScanCfg) {
     const sig = _activeScanCfg._signals;
 
-    // Baseline: AH line + AH closing odds ±tol + TL closing — no movement filter
+    // Odds anchor override: strip closing odds ±tol unless the toggle is ON
+    const oddsOverride = state.gsaOddsTolOn
+      ? {}
+      : { odds_tolerance: null, fav_oc: null, dog_oc: null, fav_oo: null, dog_oo: null };
+
+    // Baseline: AH line + TL closing — no movement filter, odds anchors per toggle
     const blCfg = {
       ..._activeScanCfg,
+      ...oddsOverride,
       line_move: 'ANY', fav_odds_move: 'ANY', dog_odds_move: 'ANY',
       tl_move:   'ANY', over_move:     'ANY', under_move:    'ANY',
     };
@@ -2009,6 +2016,7 @@ function runGsa() {
     // Signal: same base + active movement filters (only when the signal is a real move)
     const sigCfg = {
       ..._activeScanCfg,
+      ...oddsOverride,
       line_move:     state.gsaLmOn       && !['STABLE','UNKNOWN'].includes(sig.lineMove)    ? sig.lineMove    : 'ANY',
       fav_odds_move: state.gsaFomOn      && !['STABLE','UNKNOWN'].includes(sig.favOddsMove) ? sig.favOddsMove : 'ANY',
       dog_odds_move: state.gsaDomOn      && !['STABLE','UNKNOWN'].includes(sig.dogOddsMove) ? sig.dogOddsMove : 'ANY',
@@ -3306,6 +3314,15 @@ function _updateGsaMovementBadges() {
     el.textContent = label[val] || val || '—';
     el.className = 'sdrow-val' + (val ? ` ${val}` : '');
   }
+  // Closing odds ±tolerance badge
+  const tolEl = document.getElementById('gsa-sig-oddstol');
+  if (tolEl) {
+    const favOc = _activeScanCfg?.fav_oc;
+    const dogOc = _activeScanCfg?.dog_oc;
+    const tol   = _activeScanCfg?.odds_tolerance;
+    tolEl.textContent = (favOc != null && tol != null) ? `${favOc.toFixed(2)} / ${dogOc != null ? dogOc.toFixed(2) : '—'}  ±${tol}` : '—';
+    tolEl.className = 'sdrow-val';
+  }
   // Fav vs Dog badge
   const fvdEl = document.getElementById('gsa-sig-favvsdog');
   if (fvdEl) {
@@ -3325,7 +3342,7 @@ function _updateGsaMovementBadges() {
 }
 
 function toggleGsaMovement(signal) {
-  const keyMap = { lm:'gsaLmOn', tlm:'gsaTlmOn', fom:'gsaFomOn', dom:'gsaDomOn', ovm:'gsaOvmOn', unm:'gsaUnmOn', favVsDog:'gsaFavVsDogOn' };
+  const keyMap = { lm:'gsaLmOn', tlm:'gsaTlmOn', fom:'gsaFomOn', dom:'gsaDomOn', ovm:'gsaOvmOn', unm:'gsaUnmOn', favVsDog:'gsaFavVsDogOn', oddsTol:'gsaOddsTolOn' };
   const key = keyMap[signal];
   if (!key) return;
   state[key] = !state[key];
