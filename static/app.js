@@ -1074,7 +1074,7 @@ function deriveConfig(ahHc, ahHo, hoC, hoO, aoC, aoO, tlC, tlO, ovC, ovO) {
   };
 }
 
-function discover(db, favLine, favSide, inLineMove, inTlMove, gs, minN = DEFAULT_MIN_N, tlC = 'ANY') {
+function discover(db, favLine, favSide, inLineMove, inTlMove, gs, minN = DEFAULT_MIN_N, tlC = 'ANY', htAsSignal = false) {
   let base = db;
   if (favLine !== 'ANY') {
     const fl = parseFloat(favLine);
@@ -1105,6 +1105,34 @@ function discover(db, favLine, favSide, inLineMove, inTlMove, gs, minN = DEFAULT
   const baseAway = favSide === 'ANY' ? baseGs.filter(r => r.fav_side === 'AWAY') : null;
 
   const results = [];
+
+  // HT-as-signal mode: compare HT-filtered pool vs full pre-HT base (no signal sweep)
+  if (htAsSignal && gs) {
+    const blHome = favSide === 'ANY' ? base.filter(r => r.fav_side === 'HOME') : null;
+    const blAway = favSide === 'ANY' ? base.filter(r => r.fav_side === 'AWAY') : null;
+    for (const b of BETS) {
+      const k = b.k;
+      let blPool = base;
+      if      (b.favSideBaseline === 'HOME' && blHome) blPool = blHome;
+      else if (b.favSideBaseline === 'AWAY' && blAway) blPool = blAway;
+      const p    = pct(baseGs, k);
+      const bl   = pct(blPool, k);
+      const z    = zScore(baseGs, blPool, k);
+      const edge = p - bl;
+      if (Math.abs(z) < MIN_Z_DISC || edge <= 0) continue;
+      const [lo] = wilsonCI(p, baseGs.length);
+      results.push({
+        cfg: { fav_line: favLine, fav_side: favSide, htAsSignal: true },
+        k, n: baseGs.length, p, bl, z, edge, lo,
+        mo: minOdds(p), mo_mid: minOdds((p + lo) / 2),
+        label:  b.label  || k,
+        market: b.market || k,
+      });
+    }
+    results.sort((a, b) => b.z - a.z);
+    return results.slice(0, 15);
+  }
+
   const lmOptions  = inLineMove !== 'ANY' ? [inLineMove] : ['DEEPER', 'STABLE', 'SHRANK'];
   const tlmOptions = inTlMove   !== 'ANY' ? [inTlMove]  : ['UP', 'STABLE', 'DOWN', 'ANY'];
 
@@ -2306,6 +2334,7 @@ function runDisc() {
   const tlMoveI   = document.getElementById('disc-tlm').value;
   const gs        = getGs('d-gs-panel', state.dGsTrigger);
   const minN      = getMinN();
+  const htAsSignal = !!(document.getElementById('disc-ht-as-signal')?.checked);
 
   // Diagnostic check for TL data
   let diagMsg = null;
@@ -2329,7 +2358,7 @@ function runDisc() {
   // Yield to browser so loader renders before heavy computation
   setTimeout(() => {
     try {
-      const results = discover(getDb(), favLine, favSide, lineMoveI, tlMoveI, gs, minN, tlRaw);
+      const results = discover(getDb(), favLine, favSide, lineMoveI, tlMoveI, gs, minN, tlRaw, htAsSignal);
       renderDiscResults({ results, diag_msg: diagMsg });
     } catch (e) {
       showError(e.message);
@@ -3092,10 +3121,16 @@ function renderDiscResults(data) {
     const r    = results[i];
     const tier = tierClass(r.z);
     const c    = r.cfg;
-    const ahSide = c.fav_side === 'AWAY' ? 'Away' : 'Home';
-    let cfgStr = `${ahSide} AH −${c.fav_line}  ·  Line: ${c.line_move}  ·  FavOdds: ${c.fav_odds_move}  ·  DogOdds: ${c.dog_odds_move}`;
-    if (c.over_move && c.over_move !== 'ANY') cfgStr += `  ·  OverOdds: ${c.over_move}`;
-    if (c.tl_move   && c.tl_move   !== 'ANY') cfgStr += `  ·  TLMove: ${c.tl_move}`;
+    const ahSide = c.fav_side === 'AWAY' ? 'Away' : c.fav_side === 'HOME' ? 'Home' : 'Any';
+    let cfgStr;
+    if (c.htAsSignal) {
+      const lineStr = c.fav_line !== 'ANY' ? `${ahSide} AH −${c.fav_line}` : 'Any AH line';
+      cfgStr = `${lineStr}  ·  HT state vs pre-HT baseline`;
+    } else {
+      cfgStr = `${ahSide} AH −${c.fav_line}  ·  Line: ${c.line_move}  ·  FavOdds: ${c.fav_odds_move}  ·  DogOdds: ${c.dog_odds_move}`;
+      if (c.over_move && c.over_move !== 'ANY') cfgStr += `  ·  OverOdds: ${c.over_move}`;
+      if (c.tl_move   && c.tl_move   !== 'ANY') cfgStr += `  ·  TLMove: ${c.tl_move}`;
+    }
 
     html += `<div class="disc-card tier-${tier}">
       <div class="disc-left">
