@@ -14,9 +14,15 @@
 //   node notify.js          — start scheduler (runs every N minutes)
 //   node notify.js --once   — single scan + exit (for testing)
 
+const path = require('path');
 const cron = require('node-cron');
 const cfg  = require('./config');
-const { classifyLeague } = require('./engine');
+const {
+  classifyLeague,
+  loadDatabase, loadDatabaseFromUrl,
+  applyBaselineConfig, applyGameState,
+  buildCfgFromMatch, computeHtAsSignalProbe,
+} = require('./engine');
 const { fetchLiveMatches, fetchNextMatches } = require('./livescore');
 
 const VERBOSE = process.argv.includes('--verbose');
@@ -227,6 +233,86 @@ function formatStrongFavHTMessage(match, htScore, steam, tier, liveMin) {
     ``,
     `💰 BET: <b>Over 0.5 (2nd half)</b>`,
     `   82% hit rate  ·  σ=2.5%  ·  min odds 1.23`,
+  ].join('\n');
+}
+
+// ── Strategy 5: HT-as-signal (DB-based) ──────────────────────────────────────
+// Historical database — loaded once at startup, pre-filtered by league tier.
+let _db = null;
+
+async function loadDb() {
+  try {
+    if (cfg.DATA_URL) {
+      console.log(`[DB] Loading from ${cfg.DATA_URL}…`);
+      _db = await loadDatabaseFromUrl(cfg.DATA_URL);
+    } else {
+      const dataDir = path.resolve(__dirname, cfg.DATA_DIR);
+      console.log(`[DB] Loading from ${dataDir}…`);
+      _db = loadDatabase(dataDir);
+    }
+    // Pre-filter by tier (same filter applied to live matches)
+    if (cfg.LEAGUE_TIER === 'TOP+MAJOR') {
+      _db = _db.filter(r => r.league_tier === 'TOP' || r.league_tier === 'MAJOR');
+    } else if (cfg.LEAGUE_TIER === 'TOP') {
+      _db = _db.filter(r => r.league_tier === 'TOP');
+    }
+    console.log(`[DB] Ready — ${_db.length} rows (${cfg.LEAGUE_TIER})`);
+  } catch (e) {
+    console.error(`[DB] Load failed: ${e.message}`);
+    _db = [];
+  }
+}
+
+const _notifiedHtGs = new Map();
+const HTGS_TTL = 2 * 60 * 60 * 1000; // 2 hours
+
+function alreadyNotifiedHtGs(matchId) {
+  const ts = _notifiedHtGs.get(matchId);
+  if (!ts) return false;
+  if (Date.now() - ts > HTGS_TTL) { _notifiedHtGs.delete(matchId); return false; }
+  return true;
+}
+function markNotifiedHtGs(matchId) { _notifiedHtGs.set(matchId, Date.now()); }
+
+function formatHtAsSignalMessage(match, signals, htScore, baseN, gsN, bets, tier) {
+  const htStr   = `${htScore.home}-${htScore.away}`;
+  const { favSide, favLine, lineMove, favOddsMove, dogOddsMove, tlMove } = signals;
+  const favTeam = favSide === 'HOME' ? match.home_team : match.away_team;
+
+  const sigBadges = [
+    lineMove    !== 'STABLE' && lineMove    !== 'UNKNOWN' ? `LM:${lineMove}`    : null,
+    favOddsMove !== 'STABLE' && favOddsMove !== 'UNKNOWN' ? `FAV:${favOddsMove}` : null,
+    dogOddsMove !== 'STABLE' && dogOddsMove !== 'UNKNOWN' ? `DOG:${dogOddsMove}` : null,
+    tlMove      !== 'STABLE' && tlMove      !== 'UNKNOWN' ? `TL:${tlMove}`       : null,
+  ].filter(Boolean).join('  ') || 'no signal movement';
+
+  const betLines = bets.slice(0, 5).map(b => {
+    const edgeStr = (b.edge >= 0 ? '+' : '') + b.edge.toFixed(1);
+    const fairStr = b.fairOdds   != null ? b.fairOdds.toFixed(2)   : '—';
+    const minStr  = b.minOddsVal != null ? b.minOddsVal.toFixed(2) : '—';
+    return (
+      `  💰 <b>${b.label}</b>  z=${b.z.toFixed(1)}  ` +
+      `${b.p.toFixed(1)}% vs ${b.bl.toFixed(1)}% (${edgeStr}pp)  ` +
+      `fair:${fairStr}  min:${minStr}  n=${b.n}`
+    );
+  });
+
+  return [
+    `🔍 <b>HT SIGNAL</b>  ·  ${nowTime()}`,
+    ``,
+    `⚽ <b>${match.home_team} vs ${match.away_team}</b>`,
+    `🏆 <i>${match.league || '—'}</i>  [${tierBadge(tier)}]  HT: <b>${htStr}</b>`,
+    ``,
+    `📊 ${favTeam} −${Number(favLine).toFixed(2)}  ·  ` +
+      `pool ${baseN} → HT filter: ${gsN}`,
+    `📈 Pre-match signals: ${sigBadges}`,
+    ``,
+    ...betLines,
+    ``,
+    `⚠️ Open Bet365 in-play:`,
+    `   offered > min odds → bet (Kelly% of bankroll)`,
+    `   fair < offered < min → small bet only if z ≥ 3.0`,
+    `   offered ≤ fair → skip`,
   ].join('\n');
 }
 
@@ -576,6 +662,55 @@ async function runScan() {
 
     // ── Strategy 3: DISABLED (backtest shows ~52% hit rate, BE odds 1.94 — not profitable)
     // if (isTLM1HWindow && match.odds) { ... }
+
+    // ── Strategy 5: HT-as-signal (DB-based) ──────────────────────────────────
+    if (isHTWindow && _db && _db.length && match.odds) {
+      const rawMin5 = String(match.minute || '').replace(/'/g, '').trim();
+      if (rawMin5 === 'HT' || liveMin >= 45) {
+        const score5 = parseScoreStr(match.score);
+        if (score5) {
+          const matchCfg = buildCfgFromMatch(match.odds, {});
+          if (matchCfg) {
+            // Filter DB: AH line + fav side only (no signal filters — baseline)
+            const base = applyBaselineConfig(_db, {
+              fav_line: matchCfg.fav_line,
+              fav_side: matchCfg.fav_side,
+            });
+            // Apply HT score filter
+            const gs5    = { trigger: 'HT', home_goals: score5.home, away_goals: score5.away };
+            const baseGs = applyGameState(base, gs5);
+            // Probe all 2H/FT bets
+            const probe = computeHtAsSignalProbe(base, baseGs);
+            // Apply thresholds
+            const qualifying = probe
+              .filter(b => b.n >= cfg.HT_MIN_N && b.z >= cfg.HT_MIN_Z && b.bl >= cfg.HT_MIN_BASELINE)
+              .sort((a, b) => b.z - a.z);
+
+            if (qualifying.length > 0) {
+              if (alreadyNotifiedHtGs(matchId)) {
+                if (VERBOSE) console.log(`  [HTGS] SKIP [already notified]  ${label}`);
+              } else {
+                const msg = formatHtAsSignalMessage(
+                  match, matchCfg.signals, score5,
+                  base.length, baseGs.length, qualifying, tier,
+                );
+                await sendTelegram(msg);
+                markNotifiedHtGs(matchId);
+                console.log(
+                  `[HTGS] ALERT → ${label}  HT=${score5.home}-${score5.away}` +
+                  `  base=${base.length}  gs=${baseGs.length}  bets=${qualifying.length}  tier=${tier}`,
+                );
+              }
+            } else if (VERBOSE) {
+              console.log(
+                `  [HTGS] no qualifying bets  ${label}  HT=${score5.home}-${score5.away}` +
+                `  base=${base.length}  gs=${baseGs.length}`,
+              );
+            }
+          }
+        }
+      }
+    }
   }
 
 }
@@ -583,6 +718,9 @@ async function runScan() {
 // ── Entry point ──────────────────────────────────────────────────────────────
 async function main() {
   const once = process.argv.includes('--once');
+
+  // Load historical DB (required for Strategy 5 HT-as-signal)
+  await loadDb();
 
   if (once) {
     await runScan();
@@ -594,6 +732,7 @@ async function main() {
   console.log(`Strategy 2: Strong fav AH ≥ 1.00 not winning at HT → Over 0.5 2H at 65–70'  (min odds 1.23)`);
   console.log(`Strategy 3: DISABLED (Over 0.5 1H — backtest: ~52% hit, BE 1.94, not profitable)`);
   console.log(`Strategy 4: Fav +1 at HT, AH 0.25–1.00, TL ≤ 2.75 → Under 1.5 2H  (min odds 1.75)`);
+  console.log(`Strategy 5: HT-as-signal DB probe  z≥${cfg.HT_MIN_Z}  n≥${cfg.HT_MIN_N}  baseline≥${cfg.HT_MIN_BASELINE}%`);
   console.log(`Tier filter: ${cfg.LEAGUE_TIER}  [fixed: was ALL, now TOP+MAJOR]`);
   await runScan();
   cron.schedule(`*/${cfg.SCAN_INTERVAL_MINUTES} * * * *`, runScan);

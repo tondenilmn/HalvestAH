@@ -79,6 +79,9 @@ const BETS = [
   { k: 'under25FT',     label: 'Under 2.5 FT' },
 ];
 
+// 2H/FT bets only — used for HT-as-signal probe (1H bets are expired at HT)
+const GS_PROBE_OUTCOMES = BETS.filter(b => !b.k.includes('1H'));
+
 // ── League tier ───────────────────────────────────────────────────────────────
 const _T1_RULES = [
   { inc: 'english premier league',  exc: ['u21','women','reserve','international club'] },
@@ -468,6 +471,29 @@ function applyGameState(rows, gs) {
   }
 }
 
+// ── HT-as-signal probe ────────────────────────────────────────────────────────
+// Compares HT-filtered pool (baseGs) against full pre-HT pool (base).
+// Returns all 2H/FT bets with stats. Caller applies MIN_N/MIN_Z/MIN_BASELINE.
+function computeHtAsSignalProbe(base, baseGs) {
+  const results = [];
+  for (const b of GS_PROBE_OUTCOMES) {
+    const n = baseGs.length;
+    if (n < 5) continue;
+    const blRows = (b.favSideBaseline && base.length)
+      ? base.filter(r => r.fav_side === b.favSideBaseline)
+      : base;
+    const p    = pct(baseGs, b.k);
+    const bl   = pct(blRows, b.k);
+    const z    = zScore(baseGs, blRows, b.k);
+    const edge = p - bl;
+    const [lo] = wilsonCI(p, n);
+    const fairOdds   = p  > 0 ? parseFloat((100 / p).toFixed(2))  : null;
+    const minOddsVal = lo > 0 ? parseFloat((100 / lo).toFixed(2)) : null;
+    results.push({ ...b, n, p, bl, z, edge, lo, fairOdds, minOddsVal });
+  }
+  return results;
+}
+
 // ── CSV loader — local ────────────────────────────────────────────────────────
 function loadDatabase(dataDir) {
   const manifestPath = path.join(dataDir, 'manifest.json');
@@ -546,4 +572,6 @@ module.exports = {
   wilsonCI,
   VALID_LINES,
   BETS,
+  GS_PROBE_OUTCOMES,
+  computeHtAsSignalProbe,
 };

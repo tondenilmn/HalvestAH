@@ -55,4 +55,12 @@ module.exports = {
   // IANA timezone used for the timestamp shown in Telegram messages.
   // Handles DST automatically (CET ↔ CEST).
   DISPLAY_TZ: process.env.DISPLAY_TZ || 'Europe/Rome',
+
+  // ── Strategy 5: HT-as-signal (DB-based analysis at HT interval) ─────────────
+  // At HT, filters the historical DB by AH line + fav side + HT score, then
+  // compares that pool vs the full pre-HT baseline. Alerts when a 2H/FT bet
+  // shows meaningful statistical shift above baseline.
+  HT_MIN_N:        parseInt(process.env.HT_MIN_N        || '200', 10), // min HT pool size
+  HT_MIN_Z:        parseFloat(process.env.HT_MIN_Z      || '2.5'),     // min z-score
+  HT_MIN_BASELINE: parseFloat(process.env.HT_MIN_BASELINE || '30'),    // min baseline hit rate %
 };
