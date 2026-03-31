@@ -229,12 +229,6 @@
                   <option value="STABLE">STABLE</option>
                 </select>
               </div>
-              <div class="basic-signal-row">
-                <button class="toggle-btn" id="b-favvsdog-tgl" onclick="toggleBasicSignal('favVsDog');onInputChange()">OFF</button>
-                <span class="basic-signal-label">Fav vs Dog</span>
-                <button class="toggle-btn on" id="b-favvsdog-gt" onclick="setBasicFavVsDog('GT')">FAV&gt;DOG</button>
-                <button class="toggle-btn"    id="b-favvsdog-lt" onclick="setBasicFavVsDog('LT')">FAV&lt;DOG</button>
-              </div>
             </div>
 
             <div class="basic-signal-col">
@@ -504,6 +498,11 @@
             <span class="sdrow-key">UNDER ODDS</span>
             <span class="sdrow-val" id="gsa-sig-unm">—</span>
             <button class="toggle-btn"    id="gsa-unm-tgl" onclick="toggleGsaMovement('unm')">OFF</button>
+          </div>
+          <div class="signal-detect-row">
+            <span class="sdrow-key">FAV vs DOG</span>
+            <span class="sdrow-val" id="gsa-sig-favvsdog">—</span>
+            <button class="toggle-btn" id="gsa-favVsDog-tgl" onclick="toggleGsaMovement('favVsDog');runGsa()">OFF</button>
           </div>
           <div class="signal-detect-row" style="margin-top:8px;border-top:1px solid var(--border);padding-top:8px">
             <span class="sdrow-key">HT SCORE</span>

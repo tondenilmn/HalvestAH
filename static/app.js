@@ -1347,16 +1347,15 @@ const state = {
   bOvmOn:     false,
   bUnmOn:     false,
   bOddsTolOn: true,   // odds tolerance filter on/off
-  bFavVsDogOn: false, // fav_oc vs dog_oc comparison filter on/off
-  bFavVsDog:  'GT',   // 'GT' = fav_oc > dog_oc | 'LT' = fav_oc < dog_oc
   // GSA tab movement toggles (scan mode)
-  gsaLmOn:  true,
-  gsaTlmOn: true,
-  gsaFomOn: false,
-  gsaDomOn: false,
-  gsaOvmOn: false,
-  gsaUnmOn: false,
-  gsaHtOn:  false,
+  gsaLmOn:        true,
+  gsaTlmOn:       true,
+  gsaFomOn:       false,
+  gsaDomOn:       false,
+  gsaOvmOn:       false,
+  gsaUnmOn:       false,
+  gsaHtOn:        false,
+  gsaFavVsDogOn:  false,  // filter by fav_oc vs dog_oc (auto-detected from scan)
   leagueTier: 'ALL',
 };
 
@@ -1684,14 +1683,13 @@ function toggleAdvToggle(name) {
 
 function toggleBasicSignal(name) {
   const map = {
-    'lm':       { key: 'bLmOn',       tgl: 'b-lm-tgl'       },
-    'fom':      { key: 'bFomOn',      tgl: 'b-fom-tgl'      },
-    'dom':      { key: 'bDomOn',      tgl: 'b-dom-tgl'      },
-    'tlm':      { key: 'bTlmOn',      tgl: 'b-tlm-tgl'      },
-    'ovm':      { key: 'bOvmOn',      tgl: 'b-ovm-tgl'      },
-    'unm':      { key: 'bUnmOn',      tgl: 'b-unm-tgl'      },
-    'oddsTol':  { key: 'bOddsTolOn',  tgl: 'b-oddstol-tgl'  },
-    'favVsDog': { key: 'bFavVsDogOn', tgl: 'b-favvsdog-tgl' },
+    'lm':      { key: 'bLmOn',      tgl: 'b-lm-tgl'      },
+    'fom':     { key: 'bFomOn',     tgl: 'b-fom-tgl'     },
+    'dom':     { key: 'bDomOn',     tgl: 'b-dom-tgl'     },
+    'tlm':     { key: 'bTlmOn',     tgl: 'b-tlm-tgl'     },
+    'ovm':     { key: 'bOvmOn',     tgl: 'b-ovm-tgl'     },
+    'unm':     { key: 'bUnmOn',     tgl: 'b-unm-tgl'     },
+    'oddsTol': { key: 'bOddsTolOn', tgl: 'b-oddstol-tgl' },
   };
   const m = map[name]; if (!m) return;
   state[m.key] = !state[m.key];
@@ -1735,14 +1733,6 @@ function setBasicOddsSide(side) {
   });
 }
 
-function setBasicFavVsDog(val) {
-  state.bFavVsDog = val;
-  ['GT', 'LT'].forEach(v => {
-    const btn = document.getElementById(`b-favvsdog-${v.toLowerCase()}`);
-    if (btn) btn.classList.toggle('on', v === val);
-  });
-  onInputChange();
-}
 
 /* ════════════════════════════════════════════════════════════
    LIVE ODDS ESTIMATOR TOGGLE
@@ -2019,12 +2009,13 @@ function runGsa() {
     // Signal: same base + active movement filters (only when the signal is a real move)
     const sigCfg = {
       ..._activeScanCfg,
-      line_move:     state.gsaLmOn  && !['STABLE','UNKNOWN'].includes(sig.lineMove)    ? sig.lineMove    : 'ANY',
-      fav_odds_move: state.gsaFomOn && !['STABLE','UNKNOWN'].includes(sig.favOddsMove) ? sig.favOddsMove : 'ANY',
-      dog_odds_move: state.gsaDomOn && !['STABLE','UNKNOWN'].includes(sig.dogOddsMove) ? sig.dogOddsMove : 'ANY',
-      tl_move:       state.gsaTlmOn && !['STABLE','UNKNOWN'].includes(sig.tlMove)      ? sig.tlMove      : 'ANY',
-      over_move:     state.gsaOvmOn && !['STABLE','UNKNOWN'].includes(sig.overMove)    ? sig.overMove    : 'ANY',
-      under_move:    state.gsaUnmOn && !['STABLE','UNKNOWN'].includes(sig.underMove)   ? sig.underMove   : 'ANY',
+      line_move:     state.gsaLmOn       && !['STABLE','UNKNOWN'].includes(sig.lineMove)    ? sig.lineMove    : 'ANY',
+      fav_odds_move: state.gsaFomOn      && !['STABLE','UNKNOWN'].includes(sig.favOddsMove) ? sig.favOddsMove : 'ANY',
+      dog_odds_move: state.gsaDomOn      && !['STABLE','UNKNOWN'].includes(sig.dogOddsMove) ? sig.dogOddsMove : 'ANY',
+      tl_move:       state.gsaTlmOn      && !['STABLE','UNKNOWN'].includes(sig.tlMove)      ? sig.tlMove      : 'ANY',
+      over_move:     state.gsaOvmOn      && !['STABLE','UNKNOWN'].includes(sig.overMove)    ? sig.overMove    : 'ANY',
+      under_move:    state.gsaUnmOn      && !['STABLE','UNKNOWN'].includes(sig.underMove)   ? sig.underMove   : 'ANY',
+      fav_vs_dog:    state.gsaFavVsDogOn && sig.favVsDog && sig.favVsDog !== 'EQ'           ? sig.favVsDog    : null,
     };
 
     const blRows  = applyConfig(activeDb, blCfg);
@@ -2191,7 +2182,6 @@ function buildBasicCfg() {
     ov_tol:           null,
     un_c:             null,
     un_tol:           null,
-    fav_vs_dog:       state.bFavVsDogOn ? state.bFavVsDog : null,
   };
 }
 
@@ -3160,7 +3150,10 @@ function buildCfgFromMatchData(data) {
     dog_oc: state.scanOddsSide !== 'FAV'  ? dogOc : null, dog_oo: null,
     ov_c: null, ov_tol: null, un_c: null, un_tol: null,
     // passthrough for display only (not used by applyConfig):
-    _signals: { lineMove, favOddsMove, dogOddsMove, tlMove, overMove, underMove, favSide, favLine },
+    _signals: {
+      lineMove, favOddsMove, dogOddsMove, tlMove, overMove, underMove, favSide, favLine,
+      favVsDog: favOc != null && dogOc != null ? (favOc > dogOc ? 'GT' : favOc < dogOc ? 'LT' : 'EQ') : null,
+    },
   };
 }
 
@@ -3299,12 +3292,12 @@ function useScanMatch(id) {
 function _updateGsaMovementBadges() {
   const sig = _activeScanCfg?._signals;
   const rows = [
-    ['gsa-sig-lm',  sig?.lineMove],
-    ['gsa-sig-tlm', sig?.tlMove],
-    ['gsa-sig-fom', sig?.favOddsMove],
-    ['gsa-sig-dom', sig?.dogOddsMove],
-    ['gsa-sig-ovm', sig?.overMove],
-    ['gsa-sig-unm', sig?.underMove],
+    ['gsa-sig-lm',        sig?.lineMove],
+    ['gsa-sig-tlm',       sig?.tlMove],
+    ['gsa-sig-fom',       sig?.favOddsMove],
+    ['gsa-sig-dom',       sig?.dogOddsMove],
+    ['gsa-sig-ovm',       sig?.overMove],
+    ['gsa-sig-unm',       sig?.underMove],
   ];
   const label = { IN:'STEAM', OUT:'DRIFT', DEEPER:'DEEPER', SHRANK:'SHRANK', UP:'UP', DOWN:'DOWN', STABLE:'STABLE', UNKNOWN:'—' };
   for (const [id, val] of rows) {
@@ -3312,6 +3305,13 @@ function _updateGsaMovementBadges() {
     if (!el) continue;
     el.textContent = label[val] || val || '—';
     el.className = 'sdrow-val' + (val ? ` ${val}` : '');
+  }
+  // Fav vs Dog badge
+  const fvdEl = document.getElementById('gsa-sig-favvsdog');
+  if (fvdEl) {
+    const fvd = sig?.favVsDog;
+    fvdEl.textContent = fvd === 'GT' ? 'FAV>DOG' : fvd === 'LT' ? 'FAV<DOG' : fvd === 'EQ' ? 'EQUAL' : '—';
+    fvdEl.className = 'sdrow-val' + (fvd && fvd !== 'EQ' ? ' DEEPER' : '');
   }
   // Update HT score badge
   const htEl = document.getElementById('gsa-sig-ht');
@@ -3325,7 +3325,7 @@ function _updateGsaMovementBadges() {
 }
 
 function toggleGsaMovement(signal) {
-  const keyMap = { lm:'gsaLmOn', tlm:'gsaTlmOn', fom:'gsaFomOn', dom:'gsaDomOn', ovm:'gsaOvmOn', unm:'gsaUnmOn' };
+  const keyMap = { lm:'gsaLmOn', tlm:'gsaTlmOn', fom:'gsaFomOn', dom:'gsaDomOn', ovm:'gsaOvmOn', unm:'gsaUnmOn', favVsDog:'gsaFavVsDogOn' };
   const key = keyMap[signal];
   if (!key) return;
   state[key] = !state[key];
