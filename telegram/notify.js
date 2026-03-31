@@ -684,11 +684,11 @@ async function runScan() {
         if (score5) {
           const matchCfg = buildCfgFromMatch(match.odds, {});
           if (matchCfg) {
-            // Filter DB: AH line + fav side + TL closing (matches web app baseline logic)
+            // Filter DB: AH line + fav side only (no TL — keeps pool large for stable z-scores)
+            // TL would reduce baseGs too aggressively; HT score is already the primary condition.
             const base = applyBaselineConfig(_dbAll, {
               fav_line: matchCfg.fav_line,
               fav_side: matchCfg.fav_side,
-              tl_c:     matchCfg.tl_c,
             });
             // Apply HT score filter
             const gs5    = { trigger: 'HT', home_goals: score5.home, away_goals: score5.away };
