@@ -135,7 +135,8 @@ function buildMessage(emoji, title, match, tier, timing, context, betLines) {
     `${emoji} <b>${title}</b>  ·  ${nowTime()}`,
     ``,
     `⚽ <b>${esc(match.home_team)} vs ${esc(match.away_team)}</b>`,
-    `🏆 <i>${esc(match.league) || '—'}</i>  [${tierBadge(tier)}]  ·  ${timing}`,
+    `🏆 <i>${esc(match.league) || '—'}</i>  [${tierBadge(tier)}]`,
+    `${timing}`,
     ``,
     `📊 ${context}`,
     ``,
@@ -289,7 +290,7 @@ function formatHtAsSignalMessage(match, signals, htScore, baseN, gsN, bets, tier
     tlMove      !== 'STABLE' && tlMove      !== 'UNKNOWN' ? `TL:${tlMove}`       : null,
   ].filter(Boolean).join('  ') || '—';
 
-  const timing  = `HT  ${htStr}`;
+  const timing  = `⏱  HT  ${htStr}`;
   const context = `${favTeam} −${Number(favLine).toFixed(2)}  ·  pool ${baseN} → HT: ${gsN}  ·  signals: ${sigBadges}`;
 
   const betLines = bets.slice(0, 5).map(b => {
@@ -297,8 +298,8 @@ function formatHtAsSignalMessage(match, signals, htScore, baseN, gsN, bets, tier
     const fairStr = b.fairOdds   != null ? b.fairOdds.toFixed(2)   : '—';
     const minStr  = b.minOddsVal != null ? b.minOddsVal.toFixed(2) : '—';
     return (
-      `💰 <b>${b.label}</b>  (${fairStr} – ${minStr})` +
-      `  z=${b.z.toFixed(1)}  ${b.p.toFixed(1)}% vs ${b.bl.toFixed(1)}% (${edgeStr}pp)  n=${b.n}`
+      `💰 <b>${b.label}</b>  (${fairStr} – ${minStr})\n` +
+      `   z=${b.z.toFixed(1)}  ${b.p.toFixed(1)}% vs ${b.bl.toFixed(1)}% (${edgeStr}pp)  n=${b.n}`
     );
   });
 
@@ -324,7 +325,7 @@ function formatUnder15HTMessage(match, steam, tier, htScore) {
   const favTeam = favSide === 'HOME' ? esc(match.home_team) : esc(match.away_team);
   const tlC     = match.odds.tl_c;
   const htStr   = `${htScore.home}-${htScore.away}`;
-  const timing  = `HT  ${htStr}`;
+  const timing  = `⏱  HT  ${htStr}`;
   const context = `${favTeam} −${favLc.toFixed(2)}  ·  TL ${tlC.toFixed(2)}  ·  leads +1 at HT`;
   const betLines = [
     `💰 <b>Under 1.5 2H</b>  (1.69 – 1.75)`,
