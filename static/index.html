@@ -182,8 +182,9 @@
           <!-- Tolerance + side (single row) -->
           <div class="section-label">ODDS TOLERANCE</div>
           <div class="tol-row" style="margin-bottom:10px">
+            <button class="toggle-btn on" id="b-oddstol-tgl" onclick="toggleBasicSignal('oddsTol');onInputChange()">ON </button>
             <span style="color:var(--dim);font-size:14px;font-weight:bold">±</span>
-            <input class="tol-input" id="b_odds_tol" type="text" value="0.05" placeholder="0">
+            <input class="tol-input" id="b_odds_tol" type="text" value="0.05" placeholder="0" oninput="onInputChange()">
             <button class="toggle-btn" onclick="setBasicTol('0')">EXACT</button>
             <button class="toggle-btn" onclick="setBasicTol('0.02')">0.02</button>
             <button class="toggle-btn" onclick="setBasicTol('0.05')">0.05</button>
@@ -227,6 +228,12 @@
                   <option value="OUT">DRIFT</option>
                   <option value="STABLE">STABLE</option>
                 </select>
+              </div>
+              <div class="basic-signal-row">
+                <button class="toggle-btn" id="b-favvsdog-tgl" onclick="toggleBasicSignal('favVsDog');onInputChange()">OFF</button>
+                <span class="basic-signal-label">Fav vs Dog</span>
+                <button class="toggle-btn on" id="b-favvsdog-gt" onclick="setBasicFavVsDog('GT')">FAV&gt;DOG</button>
+                <button class="toggle-btn"    id="b-favvsdog-lt" onclick="setBasicFavVsDog('LT')">FAV&lt;DOG</button>
               </div>
             </div>
 

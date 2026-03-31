@@ -749,6 +749,9 @@ function applyConfig(db, cfg) {
   if (cfg.dog_odds_move != null && cfg.dog_odds_move !== 'ANY' && cfg.dog_odds_move !== 'UNKNOWN')
     rows = rows.filter(r => r.dog_odds_move === cfg.dog_odds_move);
 
+  if (cfg.fav_vs_dog === 'GT') rows = rows.filter(r => r.fav_oc != null && r.dog_oc != null && r.fav_oc > r.dog_oc);
+  if (cfg.fav_vs_dog === 'LT') rows = rows.filter(r => r.fav_oc != null && r.dog_oc != null && r.fav_oc < r.dog_oc);
+
   if (cfg.over_move != null && cfg.over_move !== 'ANY' && cfg.over_move !== 'UNKNOWN')
     rows = rows.filter(r => r.over_move === cfg.over_move);
 
@@ -946,6 +949,15 @@ function traceConfig(db, cfg, gs) {
   if (cfg.dog_odds_move != null && cfg.dog_odds_move !== 'ANY' && cfg.dog_odds_move !== 'UNKNOWN') {
     rows = rows.filter(r => r.dog_odds_move === cfg.dog_odds_move);
     steps.push([`Dog odds ${cfg.dog_odds_move}`, rows.length]);
+  }
+
+  if (cfg.fav_vs_dog === 'GT') {
+    rows = rows.filter(r => r.fav_oc != null && r.dog_oc != null && r.fav_oc > r.dog_oc);
+    steps.push([`Fav odds > Dog odds`, rows.length]);
+  }
+  if (cfg.fav_vs_dog === 'LT') {
+    rows = rows.filter(r => r.fav_oc != null && r.dog_oc != null && r.fav_oc < r.dog_oc);
+    steps.push([`Fav odds < Dog odds`, rows.length]);
   }
 
   if (cfg.over_move != null && cfg.over_move !== 'ANY' && cfg.over_move !== 'UNKNOWN') {
@@ -1328,12 +1340,15 @@ const state = {
   bOddsSide: 'FAV',      // which side(s) to apply odds tolerance: 'FAV' | 'DOG' | 'BOTH'
   scanOddsSide: 'FAV',  // scan tab odds side filter: 'FAV' | 'DOG' | 'BOTH'
   // Basic signal toggles
-  bLmOn:  true,
-  bFomOn: false,
-  bDomOn: false,
-  bTlmOn: true,
-  bOvmOn: false,
-  bUnmOn: false,
+  bLmOn:      true,
+  bFomOn:     false,
+  bDomOn:     false,
+  bTlmOn:     true,
+  bOvmOn:     false,
+  bUnmOn:     false,
+  bOddsTolOn: true,   // odds tolerance filter on/off
+  bFavVsDogOn: false, // fav_oc vs dog_oc comparison filter on/off
+  bFavVsDog:  'GT',   // 'GT' = fav_oc > dog_oc | 'LT' = fav_oc < dog_oc
   // GSA tab movement toggles (scan mode)
   gsaLmOn:  true,
   gsaTlmOn: true,
@@ -1669,12 +1684,14 @@ function toggleAdvToggle(name) {
 
 function toggleBasicSignal(name) {
   const map = {
-    'lm':  { key: 'bLmOn',  tgl: 'b-lm-tgl'  },
-    'fom': { key: 'bFomOn', tgl: 'b-fom-tgl' },
-    'dom': { key: 'bDomOn', tgl: 'b-dom-tgl' },
-    'tlm': { key: 'bTlmOn', tgl: 'b-tlm-tgl' },
-    'ovm': { key: 'bOvmOn', tgl: 'b-ovm-tgl' },
-    'unm': { key: 'bUnmOn', tgl: 'b-unm-tgl' },
+    'lm':       { key: 'bLmOn',       tgl: 'b-lm-tgl'       },
+    'fom':      { key: 'bFomOn',      tgl: 'b-fom-tgl'      },
+    'dom':      { key: 'bDomOn',      tgl: 'b-dom-tgl'      },
+    'tlm':      { key: 'bTlmOn',      tgl: 'b-tlm-tgl'      },
+    'ovm':      { key: 'bOvmOn',      tgl: 'b-ovm-tgl'      },
+    'unm':      { key: 'bUnmOn',      tgl: 'b-unm-tgl'      },
+    'oddsTol':  { key: 'bOddsTolOn',  tgl: 'b-oddstol-tgl'  },
+    'favVsDog': { key: 'bFavVsDogOn', tgl: 'b-favvsdog-tgl' },
   };
   const m = map[name]; if (!m) return;
   state[m.key] = !state[m.key];
@@ -1716,6 +1733,15 @@ function setBasicOddsSide(side) {
     const btn = document.getElementById(`b-odds-side-${s.toLowerCase()}`);
     if (btn) btn.classList.toggle('on', s === side);
   });
+}
+
+function setBasicFavVsDog(val) {
+  state.bFavVsDog = val;
+  ['GT', 'LT'].forEach(v => {
+    const btn = document.getElementById(`b-favvsdog-${v.toLowerCase()}`);
+    if (btn) btn.classList.toggle('on', v === val);
+  });
+  onInputChange();
 }
 
 /* ════════════════════════════════════════════════════════════
@@ -2140,6 +2166,8 @@ function buildBasicCfg() {
   const overMove    = state.bOvmOn ? document.getElementById('b_ovm_sel').value : 'ANY';
   const underMove   = state.bUnmOn ? document.getElementById('b_unm_sel').value : 'ANY';
 
+  const tolActive = state.bOddsTolOn;
+
   return {
     fav_line:         favLine.toFixed(2),
     fav_side:         favSide,
@@ -2153,16 +2181,17 @@ function buildBasicCfg() {
     tl_range:         null,
     tl_cluster:       null,
     tl_move:          tlMove,
-    tl_max:         null,
-    odds_tolerance: basicTol,
-    fav_oc:         state.bOddsSide !== 'DOG'  ? (favSide === 'HOME' ? favOc : dogOc) : null,
-    fav_oo:         null,
-    dog_oc:         state.bOddsSide !== 'FAV'  ? (favSide === 'HOME' ? dogOc : favOc) : null,
-    dog_oo:         null,
-    ov_c:           null,
-    ov_tol:         null,
-    un_c:           null,
-    un_tol:         null,
+    tl_max:           null,
+    odds_tolerance:   tolActive ? basicTol : null,
+    fav_oc:           tolActive && state.bOddsSide !== 'DOG' ? (favSide === 'HOME' ? favOc : dogOc) : null,
+    fav_oo:           null,
+    dog_oc:           tolActive && state.bOddsSide !== 'FAV' ? (favSide === 'HOME' ? dogOc : favOc) : null,
+    dog_oo:           null,
+    ov_c:             null,
+    ov_tol:           null,
+    un_c:             null,
+    un_tol:           null,
+    fav_vs_dog:       state.bFavVsDogOn ? state.bFavVsDog : null,
   };
 }
 
