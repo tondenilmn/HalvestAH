@@ -1112,6 +1112,7 @@ function discover(db, favLine, favSide, inLineMove, inTlMove, gs, minN = DEFAULT
     const blAway = favSide === 'ANY' ? base.filter(r => r.fav_side === 'AWAY') : null;
     for (const b of BETS) {
       const k = b.k;
+      if (k.includes('1H')) continue; // 1H bets are expired at HT
       let blPool = base;
       if      (b.favSideBaseline === 'HOME' && blHome) blPool = blHome;
       else if (b.favSideBaseline === 'AWAY' && blAway) blPool = blAway;
