@@ -123,60 +123,57 @@ function kickoffTimeLabel(kickoffTimeStr) {
   }).format(new Date(kickoffTimeStr));
 }
 
+// ── Unified message builder ───────────────────────────────────────────────────
+// All strategies share the same layout:
+//   EMOJI TITLE · TIME
+//   ⚽ Home vs Away
+//   🏆 League [TIER] · timing
+//   📊 context
+//   💰 bet line(s)   ← only part that varies per strategy
+function buildMessage(emoji, title, match, tier, timing, context, betLines) {
+  return [
+    `${emoji} <b>${title}</b>  ·  ${nowTime()}`,
+    ``,
+    `⚽ <b>${esc(match.home_team)} vs ${esc(match.away_team)}</b>`,
+    `🏆 <i>${esc(match.league) || '—'}</i>  [${tierBadge(tier)}]  ·  ${timing}`,
+    ``,
+    `📊 ${context}`,
+    ``,
+    ...betLines,
+  ].join('\n');
+}
+
 // ── Message formatters ────────────────────────────────────────────────────────
 function formatMessage(match, steam, tier, b365DogOc) {
   const { favSide, favLc, favLo, dogOc } = steam;
-
-  const homeLabel = `${esc(match.home_team)} (H)`;
-  const awayLabel = `${esc(match.away_team)} (A)`;
-  const favTeam   = favSide === 'HOME' ? homeLabel : awayLabel;
-  const dogTeam   = favSide === 'HOME' ? awayLabel : homeLabel;
-
-  const b365Line = b365DogOc != null
-    ? `📊 Bet365: <b>${b365DogOc.toFixed(2)}</b> ✅`
-    : `📊 Bet365: n/a`;
-
-  return [
-    `🚨 <b>LIVE STEAM · DOG AH</b>  ${nowTime()}`,
-    ``,
-    `⚽ <b>${homeLabel} vs ${awayLabel}</b>`,
-    `🏆 <i>${esc(match.league) || '—'}</i>  [${tierBadge(tier)}]  ·  ⏱ ${esc(match.minute)}'  ${esc(match.score) || '0–0'}`,
-    ``,
-    `📉 ${favTeam} (fav)  ${ahArrow(favLc, favLo)}`,
-    ``,
-    `💰 BET: <b>${dogTeam}  +${favLc.toFixed(2)}  @  ${dogOc.toFixed(2)}</b>`,
-    b365Line,
-  ].join('\n');
+  const favTeam = favSide === 'HOME' ? esc(match.home_team) : esc(match.away_team);
+  const dogTeam = favSide === 'HOME' ? esc(match.away_team) : esc(match.home_team);
+  const timing  = `⏱ ${esc(match.minute)}'  ${esc(match.score) || '0-0'}`;
+  const context = `${favTeam} (fav)  ${ahArrow(favLc, favLo)}`;
+  const b365Str = b365DogOc != null ? `<b>${b365DogOc.toFixed(2)}</b> ✅` : `n/a`;
+  const betLines = [
+    `💰 <b>${dogTeam}  +${favLc.toFixed(2)}</b>  (min: @${dogOc.toFixed(2)})`,
+    `   Bet365: ${b365Str}`,
+  ];
+  return buildMessage('🚨', 'STEAM → DOG AH', match, tier, timing, context, betLines);
 }
 
 function formatUpcomingMessage(match, steam, tier, minsToKickoff, b365DogOc) {
   const { favSide, favLc, favLo, dogOc } = steam;
-
   const favTeam = favSide === 'HOME' ? esc(match.home_team) : esc(match.away_team);
   const dogTeam = favSide === 'HOME' ? esc(match.away_team) : esc(match.home_team);
-
   const koTime  = match.kickoff_time ? kickoffTimeLabel(match.kickoff_time) : null;
   const minsRnd = Math.round(minsToKickoff);
   const timing  = koTime
     ? `🕐 ${koTime}  (${minsRnd <= 1 ? 'now' : `in ${minsRnd} min`})`
     : `⏳ ${minsRnd <= 1 ? 'kicks off now' : `kicks off in ${minsRnd} min`}`;
-
-  const b365Line = b365DogOc != null
-    ? `📊 Bet365: <b>${b365DogOc.toFixed(2)}</b> ✅`
-    : `📊 Bet365: n/a`;
-
-  return [
-    `⏰ <b>PRE-KICK STEAM · DOG AH</b>  ${nowTime()}`,
-    ``,
-    `⚽ <b>${esc(match.home_team)} vs ${esc(match.away_team)}</b>`,
-    `🏆 <i>${esc(match.league) || '—'}</i>  [${tierBadge(tier)}]`,
-    `${timing}`,
-    ``,
-    `📉 Fav: ${favTeam}  ${ahArrow(favLc, favLo)}`,
-    ``,
-    `📌 Pinnacle: ${dogTeam} +${favLc.toFixed(2)} @${dogOc.toFixed(2)}`,
-    b365Line,
-  ].join('\n');
+  const context = `${favTeam} (fav)  ${ahArrow(favLc, favLo)}`;
+  const b365Str = b365DogOc != null ? `<b>${b365DogOc.toFixed(2)}</b> ✅` : `n/a`;
+  const betLines = [
+    `💰 <b>${dogTeam}  +${favLc.toFixed(2)}</b>  (min: @${dogOc.toFixed(2)})`,
+    `   Bet365: ${b365Str}`,
+  ];
+  return buildMessage('⏰', 'PRE-KICK STEAM → DOG AH', match, tier, timing, context, betLines);
 }
 
 // ── Deduplication ─────────────────────────────────────────────────────────────
@@ -225,20 +222,13 @@ function formatStrongFavHTMessage(match, htScore, steam, tier, liveMin) {
   const favTeam  = favSide === 'HOME' ? esc(match.home_team) : esc(match.away_team);
   const htStr    = `${htScore.home}-${htScore.away}`;
   const minsLeft = 90 - liveMin;
-
-  return [
-    `⏰ <b>STRONG FAV — NO 2H GOAL YET</b>  ·  ${nowTime()}`,
-    ``,
-    `🏆 <i>${esc(match.league) || '—'}</i>  [${tierBadge(tier)}]`,
-    `⚽ <b>${esc(match.home_team)} vs ${esc(match.away_team)}</b>`,
-    `🕐 <b>${liveMin}'</b>  Score: <b>${esc(match.score) || htStr}</b>  (HT: ${htStr})`,
-    ``,
-    `📊 <b>${favTeam}</b>  AH −${favLc.toFixed(2)}  ·  not winning at HT`,
-    `   ~${minsLeft} min left, no goal scored in 2nd half`,
-    ``,
-    `💰 BET: <b>Over 0.5 (2nd half)</b>`,
-    `   82% hit rate  ·  σ=2.5%  ·  min odds 1.23`,
-  ].join('\n');
+  const timing   = `⏱ ${liveMin}'  ${esc(match.score) || htStr}  (HT: ${htStr})`;
+  const context  = `${favTeam} −${favLc.toFixed(2)}  ·  not winning at HT  ·  ~${minsLeft} min left  ·  no 2H goal yet`;
+  const betLines = [
+    `💰 <b>Over 0.5 2H</b>  (1.22 – 1.23)`,
+    `   82% hit rate  ·  n=3,800+`,
+  ];
+  return buildMessage('⏰', 'STRONG FAV — NO 2H GOAL', match, tier, timing, context, betLines);
 }
 
 // ── Strategy 5: HT-as-signal (DB-based) ──────────────────────────────────────
@@ -293,40 +283,26 @@ function formatHtAsSignalMessage(match, signals, htScore, baseN, gsN, bets, tier
   const favTeam = favSide === 'HOME' ? esc(match.home_team) : esc(match.away_team);
 
   const sigBadges = [
-    lineMove    !== 'STABLE' && lineMove    !== 'UNKNOWN' ? `LM:${lineMove}`    : null,
+    lineMove    !== 'STABLE' && lineMove    !== 'UNKNOWN' ? `LM:${lineMove}`     : null,
     favOddsMove !== 'STABLE' && favOddsMove !== 'UNKNOWN' ? `FAV:${favOddsMove}` : null,
     dogOddsMove !== 'STABLE' && dogOddsMove !== 'UNKNOWN' ? `DOG:${dogOddsMove}` : null,
     tlMove      !== 'STABLE' && tlMove      !== 'UNKNOWN' ? `TL:${tlMove}`       : null,
-  ].filter(Boolean).join('  ') || 'no signal movement';
+  ].filter(Boolean).join('  ') || '—';
+
+  const timing  = `HT  ${htStr}`;
+  const context = `${favTeam} −${Number(favLine).toFixed(2)}  ·  pool ${baseN} → HT: ${gsN}  ·  signals: ${sigBadges}`;
 
   const betLines = bets.slice(0, 5).map(b => {
     const edgeStr = (b.edge >= 0 ? '+' : '') + b.edge.toFixed(1);
     const fairStr = b.fairOdds   != null ? b.fairOdds.toFixed(2)   : '—';
     const minStr  = b.minOddsVal != null ? b.minOddsVal.toFixed(2) : '—';
     return (
-      `  💰 <b>${b.label}</b>  z=${b.z.toFixed(1)}  ` +
-      `${b.p.toFixed(1)}% vs ${b.bl.toFixed(1)}% (${edgeStr}pp)  ` +
-      `fair:${fairStr}  min:${minStr}  n=${b.n}`
+      `💰 <b>${b.label}</b>  (${fairStr} – ${minStr})` +
+      `  z=${b.z.toFixed(1)}  ${b.p.toFixed(1)}% vs ${b.bl.toFixed(1)}% (${edgeStr}pp)  n=${b.n}`
     );
   });
 
-  return [
-    `🔍 <b>HT SIGNAL</b>  ·  ${nowTime()}`,
-    ``,
-    `⚽ <b>${esc(match.home_team)} vs ${esc(match.away_team)}</b>`,
-    `🏆 <i>${esc(match.league) || '—'}</i>  [${tierBadge(tier)}]  HT: <b>${htStr}</b>`,
-    ``,
-    `📊 ${favTeam} −${Number(favLine).toFixed(2)}  ·  ` +
-      `pool ${baseN} → HT filter: ${gsN}`,
-    `📈 Pre-match signals: ${sigBadges}`,
-    ``,
-    ...betLines,
-    ``,
-    `⚠️ Open Bet365 in-play:`,
-    `   offered > min odds → bet (Kelly% of bankroll)`,
-    `   fair &lt; offered &lt; min → small bet only if z ≥ 3.0`,
-    `   offered ≤ fair → skip`,
-  ].join('\n');
+  return buildMessage('🔍', 'HT SIGNAL', match, tier, timing, context, betLines);
 }
 
 // ── Strategy 4: Fav +1 at HT, AH 0.25–1.00, TL ≤ 2.75 → Under 1.5 2H ────────
@@ -348,21 +324,13 @@ function formatUnder15HTMessage(match, steam, tier, htScore) {
   const favTeam = favSide === 'HOME' ? esc(match.home_team) : esc(match.away_team);
   const tlC     = match.odds.tl_c;
   const htStr   = `${htScore.home}-${htScore.away}`;
-
-  return [
-    `🛡 <b>UNDER 1.5 2H — HT</b>  ·  ${nowTime()}`,
-    ``,
-    `⚽ <b>${esc(match.home_team)} vs ${esc(match.away_team)}</b>`,
-    `🏆 <i>${esc(match.league) || '—'}</i>  [${tierBadge(tier)}]`,
-    `🕐 HT  Score: <b>${htStr}</b>`,
-    ``,
-    `📊 <b>${favTeam}</b> −${favLc.toFixed(2)}  ·  TL ${tlC.toFixed(2)}`,
-    `   Fav leads +1 at HT in a low-scoring game`,
-    ``,
-    `💰 BET: <b>Under 1.5 2H</b>  (in-play, 2nd half goals)`,
-    `   ⚠️ Min odds: <b>1.75</b>  ·  59% hit rate  ·  σ=2.1%  ·  n=3,804`,
-    `   Skip if odds &lt; 1.70`,
-  ].join('\n');
+  const timing  = `HT  ${htStr}`;
+  const context = `${favTeam} −${favLc.toFixed(2)}  ·  TL ${tlC.toFixed(2)}  ·  leads +1 at HT`;
+  const betLines = [
+    `💰 <b>Under 1.5 2H</b>  (1.69 – 1.75)`,
+    `   59% hit rate  ·  n=3,804`,
+  ];
+  return buildMessage('🛡', 'UNDER 1.5 2H — HT', match, tier, timing, context, betLines);
 }
 
 // ── Strategy 3: TLM=IN + high TL + no 1H goal at 25–32' → Over 0.5 1H ────────
