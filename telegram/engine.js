@@ -79,8 +79,11 @@ const BETS = [
   { k: 'under25FT',     label: 'Under 2.5 FT' },
 ];
 
-// 2H/FT bets only — used for HT-as-signal probe (1H bets are expired at HT)
-const GS_PROBE_OUTCOMES = BETS.filter(b => !b.k.includes('1H'));
+// Pure 2H bets only — used for HT-as-signal probe.
+// Excludes 1H bets (expired) AND FT bets (mechanically inflated by HT score:
+// e.g. Over 2.5 FT filtered by HT 1-1 trivially hits because 2 goals already
+// occurred — this is arithmetic, not edge. Pinnacle reprices FT immediately at HT).
+const GS_PROBE_OUTCOMES = BETS.filter(b => b.k.includes('2H'));
 
 // ── League tier ───────────────────────────────────────────────────────────────
 const _T1_RULES = [
