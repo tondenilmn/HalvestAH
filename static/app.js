@@ -1339,6 +1339,7 @@ const state = {
   advTlRange:   '2.25-2.75',
   bOddsSide: 'FAV',      // which side(s) to apply odds tolerance: 'FAV' | 'DOG' | 'BOTH'
   scanOddsSide: 'FAV',  // scan tab odds side filter: 'FAV' | 'DOG' | 'BOTH'
+  scanOddsTolOn: false, // apply closing AH odds ±tolerance in scan (off by default)
   // Basic signal toggles
   bLmOn:      true,
   bFomOn:     false,
@@ -3153,9 +3154,9 @@ function buildCfgFromMatchData(data) {
     under_move:    state.bUnmOn ? underMove    : 'ANY',
     tl_c: data.tl_c, tl_range: null, tl_cluster: null,
     tl_move: 'ANY', tl_max: null,
-    odds_tolerance: getScanOddsTol(),
-    fav_oc: state.scanOddsSide !== 'DOG'  ? favOc : null, fav_oo: null,
-    dog_oc: state.scanOddsSide !== 'FAV'  ? dogOc : null, dog_oo: null,
+    odds_tolerance: state.scanOddsTolOn ? getScanOddsTol() : null,
+    fav_oc: state.scanOddsTolOn && state.scanOddsSide !== 'DOG' ? favOc : null, fav_oo: null,
+    dog_oc: state.scanOddsTolOn && state.scanOddsSide !== 'FAV' ? dogOc : null, dog_oo: null,
     ov_c: null, ov_tol: null, un_c: null, un_tol: null,
     // passthrough for display only (not used by applyConfig):
     _signals: {

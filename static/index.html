@@ -114,6 +114,7 @@
                value="https://www.asianbetsoccer.com/it/livescore.html">
         <div class="section-label">AH CLOSING ODDS TOLERANCE</div>
         <div class="min-n-row">
+          <button class="toggle-btn" id="scan-oddstol-tgl" onclick="state.scanOddsTolOn=!state.scanOddsTolOn;this.textContent=state.scanOddsTolOn?'ON ':'OFF';this.classList.toggle('on',state.scanOddsTolOn)">OFF</button>
           <button class="min-n-preset" onclick="document.getElementById('scan-odds-tol').value='0'">EXACT</button>
           <button class="min-n-preset" onclick="document.getElementById('scan-odds-tol').value='0.03'">0.03</button>
           <button class="min-n-preset" onclick="document.getElementById('scan-odds-tol').value='0.05'">0.05</button>
