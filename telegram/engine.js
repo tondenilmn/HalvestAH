@@ -45,7 +45,12 @@ const COL_MAP = {
 };
 
 const BETS = [
-  { k: 'ahCover',       label: 'AH Cover (Fav)' },
+  // marketOddsKey: CSV field whose closing odds directly price this bet.
+  // Only set where there is a 1:1 correspondence — used for market-calibrated baseline.
+  { k: 'ahCover',       label: 'AH Cover (Fav)',   marketOddsKey: 'fav_oc' },
+  { k: 'dogCover',      label: 'AH Cover (Dog)',   marketOddsKey: 'dog_oc' },
+  { k: 'overTL',        label: 'Over Total Line',  marketOddsKey: 'ov_c'   },
+  { k: 'underTL',       label: 'Under Total Line', marketOddsKey: 'un_c'   },
   { k: 'favWins2H',     label: 'Fav wins 2H' },
   { k: 'favScored2H',   label: 'Fav scores 2H' },
   { k: 'draw2H',        label: 'Draw 2H' },
@@ -285,7 +290,10 @@ function processRow(row, fileLabel) {
     first_goal: firstGoal,
     favScored2H: fav2h >= 1, favWins2H: fav2h > dog2h, draw2H: fav2h === dog2h,
     over05_2H: home2h + away2h >= 1, over15_2H: home2h + away2h >= 2,
-    ahCover: ah2h > 0.01,
+    ahCover:  ah2h > 0.01,
+    dogCover: ah2h < -0.01,
+    overTL:   tlC != null && (ftH + ftA) > tlC,
+    underTL:  tlC != null && (ftH + ftA) < tlC,
     homeWins2H: home2h > away2h, awayWins2H: away2h > home2h,
     homeWinsFT: ftH > ftA, awayWinsFT: ftA > ftH,
     homeScored2H: home2h >= 1, awayScored2H: away2h >= 1,
@@ -333,6 +341,13 @@ function wilsonCI(p100, n) {
 
 function minOdds(p) {
   return p > 0 ? parseFloat((1 / (p / 100)).toFixed(2)) : null;
+}
+
+function avgMarketImplied(rows, oddsKey) {
+  const valid = rows.filter(r => r[oddsKey] != null && r[oddsKey] > 1);
+  if (valid.length < 5) return null;
+  const sum = valid.reduce((s, r) => s + (1 / r[oddsKey]), 0);
+  return sum / valid.length * 100;
 }
 
 // ── Engine ────────────────────────────────────────────────────────────────────
@@ -399,7 +414,13 @@ function scoreBets(cfgRows, blRows, blSideRows, minN = DEFAULT_MIN_N) {
     const mo     = minOdds(p);              // fair value (pure hit rate)
     const mo_lo  = minOdds(lo);             // conservative (Wilson CI lower bound)
     const mo_mid = minOdds((p + lo) / 2);  // midpoint CI
-    results.push({ ...b, n, p, bl, z, edge, lo, hi, mo, mo_lo, mo_mid });
+    const mkt_bl   = b.marketOddsKey ? avgMarketImplied(cfgRows, b.marketOddsKey) : null;
+    const mkt_edge = mkt_bl != null ? p - mkt_bl : null;
+    const mkt_avg_odds = mkt_bl != null ? parseFloat((100 / mkt_bl).toFixed(2)) : null;
+    const avgTl = (b.k === 'overTL' || b.k === 'underTL')
+      ? (() => { const v = cfgRows.filter(r => r.tl_c != null); return v.length ? v.reduce((s, r) => s + r.tl_c, 0) / v.length : null; })()
+      : null;
+    results.push({ ...b, n, p, bl, z, edge, lo, hi, mo, mo_lo, mo_mid, mkt_bl, mkt_edge, mkt_avg_odds, avgTl });
   }
   return results;
 }

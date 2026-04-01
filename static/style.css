@@ -463,6 +463,20 @@ select.gs-select {
 .bet-col-empty { background: var(--bg2); display: flex; flex-direction: column; justify-content: center; align-items: center; opacity: 0.5; }
 .col-na { color: var(--dim); font-size: 20px; margin-top: 6px; }
 .col-weak { opacity: 0.55; }
+
+/* Market-calibrated bet cards — distinct visual treatment */
+.bet-col-market {
+  background: var(--bg1);
+  border-left: 3px solid #4caf7d;
+  padding-left: 9px; /* compensate for border */
+}
+.col-badge-mkt {
+  font-size: 9px; font-weight: bold; letter-spacing: .06em;
+  color: #4caf7d; border: 1px solid #4caf7d;
+  border-radius: 3px; padding: 0 4px; margin-left: 4px;
+}
+
+.col-bet-label { font-size: 11px; color: var(--bright); font-weight: bold; margin-bottom: 6px; }
 .col-hdr { display: flex; align-items: center; gap: 4px; margin-bottom: 6px; }
 .col-title { font-size: 10px; font-weight: bold; letter-spacing: .06em; color: var(--bright); text-transform: uppercase; }
 .col-sub   { font-size: 10px; color: var(--dim); }
@@ -562,7 +576,19 @@ select.gs-select {
 .progress-bar { height: 5px; background: var(--bg3); border-radius: 3px; margin-bottom: 6px; overflow: hidden; }
 .progress-fill { height: 100%; border-radius: 3px; }
 
-.bet-ci { font-size: 11px; color: var(--dim); margin-bottom: 8px; }
+.bet-ci { font-size: 11px; color: var(--dim); margin-bottom: 6px; }
+
+/* Market-calibrated baseline row */
+.mkt-calibration {
+  display: flex; align-items: baseline; gap: 6px;
+  font-size: 11px; margin-bottom: 8px;
+  padding: 3px 6px; border-radius: 3px;
+  background: rgba(255,255,255,0.04);
+}
+.mkt-label { color: var(--dim); letter-spacing: .04em; }
+.mkt-edge-pos { color: #4caf7d; font-weight: bold; }
+.mkt-edge-neg { color: #e05c5c; font-weight: bold; }
+.mkt-sub { color: var(--dim); margin-left: auto; font-size: 10px; }
 
 /* Matches toggle */
 .matches-toggle {
@@ -795,35 +821,41 @@ select.gs-select {
 .scan-progress-bar   { height:100%; background:var(--green); border-radius:3px; transition:width .3s; }
 .scan-progress-text  { font-size:11px; color:var(--dim); }
 
-.scan-card { background:var(--bg1); border:1px solid var(--border); border-radius:9px; padding:12px 14px; margin-bottom:12px; }
-.scan-card.tier-strong   { border-left:3px solid var(--green); }
-.scan-card.tier-good     { border-left:3px solid var(--blue);  }
-.scan-card.tier-marginal { border-left:3px solid var(--dim);   }
+/* ── Scan cards ─────────────────────────────────────────────────────────── */
+.scan-card {
+  background: var(--bg1); border: 1px solid var(--border);
+  border-radius: 9px; padding: 12px 14px; margin-bottom: 10px;
+  cursor: pointer; transition: border-color .15s, background .15s;
+}
+.scan-card:hover { border-color: var(--green); background: var(--bg2); }
 
-.scan-card-header { margin-bottom:8px; }
-.scan-match-name  { font-size:13px; font-weight:bold; color:var(--bright); margin-bottom:3px; }
+.scan-card-header { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px; }
+.scan-match-name  { font-size:13px; font-weight:bold; color:var(--bright); }
 .scan-vs          { color:var(--dim); margin:0 4px; }
-.scan-score       { margin-left:8px; background:var(--bg3); border-radius:4px; padding:1px 6px; font-size:12px; color:var(--green); }
-.scan-minute      { margin-left:6px; font-size:11px; color:var(--yellow); }
-.scan-league      { color:var(--blue); }
-.scan-meta        { font-size:10px; color:var(--dim); }
+.scan-live-info   { display:flex; align-items:center; gap:6px; flex-shrink:0; }
+.scan-score       { background:var(--bg3); border-radius:4px; padding:1px 6px; font-size:12px; color:var(--green); }
+.scan-minute      { font-size:11px; color:var(--yellow); font-weight:bold; }
+.scan-meta        { font-size:10px; color:var(--dim); margin-bottom:10px; }
 
-.scan-signals { display:flex; flex-wrap:wrap; gap:4px; margin-bottom:8px; }
-.sig-badge    { font-size:10px; font-weight:bold; padding:2px 7px; border-radius:4px; border:1px solid transparent; }
-.sig-badge-pos    { background:rgba(0,229,170,0.12); color:var(--green); border-color:var(--green); }
-.sig-badge-neg    { background:rgba(255,77,94,0.12);  color:var(--red);   border-color:var(--red);   }
-.sig-badge-stable { background:var(--bg3); color:var(--dim); }
+/* 2×2 market edge grid */
+.scan-mkt-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
+}
+.scan-mkt-cell {
+  border-radius: 6px; padding: 7px 10px;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.scan-mkt-label    { font-size: 9px; font-weight: bold; letter-spacing: .06em; opacity: .7; }
+.scan-mkt-edge     { font-size: 18px; font-weight: bold; line-height: 1; }
+.scan-mkt-odds     { font-size: 9px; opacity: .75; display: flex; gap: 4px; flex-wrap: wrap; }
+.scan-mkt-fair     { font-weight: bold; }
+.scan-mkt-pinnacle { opacity: .6; }
 
-.scan-bets    { margin-bottom:10px; }
-.scan-bet-row { display:flex; align-items:center; gap:8px; font-size:11px; padding:3px 0; border-bottom:1px solid var(--bg3); }
-.scan-bet-label { flex:1; color:var(--text); }
-.scan-bet-p   { color:var(--bright); }
-.scan-bet-bl  { color:var(--dim); font-size:10px; }
-.scan-bet-mo  { color:var(--green); font-weight:bold; min-width:40px; text-align:right; }
-
-.scan-use-btn { width:100%; padding:8px; border:none; border-radius:6px; background:var(--green); color:#000; font-family:var(--font); font-size:11px; font-weight:bold; cursor:pointer; transition:all .15s; letter-spacing:0.03em; }
-.scan-use-btn:hover { background:#00cc88; }
-.scan-use-btn:active { background:#00b87a; }
+.scan-mkt-strong-pos { background: rgba(76,175,125,0.18); color: #4cdf90; }
+.scan-mkt-pos        { background: rgba(76,175,125,0.08); color: #7ec8a4; }
+.scan-mkt-strong-neg { background: rgba(224,92,92,0.18);  color: #e05c5c; }
+.scan-mkt-neg        { background: rgba(224,92,92,0.08);  color: #c47878; }
+.scan-mkt-na         { background: var(--bg2); color: var(--dim); }
 
 #active-match-banner {
   background: var(--bg3);

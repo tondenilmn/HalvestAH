@@ -51,7 +51,13 @@ const COL_MAP = {
 
 const BETS = [
   // AH
-  { k: 'ahCover',       label: 'AH Cover (Fav)',           market: 'Asian Handicap — Favourite' },
+  // marketOddsKey: CSV field whose closing odds directly price this bet outcome.
+  // Only set where there is a 1:1 correspondence — used for market-calibrated baseline.
+  { k: 'ahCover',       label: 'AH Cover (Fav)',           market: 'Asian Handicap — Favourite',        marketOddsKey: 'fav_oc' },
+  { k: 'dogCover',      label: 'AH Cover (Dog)',           market: 'Asian Handicap — Underdog',         marketOddsKey: 'dog_oc' },
+  // overTL/underTL: outcome vs the closing total line (exactly what ov_c/un_c price)
+  { k: 'overTL',        label: 'Over Total Line',          market: 'Over/Under — Closing TL',           marketOddsKey: 'ov_c'   },
+  { k: 'underTL',       label: 'Under Total Line',         market: 'Over/Under — Closing TL',           marketOddsKey: 'un_c'   },
   // 2H results — fav-normalised
   { k: 'favWins2H',     label: 'Fav wins 2nd half',        market: '2H Result — Favourite Win' },
   { k: 'favScored2H',   label: 'Fav scores in 2H',         market: 'Team to Score — Fav 2nd Half' },
@@ -63,7 +69,7 @@ const BETS = [
   { k: 'awayScored2H',  label: 'Away scores in 2H',        market: 'Team to Score — Away 2nd Half',     favSideBaseline: 'AWAY' },
   { k: 'homeOver15_2H', label: 'Home Over 1.5 in 2H',     market: 'Home Goals Over 1.5 — 2nd Half',    favSideBaseline: 'HOME' },
   { k: 'awayOver15_2H', label: 'Away Over 1.5 in 2H',     market: 'Away Goals Over 1.5 — 2nd Half',    favSideBaseline: 'AWAY' },
-  // 2H totals (symmetric — no favSideBaseline)
+  // 2H totals (symmetric — no favSideBaseline; no direct market odds proxy)
   { k: 'over05_2H',     label: 'Over 0.5 goals in 2H',    market: 'Over/Under 0.5 — 2nd Half' },
   { k: 'over15_2H',     label: 'Over 1.5 goals in 2H',    market: 'Over/Under 1.5 — 2nd Half' },
   { k: 'under05_2H',    label: 'Under 0.5 goals in 2H',   market: 'Over/Under 0.5 — 2nd Half' },
@@ -86,7 +92,8 @@ const BETS = [
   { k: 'awayWinsFT',    label: 'Away wins full time',      market: 'Match Result — Away Win',           favSideBaseline: 'AWAY' },
   { k: 'drawFT',        label: 'Draw full time',           market: 'Match Result — Draw' },
   { k: 'btts',          label: 'BTTS full time',           market: 'Both Teams to Score — FT' },
-  // FT totals
+  // FT totals — ov_c/un_c price the TL line (typically 2.5), so over25FT/under25FT are direct matches.
+  // over15FT and over35FT have no direct proxy (ov_c is calibrated to the TL, not 1.5 or 3.5).
   { k: 'over15FT',      label: 'Over 1.5 goals FT',       market: 'Over/Under 1.5 — Full Time' },
   { k: 'over25FT',      label: 'Over 2.5 goals FT',       market: 'Over/Under 2.5 — Full Time' },
   { k: 'over35FT',      label: 'Over 3.5 goals FT',       market: 'Over/Under 3.5 — Full Time' },
@@ -364,6 +371,9 @@ function processRow(row, fileLabel) {
     over15_2H:     (home2h + away2h) >= 2,
     over25_2H:     (home2h + away2h) >= 3,
     ahCover:       ah2h > 0.01,
+    dogCover:      ah2h < -0.01,
+    overTL:        tlC != null && (ftH + ftA) > tlC,
+    underTL:       tlC != null && (ftH + ftA) < tlC,
     noDrawFT:      favFt !== dogFt,
     favWinsFT:     favFt > dogFt,
     homeWins2H:    home2h > away2h,
@@ -432,6 +442,18 @@ function wilsonCI(p100, n) {
 
 function minOdds(p) {
   return p > 0 ? (1 / (p / 100)).toFixed(2) : '—';
+}
+
+// Average market-implied probability (%) for a set of rows, using a closing
+// odds field. Returns null when fewer than 5 rows have valid odds.
+// Used to build a market-calibrated baseline: compares the signal-filtered
+// hit rate directly against what Pinnacle was pricing for the same matches,
+// rather than against a naive population average.
+function avgMarketImplied(rows, oddsKey) {
+  const valid = rows.filter(r => r[oddsKey] != null && r[oddsKey] > 1);
+  if (valid.length < 5) return null;
+  const sum = valid.reduce((s, r) => s + (1 / r[oddsKey]), 0);
+  return sum / valid.length * 100;
 }
 
 // ── GSA Probe ─────────────────────────────────────────────────────────────────
@@ -895,7 +917,17 @@ function scoreBets(stateRows, baselineRows, baselineSideRows, minN = DEFAULT_MIN
       hit:       !!r[b.k],
     }));
     const mo_mid = minOdds((p + lo) / 2);
-    results.push({ ...b, n, p, bl, z, edge, lo, hi, mo: minOdds(p), mo_lo: minOdds(lo), mo_mid, matches });
+    // Market-calibrated baseline: avg implied prob from closing odds in the
+    // signal-filtered pool. Tells you whether the signal beat what Pinnacle
+    // was already pricing for those exact matches — the only meaningful edge.
+    const mkt_bl   = b.marketOddsKey ? avgMarketImplied(stateRows, b.marketOddsKey) : null;
+    const mkt_edge = mkt_bl != null ? p - mkt_bl : null;
+    const mkt_avg_odds = mkt_bl != null ? (100 / mkt_bl).toFixed(2) : null;
+    // For TL bets, compute avg closing TL across filtered rows so the card can show the actual line
+    const avgTl = (b.k === 'overTL' || b.k === 'underTL')
+      ? (() => { const v = stateRows.filter(r => r.tl_c != null); return v.length ? v.reduce((s, r) => s + r.tl_c, 0) / v.length : null; })()
+      : null;
+    results.push({ ...b, n, p, bl, z, edge, lo, hi, mo: minOdds(p), mo_lo: minOdds(lo), mo_mid, matches, mkt_bl, mkt_edge, mkt_avg_odds, avgTl });
   }
   results.sort((a, b) => {
     const aPos = a.edge > 0, bPos = b.edge > 0;
@@ -2633,19 +2665,29 @@ function buildBetCol(bet, passes, title, subtitle, rank, colId, minN) {
     </div>`;
   }
   const lowN     = minN != null && bet.n < minN;
+  const hasMkt   = bet.mkt_bl != null;
+  // For TL bets, append the avg TL value to the label so the card is self-explanatory
+  const betLabel = bet.avgTl != null
+    ? bet.label.replace('Total Line', 'TL ' + bet.avgTl.toFixed(2))
+    : bet.label;
   const edgeSign = bet.edge >= 0 ? '+' : '';
   const edgeCls  = bet.edge >= 0 ? 'pos' : 'neg';
   const nColor   = bet.n >= 50 ? 'var(--green)' : 'var(--yellow)';
   const fill     = Math.min(100, Math.max(0, bet.p));
-  const bColor   = barColor(bet.p, bet.bl);
+  // For market-calibrated cards, colour the bar by market edge instead of naive edge
+  const bColor   = hasMkt ? barColor(bet.p, bet.mkt_bl) : barColor(bet.p, bet.bl);
   const passCls  = (passes && !lowN) ? '' : 'col-weak';
+  const mktCls   = hasMkt ? ' bet-col-market' : '';
 
   const hasLive  = bet.live && bet.live.live_p != null && bet.live.live_p > 0 && bet.live.live_p < 100;
+  // Market-calibrated cards show avg Pinnacle price as the reference odds
   const moRange  = hasLive
     ? `<b>${bet.live.fair_odd.toFixed(2)}</b> <span class="mo-range-sep">live</span>`
-    : `<b>${bet.mo}</b>`;
-  const moLabel  = hasLive ? 'LIVE ODDS' : 'FAIR ODDS';
-  const moFloor  = hasLive ? `hist. ${bet.mo} – ${bet.mo_mid}` : `CI range ${bet.mo} – ${bet.mo_mid}`;
+    : hasMkt ? `<b>${bet.mo}</b>` : `<b>${bet.mo}</b>`;
+  const moLabel  = hasLive ? 'LIVE ODDS' : 'BET ≥ (FAIR ODDS)';
+  const moFloor  = hasLive
+    ? `hist. ${bet.mo} – ${bet.mo_mid}`
+    : hasMkt ? `Pinnacle avg ${bet.mkt_avg_odds}  ·  CI ${bet.mo_mid}` : `CI range ${bet.mo} – ${bet.mo_mid}`;
 
   let matchesHtml = '';
   if (bet.matches && bet.matches.length) {
@@ -2672,12 +2714,14 @@ function buildBetCol(bet, passes, title, subtitle, rank, colId, minN) {
       <div class="matches-box" id="${uid}">${rows}</div>`;
   }
 
-  return `<div class="bet-col ${passCls}">
+  return `<div class="bet-col ${passCls}${mktCls}">
     <div class="col-hdr">
       <span class="col-title">${title}</span>
       <span class="col-sub">${subtitle}</span>
+      ${hasMkt ? '<span class="col-badge-mkt">MKT</span>' : ''}
       ${lowN ? '<span class="col-badge-lown">⚠ low n</span>' : passes ? '<span class="col-badge-pass">✓</span>' : '<span class="col-badge-weak">z&lt;1.5</span>'}
     </div>
+    <div class="col-bet-label">${betLabel}</div>
     <div class="col-prob">
       <span class="prob-pct">${bet.p.toFixed(1)}%</span>
       <span class="prob-edge ${edgeCls}">${edgeSign}${bet.edge.toFixed(1)}pp</span>
@@ -2689,6 +2733,15 @@ function buildBetCol(bet, passes, title, subtitle, rank, colId, minN) {
       <span class="col-baseline">bl ${bet.bl.toFixed(1)}%</span>
     </div>
     <div class="bet-ci">CI [${bet.lo}%–${bet.hi}%]</div>
+    ${bet.mkt_bl != null ? (() => {
+      const meCls = bet.mkt_edge >= 0 ? 'mkt-edge-pos' : 'mkt-edge-neg';
+      const meSign = bet.mkt_edge >= 0 ? '+' : '';
+      return `<div class="mkt-calibration">
+        <span class="mkt-label">vs market</span>
+        <span class="${meCls}">${meSign}${bet.mkt_edge.toFixed(1)}pp</span>
+        <span class="mkt-sub">mkt implied ${bet.mkt_bl.toFixed(1)}% · avg odds ${bet.mkt_avg_odds}</span>
+      </div>`;
+    })() : ''}
     <div class="col-min-odds">
       <span class="col-min-odds-label">${moLabel}</span>
       <span class="col-min-odds-value">${moRange}</span>
@@ -3577,45 +3630,51 @@ function renderBatchResults(results, totalScanned) {
 function renderScanMatchCard({ match, cfg, bets, n }) {
   const sig = cfg._signals;
 
-  // Always show LM and TLM (the scan criteria); show others only when they have real movement
-  const badges = [
-    sig.lineMove    !== 'UNKNOWN' ? sigBadge('LM',    sig.lineMove)    : '',
-    sig.tlMove      !== 'UNKNOWN' ? sigBadge('TLM',   sig.tlMove)      : '',
-    sig.favOddsMove !== 'UNKNOWN' && sig.favOddsMove !== 'STABLE' ? sigBadge('FAV',   sig.favOddsMove) : '',
-    sig.dogOddsMove !== 'UNKNOWN' && sig.dogOddsMove !== 'STABLE' ? sigBadge('DOG',   sig.dogOddsMove) : '',
-    sig.overMove    !== 'UNKNOWN' && sig.overMove    !== 'STABLE' ? sigBadge('OVER',  sig.overMove)    : '',
-    sig.underMove   !== 'UNKNOWN' && sig.underMove   !== 'STABLE' ? sigBadge('UNDER', sig.underMove)   : '',
-  ].join('');
+  // Build compact signal summary line (only non-STABLE, non-UNKNOWN signals)
+  const sigParts = [];
+  const sigMap = { IN:'STEAM', OUT:'DRIFT', DEEPER:'DEEPER', SHRANK:'SHRANK', UP:'UP', DOWN:'DOWN' };
+  if (sig.lineMove    && sig.lineMove    !== 'UNKNOWN' && sig.lineMove    !== 'STABLE') sigParts.push(`LM:${sigMap[sig.lineMove]    || sig.lineMove}`);
+  if (sig.tlMove      && sig.tlMove      !== 'UNKNOWN' && sig.tlMove      !== 'STABLE') sigParts.push(`TL:${sigMap[sig.tlMove]      || sig.tlMove}`);
+  if (sig.favOddsMove && sig.favOddsMove !== 'UNKNOWN' && sig.favOddsMove !== 'STABLE') sigParts.push(`FAV:${sigMap[sig.favOddsMove] || sig.favOddsMove}`);
+  if (sig.overMove    && sig.overMove    !== 'UNKNOWN' && sig.overMove    !== 'STABLE') sigParts.push(`OV:${sigMap[sig.overMove]     || sig.overMove}`);
 
-  const topBets = bets.slice(0, 3).map(b => {
-    const dSign = b.edge >= 0 ? '+' : '';
-    const dCls  = b.edge >= 5 ? 'badge-z-pos' : b.edge >= 0 ? 'badge-z-ok' : 'badge-z-neg';
-    return `<div class="scan-bet-row">
-      <span class="scan-bet-label">${b.label}</span>
-      <span class="badge-z ${dCls}">${dSign}${b.edge.toFixed(1)}pp</span>
-      <span class="scan-bet-p">${b.p.toFixed(1)}% <span class="scan-bet-bl">vs ${b.bl.toFixed(1)}%</span></span>
-      <span class="scan-bet-mo">≥${b.mo}</span>
+  const ahStr    = `AH ${sig.favSide === 'HOME' ? '−' : '+'}${sig.favLine}`;
+  const sigStr   = sigParts.length ? ` · ${sigParts.join(' · ')}` : '';
+  const leagueStr = match.league || '';
+
+  // 4 market-calibrated bets in a fixed order: fav AH, dog AH, over TL, under TL
+  const MKT_KEYS = ['ahCover', 'dogCover', 'overTL', 'underTL'];
+  const tlStr = cfg.tl_c != null ? cfg.tl_c.toFixed(2) : 'TL';
+  const MKT_LABELS = { ahCover: 'AH FAV', dogCover: 'AH DOG', overTL: 'OVER ' + tlStr, underTL: 'UNDER ' + tlStr };
+  const betMap = new Map(bets.map(b => [b.k, b]));
+
+  const mktGrid = MKT_KEYS.map(k => {
+    const b = betMap.get(k);
+    if (!b || b.mkt_bl == null) return `<div class="scan-mkt-cell scan-mkt-na"><span class="scan-mkt-label">${MKT_LABELS[k]}</span><span class="scan-mkt-edge">—</span></div>`;
+    const edge  = b.mkt_edge;
+    const sign  = edge >= 0 ? '+' : '';
+    const cls   = edge >= 5 ? 'scan-mkt-strong-pos' : edge >= 0 ? 'scan-mkt-pos' : edge <= -5 ? 'scan-mkt-strong-neg' : 'scan-mkt-neg';
+    return `<div class="scan-mkt-cell ${cls}">
+      <span class="scan-mkt-label">${MKT_LABELS[k]}</span>
+      <span class="scan-mkt-edge">${sign}${edge.toFixed(1)}pp</span>
+      <span class="scan-mkt-odds"><span class="scan-mkt-fair">bet ≥ ${b.mo}</span> · <span class="scan-mkt-pinnacle">Pinnacle avg ${b.mkt_avg_odds}</span></span>
     </div>`;
   }).join('');
 
   const scoreStr  = match.score  ? `<span class="scan-score">${match.score}</span>`   : '';
   const minuteStr = match.minute ? `<span class="scan-minute">${match.minute}</span>` : '';
-  const leagueStr = match.league ? `<span class="scan-league">${match.league}</span>` : '';
-  const ahStr = `AH ${sig.favSide === 'HOME' ? '−' : '+'}${sig.favLine}`;
 
-  return `<div class="scan-card">
+  return `<div class="scan-card" onclick="useScanMatch('${match.id}')">
     <div class="scan-card-header">
       <div class="scan-match-name">
         <span class="scan-home">${match.home_team || 'Home'}</span>
         <span class="scan-vs"> vs </span>
         <span class="scan-away">${match.away_team || 'Away'}</span>
-        ${scoreStr}${minuteStr}
       </div>
-      <div class="scan-meta">${leagueStr}${leagueStr ? ' · ' : ''}${ahStr} · n=${n}</div>
+      <div class="scan-live-info">${scoreStr}${minuteStr}</div>
     </div>
-    <div class="scan-signals">${badges}</div>
-    <div class="scan-bets">${topBets}</div>
-    <button class="scan-use-btn" onclick="useScanMatch('${match.id}')">Use this match →</button>
+    <div class="scan-meta">${leagueStr} · ${ahStr} · n=${n}${sigStr}</div>
+    <div class="scan-mkt-grid">${mktGrid}</div>
   </div>`;
 }
 
