@@ -11,6 +11,14 @@ module.exports = {
   DATA_URL: process.env.DATA_URL || null,   // set to your Cloudflare Pages URL for Railway
   DATA_DIR: process.env.DATA_DIR || '../static/data',
 
+  // ── Strategy 3: TLM=IN + high TL → no 1H goal by ~30' → Over 0.5 1H ─────────
+  // Fire when TL steamed up (tl_c - tl_o >= MIN_STEAM) AND closing TL >= MIN_TL
+  // AND the match is still 0-0 in the alert window (minutes MIN–MAX of 1H).
+  TLM1H_MIN_TL:     parseFloat(process.env.TLM1H_MIN_TL     || '2.5'),   // 2.5–3 and >3 clusters
+  TLM1H_MIN_STEAM:  parseFloat(process.env.TLM1H_MIN_STEAM  || '0.25'),  // 1 step minimum
+  TLM1H_MIN_MINUTE: parseInt(process.env.TLM1H_MIN_MINUTE   || '25', 10),
+  TLM1H_MAX_MINUTE: parseInt(process.env.TLM1H_MAX_MINUTE   || '32', 10),
+
   // ── Steam strategy thresholds ────────────────────────────────────────────────
   // Alert when the AH line has moved at least LM_STEAM_MIN toward the favourite.
   // 0.45 captures "at least 2 steps" (0.50 movement), e.g. −0.25 → −0.75.
@@ -20,7 +28,7 @@ module.exports = {
   // ── League tier filter ───────────────────────────────────────────────────────
   // 'ALL' | 'TOP' | 'MAJOR' | 'TOP+MAJOR'
   // TOP+MAJOR is recommended — obscure leagues pollute the signal.
-  LEAGUE_TIER: process.env.LEAGUE_TIER || 'ALL',
+  LEAGUE_TIER: process.env.LEAGUE_TIER || 'TOP+MAJOR',
 
   // ── Alert window ─────────────────────────────────────────────────────────────
   // Fire alerts only when the match is live between minute MIN and MAX.
@@ -47,4 +55,12 @@ module.exports = {
   // IANA timezone used for the timestamp shown in Telegram messages.
   // Handles DST automatically (CET ↔ CEST).
   DISPLAY_TZ: process.env.DISPLAY_TZ || 'Europe/Rome',
+
+  // ── Strategy 5: HT-as-signal (DB-based analysis at HT interval) ─────────────
+  // At HT, filters the historical DB by AH line + fav side + HT score, then
+  // compares that pool vs the full pre-HT baseline. Alerts when a 2H/FT bet
+  // shows meaningful statistical shift above baseline.
+  HT_MIN_N:        parseInt(process.env.HT_MIN_N        || '200', 10), // min HT pool size
+  HT_MIN_Z:        parseFloat(process.env.HT_MIN_Z      || '2.5'),     // min z-score
+  HT_MIN_BASELINE: parseFloat(process.env.HT_MIN_BASELINE || '30'),    // min baseline hit rate %
 };

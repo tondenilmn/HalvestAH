@@ -114,6 +114,7 @@
                value="https://www.asianbetsoccer.com/it/livescore.html">
         <div class="section-label">AH CLOSING ODDS TOLERANCE</div>
         <div class="min-n-row">
+          <button class="toggle-btn" id="scan-oddstol-tgl" onclick="state.scanOddsTolOn=!state.scanOddsTolOn;this.textContent=state.scanOddsTolOn?'ON ':'OFF';this.classList.toggle('on',state.scanOddsTolOn)">OFF</button>
           <button class="min-n-preset" onclick="document.getElementById('scan-odds-tol').value='0'">EXACT</button>
           <button class="min-n-preset" onclick="document.getElementById('scan-odds-tol').value='0.03'">0.03</button>
           <button class="min-n-preset" onclick="document.getElementById('scan-odds-tol').value='0.05'">0.05</button>
@@ -182,8 +183,9 @@
           <!-- Tolerance + side (single row) -->
           <div class="section-label">ODDS TOLERANCE</div>
           <div class="tol-row" style="margin-bottom:10px">
+            <button class="toggle-btn on" id="b-oddstol-tgl" onclick="toggleBasicSignal('oddsTol');onInputChange()">ON </button>
             <span style="color:var(--dim);font-size:14px;font-weight:bold">±</span>
-            <input class="tol-input" id="b_odds_tol" type="text" value="0.05" placeholder="0">
+            <input class="tol-input" id="b_odds_tol" type="text" value="0.05" placeholder="0" oninput="onInputChange()">
             <button class="toggle-btn" onclick="setBasicTol('0')">EXACT</button>
             <button class="toggle-btn" onclick="setBasicTol('0.02')">0.02</button>
             <button class="toggle-btn" onclick="setBasicTol('0.05')">0.05</button>
@@ -498,6 +500,16 @@
             <span class="sdrow-val" id="gsa-sig-unm">—</span>
             <button class="toggle-btn"    id="gsa-unm-tgl" onclick="toggleGsaMovement('unm')">OFF</button>
           </div>
+          <div class="signal-detect-row">
+            <span class="sdrow-key">FAV vs DOG</span>
+            <span class="sdrow-val" id="gsa-sig-favvsdog">—</span>
+            <button class="toggle-btn" id="gsa-favVsDog-tgl" onclick="toggleGsaMovement('favVsDog');runGsa()">OFF</button>
+          </div>
+          <div class="signal-detect-row">
+            <span class="sdrow-key">AH ODDS ±TOL</span>
+            <span class="sdrow-val" id="gsa-sig-oddstol">—</span>
+            <button class="toggle-btn" id="gsa-oddsTol-tgl" onclick="toggleGsaMovement('oddsTol');runGsa()">OFF</button>
+          </div>
           <div class="signal-detect-row" style="margin-top:8px;border-top:1px solid var(--border);padding-top:8px">
             <span class="sdrow-key">HT SCORE</span>
             <span class="sdrow-val" id="gsa-sig-ht">—</span>
@@ -515,6 +527,14 @@
           <div class="gs-panel" id="gsa-gs-panel">
             <!-- filled by renderGsPanel() -->
           </div>
+        </div>
+
+        <!-- HT as signal toggle -->
+        <div style="margin-top:12px;margin-bottom:4px">
+          <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--dim);cursor:pointer">
+            <input type="checkbox" id="gsa-ht-as-signal" style="cursor:pointer">
+            <span><strong style="color:var(--bright)">HT as signal</strong> — compare HT state vs pre-HT baseline (ignores signal filters)</span>
+          </label>
         </div>
 
         <div class="section-label" style="margin-top:14px">MINIMUM MATCHING RECORDS</div>

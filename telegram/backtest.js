@@ -170,10 +170,23 @@ function printGateSummary(label, alerts) {
   const roi      = staked ? pnl / staked * 100 : 0;
   const avgOdds  = avg(known.filter(a => a.b.mo).map(a => a.b.mo));
 
+  // Market-calibrated edge: actual hit rate vs what Pinnacle implied at close
+  const mktKnown    = known.filter(a => a.b.mkt_bl != null);
+  const avgMktBl    = mktKnown.length ? avg(mktKnown.map(a => a.b.mkt_bl)) : null;
+  const mktHits     = mktKnown.filter(a => a.hit === true).length;
+  const mktActualPct = mktKnown.length ? parseFloat((mktHits / mktKnown.length * 100).toFixed(1)) : null;
+  const avgMktOdds  = mktKnown.length ? avg(mktKnown.map(a => a.b.mkt_avg_odds)).toFixed(2) : null;
+
   console.log(`  Alerts with outcome : ${known.length}`);
   console.log(`  Hit rate            : ${hits}/${known.length} = ${actualPct}%`);
-  console.log(`  Avg baseline        : ${avgBl.toFixed(1)}%`);
-  console.log(`  Edge realised       : ${(actualPct - avgBl).toFixed(1)}pp`);
+  console.log(`  Avg naive baseline  : ${avgBl.toFixed(1)}%`);
+  console.log(`  Edge vs naive bl    : ${(actualPct - avgBl).toFixed(1)}pp`);
+  if (mktKnown.length) {
+    console.log(`  ── Market-calibrated (n=${mktKnown.length} bets with market odds) ─`);
+    console.log(`  Avg market implied  : ${avgMktBl.toFixed(1)}%  (avg Pinnacle odds ${avgMktOdds})`);
+    console.log(`  Hit rate (mkt bets) : ${mktActualPct}%`);
+    console.log(`  Edge vs market      : ${(mktActualPct - avgMktBl).toFixed(1)}pp`);
+  }
   console.log(`  ── Flat bet @ min odds ──────────────────────────`);
   console.log(`  Avg min odds        : ${avgOdds.toFixed(2)}`);
   console.log(`  Units staked        : ${staked}`);
@@ -366,13 +379,21 @@ function main() {
         .map(([k, alts]) => {
           const hits  = alts.filter(a => a.hit === true).length;
           const total = alts.length;
+          const mktAlts = alts.filter(a => a.b.mkt_bl != null && a.hit !== null && a.hit !== undefined);
+          const mktHits = mktAlts.filter(a => a.hit === true).length;
+          const avgMktBl = mktAlts.length ? avg(mktAlts.map(a => a.b.mkt_bl)) : null;
+          const mktPct   = mktAlts.length ? mktHits / mktAlts.length * 100 : null;
           return { label: alts[0].b.label, count: total, hits,
-                   avgZ: avg(alts.map(a => a.b.z)), avgEdge: avg(alts.map(a => a.b.edge)) };
+                   avgZ: avg(alts.map(a => a.b.z)), avgEdge: avg(alts.map(a => a.b.edge)),
+                   mktAlts: mktAlts.length, mktPct, avgMktBl };
         })
         .sort((a, b) => b.count - a.count);
       for (const s of betSummary) {
         const hitStr = `${s.hits}/${s.count} hit (${pct(s.hits, s.count)}%)`;
-        console.log(`  ${s.label.padEnd(24)} ×${String(s.count).padStart(2)}  z̄=${s.avgZ.toFixed(1)}  edge̅=+${s.avgEdge.toFixed(1)}pp  ${hitStr}`);
+        const mktStr = s.mktAlts
+          ? `  vs-mkt ${(s.mktPct - s.avgMktBl).toFixed(1)}pp (${s.mktPct.toFixed(0)}% vs mkt ${s.avgMktBl.toFixed(0)}%)`
+          : '';
+        console.log(`  ${s.label.padEnd(24)} ×${String(s.count).padStart(2)}  z̄=${s.avgZ.toFixed(1)}  edge̅=+${s.avgEdge.toFixed(1)}pp  ${hitStr}${mktStr}`);
       }
     }
   }
