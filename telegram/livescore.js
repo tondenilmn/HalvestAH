@@ -323,6 +323,16 @@ async function fetchNextMatches() {
   }
 
   if (!matches) {
+    // Step 3: sweep all gS candidates with current hash
+    console.log('NextGame: sweeping all gS candidates…');
+    for (const gS of GS_CANDIDATES) {
+      if (gS === GS_PRIMARY) continue;
+      matches = await tryNextCombo(PINNACLE_HASH, gS, timestamp);
+      if (matches) break;
+    }
+  }
+
+  if (!matches) {
     console.log('NextGame: all attempts failed — returning empty');
     return [];
   }
