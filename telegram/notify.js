@@ -504,19 +504,24 @@ function formatMktEdgeMessage(match, matchCfg, poolN, bets, b365, tier, timing) 
 // ── Match fetcher (live + upcoming) ──────────────────────────────────────────
 async function fetchMatches() {
   let liveMatches;
+  let nextMatches = [];
   if (cfg.DATA_URL) {
     const url  = `${cfg.DATA_URL.replace(/\/$/, '')}/api/livescore`;
     const resp = await fetch(url);
     if (!resp.ok) throw new Error(`Cloudflare livescore returned HTTP ${resp.status}`);
-    liveMatches = (await resp.json()).matches || [];
+    const data  = await resp.json();
+    liveMatches = data.matches      || [];
+    nextMatches = data.next_matches || [];
+    if (nextMatches.length === 0) {
+      // Cloudflare function didn't find tablenext data — fall back to direct fetch
+      try { nextMatches = await fetchNextMatches(); }
+      catch (e) { console.error(`NextGame fetch failed: ${e.message}`); }
+    }
   } else {
     liveMatches = await fetchLiveMatches();
+    try { nextMatches = await fetchNextMatches(); }
+    catch (e) { console.error(`NextGame fetch failed: ${e.message}`); }
   }
-
-  // Always fetch upcoming matches from tablenext (no Cloudflare endpoint yet)
-  let nextMatches = [];
-  try { nextMatches = await fetchNextMatches(); }
-  catch (e) { console.error(`NextGame fetch failed: ${e.message}`); }
 
   // Merge — deduplicate by matchId
   const seen = new Set(liveMatches.map(m => m.id).filter(Boolean));

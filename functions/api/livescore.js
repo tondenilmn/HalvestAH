@@ -141,11 +141,11 @@ export async function onRequest(context) {
   let lastError   = '';
 
   /**
-   * Try a single (hash, gS) combination.
-   * Returns a Response if successful, null otherwise.
+   * Try a single (hash, gS) combination for the livegame endpoint.
+   * Returns { matches, method } on success, null on failure.
    * Updates lastError on failure.
    */
-  async function tryCombo(hash, gS) {
+  async function tryComboData(hash, gS) {
     const dataUrl = `https://botbot3.space/tables/v4/${gS}/livegame/${hash}.js?date=${timestamp}&_=${timestamp + 1}`;
     let jsText;
     try {
@@ -166,14 +166,7 @@ export async function onRequest(context) {
       const tm1Html = extractHtmlFromJs(jsText, 'tablematch1') ?? extractVarFromJs(jsText, 'match1text');
       const tm2Html = extractHtmlFromJs(jsText, 'tablematch2') ?? extractVarFromJs(jsText, 'match2text');
       if (tm1Html && tm2Html) {
-        const matches = parseLivegameTables(tm1Html, tm2Html);
-        if (matches.length > 0) {
-          return new Response(JSON.stringify({ matches, gS, book: hash, method: 'html' }), { headers: cors });
-        }
-        return new Response(
-          JSON.stringify({ matches: [], note: `No live matches right now (gS=${gS}, book=${hash})` }),
-          { headers: cors }
-        );
+        return { matches: parseLivegameTables(tm1Html, tm2Html), method: 'html' };
       }
       lastError = `200 OK but no getData2() calls or HTML tables (gS=${gS}, book=${hash.slice(0, 8)}…)`;
       return null;
@@ -185,43 +178,83 @@ export async function onRequest(context) {
       if (tm1Html) metaRows = parseMatch1HtmlForMeta(tm1Html);
     }
 
-    const matches = mergeMatchData(oddsRows, metaRows);
-    if (matches.length > 0) {
-      return new Response(JSON.stringify({ matches, gS, book: hash, method: 'args' }), { headers: cors });
+    return { matches: mergeMatchData(oddsRows, metaRows), method: 'args' };
+  }
+
+  /**
+   * Try a single (hash, gS) combination for the tablenext endpoint.
+   * Returns match array on success, null on failure.
+   */
+  async function tryNextComboData(hash, gS) {
+    const url = `https://botbot3.space/tables/v4/${gS}/tablenext/day0/${hash}.js?date=${timestamp}&_=${timestamp + 1}`;
+    let jsText;
+    try {
+      const resp = await fetch(url, { headers: makeBotbotHeaders(gS, hash) });
+      if (!resp.ok) return null;
+      jsText = await resp.text();
+    } catch { return null; }
+
+    const oddsRows = parseGetData2Calls(jsText);
+    if (oddsRows.length === 0) return null;
+    const metaRows = parseGetDatanext1Calls(jsText);
+    return mergeMatchData(oddsRows, metaRows);
+  }
+
+  // ── Step 1: fast path — confirmed combo (1 subrequest) ──────────────────
+  let workingHash = PINNACLE_HASH;
+  let workingGS   = GS_PRIMARY;
+  let liveResult  = await tryComboData(PINNACLE_HASH, GS_PRIMARY);
+
+  // ── Step 2: auto-discover hash from asianbetsoccer livescore page ────────
+  let discovered = null;
+  if (!liveResult) {
+    discovered = await fetchPinnacleHash();
+    if (discovered && discovered !== PINNACLE_HASH) {
+      PINNACLE_HASH = discovered;
+      workingHash   = discovered;
+      liveResult    = await tryComboData(discovered, GS_PRIMARY);
     }
+  }
+
+  // ── Step 3: sweep all gS candidates with both hashes ────────────────────
+  if (!liveResult) {
+    const hashesToTry = [...new Set([PINNACLE_HASH, ...(discovered ? [discovered] : [])])];
+    outer: for (const hash of hashesToTry) {
+      for (const gS of GS_CANDIDATES) {
+        if (gS === GS_PRIMARY && hash === PINNACLE_HASH) continue; // already tried in step 1
+        liveResult = await tryComboData(hash, gS);
+        if (liveResult) { workingHash = hash; workingGS = gS; break outer; }
+      }
+    }
+  }
+
+  if (!liveResult) {
     return new Response(
-      JSON.stringify({ matches: [], note: `No live matches right now (gS=${gS}, book=${hash})` }),
+      JSON.stringify({
+        matches: [],
+        note: `Could not reach livegame data. ${lastError}. Add ?debug=1 to /api/livescore to diagnose.`,
+      }),
       { headers: cors }
     );
   }
 
-  // ── Step 1: fast path — confirmed combo (1 subrequest) ──────────────────
-  const fast = await tryCombo(PINNACLE_HASH, GS_PRIMARY);
-  if (fast) return fast;
-
-  // ── Step 2: auto-discover hash from asianbetsoccer livescore page ────────
-  // Only runs when the hardcoded hash returns 404, costing 1 extra subrequest.
-  const discovered = await fetchPinnacleHash();
-  if (discovered && discovered !== PINNACLE_HASH) {
-    PINNACLE_HASH = discovered; // update for the sweep below
-    const found = await tryCombo(discovered, GS_PRIMARY);
-    if (found) return found;
-  }
-
-  // ── Step 3: sweep all gS candidates with both hashes ────────────────────
-  const hashesToTry = [...new Set([PINNACLE_HASH, ...(discovered ? [discovered] : [])])];
-  for (const hash of hashesToTry) {
+  // ── Fetch tablenext (upcoming matches) using the working combo ───────────
+  let nextMatches = await tryNextComboData(workingHash, workingGS) ?? [];
+  if (nextMatches.length === 0) {
     for (const gS of GS_CANDIDATES) {
-      if (gS === GS_PRIMARY && hash === PINNACLE_HASH) continue; // already tried in step 1
-      const result = await tryCombo(hash, gS);
-      if (result) return result;
+      if (gS === workingGS) continue;
+      nextMatches = await tryNextComboData(workingHash, gS) ?? [];
+      if (nextMatches.length > 0) break;
     }
   }
 
   return new Response(
     JSON.stringify({
-      matches: [],
-      note: `Could not reach livegame data. ${lastError}. Add ?debug=1 to /api/livescore to diagnose.`,
+      matches:      liveResult.matches,
+      next_matches: nextMatches,
+      gS:           workingGS,
+      book:         workingHash,
+      method:       liveResult.method,
     }),
     { headers: cors }
   );
@@ -421,6 +454,27 @@ function parseMatch1HtmlForMeta(tm1Html) {
     results.push({ matchId, homeTeam, awayTeam, score });
   }
 
+  return results;
+}
+
+/**
+ * Parse all `match1text += getDatanext1(...)` calls from a tablenext JS file.
+ * Returns upcoming match metadata (no score/minute — those are null for upcoming matches).
+ *   [5]=matchId  [6]=leagueName  [7]=homeTeam  [8]=kickoffTimeUTC  [15]=awayTeam
+ */
+function parseGetDatanext1Calls(jsText) {
+  const re = /\bmatch1text\s*\+=\s*getDatanext1\s*\(/g;
+  const results = [];
+  let m;
+  while ((m = re.exec(jsText)) !== null) {
+    const args        = extractCallArgs(jsText, m.index + m[0].length);
+    const matchId     = (typeof args[5] === 'string' && /^[a-f0-9]{20,}$/i.test(args[5])) ? args[5] : null;
+    const league      = typeof args[6]  === 'string' ? args[6]  : '';
+    const homeTeam    = typeof args[7]  === 'string' ? args[7]  : '';
+    const kickoffTime = typeof args[8]  === 'string' ? args[8]  : null;
+    const awayTeam    = typeof args[15] === 'string' ? args[15] : '';
+    results.push({ matchId, homeTeam, awayTeam, league, minute: null, kickoffTime, score: null });
+  }
   return results;
 }
 
