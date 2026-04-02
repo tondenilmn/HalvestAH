@@ -20,8 +20,8 @@ const cfg  = require('./config');
 const {
   classifyLeague,
   loadDatabase, loadDatabaseFromUrl,
-  applyBaselineConfig, applyGameState,
-  buildCfgFromMatch, computeHtAsSignalProbe,
+  applyConfig, applyBaselineConfig, applyGameState,
+  buildCfgFromMatch, scoreBets, computeHtAsSignalProbe,
 } = require('./engine');
 const { fetchLiveMatches, fetchNextMatches } = require('./livescore');
 
@@ -413,7 +413,18 @@ function _parseBet365Odds(jsText) {
   const pf  = v => { const n = parseFloat(v); return isNaN(n) ? null : n; };
   const h = tds(hRow[1]);
   const a = tds(aRow[1]);
-  return { ahHc: pf(h[0]), hoC: pf(h[3]), aoC: pf(a[3]) };
+
+  // Over/Under rows (best-effort — same TD position as AH odds, index 3)
+  const oRow = group.match(/<tr[^>]*><td>O<\/td>(.*?)<\/tr>/);
+  const uRow = group.match(/<tr[^>]*><td>U<\/td>(.*?)<\/tr>/);
+  const o = oRow ? tds(oRow[1]) : [];
+  const u = uRow ? tds(uRow[1]) : [];
+
+  return {
+    ahHc: pf(h[0]), hoC: pf(h[3]), aoC: pf(a[3]),
+    ovC: o.length > 3 ? pf(o[3]) : null,
+    unC: u.length > 3 ? pf(u[3]) : null,
+  };
 }
 
 async function fetchBet365Data(matchId) {
@@ -430,6 +441,64 @@ async function fetchBet365Data(matchId) {
   } catch (e) {
     return null;
   }
+}
+
+// ── Strategy 6: Market-calibrated edge ────────────────────────────────────────
+// Pre-match (same window as Strategy 1): fires when the signal-filtered pool
+// shows ≥ MKT_EDGE_THRESH pp above Pinnacle's market-implied probability for
+// any of the 4 market-calibrated bets (ahCover, dogCover, overTL, underTL),
+// and Bet365 current odds beat the historical Pinnacle average for that bet.
+const MKT_KEYS = new Set(['ahCover', 'dogCover', 'overTL', 'underTL']);
+
+const _notifiedMktEdge = new Map();
+const MKTEDGE_TTL = 4 * 60 * 60 * 1000;
+
+function alreadyNotifiedMktEdge(key) {
+  const ts = _notifiedMktEdge.get(key);
+  if (!ts) return false;
+  if (Date.now() - ts > MKTEDGE_TTL) { _notifiedMktEdge.delete(key); return false; }
+  return true;
+}
+function markNotifiedMktEdge(key) { _notifiedMktEdge.set(key, Date.now()); }
+
+// Map a bet key to the corresponding B365 odds field.
+function getB365OddsForBet(betKey, b365, favSide) {
+  if (!b365) return null;
+  if (betKey === 'ahCover')  return favSide === 'HOME' ? b365.hoC : b365.aoC;
+  if (betKey === 'dogCover') return favSide === 'HOME' ? b365.aoC : b365.hoC;
+  if (betKey === 'overTL')   return b365.ovC ?? null;
+  if (betKey === 'underTL')  return b365.unC ?? null;
+  return null;
+}
+
+function formatMktEdgeMessage(match, matchCfg, poolN, bets, b365, tier, timing) {
+  const { signals, fav_line, fav_side } = matchCfg;
+  const favTeam = fav_side === 'HOME' ? esc(match.home_team) : esc(match.away_team);
+
+  const sigParts = [];
+  if (signals.lineMove    !== 'STABLE' && signals.lineMove    !== 'UNKNOWN') sigParts.push(`LM:${signals.lineMove}`);
+  if (signals.tlMove      !== 'STABLE' && signals.tlMove      !== 'UNKNOWN') sigParts.push(`TL:${signals.tlMove}`);
+  if (signals.favOddsMove !== 'STABLE' && signals.favOddsMove !== 'UNKNOWN') sigParts.push(`FAV:${signals.favOddsMove}`);
+  if (signals.dogOddsMove !== 'STABLE' && signals.dogOddsMove !== 'UNKNOWN') sigParts.push(`DOG:${signals.dogOddsMove}`);
+  const sigStr  = sigParts.join(' · ') || '—';
+  const context = `${favTeam} −${Number(fav_line).toFixed(2)}  ·  ${sigStr}  ·  pool: ${poolN}`;
+
+  const betLines = bets.map(b => {
+    const b365Odds = getB365OddsForBet(b.k, b365, fav_side);
+    const b365Str  = b365Odds != null ? `Bet365: <b>${b365Odds.toFixed(2)}</b> ✅` : `Bet365: n/a`;
+    const betLabel = b.avgTl != null
+      ? b.label.replace('Total Line', `TL ${b.avgTl.toFixed(2)}`)
+      : b.label;
+    const edgeSign = b.mkt_edge >= 0 ? '+' : '';
+    return (
+      `💰 <b>${betLabel}</b>  ≥ ${b.mo}\n` +
+      `   ${b.p.toFixed(1)}% hit  ·  mkt ${b.mkt_bl.toFixed(1)}%  ·  <b>${edgeSign}${b.mkt_edge.toFixed(1)}pp</b>\n` +
+      `   Pinnacle avg ${b.mkt_avg_odds}  ·  ${b365Str}\n` +
+      `   n=${b.n}  z=${b.z.toFixed(1)}`
+    );
+  });
+
+  return buildMessage('📈', 'MKT EDGE', match, tier, timing, context, betLines);
 }
 
 // ── Match fetcher (live + upcoming) ──────────────────────────────────────────
@@ -498,11 +567,12 @@ async function runScan() {
 
     const isLive        = liveMin != null && liveMin >= cfg.ALERT_MIN_MINUTE && liveMin <= cfg.ALERT_MAX_MINUTE;
     const isUpcoming    = minsToKickoff != null && minsToKickoff >= 0 && minsToKickoff <= cfg.UPCOMING_WINDOW_MINUTES;
+    const isMktEdgeWindow = minsToKickoff != null && minsToKickoff >= 0 && minsToKickoff <= 5;
     const isHTWindow    = liveMin != null && liveMin >= 44 && liveMin <= 52;
     const isSFHTAlert   = liveMin != null && liveMin >= 65 && liveMin <= 70;
     const isTLM1HWindow = liveMin != null && liveMin >= cfg.TLM1H_MIN_MINUTE && liveMin <= cfg.TLM1H_MAX_MINUTE;
 
-    if (!isLive && !isUpcoming && !isHTWindow && !isSFHTAlert && !isTLM1HWindow) {
+    if (!isLive && !isUpcoming && !isMktEdgeWindow && !isHTWindow && !isSFHTAlert && !isTLM1HWindow) {
       if (VERBOSE) {
         const reason = minsToKickoff != null
           ? `min_to_ko=${minsToKickoff.toFixed(1)}`
@@ -645,6 +715,66 @@ async function runScan() {
     // ── Strategy 3: DISABLED (backtest shows ~52% hit rate, BE odds 1.94 — not profitable)
     // if (isTLM1HWindow && match.odds) { ... }
 
+    // ── Strategy 6: Market-calibrated edge (pre-match, 0–5 min before kickoff) ──
+    if (isMktEdgeWindow && _db && _db.length && match.odds) {
+      const matchCfg6 = buildCfgFromMatch(match.odds, { LINE_MOVE_ON: true, TL_MOVE_ON: true });
+      if (matchCfg6) {
+        const { signals: sig6 } = matchCfg6;
+        const hasMovement6 =
+          (sig6.lineMove !== 'STABLE' && sig6.lineMove !== 'UNKNOWN') ||
+          (sig6.tlMove   !== 'STABLE' && sig6.tlMove   !== 'UNKNOWN');
+
+        if (!hasMovement6) {
+          if (VERBOSE) console.log(`  [MKT] SKIP [no movement]  ${label}`);
+        } else {
+          const cfgRows6 = applyConfig(_db, matchCfg6);
+          const blRows6  = applyBaselineConfig(_db, matchCfg6);
+          const blSide6  = blRows6.filter(r => r.fav_side === matchCfg6.fav_side);
+          const bets6    = scoreBets(cfgRows6, blRows6, blSide6, cfg.MKT_EDGE_MIN_N);
+
+          const qualifying6 = bets6.filter(b =>
+            MKT_KEYS.has(b.k) && b.mkt_edge != null && b.mkt_edge >= cfg.MKT_EDGE_THRESH
+          );
+
+          if (qualifying6.length === 0) {
+            if (VERBOSE) console.log(`  [MKT] no qualifying bets  ${label}  pool=${cfgRows6.length}`);
+          } else {
+            const mktKey = `${matchId}:mktedge`;
+            if (alreadyNotifiedMktEdge(mktKey)) {
+              if (VERBOSE) console.log(`  [MKT] SKIP [already notified]  ${label}`);
+            } else {
+              const b365_6 = await fetchBet365Data(matchId);
+
+              // Keep only bets where B365 odds beat the historical Pinnacle avg.
+              // If B365 data is unavailable for a bet, include it anyway.
+              const toFire6 = qualifying6.filter(b => {
+                const b365Odds = getB365OddsForBet(b.k, b365_6, matchCfg6.fav_side);
+                if (b365Odds == null) return true;
+                return b365Odds > b.mkt_avg_odds;
+              });
+
+              if (toFire6.length === 0) {
+                if (VERBOSE) console.log(`  [MKT] all bets below B365 threshold  ${label}`);
+              } else {
+                const minsRnd6 = Math.round(minsToKickoff);
+                const timing6  = match.kickoff_time
+                  ? `⏳ ${kickoffTimeLabel(match.kickoff_time)}  (in ${minsRnd6 <= 1 ? '&lt;1' : minsRnd6} min)`
+                  : `⏳ kicks off in ${minsRnd6 <= 1 ? '&lt;1' : minsRnd6} min`;
+                const msg6 = formatMktEdgeMessage(
+                  match, matchCfg6, cfgRows6.length, toFire6, b365_6, tier, timing6,
+                );
+                await sendTelegram(msg6);
+                markNotifiedMktEdge(mktKey);
+                console.log(
+                  `[MKT] ALERT → ${label}  pool=${cfgRows6.length}  bets=${toFire6.map(b => b.k).join(',')}  tier=${tier}`,
+                );
+              }
+            }
+          }
+        }
+      }
+    }
+
     // ── Strategy 5: HT-as-signal (DB-based) ──────────────────────────────────
     if (isHTWindow && _dbAll && _dbAll.length && match.odds) {
       const rawMin5 = String(match.minute || '').replace(/'/g, '').trim();
@@ -716,6 +846,7 @@ async function main() {
   console.log(`Strategy 3: DISABLED (Over 0.5 1H — backtest: ~52% hit, BE 1.94, not profitable)`);
   console.log(`Strategy 4: Fav +1 at HT, AH 0.25–1.00, TL ≤ 2.75 → Under 1.5 2H  (min odds 1.75)`);
   console.log(`Strategy 5: HT-as-signal DB probe  z≥${cfg.HT_MIN_Z}  n≥${cfg.HT_MIN_N}  baseline≥${cfg.HT_MIN_BASELINE}%`);
+  console.log(`Strategy 6: Market-calibrated edge  mkt_edge≥${cfg.MKT_EDGE_THRESH}pp  n≥${cfg.MKT_EDGE_MIN_N}  B365>Pinnacle avg  [ahCover·dogCover·overTL·underTL]`);
   console.log(`Tier filter: ${cfg.LEAGUE_TIER}  [fixed: was ALL, now TOP+MAJOR]`);
   await runScan();
   cron.schedule(`*/${cfg.SCAN_INTERVAL_MINUTES} * * * *`, runScan);

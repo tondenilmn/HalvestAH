@@ -63,4 +63,12 @@ module.exports = {
   HT_MIN_N:        parseInt(process.env.HT_MIN_N        || '200', 10), // min HT pool size
   HT_MIN_Z:        parseFloat(process.env.HT_MIN_Z      || '2.5'),     // min z-score
   HT_MIN_BASELINE: parseFloat(process.env.HT_MIN_BASELINE || '30'),    // min baseline hit rate %
+
+  // ── Strategy 6: Market-calibrated edge (pre-match, 4 MKT_KEYS bets) ──────────
+  // Fires when the signal-filtered pool shows ≥ MKT_EDGE_THRESH pp edge above
+  // Pinnacle's market-implied probability, AND Bet365 current odds beat the
+  // historical Pinnacle average (value confirmation).
+  // Bets: ahCover · dogCover · overTL · underTL (those with a direct odds proxy).
+  MKT_EDGE_THRESH: parseFloat(process.env.MKT_EDGE_THRESH || '10'),   // min pp above market implied
+  MKT_EDGE_MIN_N:  parseInt(process.env.MKT_EDGE_MIN_N   || '35', 10), // min signal pool size
 };
