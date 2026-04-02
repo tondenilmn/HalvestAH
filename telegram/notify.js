@@ -720,8 +720,8 @@ async function runScan() {
     // ── Strategy 3: DISABLED (backtest shows ~52% hit rate, BE odds 1.94 — not profitable)
     // if (isTLM1HWindow && match.odds) { ... }
 
-    // ── Strategy 6: Market-calibrated edge (pre-match, 0–5 min before kickoff) ──
-    if (isMktEdgeWindow && _db && _db.length && match.odds) {
+    // ── Strategy 6: Market-calibrated edge (pre-match, 0–5 min before kickoff) ── ALL TIER
+    if (isMktEdgeWindow && _dbAll && _dbAll.length && match.odds) {
       const matchCfg6 = buildCfgFromMatch(match.odds, { LINE_MOVE_ON: true, TL_MOVE_ON: true });
       if (matchCfg6) {
         const { signals: sig6 } = matchCfg6;
@@ -732,8 +732,8 @@ async function runScan() {
         if (!hasMovement6) {
           if (VERBOSE) console.log(`  [MKT] SKIP [no movement]  ${label}`);
         } else {
-          const cfgRows6 = applyConfig(_db, matchCfg6);
-          const blRows6  = applyBaselineConfig(_db, matchCfg6);
+          const cfgRows6 = applyConfig(_dbAll, matchCfg6);
+          const blRows6  = applyBaselineConfig(_dbAll, matchCfg6);
           const blSide6  = blRows6.filter(r => r.fav_side === matchCfg6.fav_side);
           const bets6    = scoreBets(cfgRows6, blRows6, blSide6, cfg.MKT_EDGE_MIN_N);
 
@@ -781,7 +781,7 @@ async function runScan() {
     }
 
     // ── Strategy 5: HT-as-signal (DB-based) ──────────────────────────────────
-    if (isHTWindow && _dbAll && _dbAll.length && match.odds) {
+    if (isHTWindow && A_dbll && _dbAll.length && match.odds) {
       const rawMin5 = String(match.minute || '').replace(/'/g, '').trim();
       if (rawMin5 === 'HT' || liveMin >= 45) {
         const score5 = parseScoreStr(match.score);
