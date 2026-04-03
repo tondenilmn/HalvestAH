@@ -778,7 +778,7 @@ async function runScan() {
     }
 
     // ── Strategy 5: HT-as-signal (DB-based) ──────────────────────────────────
-    if (isHTWindow && A_dbll && _dbAll.length && match.odds) {
+    if (isHTWindow && _dbAll && _dbAll.length && match.odds) {
       const rawMin5 = String(match.minute || '').replace(/'/g, '').trim();
       if (rawMin5 === 'HT' || liveMin >= 45) {
         const score5 = parseScoreStr(match.score);
