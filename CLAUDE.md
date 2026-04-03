@@ -48,6 +48,12 @@ telegram/
   engine.js               # Direct port of app.js analysis logic for Node.js
   livescore.js            # Adapted livescore fetcher (Node.js, no Cloudflare runtime)
   notify.js               # Entry point: cron scheduler + Telegram message formatting
+  apifootball.js          # Bet365 AH dog odds fetcher via api-football.com (Strategy 1 gate)
+  backtest.js             # Full GSA backtest — 3 gates (MA / Bayesian / HT game state)
+  backtest_mkt.js         # Market-calibrated backtest — mkt_edge gate on 4 market bets
+  backtest_tlm1h.js       # Strategy 3 backtest — TLM steam + TL ≥ 2.5 + 0-0 → Over 0.5 1H
+  backtest_under15ht.js   # Under 1.5 2H at HT backtest — fav leads +1 at HT
+BETTING_EDGE_ANALYSIS.md  # Reference: betting edge theory, workflow, Kelly sizing guide
 ```
 
 ## Architecture
@@ -209,8 +215,16 @@ npm install
 node notify.js          # start scheduler (runs every N minutes)
 node notify.js --once   # single scan + exit (for testing)
 node backtest.js        # simulate against last month (Feb 2026) — TOP+MAJOR filter
-node backtest.js --all  # same but all leagues
-node backtest.js --summary  # suppress individual alerts, show per-bet table only
+node backtest.js --all      # same but all leagues
+node backtest.js --summary  # suppress per-bet breakdown table, show aggregate stats only
+node backtest.js --verbose  # also print matches skipped by signal gate + Bayes suppressions
+node backtest_mkt.js        # market-calibrated backtest — mkt_edge gate, 4 market bets (May 2025 test set)
+node backtest_mkt.js --all  # same but all leagues
+node backtest_tlm1h.js      # Strategy 3 backtest — TLM steam + TL ≥ 2.5 + 0-0 at ~28' → Over 0.5 1H
+node backtest_tlm1h.js --all   # same but all leagues
+node backtest_tlm1h.js --wide  # also test relaxed params (TL 2.0+, steam 0.13)
+node backtest_under15ht.js     # Under 1.5 2H at HT backtest — fav +1 at HT, AH/TL grid
+node backtest_under15ht.js --all  # same but all leagues
 ```
 
 **Architecture:** `notify.js` orchestrates — it calls `engine.js` (port of `app.js` analysis logic) and `livescore.js` (adapted from `functions/api/livescore.js` for Node >= 18 native fetch). Config lives entirely in `telegram/config.js`.
@@ -250,9 +264,58 @@ Without this, a match where both LM and TLM are STABLE would still be scored. Th
 **Message format:**
 Each alert contains: league, match, score/minute, AH line + signal summary, then per bet: name, 💰 min odds to look for, hit% vs baseline%, edge, z-score, n. Sorted by z-score descending. In-play game state shown per bet when available (n ≥ 10).
 
+**Backtest gates:** `backtest.js` runs 3 independent gates against the Feb 2026 test set (rows whose `file_label` contains `_02_26_` — i.e. CSV filenames containing that substring):
+1. **Gate 1 (MA only)** — standard z/edge/n/baseline thresholds
+2. **Gate 2 (MA + Bayesian)** — adds a Laplace-smoothed likelihood-ratio filter per signal dimension (`lm`, `om`, `tlm`, `ovm`); suppresses alerts where posterior delta ≤ 0. Cells with < 15 hits or misses are kept (unreliable — can't judge).
+3. **Gate 3 (MA + HT game state)** — re-scores using actual HT score from the test row as a `HT` trigger filter; uses `HT_MIN_N = 15`.
+
+**Deduplication in `notify.js`:** In-memory `_notified` map keyed by `matchId:betKey`, expires after 2 hours. Resets on process restart — a restarted notifier will re-alert for active matches.
+
+**HT second pass in `notify.js`:** During the HT window (`minute` 46–56), the notifier runs a game state pass with `GS_MIN_N = 15` and appends per-bet in-play stats to the message if `n ≥ 10`. Outside the HT window, for 2H matches the current score is used as a HT proxy (marked `⚠️approx`); for 1H matches the `FIRST_GOAL` trigger is used.
+
 **Sync requirement:** `telegram/engine.js` is a direct port of `static/app.js` constants + engine sections. When changing scoring logic, filter modes, the bet set, or league tier classification in `app.js`, mirror those changes in `telegram/engine.js`.
 
-**Railway deployment:** set `TELEGRAM_TOKEN`, `TELEGRAM_CHAT_ID`, and `DATA_URL` as env vars in the Railway dashboard. The `railway.json` in `telegram/` defines the start command.
+**Railway deployment:** set `TELEGRAM_TOKEN`, `TELEGRAM_CHAT_ID`, `DATA_URL`, and optionally `APIFOOTBALL_KEY` as env vars in the Railway dashboard. The `railway.json` in `telegram/` defines the start command.
+
+## Bet365 Odds Enrichment (`telegram/apifootball.js`)
+
+Fetches live Bet365 AH dog odds from api-football.com and appends them to alerts. Used as a secondary gate for Strategy 1 (steam alerts): fires only when Bet365 dog odds ≥ Pinnacle dog odds.
+
+**Endpoint used:**
+- `GET /fixtures?live=all` — finds the fixture ID by fuzzy team name matching (normalises "FC", "AFC", "United", etc.)
+- `GET /odds?fixture=ID&bookmaker=8&bet=7` — Bet365 (id=8), Asian Handicap (bet id=7)
+
+**Key behaviour:**
+- Fixture IDs are cached in `_fixtureCache` (Map, process lifetime) to reduce requests.
+- Falls back to today's scheduled fixtures if no live match found.
+- `favLc` (positive AH line) is used to match the dog's handicap (±0.13 tolerance).
+- If the fixture or odds are not found, returns `null` — the alert still fires, just without Bet365 data.
+- **Rate limit (free plan): 100 requests/day.** Each alert = 2 requests (fixture lookup + odds). Cache cuts this to 1 for subsequent alerts on the same match.
+
+**Config:** Set `APIFOOTBALL_KEY` in `config.js` / Railway env. If `null`, odds enrichment is skipped entirely.
+
+## Specialised Backtests
+
+### `backtest_mkt.js` — Market-Calibrated Backtest
+Tests the 4 bets with direct Pinnacle market odds: `ahCover`, `dogCover`, `overTL`, `underTL`. Gate: `mkt_edge ≥ MKT_EDGE_THRESH` (default 10pp above market implied) + `MIN_N=35` + `MIN_Z=1.5`. Reports P&L at both historical fair min odds and at Pinnacle average odds. Test set defaults to `_04_25_` (April 2025). Use `--all` for all leagues.
+
+### `backtest_tlm1h.js` — Strategy 3: TLM Steam → Over 0.5 1H
+**Problem:** CSV data has only HT/FT scores, no minute-by-minute timestamps. Strategy fires at ~25–32' when the match is still 0-0. Cannot directly filter "0-0 at minute 25" in historical data.
+
+**Approach:** Uses a uniform goal-timing model to estimate conditional hit rate:
+```
+hit_rate ≈ [over05_1H% × (45−M)/45] / [under05_1H% + over05_1H% × (45−M)/45]
+```
+where `M = 28.5'` (midpoint of 25–32 window). Reports direct rate (upper bound), conditional estimate, break-even odds, Wilson CI safe odds, and month-by-month σ.
+
+Filter: `tl_c ≥ 2.5` + `(tl_c − tl_o) ≥ 0.25` (TL steam). Sections: current config, TL cluster breakdown, steam sensitivity, wide grid (`--wide`), profitability summary.
+
+### `backtest_under15ht.js` — Under 1.5 2H at HT
+**Hypothesis:** When the favourite leads by exactly +1 at HT in a low-to-medium total line game, the 2nd half tends to be defended → Under 1.5 2H.
+
+Runs 12-month walk-forward OOS across: AH line range breakdown (0.00–0.50, 0.25–1.00, ≥1.00), TL filter breakdown (≤2.50, ≤2.75, ≤3.00, ≥3.00), steam variants, and alternative bets for the same scenario (`under05_2H`, `ahCover`, `favScored2H`, `under25FT`). Reports fair odds, Wilson CI safe odds, and ROI at in-play odds 1.60–1.85.
+
+**Best combo from backtest:** `fav_lc 0.25–1.00` + `tl_c ≤ 2.75` + `fav_ht − dog_ht = 1`. Fires at HT interval (~min 44–50).
 
 ## Key Differences vs Python Desktop App
 

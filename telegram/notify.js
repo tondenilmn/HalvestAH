@@ -494,7 +494,7 @@ function formatMktEdgeMessage(match, matchCfg, poolN, bets, b365, tier, timing) 
       `💰 <b>${betLabel}</b>  ≥ ${b.mo}\n` +
       `   ${b.p.toFixed(1)}% hit  ·  mkt ${b.mkt_bl.toFixed(1)}%  ·  <b>${edgeSign}${b.mkt_edge.toFixed(1)}pp</b>\n` +
       `   Pinnacle avg ${b.mkt_avg_odds}  ·  ${b365Str}\n` +
-      `   n=${b.n}  z=${b.z.toFixed(1)}`
+      `   n=${b.n}`
     );
   });
 
@@ -587,22 +587,19 @@ async function runScan() {
       continue;
     }
 
-    // League tier filter (applies to all strategies)
+    // League tier filter (applies to strategies 1–5; Strategy 6 runs for ALL leagues)
     const tier = classifyLeague(match.league || '');
-    if (cfg.LEAGUE_TIER === 'TOP' && tier !== 'TOP') {
-      if (VERBOSE) console.log(`  SKIP [tier=${tier}]  ${label}`);
-      continue;
-    }
-    if (cfg.LEAGUE_TIER === 'TOP+MAJOR' && tier !== 'TOP' && tier !== 'MAJOR') {
-      if (VERBOSE) console.log(`  SKIP [tier=${tier}]  ${label}`);
-      continue;
-    }
+    const tierBlocked =
+      (cfg.LEAGUE_TIER === 'TOP' && tier !== 'TOP') ||
+      (cfg.LEAGUE_TIER === 'TOP+MAJOR' && tier !== 'TOP' && tier !== 'MAJOR');
+
+    if (tierBlocked && VERBOSE) console.log(`  [tier=${tier}] skipping strategies 1–5  ${label}`);
 
     const matchId = match.id || `${match.home_team}:${match.away_team}`;
     const steam   = parseMatchSteam(match.odds || {});
 
     // ── Strategy 1: AH Steam → Bet Dog AH ────────────────────────────────────
-    if (isLive || isUpcoming) {
+    if (!tierBlocked && (isLive || isUpcoming)) {
       if (!steam) {
         if (VERBOSE) console.log(`  SKIP [no odds]  ${label}`);
       } else {
@@ -647,7 +644,7 @@ async function runScan() {
     }
 
     // ── Strategy 2: Strong Fav (AH ≥ 1.00) not winning at HT → over05_2H ────
-    if (steam) {
+    if (!tierBlocked && steam) {
       // Store HT candidate when match is at or just past HT
       if (isHTWindow) {
         const rawMin = String(match.minute || '').replace(/'/g, '').trim();
@@ -852,7 +849,7 @@ async function main() {
   console.log(`Strategy 4: Fav +1 at HT, AH 0.25–1.00, TL ≤ 2.75 → Under 1.5 2H  (min odds 1.75)`);
   console.log(`Strategy 5: HT-as-signal DB probe  z≥${cfg.HT_MIN_Z}  n≥${cfg.HT_MIN_N}  baseline≥${cfg.HT_MIN_BASELINE}%`);
   console.log(`Strategy 6: Market-calibrated edge  mkt_edge≥${cfg.MKT_EDGE_THRESH}pp  n≥${cfg.MKT_EDGE_MIN_N}  B365>Pinnacle avg  [ahCover·dogCover·overTL·underTL]`);
-  console.log(`Tier filter: ${cfg.LEAGUE_TIER}  [fixed: was ALL, now TOP+MAJOR]`);
+  console.log(`Tier filter: ${cfg.LEAGUE_TIER}  (strategies 1–5)  |  Strategy 6: ALL leagues`);
   await runScan();
   cron.schedule(`*/${cfg.SCAN_INTERVAL_MINUTES} * * * *`, runScan);
 }
