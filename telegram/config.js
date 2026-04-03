@@ -109,7 +109,7 @@ module.exports = {
   // Pinnacle's market-implied probability for any of the 4 market bets
   // (ahCover, dogCover, overTL, underTL), AND Bet365 odds beat Pinnacle avg.
   // ════════════════════════════════════════════════════════════════════════════
-  S6_ENABLED: process.env.S6_ENABLED === 'true',
+  S6_ENABLED: process.env.S6_ENABLED !== 'false',
   S6_TIER:    process.env.S6_TIER    || 'ALL',  // default ALL — Strategy 6 was designed for all leagues
 
   MKT_EDGE_THRESH:   parseFloat(process.env.MKT_EDGE_THRESH   || '10'),    // min pp above market implied
