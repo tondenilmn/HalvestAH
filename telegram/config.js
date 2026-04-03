@@ -41,7 +41,7 @@ module.exports = {
   // Fire when the AH line steams toward the favourite by at least LM_STEAM_MIN.
   // Backtest (TOP+MAJOR, 12m OOS, n=934): 55.8% win rate · +21% ROI
   // ════════════════════════════════════════════════════════════════════════════
-  S1_ENABLED: process.env.S1_ENABLED !== 'true',
+  S1_ENABLED: process.env.S1_ENABLED === 'false',
   S1_TIER:    process.env.S1_TIER    || process.env.LEAGUE_TIER || 'TOP+MAJOR',  // 'ALL'|'TOP'|'MAJOR'|'TOP+MAJOR'
 
   LM_STEAM_MIN: parseFloat(process.env.LM_STEAM_MIN || '0.45'),  // min AH steam magnitude (0.45 ≈ 2 steps)
@@ -58,7 +58,7 @@ module.exports = {
   // Store candidate at HT if strong fav (AH ≥ S2_FAV_AH_MIN) is not winning.
   // Fire at S2_FIRE_MIN–S2_FIRE_MAX minutes if still no 2H goal.
   // ════════════════════════════════════════════════════════════════════════════
-  S2_ENABLED: process.env.S2_ENABLED !== 'true',
+  S2_ENABLED: process.env.S2_ENABLED === 'false',
   S2_TIER:    process.env.S2_TIER    || process.env.LEAGUE_TIER || 'TOP+MAJOR',
 
   S2_FAV_AH_MIN:      parseFloat(process.env.S2_FAV_AH_MIN      || '0.88'),  // min AH line to qualify as "strong fav"
@@ -70,7 +70,7 @@ module.exports = {
   // DISABLED by default — backtest shows ~52% hit rate, BE odds 1.94, not profitable.
   // Set S3_ENABLED=true to re-enable if market conditions change.
   // ════════════════════════════════════════════════════════════════════════════
-  S3_ENABLED: process.env.S3_ENABLED === 'true',  // default OFF
+  S3_ENABLED: process.env.S3_ENABLED === 'false',  // default OFF
   S3_TIER:    process.env.S3_TIER    || process.env.LEAGUE_TIER || 'TOP+MAJOR',
 
   TLM1H_MIN_TL:     parseFloat(process.env.TLM1H_MIN_TL     || '2.5'),    // min TL closing
@@ -83,7 +83,7 @@ module.exports = {
   // Fires at HT (same HT_MIN/MAX_MINUTE window as S2/S5).
   // Backtest (TOP+MAJOR, 12m OOS, n=3804): 59.3% hit · σ=2.1% · BE odds 1.69
   // ════════════════════════════════════════════════════════════════════════════
-  S4_ENABLED: process.env.S4_ENABLED !== 'true',
+  S4_ENABLED: process.env.S4_ENABLED === 'false',
   S4_TIER:    process.env.S4_TIER    || process.env.LEAGUE_TIER || 'TOP+MAJOR',
 
   S4_FAV_AH_MIN: parseFloat(process.env.S4_FAV_AH_MIN || '0.13'),  // min AH line (lower bound)
@@ -96,7 +96,7 @@ module.exports = {
   // then alerts when a 2H/FT bet shows meaningful z-score above baseline.
   // Uses full DB (all leagues) for largest possible baseline.
   // ════════════════════════════════════════════════════════════════════════════
-  S5_ENABLED: process.env.S5_ENABLED !== 'true',
+  S5_ENABLED: process.env.S5_ENABLED === 'false',
   S5_TIER:    process.env.S5_TIER    || process.env.LEAGUE_TIER || 'TOP+MAJOR',
 
   HT_MIN_N:        parseInt(process.env.HT_MIN_N        || '200', 10), // min HT-filtered pool size
@@ -109,7 +109,7 @@ module.exports = {
   // Pinnacle's market-implied probability for any of the 4 market bets
   // (ahCover, dogCover, overTL, underTL), AND Bet365 odds beat Pinnacle avg.
   // ════════════════════════════════════════════════════════════════════════════
-  S6_ENABLED: process.env.S6_ENABLED !== 'false',
+  S6_ENABLED: process.env.S6_ENABLED === 'true',
   S6_TIER:    process.env.S6_TIER    || 'ALL',  // default ALL — Strategy 6 was designed for all leagues
 
   MKT_EDGE_THRESH:   parseFloat(process.env.MKT_EDGE_THRESH   || '10'),    // min pp above market implied
