@@ -43,6 +43,16 @@ async function sendTelegram(text) {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+// Returns true if matchTier is allowed under stratTier setting.
+// stratTier: 'ALL' | 'TOP' | 'MAJOR' | 'TOP+MAJOR'
+function tierAllowed(matchTier, stratTier) {
+  if (!stratTier || stratTier === 'ALL') return true;
+  if (stratTier === 'TOP')       return matchTier === 'TOP';
+  if (stratTier === 'MAJOR')     return matchTier === 'MAJOR';
+  if (stratTier === 'TOP+MAJOR') return matchTier === 'TOP' || matchTier === 'MAJOR';
+  return true;
+}
+
 // Escape HTML special chars in dynamic strings (team/league names may contain < >)
 function esc(s) {
   return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -572,9 +582,9 @@ async function runScan() {
 
     const isLive        = liveMin != null && liveMin >= cfg.ALERT_MIN_MINUTE && liveMin <= cfg.ALERT_MAX_MINUTE;
     const isUpcoming    = minsToKickoff != null && minsToKickoff >= 0 && minsToKickoff <= cfg.UPCOMING_WINDOW_MINUTES;
-    const isMktEdgeWindow = minsToKickoff != null && minsToKickoff >= 0 && minsToKickoff <= 5;
-    const isHTWindow    = liveMin != null && liveMin >= 44 && liveMin <= 52;
-    const isSFHTAlert   = liveMin != null && liveMin >= 65 && liveMin <= 70;
+    const isMktEdgeWindow = minsToKickoff != null && minsToKickoff >= 0 && minsToKickoff <= cfg.S6_WINDOW_MINUTES;
+    const isHTWindow    = liveMin != null && liveMin >= cfg.HT_MIN_MINUTE && liveMin <= cfg.HT_MAX_MINUTE;
+    const isSFHTAlert   = liveMin != null && liveMin >= cfg.S2_FIRE_MIN_MINUTE && liveMin <= cfg.S2_FIRE_MAX_MINUTE;
     const isTLM1HWindow = liveMin != null && liveMin >= cfg.TLM1H_MIN_MINUTE && liveMin <= cfg.TLM1H_MAX_MINUTE;
 
     if (!isLive && !isUpcoming && !isMktEdgeWindow && !isHTWindow && !isSFHTAlert && !isTLM1HWindow) {
@@ -587,19 +597,13 @@ async function runScan() {
       continue;
     }
 
-    // League tier filter (applies to strategies 1–5; Strategy 6 runs for ALL leagues)
     const tier = classifyLeague(match.league || '');
-    const tierBlocked =
-      (cfg.LEAGUE_TIER === 'TOP' && tier !== 'TOP') ||
-      (cfg.LEAGUE_TIER === 'TOP+MAJOR' && tier !== 'TOP' && tier !== 'MAJOR');
-
-    if (tierBlocked && VERBOSE) console.log(`  [tier=${tier}] skipping strategies 1–5  ${label}`);
 
     const matchId = match.id || `${match.home_team}:${match.away_team}`;
     const steam   = parseMatchSteam(match.odds || {});
 
     // ── Strategy 1: AH Steam → Bet Dog AH ────────────────────────────────────
-    if (!tierBlocked && (isLive || isUpcoming)) {
+    if (cfg.S1_ENABLED && tierAllowed(tier, cfg.S1_TIER) && (isLive || isUpcoming)) {
       if (!steam) {
         if (VERBOSE) console.log(`  SKIP [no odds]  ${label}`);
       } else {
@@ -644,11 +648,11 @@ async function runScan() {
     }
 
     // ── Strategy 2: Strong Fav (AH ≥ 1.00) not winning at HT → over05_2H ────
-    if (!tierBlocked && steam) {
+    if (steam && (cfg.S2_ENABLED || cfg.S4_ENABLED)) {
       // Store HT candidate when match is at or just past HT
-      if (isHTWindow) {
+      if (cfg.S2_ENABLED && tierAllowed(tier, cfg.S2_TIER) && isHTWindow) {
         const rawMin = String(match.minute || '').replace(/'/g, '').trim();
-        if ((rawMin === 'HT' || liveMin >= 45) && steam.favLc >= 0.88) {
+        if ((rawMin === 'HT' || liveMin >= 45) && steam.favLc >= cfg.S2_FAV_AH_MIN) {
           const score = parseScoreStr(match.score);
           if (score && !_htCandidates.has(matchId)) {
             const favGoals = steam.favSide === 'HOME' ? score.home : score.away;
@@ -666,7 +670,7 @@ async function runScan() {
       }
 
       // ── Strategy 4: Fav +1 at HT, AH 0.25–1.00, TL ≤ 2.75 → Under 1.5 2H ──
-      if (isHTWindow && match.odds) {
+      if (cfg.S4_ENABLED && tierAllowed(tier, cfg.S4_TIER) && isHTWindow && match.odds) {
         const rawMin4 = String(match.minute || '').replace(/'/g, '').trim();
         if (rawMin4 === 'HT' || liveMin >= 45) {
           const score4 = parseScoreStr(match.score);
@@ -676,8 +680,8 @@ async function runScan() {
             const tlC4      = match.odds.tl_c;
 
             if (favGoals4 - dogGoals4 === 1 &&
-                steam.favLc >= 0.13 && steam.favLc <= 1.12 &&
-                tlC4 != null && tlC4 <= 2.75) {
+                steam.favLc >= cfg.S4_FAV_AH_MIN && steam.favLc <= cfg.S4_FAV_AH_MAX &&
+                tlC4 != null && tlC4 <= cfg.S4_MAX_TL) {
               if (alreadyNotifiedUnder15HT(matchId)) {
                 if (VERBOSE) console.log(`  [U15HT] SKIP [already notified]  ${label}`);
               } else {
@@ -693,8 +697,8 @@ async function runScan() {
         }
       }
 
-      // Fire alert at 65–70' if still no goal in 2H
-      if (isSFHTAlert) {
+      // Fire alert at S2_FIRE window if still no goal in 2H
+      if (cfg.S2_ENABLED && tierAllowed(tier, cfg.S2_TIER) && isSFHTAlert) {
         const cand = _htCandidates.get(matchId);
         if (cand && !alreadyNotifiedSFHT(matchId)) {
           const curScore = parseScoreStr(match.score);
@@ -714,11 +718,12 @@ async function runScan() {
       }
     }
 
-    // ── Strategy 3: DISABLED (backtest shows ~52% hit rate, BE odds 1.94 — not profitable)
-    // if (isTLM1HWindow && match.odds) { ... }
+    // ── Strategy 3: TLM steam + TL ≥ 2.5 + 0-0 at 25–32' → Over 0.5 1H ─────
+    // Default OFF (S3_ENABLED=false) — backtest: ~52% hit rate, BE odds 1.94, not profitable.
+    // Set S3_ENABLED=true in config.js or Railway env to re-enable.
 
-    // ── Strategy 6: Market-calibrated edge (pre-match, 0–5 min before kickoff) ── ALL TIER
-    if (isMktEdgeWindow && _dbAll && _dbAll.length && match.odds) {
+    // ── Strategy 6: Market-calibrated edge (pre-match, 0–S6_WINDOW_MINUTES before kickoff) ── ALL TIER
+    if (cfg.S6_ENABLED && tierAllowed(tier, cfg.S6_TIER) && isMktEdgeWindow && _dbAll && _dbAll.length && match.odds) {
       const matchCfg6 = buildCfgFromMatch(match.odds, { LINE_MOVE_ON: true, TL_MOVE_ON: true });
       if (matchCfg6) {
         const { signals: sig6 } = matchCfg6;
@@ -778,7 +783,7 @@ async function runScan() {
     }
 
     // ── Strategy 5: HT-as-signal (DB-based) ──────────────────────────────────
-    if (isHTWindow && _dbAll && _dbAll.length && match.odds) {
+    if (cfg.S5_ENABLED && tierAllowed(tier, cfg.S5_TIER) && isHTWindow && _dbAll && _dbAll.length && match.odds) {
       const rawMin5 = String(match.minute || '').replace(/'/g, '').trim();
       if (rawMin5 === 'HT' || liveMin >= 45) {
         const score5 = parseScoreStr(match.score);
@@ -842,14 +847,15 @@ async function main() {
     process.exit(0);
   }
 
+  const on  = s => s ? 'ON ' : 'OFF';
   console.log(`Scheduler started — every ${cfg.SCAN_INTERVAL_MINUTES} min.`);
-  console.log(`Strategy 1: AH steam ≥ ${cfg.LM_STEAM_MIN} → bet dog AH  (window=${cfg.ALERT_MIN_MINUTE}–${cfg.ALERT_MAX_MINUTE}', pre-kick ${cfg.UPCOMING_WINDOW_MINUTES}min)`);
-  console.log(`Strategy 2: Strong fav AH ≥ 1.00 not winning at HT → Over 0.5 2H at 65–70'  (min odds 1.23)`);
-  console.log(`Strategy 3: DISABLED (Over 0.5 1H — backtest: ~52% hit, BE 1.94, not profitable)`);
-  console.log(`Strategy 4: Fav +1 at HT, AH 0.25–1.00, TL ≤ 2.75 → Under 1.5 2H  (min odds 1.75)`);
-  console.log(`Strategy 5: HT-as-signal DB probe  z≥${cfg.HT_MIN_Z}  n≥${cfg.HT_MIN_N}  baseline≥${cfg.HT_MIN_BASELINE}%`);
-  console.log(`Strategy 6: Market-calibrated edge  mkt_edge≥${cfg.MKT_EDGE_THRESH}pp  n≥${cfg.MKT_EDGE_MIN_N}  B365>Pinnacle avg  [ahCover·dogCover·overTL·underTL]`);
-  console.log(`Tier filter: ${cfg.LEAGUE_TIER}  (strategies 1–5)  |  Strategy 6: ALL leagues`);
+  console.log(`Strategy 1 [${on(cfg.S1_ENABLED)}][${cfg.S1_TIER}]: AH steam ≥ ${cfg.LM_STEAM_MIN} → dog AH  (live ${cfg.ALERT_MIN_MINUTE}–${cfg.ALERT_MAX_MINUTE}', pre-kick ${cfg.UPCOMING_WINDOW_MINUTES}min)`);
+  console.log(`Strategy 2 [${on(cfg.S2_ENABLED)}][${cfg.S2_TIER}]: Strong fav AH ≥ ${cfg.S2_FAV_AH_MIN} not winning at HT → Over 0.5 2H at ${cfg.S2_FIRE_MIN_MINUTE}–${cfg.S2_FIRE_MAX_MINUTE}'`);
+  console.log(`Strategy 3 [${on(cfg.S3_ENABLED)}][${cfg.S3_TIER}]: TLM ≥ ${cfg.TLM1H_MIN_STEAM} + TL ≥ ${cfg.TLM1H_MIN_TL} + 0-0 at ${cfg.TLM1H_MIN_MINUTE}–${cfg.TLM1H_MAX_MINUTE}' → Over 0.5 1H`);
+  console.log(`Strategy 4 [${on(cfg.S4_ENABLED)}][${cfg.S4_TIER}]: Fav +1 at HT, AH ${cfg.S4_FAV_AH_MIN}–${cfg.S4_FAV_AH_MAX}, TL ≤ ${cfg.S4_MAX_TL} → Under 1.5 2H`);
+  console.log(`Strategy 5 [${on(cfg.S5_ENABLED)}][${cfg.S5_TIER}]: HT DB probe  z≥${cfg.HT_MIN_Z}  n≥${cfg.HT_MIN_N}  baseline≥${cfg.HT_MIN_BASELINE}%`);
+  console.log(`Strategy 6 [${on(cfg.S6_ENABLED)}][${cfg.S6_TIER}]: Market edge ≥${cfg.MKT_EDGE_THRESH}pp  n≥${cfg.MKT_EDGE_MIN_N}  window=${cfg.S6_WINDOW_MINUTES}min`);
+  console.log(`Global tier default: ${cfg.LEAGUE_TIER}  |  HT window: ${cfg.HT_MIN_MINUTE}–${cfg.HT_MAX_MINUTE}'`);
   await runScan();
   cron.schedule(`*/${cfg.SCAN_INTERVAL_MINUTES} * * * *`, runScan);
 }
