@@ -655,16 +655,21 @@ function getB365OddsForBet(betKey, b365, favSide) {
 function s6Format(match, matchCfg, poolN, bets, b365, tier, timing) {
   const { signals, fav_line, fav_side } = matchCfg;
   const favTeam  = fav_side === 'HOME' ? esc(match.home_team) : esc(match.away_team);
+  const dogTeam  = fav_side === 'HOME' ? esc(match.away_team) : esc(match.home_team);
   const sigStr   = buildSignalBadges(signals);
   const betLines = bets.map(b => {
     const b365Odds = getB365OddsForBet(b.k, b365, fav_side);
     const b365Str  = b365Odds != null ? `Bet365: <b>${b365Odds.toFixed(2)}</b> ✅` : 'Bet365: n/a';
     const betLabel = b.avgTl != null ? b.label.replace('Total Line', `TL ${b.avgTl.toFixed(2)}`) : b.label;
     const edgeSign = b.mkt_edge >= 0 ? '+' : '';
+    let teamStr = '';
+    if (b.k === 'ahCover')  teamStr = `\n   🎯 <b>${favTeam}  −${Number(fav_line).toFixed(2)}</b>`;
+    if (b.k === 'dogCover') teamStr = `\n   🎯 <b>${dogTeam}  +${Number(fav_line).toFixed(2)}</b>`;
     return (
       `💰 <b>${betLabel}</b>  ≥ ${b.mo}\n` +
       `   ${b.p.toFixed(1)}% hit  ·  mkt ${b.mkt_bl.toFixed(1)}%  ·  <b>${edgeSign}${b.mkt_edge.toFixed(1)}pp</b>\n` +
-      `   Pinnacle avg ${b.mkt_avg_odds}  ·  ${b365Str}\n` +
+      `   Pinnacle avg ${b.mkt_avg_odds}  ·  ${b365Str}` +
+      teamStr + `\n` +
       `   n=${b.n}`
     );
   });
