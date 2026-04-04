@@ -220,8 +220,8 @@ export async function onRequest(context) {
     JSON.stringify({
       matches:      liveResult.matches,
       next_matches: nextMatches,
-      gS:           workingGS,
-      book:         workingHash,
+      gS:           GS_PRIMARY,
+      book:         PINNACLE_HASH,
       method:       liveResult.method,
     }),
     { headers: cors }
