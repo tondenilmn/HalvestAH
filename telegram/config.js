@@ -127,5 +127,5 @@ module.exports = {
   S7_ENABLED:    process.env.S7_ENABLED !== 'false',
   S7_TIER:       process.env.S7_TIER    || 'ALL',
 
-  S7_MIN_HC_DIFF: parseFloat(process.env.S7_MIN_HC_DIFF || '0.25'),  // min Bet365–Pinnacle line gap
+  S7_MIN_HC_DIFF: parseFloat(process.env.S7_MIN_HC_DIFF || '0.50'),  // min Bet365–Pinnacle line gap
 };
