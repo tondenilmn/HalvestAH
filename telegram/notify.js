@@ -667,9 +667,9 @@ function s6Format(match, matchCfg, poolN, bets, b365, tier, timing) {
     if (b.k === 'dogCover') teamStr = `\n   🎯 <b>${dogTeam}  +${Number(fav_line).toFixed(2)}</b>`;
     return (
       `💰 <b>${betLabel}</b>  ≥ ${b.mo}\n` +
-      `   ${b.p.toFixed(1)}% hit  ·  mkt ${b.mkt_bl.toFixed(1)}%  ·  <b>${edgeSign}${b.mkt_edge.toFixed(1)}pp</b>\n` +
-      `   Pinnacle avg ${b.mkt_avg_odds}  ·  ${b365Str}` +
       teamStr + `\n` +
+      `   Pinnacle avg ${b.mkt_avg_odds}  ·  ${b365Str}` +
+      `   ${b.p.toFixed(1)}% hit  ·  mkt ${b.mkt_bl.toFixed(1)}%  ·  <b>${edgeSign}${b.mkt_edge.toFixed(1)}pp</b>\n` +      
       `   n=${b.n}`
     );
   });
@@ -738,6 +738,98 @@ async function runStrategy6(match, ctx) {
   await sendTelegram(msg);
   s6Dedup.mark(mktKey);
   console.log(`S6 ALERT → ${label}  pool=${cfgRows.length}  bets=${toFire.map(b => b.k).join(',')}  tier=${tier}`);
+}
+
+// ── Strategy 7: Bet365 vs Pinnacle AH line gap ───────────────────────────────
+// Fires in the first 1–5 live minutes when Bet365 offers a more generous AH
+// handicap than Pinnacle. Pinnacle's line is the sharp consensus; if Bet365
+// hasn't moved, the side getting the better number at Bet365 is +EV.
+//
+// Backtest (Jan–Mar 2025, both HOME and AWAY directions):
+//   HC diff 0.25–0.49 → N=6,989  hit=52.3%  ROI=+2.6%  BE odds=1.91  min=1.95
+//   HC diff 0.50–0.74 → N=331    hit=53.2%  ROI=+4.7%  BE odds=1.88  min=1.92
+//   HC diff ≥ 0.75    → N=78     hit=59.0%  ROI=+17.2% BE odds=1.70  min=1.73
+const s7Dedup = new Dedup(3 * 60 * 60 * 1000);
+
+// Returns minimum acceptable Bet365 odds for a given HC diff (break-even + 2% margin).
+// Derived from backtest hit rates per tier.
+function s7MinOdds(absDiff) {
+  if (absDiff >= 0.75) return 1.73;  // hit 59.0% → BE 1.696 → +2% = 1.73
+  if (absDiff >= 0.50) return 1.92;  // hit 53.2% → BE 1.881 → +2% = 1.92
+  return 1.95;                        // hit 52.3% → BE 1.912 → +2% = 1.95
+}
+
+function s7Format(match, tier, timing, betTeam, b365Hc, b365Odds, pinHc, absDiff, minOdds) {
+  const pinStr      = pinHc >= 0 ? `+${pinHc.toFixed(2)}` : pinHc.toFixed(2);
+  const b365HcStr   = b365Hc >= 0 ? `+${b365Hc.toFixed(2)}` : b365Hc.toFixed(2);
+  const strengthLabel = absDiff >= 0.75 ? '🔥 STRONG' : absDiff >= 0.50 ? '⚡ SOLID' : 'MILD';
+  const oddsStr = `${b365Odds.toFixed(2)} ✅`;
+  const betLines = [
+    `💰 <b>${esc(betTeam)}  ${b365HcStr}</b>  at Bet365`,
+    `   Pinnacle line: ${pinStr}  ·  gap: <b>+${absDiff.toFixed(2)}</b>  [${strengthLabel}]`,
+    `   Bet365 odds: <b>${oddsStr}</b>   Min to bet: <b>${minOdds.toFixed(2)}</b>`,
+  ];
+  return buildMessage('↔️', 'B365 LINE GAP', match, tier,
+    timing,
+    `${esc(betTeam)} gets ${absDiff.toFixed(2)} extra goals vs Pinnacle sharp line`,
+    betLines,
+  );
+}
+
+async function runStrategy7(match, ctx) {
+  const { matchId, label, tier, liveMin, isLive } = ctx;
+
+  if (!cfg.S7_ENABLED || !tierAllowed(tier, cfg.S7_TIER)) return;
+  if (!isLive) return;   // only fire in first 1–5 live minutes
+  if (!match.odds) { verbose(`  S7 SKIP [no odds]  ${label}`); return; }
+
+  const pinHc = match.odds.ah_hc;
+  if (pinHc == null) { verbose(`  S7 SKIP [no ah_hc]  ${label}`); return; }
+
+  const b365 = await fetchBet365Data(matchId);
+  if (!b365 || b365.ahHc == null) {
+    verbose(`  S7 SKIP [no B365 data]  ${label}`);
+    return;
+  }
+
+  const b365Hc = b365.ahHc;
+  const hcDiff = b365Hc - pinHc;   // positive = B365 more generous to HOME bettor
+
+  let betSide, betTeam, b365Odds;
+
+  if (hcDiff >= cfg.S7_MIN_HC_DIFF) {
+    betSide  = 'HOME';
+    betTeam  = match.home_team;
+    b365Odds = b365.hoC;
+  } else if (hcDiff <= -cfg.S7_MIN_HC_DIFF) {
+    betSide  = 'AWAY';
+    betTeam  = match.away_team;
+    b365Odds = b365.aoC;
+  } else {
+    verbose(`  S7 SKIP [hcDiff=${hcDiff.toFixed(2)} < ±${cfg.S7_MIN_HC_DIFF}]  ${label}`);
+    return;
+  }
+
+  const absDiff = Math.abs(hcDiff);
+  const minOdds = s7MinOdds(absDiff);
+
+  // Only fire if Bet365 odds are confirmed at or above the break-even minimum
+  if (b365Odds == null || b365Odds < minOdds) {
+    verbose(`  S7 SKIP [b365Odds=${b365Odds != null ? b365Odds.toFixed(2) : 'n/a'} < minOdds=${minOdds.toFixed(2)}]  ${label}`);
+    return;
+  }
+
+  const dedupKey = `${matchId}:s7:${betSide}`;
+  if (s7Dedup.has(dedupKey)) {
+    verbose(`  S7 SKIP [already notified]  ${label}`);
+    return;
+  }
+
+  const timing = `⏱ ${liveMin}'  ${match.score || '0-0'}`;
+  const msg = s7Format(match, tier, timing, betTeam, b365Hc, b365Odds, pinHc, absDiff, minOdds);
+  await sendTelegram(msg);
+  s7Dedup.mark(dedupKey);
+  console.log(`S7 ALERT → ${label}  side=${betSide}  pinHc=${pinHc.toFixed(2)}  b365Hc=${b365Hc.toFixed(2)}  diff=${absDiff.toFixed(2)}  b365Odds=${b365Odds != null ? b365Odds.toFixed(2) : 'n/a'}  minOdds=${minOdds.toFixed(2)}  tier=${tier}`);
 }
 
 // ── Match fetcher (live + upcoming) ──────────────────────────────────────────
@@ -809,6 +901,7 @@ async function runScan() {
     await runStrategy4(match, ctx);
     await runStrategy5(match, ctx);
     await runStrategy6(match, ctx);
+    await runStrategy7(match, ctx);
   }
 }
 
@@ -825,6 +918,7 @@ async function main() {
   console.log(`Strategy 4 [${on(cfg.S4_ENABLED)}][${cfg.S4_TIER}]: Fav +1 at HT, AH ${cfg.S4_FAV_AH_MIN}–${cfg.S4_FAV_AH_MAX}, TL ≤ ${cfg.S4_MAX_TL} → Under 1.5 2H`);
   console.log(`Strategy 5 [${on(cfg.S5_ENABLED)}][${cfg.S5_TIER}]: HT DB probe  z≥${cfg.HT_MIN_Z}  n≥${cfg.HT_MIN_N}  baseline≥${cfg.HT_MIN_BASELINE}%`);
   console.log(`Strategy 6 [${on(cfg.S6_ENABLED)}][${cfg.S6_TIER}]: Market edge ≥${cfg.MKT_EDGE_THRESH}pp  n≥${cfg.MKT_EDGE_MIN_N}  window=${cfg.S6_WINDOW_MINUTES}min`);
+  console.log(`Strategy 7 [${on(cfg.S7_ENABLED)}][${cfg.S7_TIER}]: Bet365 vs Pinnacle AH line gap ≥${cfg.S7_MIN_HC_DIFF}  (pre-kick + live ${cfg.ALERT_MIN_MINUTE}–${cfg.ALERT_MAX_MINUTE}')`);
   console.log(`Global tier default: ${cfg.LEAGUE_TIER}  |  HT window: ${cfg.HT_MIN_MINUTE}–${cfg.HT_MAX_MINUTE}'`);
 
   if (once) {
