@@ -3,8 +3,8 @@
 // Adapted from functions/api/livescore.js for Node.js (no Cloudflare runtime).
 // Uses built-in fetch (Node >= 18).
 
-let PINNACLE_HASH = '555a04df41c008dbb9fae7894ff184cfe09692ec';
-let BET365_HASH   = '41910f492bc33ad4e34237a6e6f10c23b1f70f2f';
+let PINNACLE_HASH = 'a1ab8aac3b69b42812a8a0119d3feb5474cbf5e8';
+let BET365_HASH   = 'df433bd6f7a03cfe1fe1fab9839374f103d0198b';
 const GS_PRIMARY    = 'Q';
 const GS_CANDIDATES = ['Q', '1', '2', '3', 'AH', 'S', 'EU', 'A', 'ah', 's', '4', '5', '10', '6', '7', '8', 'B', 'F'];
 
@@ -248,35 +248,11 @@ async function tryCombo(hash, gS, timestamp) {
 async function fetchLiveMatches() {
   const timestamp = Date.now();
 
-  // Step 1: fast path
-  console.log(`Livescore: trying fast path (hash=${PINNACLE_HASH.slice(0,8)}…)`);
-  let matches = await tryCombo(PINNACLE_HASH, GS_PRIMARY, timestamp);
+  console.log(`Livescore: trying hash=${PINNACLE_HASH.slice(0,8)}…`);
+  const matches = await tryCombo(PINNACLE_HASH, GS_PRIMARY, timestamp);
   if (matches) return matches;
 
-  // Step 2: auto-discover hash
-  console.log('Livescore: fast path failed — fetching hash from asianbetsoccer…');
-  const discovered = await fetchPinnacleHash();
-  if (discovered) {
-    console.log(`Livescore: discovered hash=${discovered.slice(0,8)}… (${discovered === PINNACLE_HASH ? 'same' : 'NEW'})`);
-    PINNACLE_HASH = discovered;
-    matches = await tryCombo(discovered, GS_PRIMARY, timestamp);
-    if (matches) return matches;
-  } else {
-    console.log('Livescore: hash discovery failed (asianbetsoccer unreachable or structure changed)');
-  }
-
-  // Step 3: sweep
-  console.log('Livescore: sweeping all gS candidates…');
-  const hashesToTry = [...new Set([PINNACLE_HASH, ...(discovered ? [discovered] : [])])];
-  for (const hash of hashesToTry) {
-    for (const gS of GS_CANDIDATES) {
-      if (gS === GS_PRIMARY && hash === PINNACLE_HASH) continue;
-      matches = await tryCombo(hash, gS, timestamp);
-      if (matches) return matches;
-    }
-  }
-
-  console.log('Livescore: all attempts failed — returning empty');
+  console.log('Livescore: hash failed — update PINNACLE_HASH in livescore.js');
   return [];
 }
 
@@ -309,31 +285,10 @@ async function fetchBet365OddsMap(timestamp) {
 async function fetchNextMatches() {
   const timestamp = Date.now();
   console.log(`NextGame: trying hash=${PINNACLE_HASH.slice(0,8)}…`);
-  let matches = await tryNextCombo(PINNACLE_HASH, GS_PRIMARY, timestamp);
+  const matches = await tryNextCombo(PINNACLE_HASH, GS_PRIMARY, timestamp);
 
   if (!matches) {
-    // Re-discover hash (also updates BET365_HASH as side effect)
-    console.log('NextGame: fast path failed — fetching hash…');
-    const discovered = await fetchPinnacleHash();
-    if (discovered) {
-      console.log(`NextGame: discovered hash=${discovered.slice(0,8)}… (${discovered === PINNACLE_HASH ? 'same' : 'NEW'})`);
-      PINNACLE_HASH = discovered;
-      matches = await tryNextCombo(discovered, GS_PRIMARY, timestamp);
-    }
-  }
-
-  if (!matches) {
-    // Step 3: sweep all gS candidates with current hash
-    console.log('NextGame: sweeping all gS candidates…');
-    for (const gS of GS_CANDIDATES) {
-      if (gS === GS_PRIMARY) continue;
-      matches = await tryNextCombo(PINNACLE_HASH, gS, timestamp);
-      if (matches) break;
-    }
-  }
-
-  if (!matches) {
-    console.log('NextGame: all attempts failed — returning empty');
+    console.log('NextGame: hash failed — update PINNACLE_HASH in livescore.js');
     return [];
   }
 

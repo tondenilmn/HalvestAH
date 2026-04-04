@@ -138,7 +138,7 @@ function matchContext(match) {
     minsToKickoff,
     isLive:        liveMin != null && liveMin >= cfg.ALERT_MIN_MINUTE && liveMin <= cfg.ALERT_MAX_MINUTE,
     isUpcoming:    minsToKickoff != null && minsToKickoff >= 0 && minsToKickoff <= cfg.UPCOMING_WINDOW_MINUTES,
-    isMktEdge:     minsToKickoff != null && minsToKickoff >= 0 && minsToKickoff <= cfg.S6_WINDOW_MINUTES,
+    isMktEdge:     liveMin != null && liveMin >= 1 && liveMin <= cfg.S6_WINDOW_MINUTES,
     isHT:          liveMin != null && liveMin >= cfg.HT_MIN_MINUTE && liveMin <= cfg.HT_MAX_MINUTE,
     isSFHTFire:    liveMin != null && liveMin >= cfg.S2_FIRE_MIN_MINUTE && liveMin <= cfg.S2_FIRE_MAX_MINUTE,
     isTLM1H:       liveMin != null && liveMin >= cfg.TLM1H_MIN_MINUTE && liveMin <= cfg.TLM1H_MAX_MINUTE,
@@ -731,10 +731,8 @@ async function runStrategy6(match, ctx) {
     return;
   }
 
-  const minsRnd = Math.round(minsToKickoff);
-  const timing  = match.kickoff_time
-    ? `⏳ ${kickoffTimeLabel(match.kickoff_time)}  (in ${minsRnd <= 1 ? '&lt;1' : minsRnd} min)`
-    : `⏳ kicks off in ${minsRnd <= 1 ? '&lt;1' : minsRnd} min`;
+  const score  = match.score || '0-0';
+  const timing = `⏱ ${liveMin}'  ${score}`;
 
   const msg = s6Format(match, matchCfg, cfgRows.length, toFire, b365, tier, timing);
   await sendTelegram(msg);

@@ -30,7 +30,7 @@
  *   { matches: [], note: "…" }  — when no live data found
  */
 
-let PINNACLE_HASH = '555a04df41c008dbb9fae7894ff184cfe09692ec';
+let PINNACLE_HASH = 'a1ab8aac3b69b42812a8a0119d3feb5474cbf5e8';
 // gS candidates — 'Q' is the confirmed primary value; rest are fallbacks.
 // Auto-discovery (fetchPinnacleHash) is tried before the sweep when the primary hash fails.
 // Worst-case subrequest budget: 1 (fast path) + 1 (page fetch) + 1 (Q+discovered) + 18 (sweep) = 21, well under 50.
@@ -200,53 +200,21 @@ export async function onRequest(context) {
     return mergeMatchData(oddsRows, metaRows);
   }
 
-  // ── Step 1: fast path — confirmed combo (1 subrequest) ──────────────────
-  let workingHash = PINNACLE_HASH;
-  let workingGS   = GS_PRIMARY;
-  let liveResult  = await tryComboData(PINNACLE_HASH, GS_PRIMARY);
-
-  // ── Step 2: auto-discover hash from asianbetsoccer livescore page ────────
-  let discovered = null;
-  if (!liveResult) {
-    discovered = await fetchPinnacleHash();
-    if (discovered && discovered !== PINNACLE_HASH) {
-      PINNACLE_HASH = discovered;
-      workingHash   = discovered;
-      liveResult    = await tryComboData(discovered, GS_PRIMARY);
-    }
-  }
-
-  // ── Step 3: sweep all gS candidates with both hashes ────────────────────
-  if (!liveResult) {
-    const hashesToTry = [...new Set([PINNACLE_HASH, ...(discovered ? [discovered] : [])])];
-    outer: for (const hash of hashesToTry) {
-      for (const gS of GS_CANDIDATES) {
-        if (gS === GS_PRIMARY && hash === PINNACLE_HASH) continue; // already tried in step 1
-        liveResult = await tryComboData(hash, gS);
-        if (liveResult) { workingHash = hash; workingGS = gS; break outer; }
-      }
-    }
-  }
+  // ── Fast path only — no auto-discovery. Update PINNACLE_HASH manually when this fails. ──
+  const liveResult = await tryComboData(PINNACLE_HASH, GS_PRIMARY);
 
   if (!liveResult) {
     return new Response(
       JSON.stringify({
         matches: [],
-        note: `Could not reach livegame data. ${lastError}. Add ?debug=1 to /api/livescore to diagnose.`,
+        note: `Hash ${PINNACLE_HASH.slice(0,8)}… failed. Update PINNACLE_HASH in functions/api/livescore.js. ${lastError}`,
       }),
       { headers: cors }
     );
   }
 
-  // ── Fetch tablenext (upcoming matches) using the working combo ───────────
-  let nextMatches = await tryNextComboData(workingHash, workingGS) ?? [];
-  if (nextMatches.length === 0) {
-    for (const gS of GS_CANDIDATES) {
-      if (gS === workingGS) continue;
-      nextMatches = await tryNextComboData(workingHash, gS) ?? [];
-      if (nextMatches.length > 0) break;
-    }
-  }
+  // ── Fetch tablenext (upcoming matches) ───────────────────────────────────
+  const nextMatches = await tryNextComboData(PINNACLE_HASH, GS_PRIMARY) ?? [];
 
   return new Response(
     JSON.stringify({
