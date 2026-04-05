@@ -5,7 +5,6 @@
 
 let BET365_HASH   = 'df433bd6f7a03cfe1fe1fab9839374f103d0198b';
 let PINNACLE_HASH = 'a7bb5e7b2f16868d5b6835ced1c60ad1c817baba';
-let BET365_HASH   = '41910f492bc33ad4e34237a6e6f10c23b1f70f2f';
 const GS_PRIMARY    = 'Q';
 const GS_CANDIDATES = ['Q', '1', '2', '3', 'AH', 'S', 'EU', 'A', 'ah', 's', '4', '5', '10', '6', '7', '8', 'B', 'F'];
 
