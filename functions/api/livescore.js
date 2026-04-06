@@ -30,7 +30,7 @@
  *   { matches: [], note: "…" }  — when no live data found
  */
 
-let PINNACLE_HASH = 'a7bb5e7b2f16868d5b6835ced1c60ad1c817baba';
+let PINNACLE_HASH = 'ef0e4d72dbf5e72ec109077d824e881b0ac06110';
 // gS candidates — 'Q' is the confirmed primary value; rest are fallbacks.
 // Auto-discovery (fetchPinnacleHash) is tried before the sweep when the primary hash fails.
 // Worst-case subrequest budget: 1 (fast path) + 1 (page fetch) + 1 (Q+discovered) + 18 (sweep) = 21, well under 50.

@@ -583,6 +583,7 @@ async function loadDatabaseFromUrl(baseUrl) {
 }
 
 module.exports = {
+  processRow,
   loadDatabase,
   loadDatabaseFromUrl,
   buildCfgFromMatch,

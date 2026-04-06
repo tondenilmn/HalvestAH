@@ -12,8 +12,8 @@ const cfg  = require('./config');
 const {
   classifyLeague,
   loadDatabase, loadDatabaseFromUrl,
-  applyConfig, applyBaselineConfig, applyGameState,
-  buildCfgFromMatch, scoreBets, computeHtAsSignalProbe,
+  applyConfig, applyBaselineConfig,
+  buildCfgFromMatch, scoreBets,
 } = require('./engine');
 const { fetchLiveMatches, fetchNextMatches } = require('./livescore');
 
@@ -67,11 +67,6 @@ function parseLiveMinute(minute) {
   if (s === 'HT') return 45;
   const n = parseInt(s, 10);
   return isNaN(n) ? null : n;
-}
-
-// True when the match is at halftime (raw minute field = 'HT' or ≥ 45 in HT window).
-function isAtHT(rawMin, liveMin) {
-  return rawMin === 'HT' || (liveMin != null && liveMin >= 45);
 }
 
 // Parse "H-A" score string → { home, away } or null.
@@ -139,9 +134,10 @@ function matchContext(match) {
     isLive:        liveMin != null && liveMin >= cfg.ALERT_MIN_MINUTE && liveMin <= cfg.ALERT_MAX_MINUTE,
     isUpcoming:    minsToKickoff != null && minsToKickoff >= 0 && minsToKickoff <= cfg.UPCOMING_WINDOW_MINUTES,
     isMktEdge:     liveMin != null && liveMin >= 1 && liveMin <= cfg.S6_WINDOW_MINUTES,
-    isHT:          liveMin != null && liveMin >= cfg.HT_MIN_MINUTE && liveMin <= cfg.HT_MAX_MINUTE,
-    isSFHTFire:    liveMin != null && liveMin >= cfg.S2_FIRE_MIN_MINUTE && liveMin <= cfg.S2_FIRE_MAX_MINUTE,
-    isTLM1H:       liveMin != null && liveMin >= cfg.TLM1H_MIN_MINUTE && liveMin <= cfg.TLM1H_MAX_MINUTE,
+    isSXYEarly:   liveMin != null && liveMin >= cfg.SXSY_EARLY_MIN     && liveMin <= cfg.SXSY_EARLY_MAX,
+    isSXYMidH:    liveMin != null && liveMin >= cfg.SXSY_MIDH_MIN      && liveMin <= cfg.SXSY_MIDH_MAX,
+    isSXYHTStore: liveMin != null && liveMin >= cfg.SXSY_HT_STORE_MIN  && liveMin <= cfg.SXSY_HT_STORE_MAX,
+    isSXYHTFire:  liveMin != null && liveMin >= cfg.SXSY_HT_FIRE_MIN   && liveMin <= cfg.SXSY_HT_FIRE_MAX,
   };
 }
 
@@ -170,13 +166,7 @@ function tierBadge(tier) {
   return 'OTHER';
 }
 
-// AH arrow: "−0.25 → −0.75  +0.50"
-function ahArrow(favLc, favLo) {
-  const oStr = favLo < 0.01 ? '0.00' : `−${favLo.toFixed(2)}`;
-  return `${oStr} → −${favLc.toFixed(2)}  <b>+${(favLc - favLo).toFixed(2)}</b>`;
-}
-
-// Build signal badges string from a signals object (shared by S5 and S6).
+// Build signal badges string from a signals object (used by S6).
 function buildSignalBadges(signals) {
   const { lineMove, favOddsMove, dogOddsMove, tlMove } = signals;
   return [
@@ -192,8 +182,8 @@ function buildMessage(emoji, title, match, tier, timing, context, betLines) {
   return [
     `${emoji} <b>${title}</b>  ·  ${nowTime()}`,
     ``,
-    `⚽ <b>${esc(match.home_team)} vs ${esc(match.away_team)}</b>`,
     `🏆 <i>${esc(match.league) || '—'}</i>  [${tierBadge(tier)}]`,
+    `⚽ <b>${esc(match.home_team)} vs ${esc(match.away_team)}</b>`,
     `${timing}`,
     ``,
     `📊 ${context}`,
@@ -296,350 +286,293 @@ async function loadDb() {
   }
 }
 
-// ── Strategy 1: AH Steam → Bet Dog AH ─────────────────────────────────────────
-// Backtest (TOP+MAJOR, 12m OOS, n=934): 55.8% win rate · +21% ROI
-const s1Dedup = new Dedup(3 * 60 * 60 * 1000);
 
-function s1FormatLive(match, steam, tier, b365DogOc) {
-  const { favSide, favLc, favLo, dogOc } = steam;
-  const favTeam = favSide === 'HOME' ? esc(match.home_team) : esc(match.away_team);
-  const dogTeam = favSide === 'HOME' ? esc(match.away_team) : esc(match.home_team);
+// ── Strategy SX / SY: 3-book steam → structural favourite wins ────────────────
+// SX: all available books steamed AH toward home, home opened as structural fav
+// SY: all available books steamed AH toward away, home opened as structural dog
+//
+// Alert 1 (1–10'):  steam confirmed → bet 1x2 fav at soft books
+// Alert 2 (28–32'): still 0-0 → Over 0.5 1H in-play
+// Alert 3 (44–52'): HT score → 2H live bet
+//
+// Win rates from master_steam_analysis.html (73,910 fixtures):
+//   SX home win 71.8%  (n=1,151) · SY away win 74.1% (n=378)
+//   HT: leading fav wins 91-92%, 0-0 wins 56-60%, drawn wins 55-57%, losing → BTTS 81-83%
+//   2H Over 0.5: 83-84% in all HT states
+
+const sxyCandidates = new Map(); // matchId → { type, favSide, steamData, storedAt }
+const SXYC_TTL      = 4 * 60 * 60 * 1000;
+const sxyDedup      = new Dedup(6 * 60 * 60 * 1000); // keyed by matchId:sx1/sx2/sx3/sy1/sy2/sy3
+
+// Analyse AH steam direction and magnitude across all available books.
+// Returns a signal object if the steam qualifies, or null if not.
+function detectSXYSignal(match) {
+  const pin  = match.odds;
+  const b365 = match.bet365_odds;
+  const sbo  = match.sbobet_odds;
+
+  // All 3 books must be present — if any is missing, skip entirely
+  if (!pin  || pin.ah_ho  == null || pin.ah_hc  == null) return null;
+  if (!b365 || b365.ah_ho == null || b365.ah_hc == null) return null;
+  if (!sbo  || sbo.ah_ho  == null || sbo.ah_hc  == null) return null;
+
+  // Structural role determined by Pinnacle opening line
+  const ahHo = pin.ah_ho;
+  let favSide;
+  if      (ahHo < -0.01) favSide = 'HOME';   // SX
+  else if (ahHo >  0.01) favSide = 'AWAY';   // SY
+  else return null;                            // pick'em — skip
+
+  // Steam direction: positive = toward home, negative = toward away
+  // For SX (home fav) we want positive; for SY (away fav) we want negative
+  const dir      = favSide === 'HOME' ? 1 : -1;
+  const minSteam = cfg.SXSY_MIN_STEAM;
+
+  const pinSteam  = pin.ah_ho  - pin.ah_hc;
+  const b365Steam = b365.ah_ho - b365.ah_hc;
+  const sboSteam  = sbo.ah_ho  - sbo.ah_hc;
+
+  // All 3 books must confirm AH steam in the same direction
+  if (pinSteam  * dir < minSteam) return null;
+  if (b365Steam * dir < minSteam) return null;
+  if (sboSteam  * dir < minSteam) return null;
+
+  // TL must rise on all 3 books
+  if (pin.tl_c  == null || pin.tl_o  == null || pin.tl_c  <= pin.tl_o)  return null;
+  if (b365.tl_c == null || b365.tl_o == null || b365.tl_c <= b365.tl_o) return null;
+  if (sbo.tl_c  == null || sbo.tl_o  == null || sbo.tl_c  <= sbo.tl_o)  return null;
+
+  return {
+    type:     favSide === 'HOME' ? 'SX' : 'SY',
+    favSide,
+    confirmedBooks: 3,
+    pinSteam, b365Steam, sboSteam,
+    pinAhHo:  pin.ah_ho,   pinAhHc:  pin.ah_hc,
+    b365AhHo: b365.ah_ho,  b365AhHc: b365.ah_hc,
+    sboAhHo:  sbo.ah_ho,   sboAhHc:  sbo.ah_hc,
+    tlO: pin.tl_o, tlC: pin.tl_c,
+    b365TlO: b365.tl_o, b365TlC: b365.tl_c,
+    sboTlO:  sbo.tl_o,  sboTlC:  sbo.tl_c,
+  };
+}
+
+// Format a book's AH movement as "−0.75 → −1.00  +0.25 ✅" or "n/a"
+function sxyBookLine(ahHo, ahHc, dir) {
+  if (ahHo == null || ahHc == null) return 'n/a';
+  const steam = (ahHo - ahHc) * dir;
+  const fmt   = v => v >= 0 ? `+${v.toFixed(2)}` : `${v.toFixed(2)}`;
+  const tick  = steam >= cfg.SXSY_MIN_STEAM ? ' ✅' : ' ❌';
+  return `AH ${fmt(ahHo)} → ${fmt(ahHc)}  (${steam >= 0 ? '+' : ''}${steam.toFixed(2)})${tick}`;
+}
+
+function sxyAlert1Format(match, sd, tier) {
+  const isSX    = sd.type === 'SX';
+  const favTeam = isSX ? esc(match.home_team) : esc(match.away_team);
+  const dir     = isSX ? 1 : -1;
+  const arrow   = isSX ? '→ HOME' : '→ AWAY';
+  const tlFmt   = (o, c) => `${o.toFixed(2)} → ${c.toFixed(2)}  (+${(c - o).toFixed(2)})`;
+  const minOdds = isSX ? '1.46' : '1.42';
+  const winRate = isSX ? '71.8%' : '74.1%';
+  const n       = isSX ? '1,151' : '378';
   const betLines = [
-    `💰 <b>${dogTeam}  +${favLc.toFixed(2)}</b>  (min: @${dogOc.toFixed(2)})`,
-    `   Bet365: ${b365DogOc != null ? `<b>${b365DogOc.toFixed(2)}</b> ✅` : 'n/a'}`,
+    `📊 3/3 books ${arrow}  (structural fav)`,
+    `   Pin:  AH ${sxyBookLine(sd.pinAhHo,  sd.pinAhHc,  dir)}  |  TL ${tlFmt(sd.tlO,     sd.tlC)}`,
+    `   B365: AH ${sxyBookLine(sd.b365AhHo, sd.b365AhHc, dir)}  |  TL ${tlFmt(sd.b365TlO, sd.b365TlC)}`,
+    `   Sbo:  AH ${sxyBookLine(sd.sboAhHo,  sd.sboAhHc,  dir)}  |  TL ${tlFmt(sd.sboTlO,  sd.sboTlC)}`,
+    ``,
+    `💰 1x2 <b>${isSX ? 'HOME' : 'AWAY'} WIN</b> at soft books`,
+    `   Min odds: @${minOdds}  ·  ${winRate} win rate  ·  n=${n}`,
+    `   ⚠️ Skip AH and Over — already repriced`,
   ];
-  return buildMessage('🚨', 'STEAM → DOG AH', match, tier,
-    `⏱ ${esc(match.minute)}'  ${esc(match.score) || '0-0'}`,
-    `${favTeam} (fav)  ${ahArrow(favLc, favLo)}`,
+  return buildMessage(
+    isSX ? '🏠' : '✈️',
+    isSX ? 'CONF. FAV — 3-BOOK STEAM' : 'STEAM FAV — 3-BOOK STEAM',
+    match, tier,
+    `⏱ ${esc(match.minute)}'  ${match.score || '0-0'}`,
+    favTeam,
     betLines,
   );
 }
 
-function s1FormatUpcoming(match, steam, tier, minsToKickoff, b365DogOc) {
-  const { favSide, favLc, favLo, dogOc } = steam;
-  const favTeam = favSide === 'HOME' ? esc(match.home_team) : esc(match.away_team);
-  const dogTeam = favSide === 'HOME' ? esc(match.away_team) : esc(match.home_team);
-  const koTime  = match.kickoff_time ? kickoffTimeLabel(match.kickoff_time) : null;
-  const minsRnd = Math.round(minsToKickoff);
-  const timing  = koTime
-    ? `🕐 ${koTime}  (${minsRnd <= 1 ? 'now' : `in ${minsRnd} min`})`
-    : `⏳ ${minsRnd <= 1 ? 'kicks off now' : `kicks off in ${minsRnd} min`}`;
+function sxyAlert2Format(match, sd, tier, liveMin) {
+  const isSX    = sd.type === 'SX';
+  const favTeam = isSX ? esc(match.home_team) : esc(match.away_team);
+  const minsLeft = 45 - liveMin;
   const betLines = [
-    `💰 <b>${dogTeam}  +${favLc.toFixed(2)}</b>  (min: @${dogOc.toFixed(2)})`,
-    `   Bet365: ${b365DogOc != null ? `<b>${b365DogOc.toFixed(2)}</b> ✅` : 'n/a'}`,
+    `Steam confirmed (3/3 books → ${isSX ? 'HOME' : 'AWAY'})`,
+    `Avg goals in 1H for steamed games: 1.49  vs baseline 1.16`,
+    ``,
+    `💰 <b>Over 0.5 1H</b> (in-play)`,
+    `   ~${minsLeft} min left · check live odds`,
   ];
-  return buildMessage('⏰', 'PRE-KICK STEAM → DOG AH', match, tier,
-    timing,
-    `${favTeam} (fav)  ${ahArrow(favLc, favLo)}`,
+  return buildMessage(
+    '⚡',
+    'STEAM + 0-0 AT 30\' — OVER 0.5 1H',
+    match, tier,
+    `⏱ ${liveMin}'  0-0`,
+    favTeam,
     betLines,
   );
 }
 
-async function runStrategy1(match, ctx) {
-  const { matchId, label, tier, steam, liveMin, minsToKickoff, isLive, isUpcoming } = ctx;
-
-  if (!cfg.S1_ENABLED || !tierAllowed(tier, cfg.S1_TIER)) return;
-  if (!isLive && !isUpcoming) return;
-  if (!steam) { verbose(`  S1 SKIP [no odds]  ${label}`); return; }
-
-  const { steam: steamMag, dogOc } = steam;
-
-  if (steamMag < cfg.LM_STEAM_MIN) {
-    verbose(`  S1 SKIP [steam=${steamMag.toFixed(2)} < ${cfg.LM_STEAM_MIN}]  ${label}`);
-    return;
-  }
-  if (!dogOc || dogOc < 1.01 || dogOc > 20) {
-    verbose(`  S1 SKIP [invalid dog_oc=${dogOc}]  ${label}`);
-    return;
-  }
-  if (s1Dedup.has(matchId)) {
-    verbose(`  S1 SKIP [already notified]  ${label}`);
-    return;
-  }
-
-  // Bet365 check: same AH line required + dog odds must beat Pinnacle
-  const b365 = await fetchBet365Data(matchId);
-  let b365DogOc = null;
-
-  if (b365 && b365.ahHc != null) {
-    if (Math.abs(b365.ahHc - (match.odds.ah_hc || 0)) >= 0.13) {
-      verbose(`  S1 SKIP [B365 AH line=${b365.ahHc} != pinnacle=${match.odds.ah_hc}]  ${label}`);
-      return;
-    }
-    b365DogOc = steam.favSide === 'HOME' ? b365.aoC : b365.hoC;
-    if (b365DogOc != null && b365DogOc < dogOc) {
-      verbose(`  S1 SKIP [B365 dog_oc=${b365DogOc.toFixed(2)} < pinnacle=${dogOc.toFixed(2)}]  ${label}`);
-      return;
-    }
-  }
-  // b365 == null → oddsComp unavailable, fire anyway
-
-  const steps = Math.round(steamMag / 0.25);
-  let msg;
-  if (isUpcoming) {
-    msg = s1FormatUpcoming(match, steam, tier, minsToKickoff, b365DogOc);
-    console.log(`S1 ALERT (pre-kick) → ${label}  ko_in=${minsToKickoff.toFixed(1)}min  steam=+${steamMag.toFixed(2)} (${steps} steps)  dog_oc=${dogOc.toFixed(2)}  b365=${b365DogOc != null ? b365DogOc.toFixed(2) : 'n/a'}  tier=${tier}`);
-  } else {
-    msg = s1FormatLive(match, steam, tier, b365DogOc);
-    console.log(`S1 ALERT (live) → ${label}  steam=+${steamMag.toFixed(2)} (${steps} steps)  dog_oc=${dogOc.toFixed(2)}  b365=${b365DogOc != null ? b365DogOc.toFixed(2) : 'n/a'}  tier=${tier}`);
-  }
-  await sendTelegram(msg);
-  s1Dedup.mark(matchId);
-}
-
-// ── Strategy 2: Strong Fav not winning at HT → Over 0.5 2H ───────────────────
-// Store candidate at HT; fire at S2_FIRE window if still no 2H goal.
-// Backtest (TOP+MAJOR, 12m OOS): 82% hit rate on Over 0.5 2H, n=3,800+
-const s2HtCandidates = new Map();   // matchId → { htHome, htAway, steam, storedAt }
-const s2Dedup        = new Dedup(3 * 60 * 60 * 1000);
-const S2_CAND_TTL    = 3 * 60 * 60 * 1000;
-
-function s2Format(match, htScore, steam, tier, liveMin) {
-  const { favSide, favLc } = steam;
-  const favTeam  = favSide === 'HOME' ? esc(match.home_team) : esc(match.away_team);
+function sxyAlert3Format(match, sd, htScore, tier, liveMin) {
+  const isSX     = sd.type === 'SX';
+  const favTeam  = isSX ? esc(match.home_team) : esc(match.away_team);
   const htStr    = `${htScore.home}-${htScore.away}`;
-  const minsLeft = 90 - liveMin;
+  const favGoals = isSX ? htScore.home : htScore.away;
+  const dogGoals = isSX ? htScore.away : htScore.home;
+
+  let htState, primaryBet, primaryRate, secondaryLine, avoidLine;
+  if (favGoals > dogGoals) {
+    htState      = `${isSX ? 'Home' : 'Away'} leads`;
+    primaryBet   = `1x2 <b>${isSX ? 'HOME' : 'AWAY'} WIN</b> live`;
+    primaryRate  = isSX ? '91.5%' : '92.1%';
+    secondaryLine = `💰 2H Over 0.5  →  ${isSX ? '83.9%' : '84.4%'}`;
+    avoidLine     = '⚠️ Skip BTTS and FT Over';
+  } else if (favGoals === 0 && dogGoals === 0) {
+    htState      = '0-0';
+    primaryBet   = `1x2 <b>${isSX ? 'HOME' : 'AWAY'} WIN</b> live`;
+    primaryRate  = isSX ? '56.1%' : '60.0%';
+    secondaryLine = `💰 2H Over 0.5  →  ${isSX ? '83.9%' : '84.4%'}`;
+    avoidLine     = '⚠️ Skip Over and BTTS';
+  } else if (favGoals === dogGoals) {
+    htState      = `Draw (${htStr})`;
+    primaryBet   = `1x2 <b>${isSX ? 'HOME' : 'AWAY'} WIN</b> live`;
+    primaryRate  = isSX ? '55.1%' : '57.0%';
+    secondaryLine = `💰 BTTS  →  ${isSX ? '51.1%' : '52.1%'}`;
+    avoidLine     = '⚠️ Skip FT Over';
+  } else {
+    htState      = `${isSX ? 'Away' : 'Home'} leads — switch`;
+    primaryBet   = '1x2 <b>BTTS</b> (opposite side leads)';
+    primaryRate  = isSX ? '80.7%' : '82.9%';
+    secondaryLine = '💰 2H Over 0.5';
+    avoidLine     = `⚠️ Skip ${isSX ? 'HOME' : 'AWAY'} WIN — too risky`;
+  }
+
+  const minsLeft = 90 - (liveMin ?? 57);
   const betLines = [
-    `💰 <b>Over 0.5 2H</b>  (1.22 – 1.23)`,
-    `   82% hit rate  ·  n=3,800+`,
+    `HT: ${htStr} → still no 2H goal  (~${minsLeft} min left)`,
+    `Steam: 3/3 books → ${isSX ? 'HOME' : 'AWAY'} ✅  |  HT state: ${htState}`,
+    ``,
+    `💰 ${primaryBet}  →  ${primaryRate}`,
+    secondaryLine,
+    avoidLine,
   ];
-  return buildMessage('⏰', 'STRONG FAV — NO 2H GOAL', match, tier,
-    `⏱ ${liveMin}'  ${esc(match.score) || htStr}  (HT: ${htStr})`,
-    `${favTeam} −${favLc.toFixed(2)}  ·  not winning at HT  ·  ~${minsLeft} min left  ·  no 2H goal yet`,
+  return buildMessage(
+    '📊',
+    isSX ? 'CONF. FAV — NO 2H GOAL' : 'STEAM FAV — NO 2H GOAL',
+    match, tier,
+    `⏱ ${liveMin ?? '~57'}'  ${match.score || htStr}`,
+    favTeam,
     betLines,
   );
 }
 
-async function runStrategy2(match, ctx) {
-  const { matchId, label, tier, steam, liveMin, rawMin, isHT, isSFHTFire } = ctx;
+async function runStrategySXY(match, ctx) {
+  const { matchId, label, tier, liveMin, isSXYEarly, isSXYMidH, isSXYHTStore, isSXYHTFire } = ctx;
 
-  if (!cfg.S2_ENABLED || !tierAllowed(tier, cfg.S2_TIER)) return;
-  if (!steam) return;
-
-  // Store HT candidate when match enters HT window
-  if (isHT && isAtHT(rawMin, liveMin) && steam.favLc >= cfg.S2_FAV_AH_MIN) {
-    const score = parseScoreStr(match.score);
-    if (score && !s2HtCandidates.has(matchId)) {
-      const favGoals = steam.favSide === 'HOME' ? score.home : score.away;
-      const dogGoals = steam.favSide === 'HOME' ? score.away : score.home;
-      if (favGoals <= dogGoals) {
-        s2HtCandidates.set(matchId, {
-          htHome: score.home, htAway: score.away,
-          steam, storedAt: Date.now(),
-        });
-        console.log(`  S2 HT candidate stored: ${label}  HT=${score.home}-${score.away}  AH=-${steam.favLc.toFixed(2)}`);
+  // ── Alert 1: early live (1–10') ──────────────────────────────────────────
+  if (isSXYEarly) {
+    const sd = detectSXYSignal(match);
+    if (sd) {
+      const enabled = sd.type === 'SX' ? cfg.SX_ENABLED : cfg.SY_ENABLED;
+      const tier_   = sd.type === 'SX' ? cfg.SX_TIER    : cfg.SY_TIER;
+      if (enabled && tierAllowed(tier, tier_)) {
+        if (!sxyCandidates.has(matchId)) {
+          sxyCandidates.set(matchId, { ...sd, storedAt: Date.now() });
+          console.log(`  SXY candidate stored: ${label}  type=${sd.type}  books=${sd.confirmedBooks}/3`);
+        }
+        const key1 = `${matchId}:${sd.type.toLowerCase()}:1`;
+        if (!sxyDedup.has(key1)) {
+          const msg = sxyAlert1Format(match, sd, tier);
+          await sendTelegram(msg);
+          sxyDedup.mark(key1);
+          console.log(`${sd.type} ALERT 1 → ${label}  min=${liveMin}  books=${sd.confirmedBooks}/3  tier=${tier}`);
+        } else {
+          verbose(`  ${sd.type} SKIP alert1 [already notified]  ${label}`);
+        }
       }
     }
   }
 
-  // Fire alert if still no 2H goal at S2_FIRE window
-  if (isSFHTFire) {
-    const cand = s2HtCandidates.get(matchId);
-    if (!cand || s2Dedup.has(matchId)) {
-      if (cand) verbose(`  S2 SKIP [already notified]  ${label}`);
-      return;
+  // ── Alert 2: 30' check — still 0-0 → Over 0.5 1H ───────────────────────
+  if (isSXYMidH) {
+    const cand = sxyCandidates.get(matchId);
+    if (!cand) { verbose(`  SXY SKIP alert2 [no candidate]  ${label}`); }
+    else {
+      const enabled = cand.type === 'SX' ? cfg.SX_ENABLED : cfg.SY_ENABLED;
+      const tier_   = cand.type === 'SX' ? cfg.SX_TIER    : cfg.SY_TIER;
+      if (enabled && tierAllowed(tier, tier_)) {
+        const key2 = `${matchId}:${cand.type.toLowerCase()}:2`;
+        if (sxyDedup.has(key2)) {
+          verbose(`  ${cand.type} SKIP alert2 [already notified]  ${label}`);
+        } else {
+          const score = parseScoreStr(match.score);
+          if (score && score.home === 0 && score.away === 0) {
+            const msg = sxyAlert2Format(match, cand, tier, liveMin);
+            await sendTelegram(msg);
+            sxyDedup.mark(key2);
+            console.log(`${cand.type} ALERT 2 → ${label}  min=${liveMin}  score=0-0  tier=${tier}`);
+          } else {
+            verbose(`  ${cand.type} SKIP alert2 [score not 0-0: ${match.score}]  ${label}`);
+          }
+        }
+      }
     }
-    const curScore = parseScoreStr(match.score);
-    if (!curScore) return;
-    const goals2H = (curScore.home + curScore.away) - (cand.htHome + cand.htAway);
-    if (goals2H === 0) {
-      const msg = s2Format(match, { home: cand.htHome, away: cand.htAway }, cand.steam, tier, liveMin);
-      await sendTelegram(msg);
-      s2Dedup.mark(matchId);
-      console.log(`S2 ALERT → ${label}  min=${liveMin}  HT=${cand.htHome}-${cand.htAway}  now=${curScore.home}-${curScore.away}  tier=${tier}`);
+  }
+
+  // ── Alert 3 — store HT score (44–52') ───────────────────────────────────
+  if (isSXYHTStore) {
+    const cand = sxyCandidates.get(matchId);
+    if (cand && !cand.htScore) {
+      const score = parseScoreStr(match.score);
+      if (score) {
+        cand.htScore = { home: score.home, away: score.away };
+        console.log(`  SXY HT score stored: ${label}  HT=${score.home}-${score.away}`);
+      }
+    }
+  }
+
+  // ── Alert 3 — fire at 55–60' if no 2H goal yet ───────────────────────────
+  if (isSXYHTFire) {
+    const cand = sxyCandidates.get(matchId);
+    if (!cand || !cand.htScore) {
+      verbose(`  SXY SKIP alert3 [no HT score stored]  ${label}`);
     } else {
-      verbose(`  S2 SKIP [${goals2H} goal(s) in 2H already]  ${label}`);
+      const enabled = cand.type === 'SX' ? cfg.SX_ENABLED : cfg.SY_ENABLED;
+      const tier_   = cand.type === 'SX' ? cfg.SX_TIER    : cfg.SY_TIER;
+      if (enabled && tierAllowed(tier, tier_)) {
+        const key3 = `${matchId}:${cand.type.toLowerCase()}:3`;
+        if (sxyDedup.has(key3)) {
+          verbose(`  ${cand.type} SKIP alert3 [already notified]  ${label}`);
+        } else {
+          const curScore = parseScoreStr(match.score);
+          if (!curScore) { verbose(`  ${cand.type} SKIP alert3 [no current score]  ${label}`); }
+          else {
+            const goals2H = (curScore.home + curScore.away) - (cand.htScore.home + cand.htScore.away);
+            if (goals2H > 0) {
+              verbose(`  ${cand.type} SKIP alert3 [${goals2H} goal(s) already in 2H]  ${label}`);
+            } else {
+              const msg = sxyAlert3Format(match, cand, cand.htScore, tier, liveMin);
+              await sendTelegram(msg);
+              sxyDedup.mark(key3);
+              console.log(`${cand.type} ALERT 3 → ${label}  min=${liveMin}  HT=${cand.htScore.home}-${cand.htScore.away}  now=${curScore.home}-${curScore.away}  tier=${tier}`);
+            }
+          }
+        }
+      }
     }
   }
 }
 
-// ── Strategy 3: TLM steam + TL ≥ 2.5 + 0-0 at 25–32' → Over 0.5 1H ──────────
-// Default OFF — backtest: ~52% hit rate, BE odds 1.94, not profitable.
-// Set S3_ENABLED=true in config.js or Railway env to re-enable.
-const s3Dedup = new Dedup(3 * 60 * 60 * 1000);
-
-function s3Format(match, tlC, tlO, tier, liveMin) {
-  const tlSteam  = tlC - tlO;
-  const minsLeft = 45 - liveMin;
-  const cluster  = tlC >= 3.0 ? '&gt;3.0' : '2.5–3.0';
-  return [
-    `⚡ <b>OVER 0.5 1H — STILL 0-0</b>  ·  ${nowTime()}`,
-    ``,
-    `🏆 <i>${esc(match.league) || '—'}</i>  [${tierBadge(tier)}]`,
-    `⚽ <b>${esc(match.home_team)} vs ${esc(match.away_team)}</b>`,
-    `🕐 <b>${liveMin}'</b>  Score: <b>0-0</b>  (~${minsLeft} min left in 1H)`,
-    ``,
-    `📈 TL steamed:  ${tlO.toFixed(2)} → ${tlC.toFixed(2)}  (+${tlSteam.toFixed(2)})`,
-    `   Cluster: TL ${cluster}  ·  market expects goals`,
-    ``,
-    `💰 BET: <b>Over 0.5 goals — first half (in-play)</b>`,
-  ].join('\n');
+// Cleanup expired SXY candidates (called once per scan)
+function cleanupSxyCandidates() {
+  const now = Date.now();
+  for (const [id, c] of sxyCandidates) {
+    if (now - c.storedAt > SXYC_TTL) sxyCandidates.delete(id);
+  }
 }
 
-async function runStrategy3(match, ctx) {
-  const { matchId, label, tier, liveMin, isTLM1H } = ctx;
-
-  if (!cfg.S3_ENABLED || !tierAllowed(tier, cfg.S3_TIER)) return;
-  if (!isTLM1H) return;
-  if (!match.odds) { verbose(`  S3 SKIP [no odds]  ${label}`); return; }
-
-  const { tl_c: tlC, tl_o: tlO } = match.odds;
-  if (tlC == null || tlO == null) { verbose(`  S3 SKIP [no TL data]  ${label}`); return; }
-
-  const tlSteam = tlC - tlO;
-  if (tlC < cfg.TLM1H_MIN_TL) {
-    verbose(`  S3 SKIP [TL=${tlC.toFixed(2)} < ${cfg.TLM1H_MIN_TL}]  ${label}`);
-    return;
-  }
-  if (tlSteam < cfg.TLM1H_MIN_STEAM) {
-    verbose(`  S3 SKIP [TLM steam=${tlSteam.toFixed(2)} < ${cfg.TLM1H_MIN_STEAM}]  ${label}`);
-    return;
-  }
-
-  const score = parseScoreStr(match.score);
-  if (!score || score.home !== 0 || score.away !== 0) {
-    verbose(`  S3 SKIP [score not 0-0: ${match.score}]  ${label}`);
-    return;
-  }
-
-  if (s3Dedup.has(matchId)) {
-    verbose(`  S3 SKIP [already notified]  ${label}`);
-    return;
-  }
-
-  const msg = s3Format(match, tlC, tlO, tier, liveMin);
-  await sendTelegram(msg);
-  s3Dedup.mark(matchId);
-  console.log(`S3 ALERT → ${label}  min=${liveMin}  TL=${tlO.toFixed(2)}→${tlC.toFixed(2)} (+${tlSteam.toFixed(2)})  tier=${tier}`);
-}
-
-// ── Strategy 4: Fav leads +1 at HT, AH 0.25–1.00, TL ≤ 2.75 → Under 1.5 2H ──
-// Backtest (TOP+MAJOR, 12m OOS, n=3,804): 59.3% hit · σ=2.1% · BE odds 1.69
-const s4Dedup = new Dedup(3 * 60 * 60 * 1000);
-
-function s4Format(match, steam, tier, score) {
-  const { favSide, favLc } = steam;
-  const favTeam = favSide === 'HOME' ? esc(match.home_team) : esc(match.away_team);
-  const tlC     = match.odds.tl_c;
-  const htStr   = `${score.home}-${score.away}`;
-  const betLines = [
-    `💰 <b>Under 1.5 2H</b>  (1.69 – 1.75)`,
-    `   59% hit rate  ·  n=3,804`,
-  ];
-  return buildMessage('🛡', 'UNDER 1.5 2H — HT', match, tier,
-    `⏱  HT  ${htStr}`,
-    `${favTeam} −${favLc.toFixed(2)}  ·  TL ${tlC.toFixed(2)}  ·  leads +1 at HT`,
-    betLines,
-  );
-}
-
-async function runStrategy4(match, ctx) {
-  const { matchId, label, tier, steam, liveMin, rawMin, isHT } = ctx;
-
-  if (!cfg.S4_ENABLED || !tierAllowed(tier, cfg.S4_TIER)) return;
-  if (!isHT || !steam || !match.odds) return;
-  if (!isAtHT(rawMin, liveMin)) return;
-
-  const score = parseScoreStr(match.score);
-  if (!score) return;
-
-  const favGoals = steam.favSide === 'HOME' ? score.home : score.away;
-  const dogGoals = steam.favSide === 'HOME' ? score.away : score.home;
-  const tlC      = match.odds.tl_c;
-
-  if (favGoals - dogGoals !== 1) {
-    verbose(`  S4 SKIP [margin=${favGoals - dogGoals}]  ${label}`);
-    return;
-  }
-  if (steam.favLc < cfg.S4_FAV_AH_MIN || steam.favLc > cfg.S4_FAV_AH_MAX) {
-    verbose(`  S4 SKIP [AH=${steam.favLc.toFixed(2)} out of [${cfg.S4_FAV_AH_MIN},${cfg.S4_FAV_AH_MAX}]]  ${label}`);
-    return;
-  }
-  if (tlC == null || tlC > cfg.S4_MAX_TL) {
-    verbose(`  S4 SKIP [TL=${tlC} > ${cfg.S4_MAX_TL}]  ${label}`);
-    return;
-  }
-  if (s4Dedup.has(matchId)) {
-    verbose(`  S4 SKIP [already notified]  ${label}`);
-    return;
-  }
-
-  const msg = s4Format(match, steam, tier, score);
-  await sendTelegram(msg);
-  s4Dedup.mark(matchId);
-  console.log(`S4 ALERT → ${label}  HT=${score.home}-${score.away}  AH=-${steam.favLc.toFixed(2)}  TL=${tlC.toFixed(2)}  tier=${tier}`);
-}
-
-// ── Strategy 5: HT-as-signal DB probe ─────────────────────────────────────────
-// At HT, filters the historical DB by AH line + fav side + HT score,
-// then alerts when a 2H/FT bet shows meaningful z-score above baseline.
-const s5Dedup = new Dedup(2 * 60 * 60 * 1000);
-
-function s5Format(match, signals, htScore, baseN, gsN, bets, tier) {
-  const { favSide, favLine } = signals;
-  const favTeam  = favSide === 'HOME' ? esc(match.home_team) : esc(match.away_team);
-  const htStr    = `${htScore.home}-${htScore.away}`;
-  const sigBadges = buildSignalBadges(signals);
-  const betLines = bets.slice(0, 5).map(b => {
-    const edgeStr = (b.edge >= 0 ? '+' : '') + b.edge.toFixed(1);
-    const fairStr = b.fairOdds   != null ? b.fairOdds.toFixed(2)   : '—';
-    const minStr  = b.minOddsVal != null ? b.minOddsVal.toFixed(2) : '—';
-    return (
-      `💰 <b>${b.label}</b>  (${fairStr} – ${minStr})\n` +
-      `   z=${b.z.toFixed(1)}  ${b.p.toFixed(1)}% vs ${b.bl.toFixed(1)}% (${edgeStr}pp)  n=${b.n}`
-    );
-  });
-  return buildMessage('🔍', 'HT SIGNAL', match, tier,
-    `⏱  HT  ${htStr}`,
-    `${favTeam} −${Number(favLine).toFixed(2)}  ·  pool ${baseN} → HT: ${gsN}  ·  signals: ${sigBadges}`,
-    betLines,
-  );
-}
-
-async function runStrategy5(match, ctx) {
-  const { matchId, label, tier, liveMin, rawMin, isHT } = ctx;
-
-  if (!cfg.S5_ENABLED || !tierAllowed(tier, cfg.S5_TIER)) return;
-  if (!isHT || !_dbAll || !_dbAll.length || !match.odds) return;
-  if (!isAtHT(rawMin, liveMin)) return;
-
-  const score = parseScoreStr(match.score);
-  if (!score) return;
-
-  const matchCfg = buildCfgFromMatch(match.odds, {});
-  if (!matchCfg) return;
-
-  const base = applyBaselineConfig(_dbAll, {
-    fav_line: matchCfg.fav_line,
-    fav_side: matchCfg.fav_side,
-  });
-  const gs     = { trigger: 'HT', home_goals: score.home, away_goals: score.away };
-  const baseGs = applyGameState(base, gs);
-  const probe  = computeHtAsSignalProbe(base, baseGs);
-
-  const qualifying = probe
-    .filter(b => b.n >= cfg.HT_MIN_N && b.z >= cfg.HT_MIN_Z && b.bl >= cfg.HT_MIN_BASELINE)
-    .sort((a, b) => b.z - a.z);
-
-  if (!qualifying.length) {
-    verbose(`  S5 no qualifying bets  ${label}  HT=${score.home}-${score.away}  base=${base.length}  gs=${baseGs.length}`);
-    return;
-  }
-  if (s5Dedup.has(matchId)) {
-    verbose(`  S5 SKIP [already notified]  ${label}`);
-    return;
-  }
-
-  const msg = s5Format(match, matchCfg.signals, score, base.length, baseGs.length, qualifying, tier);
-  await sendTelegram(msg);
-  s5Dedup.mark(matchId);
-  console.log(`S5 ALERT → ${label}  HT=${score.home}-${score.away}  base=${base.length}  gs=${baseGs.length}  bets=${qualifying.length}  tier=${tier}`);
-}
-
-// ── Strategy 6: Market-calibrated edge (pre-match, ALL leagues) ───────────────
-// Fires when signal-filtered pool shows ≥ MKT_EDGE_THRESH pp above
-// Pinnacle's market-implied probability, and Bet365 odds beat Pinnacle avg.
-// Backtest (ALL, May 2025): mkt_edge ≥ 10pp
 const MKT_KEYS = new Set(['ahCover', 'dogCover', 'overTL', 'underTL']);
 const s6Dedup  = new Dedup(4 * 60 * 60 * 1000);
 
@@ -666,10 +599,10 @@ function s6Format(match, matchCfg, poolN, bets, b365, tier, timing) {
     if (b.k === 'ahCover')  teamStr = `\n   🎯 <b>${favTeam}  −${Number(fav_line).toFixed(2)}</b>`;
     if (b.k === 'dogCover') teamStr = `\n   🎯 <b>${dogTeam}  +${Number(fav_line).toFixed(2)}</b>`;
     return (
-      `💰 <b>${betLabel}</b>  ≥ ${b.mo}\n` +
+      `💰 ${betLabel}` +
       teamStr + `\n` +
-      `   Pinnacle avg ${b.mkt_avg_odds}  ·  ${b365Str}` +
-      `   ${b.p.toFixed(1)}% hit  ·  mkt ${b.mkt_bl.toFixed(1)}%  ·  <b>${edgeSign}${b.mkt_edge.toFixed(1)}pp</b>\n` +      
+      `   Pinnacle avg ${b.mkt_avg_odds} + \n` +
+      `   ${b365Str} + \n` +    
       `   n=${b.n}`
     );
   });
@@ -832,10 +765,28 @@ async function runStrategy7(match, ctx) {
   console.log(`S7 ALERT → ${label}  side=${betSide}  pinHc=${pinHc.toFixed(2)}  b365Hc=${b365Hc.toFixed(2)}  diff=${absDiff.toFixed(2)}  b365Odds=${b365Odds != null ? b365Odds.toFixed(2) : 'n/a'}  minOdds=${minOdds.toFixed(2)}  tier=${tier}`);
 }
 
+// ── Hash-failure alert (throttled to once per hour per bookmaker) ─────────────
+const _hashAlertedAt = {};
+async function notifyHashFailed(bookmaker, shortHash) {
+  const key = bookmaker;
+  const now = Date.now();
+  if (_hashAlertedAt[key] && now - _hashAlertedAt[key] < 60 * 60 * 1000) return;
+  _hashAlertedAt[key] = now;
+  const msg = `⚠️ <b>${esc(bookmaker)} hash invalid</b>\n\nThe bookmaker hash <code>${esc(shortHash)}…</code> returned 404.\nUpdate <code>${esc(bookmaker === 'Pinnacle' ? 'PINNACLE_HASH' : 'BET365_HASH')}</code> in <code>livescore.js</code>.`;
+  console.log(`Hash alert: ${bookmaker} hash ${shortHash} is invalid — sending Telegram notification`);
+  await sendTelegram(msg);
+}
+
 // ── Match fetcher (live + upcoming) ──────────────────────────────────────────
 async function fetchMatches() {
   let liveMatches;
   let nextMatches = [];
+  let pinnacleHashFailed = false;
+  let bet365HashFailed   = false;
+  let sbobetHashFailed   = false;
+  let pinnacleHash = '????????';
+  let bet365Hash   = '????????';
+  let sbobetHash   = '????????';
 
   if (cfg.DATA_URL) {
     const url  = `${cfg.DATA_URL.replace(/\/$/, '')}/api/livescore`;
@@ -845,14 +796,38 @@ async function fetchMatches() {
     liveMatches = data.matches      || [];
     nextMatches = data.next_matches || [];
     if (nextMatches.length === 0) {
-      try { nextMatches = await fetchNextMatches(); }
-      catch (e) { console.error(`NextGame fetch failed: ${e.message}`); }
+      try {
+        const r = await fetchNextMatches();
+        nextMatches        = r.matches;
+        pinnacleHashFailed = pinnacleHashFailed || r.pinnacleHashFailed;
+        bet365HashFailed   = bet365HashFailed   || r.bet365HashFailed;
+        if (r.pinnacleHash) pinnacleHash = r.pinnacleHash;
+        if (r.bet365Hash)   bet365Hash   = r.bet365Hash;
+      } catch (e) { console.error(`NextGame fetch failed: ${e.message}`); }
     }
   } else {
-    liveMatches = await fetchLiveMatches();
-    try { nextMatches = await fetchNextMatches(); }
-    catch (e) { console.error(`NextGame fetch failed: ${e.message}`); }
+    const liveResult = await fetchLiveMatches();
+    liveMatches        = liveResult.matches;
+    pinnacleHashFailed = liveResult.pinnacleHashFailed;
+    bet365HashFailed   = liveResult.bet365HashFailed   || false;
+    sbobetHashFailed   = liveResult.sbobetHashFailed   || false;
+    if (liveResult.pinnacleHash) pinnacleHash = liveResult.pinnacleHash;
+    if (liveResult.bet365Hash)   bet365Hash   = liveResult.bet365Hash;
+    if (liveResult.sbobetHash)   sbobetHash   = liveResult.sbobetHash;
+    try {
+      const nextResult = await fetchNextMatches();
+      nextMatches        = nextResult.matches;
+      pinnacleHashFailed = pinnacleHashFailed || nextResult.pinnacleHashFailed;
+      bet365HashFailed   = bet365HashFailed   || nextResult.bet365HashFailed;
+      if (nextResult.pinnacleHash) pinnacleHash = nextResult.pinnacleHash;
+      if (nextResult.bet365Hash)   bet365Hash   = nextResult.bet365Hash;
+    } catch (e) { console.error(`NextGame fetch failed: ${e.message}`); }
   }
+
+  // Send Telegram alerts for any stale hashes (throttled to 1/hour per bookmaker)
+  if (pinnacleHashFailed) await notifyHashFailed('Pinnacle', pinnacleHash.slice(0, 8));
+  if (bet365HashFailed)   await notifyHashFailed('Bet365',   bet365Hash.slice(0, 8));
+  if (sbobetHashFailed)   await notifyHashFailed('Sbobet',   sbobetHash.slice(0, 8));
 
   // Merge — deduplicate by matchId
   const seen = new Set(liveMatches.map(m => m.id).filter(Boolean));
@@ -877,16 +852,13 @@ async function runScan() {
   if (!matches.length) { console.log('No matches found.'); return; }
   console.log(`Found ${matches.length} match(es).`);
 
-  // Cleanup expired S2 HT candidates once per scan
-  for (const [id, c] of s2HtCandidates) {
-    if (Date.now() - c.storedAt > S2_CAND_TTL) s2HtCandidates.delete(id);
-  }
+  cleanupSxyCandidates();
 
   for (const match of matches) {
     const ctx = matchContext(match);
-    const { label, liveMin, minsToKickoff, isLive, isUpcoming, isMktEdge, isHT, isSFHTFire, isTLM1H } = ctx;
+    const { label, liveMin, minsToKickoff, isLive, isUpcoming, isMktEdge, isSXYEarly, isSXYMidH, isSXYHTStore, isSXYHTFire } = ctx;
 
-    const anyWindow = isLive || isUpcoming || isMktEdge || isHT || isSFHTFire || isTLM1H;
+    const anyWindow = isLive || isUpcoming || isMktEdge || isSXYEarly || isSXYMidH || isSXYHTStore || isSXYHTFire;
     if (!anyWindow) {
       const reason = minsToKickoff != null
         ? `min_to_ko=${minsToKickoff.toFixed(1)}`
@@ -895,11 +867,7 @@ async function runScan() {
       continue;
     }
 
-    await runStrategy1(match, ctx);
-    await runStrategy2(match, ctx);
-    await runStrategy3(match, ctx);
-    await runStrategy4(match, ctx);
-    await runStrategy5(match, ctx);
+    await runStrategySXY(match, ctx);
     await runStrategy6(match, ctx);
     await runStrategy7(match, ctx);
   }
@@ -912,14 +880,11 @@ async function main() {
   await loadDb();
 
   const on = s => s ? 'ON ' : 'OFF';
-  console.log(`Strategy 1 [${on(cfg.S1_ENABLED)}][${cfg.S1_TIER}]: AH steam ≥ ${cfg.LM_STEAM_MIN} → dog AH  (live ${cfg.ALERT_MIN_MINUTE}–${cfg.ALERT_MAX_MINUTE}', pre-kick ${cfg.UPCOMING_WINDOW_MINUTES}min)`);
-  console.log(`Strategy 2 [${on(cfg.S2_ENABLED)}][${cfg.S2_TIER}]: Strong fav AH ≥ ${cfg.S2_FAV_AH_MIN} not winning at HT → Over 0.5 2H at ${cfg.S2_FIRE_MIN_MINUTE}–${cfg.S2_FIRE_MAX_MINUTE}'`);
-  console.log(`Strategy 3 [${on(cfg.S3_ENABLED)}][${cfg.S3_TIER}]: TLM ≥ ${cfg.TLM1H_MIN_STEAM} + TL ≥ ${cfg.TLM1H_MIN_TL} + 0-0 at ${cfg.TLM1H_MIN_MINUTE}–${cfg.TLM1H_MAX_MINUTE}' → Over 0.5 1H`);
-  console.log(`Strategy 4 [${on(cfg.S4_ENABLED)}][${cfg.S4_TIER}]: Fav +1 at HT, AH ${cfg.S4_FAV_AH_MIN}–${cfg.S4_FAV_AH_MAX}, TL ≤ ${cfg.S4_MAX_TL} → Under 1.5 2H`);
-  console.log(`Strategy 5 [${on(cfg.S5_ENABLED)}][${cfg.S5_TIER}]: HT DB probe  z≥${cfg.HT_MIN_Z}  n≥${cfg.HT_MIN_N}  baseline≥${cfg.HT_MIN_BASELINE}%`);
-  console.log(`Strategy 6 [${on(cfg.S6_ENABLED)}][${cfg.S6_TIER}]: Market edge ≥${cfg.MKT_EDGE_THRESH}pp  n≥${cfg.MKT_EDGE_MIN_N}  window=${cfg.S6_WINDOW_MINUTES}min`);
-  console.log(`Strategy 7 [${on(cfg.S7_ENABLED)}][${cfg.S7_TIER}]: Bet365 vs Pinnacle AH line gap ≥${cfg.S7_MIN_HC_DIFF}  (pre-kick + live ${cfg.ALERT_MIN_MINUTE}–${cfg.ALERT_MAX_MINUTE}')`);
-  console.log(`Global tier default: ${cfg.LEAGUE_TIER}  |  HT window: ${cfg.HT_MIN_MINUTE}–${cfg.HT_MAX_MINUTE}'`);
+  console.log(`Strategy SX [${on(cfg.SX_ENABLED)}][${cfg.SX_TIER}]: Conf. Fav 3-book steam → 1x2 home win  (${cfg.SXSY_EARLY_MIN}–${cfg.SXSY_EARLY_MAX}' + 30' + HT  |  min steam ${cfg.SXSY_MIN_STEAM}  |  min books ${cfg.SXSY_MIN_BOOKS}/3)`);
+  console.log(`Strategy SY [${on(cfg.SY_ENABLED)}][${cfg.SY_TIER}]: Steam Away Fav 3-book steam → 1x2 away win  (same windows)`);
+  console.log(`Strategy S6 [${on(cfg.S6_ENABLED)}][${cfg.S6_TIER}]: Market edge ≥${cfg.MKT_EDGE_THRESH}pp  n≥${cfg.MKT_EDGE_MIN_N}  window=${cfg.S6_WINDOW_MINUTES}min`);
+  console.log(`Strategy S7 [${on(cfg.S7_ENABLED)}][${cfg.S7_TIER}]: Bet365 vs Pinnacle AH line gap ≥${cfg.S7_MIN_HC_DIFF}  (live ${cfg.ALERT_MIN_MINUTE}–${cfg.ALERT_MAX_MINUTE}')`);
+  console.log(`Global tier default: ${cfg.LEAGUE_TIER}`);
 
   if (once) {
     await runScan();

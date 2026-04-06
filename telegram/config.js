@@ -32,9 +32,38 @@ module.exports = {
   DISPLAY_TZ: process.env.DISPLAY_TZ || 'Europe/Rome',
 
   // ── Shared HT window ─────────────────────────────────────────────────────────
-  // Live minute range considered "at halftime". Used by strategies 2, 4, and 5.
   HT_MIN_MINUTE: parseInt(process.env.HT_MIN_MINUTE || '44', 10),
   HT_MAX_MINUTE: parseInt(process.env.HT_MAX_MINUTE || '52', 10),
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // STRATEGY SX — Confirming Favourite (3-book steam → home structural fav wins)
+  // STRATEGY SY — Steamrolled Away Favourite (3-book steam → away structural fav wins)
+  // Alert 1 (1–10'):   all available books steamed same direction → 1x2 fav win at soft book
+  // Alert 2 (28–32'):  still 0-0 → Over 0.5 1H in-play
+  // Alert 3 (44–52'):  HT score → 2H live bet guidance
+  // Source: master_steam_analysis.html (73,910 fixtures, Jan 2025–Feb 2026)
+  // ════════════════════════════════════════════════════════════════════════════
+  SX_ENABLED: process.env.SX_ENABLED !== 'false',
+  SX_TIER:    process.env.SX_TIER    || process.env.LEAGUE_TIER || 'TOP+MAJOR',
+  SY_ENABLED: process.env.SY_ENABLED !== 'false',
+  SY_TIER:    process.env.SY_TIER    || process.env.LEAGUE_TIER || 'TOP+MAJOR',
+
+  // Min AH move per book to count as steam (0.125 = half a step)
+  SXSY_MIN_STEAM: parseFloat(process.env.SXSY_MIN_STEAM || '0.125'),
+  // All 3 books must confirm — this value is informational only (logic enforces 3)
+  SXSY_MIN_BOOKS: 3,
+  // Alert 1 window: early live
+  SXSY_EARLY_MIN: parseInt(process.env.SXSY_EARLY_MIN || '1',  10),
+  SXSY_EARLY_MAX: parseInt(process.env.SXSY_EARLY_MAX || '10', 10),
+  // Alert 2 window: mid-1H check (30')
+  SXSY_MIDH_MIN:  parseInt(process.env.SXSY_MIDH_MIN  || '28', 10),
+  SXSY_MIDH_MAX:  parseInt(process.env.SXSY_MIDH_MAX  || '32', 10),
+  // Alert 3 — HT score storage window
+  SXSY_HT_STORE_MIN: parseInt(process.env.SXSY_HT_STORE_MIN || '44', 10),
+  SXSY_HT_STORE_MAX: parseInt(process.env.SXSY_HT_STORE_MAX || '52', 10),
+  // Alert 3 — fire window: if no 2H goal yet at this point
+  SXSY_HT_FIRE_MIN:  parseInt(process.env.SXSY_HT_FIRE_MIN  || '55', 10),
+  SXSY_HT_FIRE_MAX:  parseInt(process.env.SXSY_HT_FIRE_MAX  || '60', 10),
 
   // ════════════════════════════════════════════════════════════════════════════
   // STRATEGY 1 — AH Steam → Bet Dog AH
