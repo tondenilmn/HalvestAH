@@ -3756,6 +3756,8 @@ function _kellyFraction(p, decimalOdds) {
 // Returns array of { id, label, status ('pass'|'watch'|'na'), detail }.
 function _strategyGates(cfg, allBets) {
   const gates = [];
+  const favLc = cfg.fav_line != null ? parseFloat(cfg.fav_line) : null;
+  const tlc   = cfg.tl_c    != null ? parseFloat(cfg.tl_c)    : null;
 
   // S6 — Market edge: any market bet has mkt_edge ≥ 10pp
   const s6Bet = allBets.find(b => b.mkt_edge != null && b.mkt_edge >= 10);
@@ -3778,7 +3780,6 @@ function _strategyGates(cfg, allBets) {
   }
 
   // S2 — Strong fav not winning at HT: monitor if fav_lc ≥ 0.88
-  const favLc = cfg.fav_line;
   if (favLc != null && favLc >= 0.88) {
     gates.push({ id:'S2', label:'Strong fav (HT)', status:'watch',
       detail: `AH ${favLc.toFixed(2)} — monitor if fav not leading at HT` });
@@ -3788,7 +3789,6 @@ function _strategyGates(cfg, allBets) {
   }
 
   // S4 — Fav +1 at HT, AH 0.25–1.00, TL ≤ 2.75
-  const tlc    = cfg.tl_c;
   const s4Line = favLc != null && favLc >= 0.25 && favLc <= 1.00;
   const s4Tl   = tlc != null && tlc <= 2.75;
   if (s4Line && s4Tl) {
