@@ -3,9 +3,9 @@
 // Adapted from functions/api/livescore.js for Node.js (no Cloudflare runtime).
 // Uses built-in fetch (Node >= 18).
 
-let PINNACLE_HASH = process.env.PINNACLE_HASH || '';
-let BET365_HASH   = process.env.BET365_HASH   || '';
-let SBOBET_HASH   = process.env.SBOBET_HASH   || '';
+let PINNACLE_HASH = process.env.PINNACLE_HASH || '641eb4d7706d368c11d7795a565a55518d2a63da';
+let BET365_HASH   = process.env.BET365_HASH   || 'e145f015c927170b1d157fa8318675adc763d029';
+let SBOBET_HASH   = process.env.SBOBET_HASH   || 'b31c2dfd6b253f084ca84591c9d96b231bb82df7';
 const GS_PRIMARY    = 'Q';
 const GS_CANDIDATES = ['Q', '1', '2', '3', 'AH', 'S', 'EU', 'A', 'ah', 's', '4', '5', '10', '6', '7', '8', 'B', 'F'];
 
@@ -233,11 +233,57 @@ async function fetchLiveOddsMap(hash, bookLabel, timestamp) {
   }
 }
 
+/**
+ * Fetch the asianbetsoccer livescore page and extract Pinnacle's current book hash
+ * from the #book_filter <select> options (e.g. <option value="<40-hex>">Pinnacle</option>).
+ * Falls back to scanning for botbot3.space URLs embedded in any inline scripts.
+ * Returns the hash string, or null if not found.
+ */
+async function fetchPinnacleHash() {
+  try {
+    const resp = await fetch('https://www.asianbetsoccer.com/it/livescore.html', {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'it-IT,it;q=0.9,en-US;q=0.8,en;q=0.7',
+      },
+    });
+    if (!resp.ok) return null;
+    const html = await resp.text();
+
+    // Primary: #book_filter option with 40-char hex value near "Pinnacle" label
+    const m1 = html.match(/value="([a-f0-9]{40})"[^>]*>\s*Pinnacle/i);
+    if (m1) return m1[1];
+
+    // Fallback: any botbot3.space livegame URL embedded in the page
+    const m2 = html.match(/botbot3\.space\/tables\/v4\/[^/]+\/livegame\/([a-f0-9]{40})\.js/);
+    if (m2) return m2[1];
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 async function fetchLiveMatches() {
   const timestamp = Date.now();
 
   console.log(`Livescore: trying Pinnacle hash=${PINNACLE_HASH.slice(0,8)}…`);
-  const { matches, hashInvalid } = await tryCombo(PINNACLE_HASH, GS_PRIMARY, timestamp);
+  let { matches, hashInvalid } = await tryCombo(PINNACLE_HASH, GS_PRIMARY, timestamp);
+
+  // Auto-discovery: if hash is stale (404), fetch new hash from asianbetsoccer page
+  if (!matches && hashInvalid) {
+    console.log('Livescore: hash invalid — auto-discovering new Pinnacle hash…');
+    const discovered = await fetchPinnacleHash();
+    if (discovered && discovered !== PINNACLE_HASH) {
+      console.log(`Livescore: discovered new hash=${discovered.slice(0,8)}… — retrying`);
+      PINNACLE_HASH = discovered;
+      ({ matches, hashInvalid } = await tryCombo(PINNACLE_HASH, GS_PRIMARY, timestamp));
+    } else if (!discovered) {
+      console.log('Livescore: auto-discovery failed — update PINNACLE_HASH manually');
+    }
+  }
+
   if (!matches) {
     if (hashInvalid) console.log('Livescore: Pinnacle hash invalid (404) — update PINNACLE_HASH in livescore.js');
     else             console.log('Livescore: hash failed — update PINNACLE_HASH in livescore.js');
@@ -300,7 +346,23 @@ async function fetchBet365OddsMap(timestamp) {
 async function fetchNextMatches() {
   const timestamp = Date.now();
   console.log(`NextGame: trying hash=${PINNACLE_HASH.slice(0,8)}…`);
-  const { matches, hashInvalid: pinHashInvalid } = await tryNextCombo(PINNACLE_HASH, GS_PRIMARY, timestamp);
+  let { matches, hashInvalid: pinHashInvalid } = await tryNextCombo(PINNACLE_HASH, GS_PRIMARY, timestamp);
+
+  // Auto-discovery: if hash is stale (404), use the hash already discovered by fetchLiveMatches
+  // or fetch it fresh from the page (PINNACLE_HASH may have been updated in-process already).
+  if (!matches && pinHashInvalid) {
+    console.log('NextGame: hash invalid — auto-discovering new Pinnacle hash…');
+    const discovered = await fetchPinnacleHash();
+    if (discovered && discovered !== PINNACLE_HASH) {
+      console.log(`NextGame: discovered new hash=${discovered.slice(0,8)}… — retrying`);
+      PINNACLE_HASH = discovered;
+    }
+    if (discovered) {
+      ({ matches, hashInvalid: pinHashInvalid } = await tryNextCombo(PINNACLE_HASH, GS_PRIMARY, timestamp));
+    } else {
+      console.log('NextGame: auto-discovery failed — update PINNACLE_HASH manually');
+    }
+  }
 
   if (!matches) {
     if (pinHashInvalid) console.log('NextGame: Pinnacle hash invalid (404) — update PINNACLE_HASH in livescore.js');
