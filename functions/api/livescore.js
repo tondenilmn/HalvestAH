@@ -202,14 +202,23 @@ export async function onRequest(context) {
     return mergeMatchData(oddsRows, metaRows);
   }
 
-  // ── Fast path only — no auto-discovery. Update PINNACLE_HASH manually when this fails. ──
-  const liveResult = await tryComboData(PINNACLE_HASH, GS_PRIMARY);
+  // ── Fast path: try stored hash. On 404, auto-discover from asianbetsoccer page and retry. ──
+  let liveResult = await tryComboData(PINNACLE_HASH, GS_PRIMARY);
+
+  if (!liveResult && lastError.includes('404')) {
+    const discovered = await fetchPinnacleHash();
+    if (discovered && discovered !== PINNACLE_HASH) {
+      PINNACLE_HASH = discovered;
+      lastError = '';
+      liveResult = await tryComboData(PINNACLE_HASH, GS_PRIMARY);
+    }
+  }
 
   if (!liveResult) {
     return new Response(
       JSON.stringify({
         matches: [],
-        note: `Hash ${PINNACLE_HASH.slice(0,8)}… failed. Update PINNACLE_HASH in functions/api/livescore.js. ${lastError}`,
+        note: `Hash ${PINNACLE_HASH.slice(0,8)}… failed. ${lastError}`,
       }),
       { headers: cors }
     );

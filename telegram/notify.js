@@ -15,7 +15,7 @@ const {
   applyConfig, applyBaselineConfig,
   buildCfgFromMatch, scoreBets,
 } = require('./engine');
-const { fetchLiveMatches, fetchNextMatches } = require('./livescore');
+const { fetchLiveMatches, fetchNextMatches, refreshHashes } = require('./livescore');
 
 const VERBOSE = process.argv.includes('--verbose');
 const verbose = VERBOSE ? (...a) => console.log(...a) : () => {};
@@ -885,6 +885,9 @@ async function main() {
   console.log(`Strategy S7 [${on(cfg.S7_ENABLED)}][${cfg.S7_TIER}]: Bet365 vs Pinnacle AH line gap ≥${cfg.S7_MIN_HC_DIFF}  (live ${cfg.ALERT_MIN_MINUTE}–${cfg.ALERT_MAX_MINUTE}')`);
   console.log(`Global tier default: ${cfg.LEAGUE_TIER}`);
 
+  // Refresh all book hashes at startup
+  await refreshHashes();
+
   if (once) {
     await runScan();
     process.exit(0);
@@ -893,6 +896,8 @@ async function main() {
   console.log(`Scheduler started — every ${cfg.SCAN_INTERVAL_MINUTES} min.`);
   await runScan();
   cron.schedule(`*/${cfg.SCAN_INTERVAL_MINUTES} * * * *`, runScan);
+  // Refresh hashes daily at 06:00 UTC (hashes rotate ~once/day)
+  cron.schedule('0 6 * * *', () => refreshHashes().catch(e => console.error('Hash refresh error:', e)));
 }
 
 main().catch(e => { console.error(e); process.exit(1); });

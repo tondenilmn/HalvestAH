@@ -233,13 +233,19 @@ async function fetchLiveOddsMap(hash, bookLabel, timestamp) {
   }
 }
 
+// Book name patterns for #book_filter option matching (case-insensitive)
+const BOOK_PATTERNS = {
+  pinnacle: /pinnacle/i,
+  bet365:   /bet\s*365/i,
+  sbobet:   /sbo\s*bet/i,
+};
+
 /**
- * Fetch the asianbetsoccer livescore page and extract Pinnacle's current book hash
+ * Fetch the asianbetsoccer livescore page once and extract all three book hashes
  * from the #book_filter <select> options (e.g. <option value="<40-hex>">Pinnacle</option>).
- * Falls back to scanning for botbot3.space URLs embedded in any inline scripts.
- * Returns the hash string, or null if not found.
+ * Returns { pinnacle, bet365, sbobet } — any value may be null if not found.
  */
-async function fetchPinnacleHash() {
+async function fetchAllBookHashes() {
   try {
     const resp = await fetch('https://www.asianbetsoccer.com/it/livescore.html', {
       headers: {
@@ -248,21 +254,52 @@ async function fetchPinnacleHash() {
         'Accept-Language': 'it-IT,it;q=0.9,en-US;q=0.8,en;q=0.7',
       },
     });
-    if (!resp.ok) return null;
+    if (!resp.ok) return { pinnacle: null, bet365: null, sbobet: null };
     const html = await resp.text();
 
-    // Primary: #book_filter option with 40-char hex value near "Pinnacle" label
-    const m1 = html.match(/value="([a-f0-9]{40})"[^>]*>\s*Pinnacle/i);
-    if (m1) return m1[1];
+    // Extract all <option value="40hex">Label</option> entries from the page
+    const result = { pinnacle: null, bet365: null, sbobet: null };
+    const optRe = /value="([a-f0-9]{40})"[^>]*>\s*([^<]+)/gi;
+    let m;
+    while ((m = optRe.exec(html)) !== null) {
+      const [, hash, label] = m;
+      if (BOOK_PATTERNS.pinnacle.test(label)) result.pinnacle = hash;
+      else if (BOOK_PATTERNS.bet365.test(label))   result.bet365   = hash;
+      else if (BOOK_PATTERNS.sbobet.test(label))   result.sbobet   = hash;
+    }
 
-    // Fallback: any botbot3.space livegame URL embedded in the page
-    const m2 = html.match(/botbot3\.space\/tables\/v4\/[^/]+\/livegame\/([a-f0-9]{40})\.js/);
-    if (m2) return m2[1];
+    // Fallback for Pinnacle: botbot3.space livegame URL embedded in page scripts
+    if (!result.pinnacle) {
+      const m2 = html.match(/botbot3\.space\/tables\/v4\/[^/]+\/livegame\/([a-f0-9]{40})\.js/);
+      if (m2) result.pinnacle = m2[1];
+    }
 
-    return null;
+    return result;
   } catch {
-    return null;
+    return { pinnacle: null, bet365: null, sbobet: null };
   }
+}
+
+/**
+ * Refresh all book hashes from asianbetsoccer in one page fetch.
+ * Updates the module-level variables. Logs what changed.
+ * Called at startup and daily by the scheduler.
+ */
+async function refreshHashes() {
+  console.log('Hashes: refreshing from asianbetsoccer…');
+  const { pinnacle, bet365, sbobet } = await fetchAllBookHashes();
+  let changed = 0;
+  if (pinnacle && pinnacle !== PINNACLE_HASH) { console.log(`  Pinnacle: ${PINNACLE_HASH.slice(0,8)}… → ${pinnacle.slice(0,8)}…`); PINNACLE_HASH = pinnacle; changed++; }
+  if (bet365   && bet365   !== BET365_HASH)   { console.log(`  Bet365:   ${BET365_HASH.slice(0,8)}… → ${bet365.slice(0,8)}…`);   BET365_HASH   = bet365;   changed++; }
+  if (sbobet   && sbobet   !== SBOBET_HASH)   { console.log(`  Sbobet:   ${SBOBET_HASH.slice(0,8)}… → ${sbobet.slice(0,8)}…`);   SBOBET_HASH   = sbobet;   changed++; }
+  if (changed === 0) console.log('  All hashes still current.');
+  return { pinnacle: PINNACLE_HASH, bet365: BET365_HASH, sbobet: SBOBET_HASH };
+}
+
+// Keep fetchPinnacleHash as a lightweight alias used by the 404 fallback path
+async function fetchPinnacleHash() {
+  const { pinnacle } = await fetchAllBookHashes();
+  return pinnacle;
 }
 
 async function fetchLiveMatches() {
@@ -386,4 +423,4 @@ async function fetchNextMatches() {
   return { matches, pinnacleHashFailed: false, pinnacleHash: PINNACLE_HASH, bet365HashFailed: b365HashFailed, bet365Hash: BET365_HASH };
 }
 
-module.exports = { fetchLiveMatches, fetchNextMatches };
+module.exports = { fetchLiveMatches, fetchNextMatches, refreshHashes };
