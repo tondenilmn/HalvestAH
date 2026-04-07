@@ -474,10 +474,23 @@ async function runStrategySXY(match, ctx) {
   // ── Alert 1: early live (1–10') ──────────────────────────────────────────
   if (isSXYEarly) {
     const sd = detectSXYSignal(match);
-    if (sd) {
+    if (!sd) {
+      // Diagnose which book/condition failed
+      const pin  = match.odds;
+      const b365 = match.bet365_odds;
+      const sbo  = match.sbobet_odds;
+      const pinOk  = pin  && pin.ah_ho  != null && pin.ah_hc  != null;
+      const b365Ok = b365 && b365.ah_ho != null && b365.ah_hc != null;
+      const sboOk  = sbo  && sbo.ah_ho  != null && sbo.ah_hc  != null;
+      console.log(`  SXY SKIP alert1 [no signal: pin=${pinOk?'ok':'MISS'} b365=${b365Ok?'ok':'MISS'} sbo=${sboOk?'ok':'MISS'}]  ${label}`);
+    } else {
       const enabled = sd.type === 'SX' ? cfg.SX_ENABLED : cfg.SY_ENABLED;
       const tier_   = sd.type === 'SX' ? cfg.SX_TIER    : cfg.SY_TIER;
-      if (enabled && tierAllowed(tier, tier_)) {
+      if (!enabled) {
+        console.log(`  SXY SKIP alert1 [${sd.type} disabled]  ${label}`);
+      } else if (!tierAllowed(tier, tier_)) {
+        console.log(`  SXY SKIP alert1 [tier=${tier} not in ${tier_}]  ${label}`);
+      } else {
         if (!sxyCandidates.has(matchId)) {
           sxyCandidates.set(matchId, { ...sd, storedAt: Date.now() });
           console.log(`  SXY candidate stored: ${label}  type=${sd.type}  books=${sd.confirmedBooks}/3`);
@@ -498,7 +511,7 @@ async function runStrategySXY(match, ctx) {
   // ── Alert 2: 30' check — still 0-0 → Over 0.5 1H ───────────────────────
   if (isSXYMidH) {
     const cand = sxyCandidates.get(matchId);
-    if (!cand) { verbose(`  SXY SKIP alert2 [no candidate]  ${label}`); }
+    if (!cand) { console.log(`  SXY SKIP alert2 [no candidate stored — match missed alert1 window?]  ${label}`); }
     else {
       const enabled = cand.type === 'SX' ? cfg.SX_ENABLED : cfg.SY_ENABLED;
       const tier_   = cand.type === 'SX' ? cfg.SX_TIER    : cfg.SY_TIER;
@@ -615,11 +628,14 @@ function s6Format(match, matchCfg, poolN, bets, b365, tier, timing) {
 async function runStrategy6(match, ctx) {
   const { matchId, label, tier, liveMin, minsToKickoff, isMktEdge } = ctx;
 
-  if (!cfg.S6_ENABLED || !tierAllowed(tier, cfg.S6_TIER)) return;
-  if (!isMktEdge || !_dbAll || !_dbAll.length || !match.odds) return;
+  if (!cfg.S6_ENABLED) { console.log(`  S6 SKIP [disabled]  ${label}`); return; }
+  if (!tierAllowed(tier, cfg.S6_TIER)) { console.log(`  S6 SKIP [tier=${tier} not in ${cfg.S6_TIER}]  ${label}`); return; }
+  if (!isMktEdge) { console.log(`  S6 SKIP [not in mkt window min=${liveMin}]  ${label}`); return; }
+  if (!_dbAll || !_dbAll.length) { console.log(`  S6 SKIP [DB empty]  ${label}`); return; }
+  if (!match.odds) { console.log(`  S6 SKIP [no odds]  ${label}`); return; }
 
   const matchCfg = buildCfgFromMatch(match.odds, { LINE_MOVE_ON: true, TL_MOVE_ON: true });
-  if (!matchCfg) return;
+  if (!matchCfg) { console.log(`  S6 SKIP [buildCfg returned null — odds incomplete?]  ${label}`); return; }
 
   const { signals } = matchCfg;
   const hasMovement =
@@ -627,7 +643,7 @@ async function runStrategy6(match, ctx) {
     (signals.tlMove   !== 'STABLE' && signals.tlMove   !== 'UNKNOWN');
 
   if (!hasMovement) {
-    verbose(`  S6 SKIP [no movement]  ${label}`);
+    console.log(`  S6 SKIP [no movement: lm=${signals.lineMove} tlm=${signals.tlMove}]  ${label}`);
     return;
   }
 
@@ -641,7 +657,9 @@ async function runStrategy6(match, ctx) {
   );
 
   if (!qualifying.length) {
-    verbose(`  S6 no qualifying bets  ${label}  pool=${cfgRows.length}`);
+    const mktBets = bets.filter(b => MKT_KEYS.has(b.k));
+    const best = mktBets.length ? `best_edge=${Math.max(...mktBets.map(b => b.mkt_edge ?? -999)).toFixed(1)}pp` : 'no_mkt_bets';
+    console.log(`  S6 SKIP [no qualifying bets — pool=${cfgRows.length} ${best} thresh=${cfg.MKT_EDGE_THRESH}pp]  ${label}`);
     return;
   }
 
@@ -660,7 +678,7 @@ async function runStrategy6(match, ctx) {
   });
 
   if (!toFire.length) {
-    verbose(`  S6 all bets below B365 threshold  ${label}`);
+    console.log(`  S6 SKIP [all qualifying bets below B365 threshold — b365=${b365 ? 'ok' : 'null'}]  ${label}`);
     return;
   }
 
@@ -712,16 +730,17 @@ function s7Format(match, tier, timing, betTeam, b365Hc, b365Odds, pinHc, absDiff
 async function runStrategy7(match, ctx) {
   const { matchId, label, tier, liveMin, isLive } = ctx;
 
-  if (!cfg.S7_ENABLED || !tierAllowed(tier, cfg.S7_TIER)) return;
-  if (!isLive) return;   // only fire in first 1–5 live minutes
-  if (!match.odds) { verbose(`  S7 SKIP [no odds]  ${label}`); return; }
+  if (!cfg.S7_ENABLED) { console.log(`  S7 SKIP [disabled]  ${label}`); return; }
+  if (!tierAllowed(tier, cfg.S7_TIER)) { console.log(`  S7 SKIP [tier=${tier} not in ${cfg.S7_TIER}]  ${label}`); return; }
+  if (!isLive) { console.log(`  S7 SKIP [not in live window min=${liveMin}/${cfg.ALERT_MIN_MINUTE}-${cfg.ALERT_MAX_MINUTE}]  ${label}`); return; }
+  if (!match.odds) { console.log(`  S7 SKIP [no odds]  ${label}`); return; }
 
   const pinHc = match.odds.ah_hc;
-  if (pinHc == null) { verbose(`  S7 SKIP [no ah_hc]  ${label}`); return; }
+  if (pinHc == null) { console.log(`  S7 SKIP [no ah_hc in Pinnacle odds]  ${label}`); return; }
 
   const b365 = await fetchBet365Data(matchId);
   if (!b365 || b365.ahHc == null) {
-    verbose(`  S7 SKIP [no B365 data]  ${label}`);
+    console.log(`  S7 SKIP [no B365 data for matchId=${matchId}]  ${label}`);
     return;
   }
 
@@ -739,7 +758,7 @@ async function runStrategy7(match, ctx) {
     betTeam  = match.away_team;
     b365Odds = b365.aoC;
   } else {
-    verbose(`  S7 SKIP [hcDiff=${hcDiff.toFixed(2)} < ±${cfg.S7_MIN_HC_DIFF}]  ${label}`);
+    console.log(`  S7 SKIP [hcDiff=${hcDiff.toFixed(2)} < ±${cfg.S7_MIN_HC_DIFF}  pin=${pinHc.toFixed(2)} b365=${b365Hc.toFixed(2)}]  ${label}`);
     return;
   }
 
@@ -748,7 +767,7 @@ async function runStrategy7(match, ctx) {
 
   // Only fire if Bet365 odds are confirmed at or above the break-even minimum
   if (b365Odds == null || b365Odds < minOdds) {
-    verbose(`  S7 SKIP [b365Odds=${b365Odds != null ? b365Odds.toFixed(2) : 'n/a'} < minOdds=${minOdds.toFixed(2)}]  ${label}`);
+    console.log(`  S7 SKIP [b365Odds=${b365Odds != null ? b365Odds.toFixed(2) : 'n/a'} < minOdds=${minOdds.toFixed(2)}  diff=${absDiff.toFixed(2)}]  ${label}`);
     return;
   }
 
@@ -853,9 +872,11 @@ async function runScan() {
 
   cleanupSxyCandidates();
 
+  let inWindowCount = 0;
+
   for (const match of matches) {
     const ctx = matchContext(match);
-    const { label, liveMin, minsToKickoff, isLive, isUpcoming, isMktEdge, isSXYEarly, isSXYMidH, isSXYHTStore, isSXYHTFire } = ctx;
+    const { label, tier, liveMin, minsToKickoff, isLive, isUpcoming, isMktEdge, isSXYEarly, isSXYMidH, isSXYHTStore, isSXYHTFire } = ctx;
 
     const anyWindow = isLive || isUpcoming || isMktEdge || isSXYEarly || isSXYMidH || isSXYHTStore || isSXYHTFire;
     if (!anyWindow) {
@@ -866,10 +887,24 @@ async function runScan() {
       continue;
     }
 
+    inWindowCount++;
+    const windows = [
+      isLive        && `live(${cfg.ALERT_MIN_MINUTE}-${cfg.ALERT_MAX_MINUTE}')`,
+      isUpcoming    && `upcoming(${minsToKickoff != null ? minsToKickoff.toFixed(1) + 'min' : '?'})`,
+      isMktEdge     && `mktedge(${liveMin}')`,
+      isSXYEarly    && `sxy_early(${liveMin}')`,
+      isSXYMidH     && `sxy_midh(${liveMin}')`,
+      isSXYHTStore  && `sxy_htstore(${liveMin}')`,
+      isSXYHTFire   && `sxy_htfire(${liveMin}')`,
+    ].filter(Boolean).join(' ');
+    console.log(`  IN-WINDOW  ${label}  [${tier}]  windows=${windows}  score=${match.score || '—'}  odds_ok=${match.odds ? 'yes' : 'NO'}`);
+
     await runStrategySXY(match, ctx);
     await runStrategy6(match, ctx);
     await runStrategy7(match, ctx);
   }
+
+  console.log(`Scan done — ${matches.length} matches, ${inWindowCount} in window.`);
 }
 
 // ── Entry point ──────────────────────────────────────────────────────────────
