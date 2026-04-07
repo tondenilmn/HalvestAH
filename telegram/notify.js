@@ -601,8 +601,8 @@ function s6Format(match, matchCfg, poolN, bets, b365, tier, timing) {
     return (
       `💰 ${betLabel}` +
       teamStr + `\n` +
-      `   Pinnacle avg ${b.mkt_avg_odds} + \n` +
-      `   ${b365Str} + \n` +    
+      `   Pinnacle avg ${b.mkt_avg_odds} + \n`
+      `   ${b365Str} + \n`    
       `   n=${b.n}`
     );
   });
@@ -765,13 +765,12 @@ async function runStrategy7(match, ctx) {
   console.log(`S7 ALERT → ${label}  side=${betSide}  pinHc=${pinHc.toFixed(2)}  b365Hc=${b365Hc.toFixed(2)}  diff=${absDiff.toFixed(2)}  b365Odds=${b365Odds != null ? b365Odds.toFixed(2) : 'n/a'}  minOdds=${minOdds.toFixed(2)}  tier=${tier}`);
 }
 
-// ── Hash-failure alert (throttled to once per hour per bookmaker) ─────────────
-const _hashAlertedAt = {};
+// ── Hash-failure alert (once per failed hash value) ──────────────────────────
+const _hashAlerted = new Set();
 async function notifyHashFailed(bookmaker, shortHash) {
-  const key = bookmaker;
-  const now = Date.now();
-  if (_hashAlertedAt[key] && now - _hashAlertedAt[key] < 60 * 60 * 1000) return;
-  _hashAlertedAt[key] = now;
+  const key = `${bookmaker}:${shortHash}`;
+  if (_hashAlerted.has(key)) return;
+  _hashAlerted.add(key);
   const msg = `⚠️ <b>${esc(bookmaker)} hash invalid</b>\n\nThe bookmaker hash <code>${esc(shortHash)}…</code> returned 404.\nUpdate <code>${esc(bookmaker === 'Pinnacle' ? 'PINNACLE_HASH' : 'BET365_HASH')}</code> in <code>livescore.js</code>.`;
   console.log(`Hash alert: ${bookmaker} hash ${shortHash} is invalid — sending Telegram notification`);
   await sendTelegram(msg);

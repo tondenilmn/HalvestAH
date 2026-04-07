@@ -30,7 +30,7 @@
  *   { matches: [], note: "…" }  — when no live data found
  */
 
-let PINNACLE_HASH = 'ef0e4d72dbf5e72ec109077d824e881b0ac06110';
+let PINNACLE_HASH = 'ef0e4d72dbf5e72ec109077d824e881b0ac06110'; // overridden at runtime from context.env
 // gS candidates — 'Q' is the confirmed primary value; rest are fallbacks.
 // Auto-discovery (fetchPinnacleHash) is tried before the sweep when the primary hash fails.
 // Worst-case subrequest budget: 1 (fast path) + 1 (page fetch) + 1 (Q+discovered) + 18 (sweep) = 21, well under 50.
@@ -83,6 +83,8 @@ function makeBotbotHeaders(gS, book) {
 }
 
 export async function onRequest(context) {
+  if (context.env?.PINNACLE_HASH) PINNACLE_HASH = context.env.PINNACLE_HASH;
+
   const cors = {
     'Access-Control-Allow-Origin':  '*',
     'Access-Control-Allow-Methods': 'GET, OPTIONS',
