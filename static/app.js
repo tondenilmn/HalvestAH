@@ -1485,7 +1485,7 @@ function switchTab(name) {
     b.classList.toggle('active', b.dataset.tab === name);
   });
   ['match', 'disc', 'scan', 'gsa', 'scout'].forEach(t =>
-    document.getElementById(`tab-${t}`).classList.toggle('active', t === name)
+    document.getElementById(`tab-${t}`)?.classList.toggle('active', t === name)
   );
   // Highlight workflow step bar
   const stepMap = { scan: 'wf-1', scout: 'wf-2', gsa: 'wf-3' };
@@ -3637,7 +3637,10 @@ function renderBatchResults(results, totalScanned) {
   let html = `<h2 class="results-title">LIVE SCAN — ${results.length} match${results.length !== 1 ? 'es' : ''} with movement</h2>
     <p style="font-size:11px;color:var(--dim);margin-bottom:12px">
       AH line or TL changed · ${totalScanned} live scanned · sorted by minute</p>`;
-  for (const item of results) html += renderScanMatchCard(item);
+  for (const item of results) {
+    try { html += renderScanMatchCard(item); }
+    catch (e) { console.error('renderScanMatchCard error:', e, item); }
+  }
   container.innerHTML = html;
 }
 
