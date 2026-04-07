@@ -20,6 +20,15 @@ const { fetchLiveMatches, fetchNextMatches, refreshHashes } = require('./livesco
 const VERBOSE = process.argv.includes('--verbose');
 const verbose = VERBOSE ? (...a) => console.log(...a) : () => {};
 
+// Format: [min'] Match  Strategy  reason
+function flog(liveMin, label, strat, msg) {
+  const m = liveMin != null ? `[${liveMin}']` : '[—]';
+  console.log(`${m.padEnd(6)} ${label}  ${strat}  ${msg}`);
+}
+function flogv(liveMin, label, strat, msg) {
+  if (VERBOSE) flog(liveMin, label, strat, msg);
+}
+
 // ── Telegram ──────────────────────────────────────────────────────────────────
 async function sendTelegram(text) {
   const url = `https://api.telegram.org/bot${cfg.TELEGRAM_TOKEN}/sendMessage`;
@@ -488,27 +497,27 @@ async function runStrategySXY(match, ctx) {
       const pinOk  = pin  && pin.ah_ho  != null && pin.ah_hc  != null;
       const b365Ok = b365 && b365.ah_ho != null && b365.ah_hc != null;
       const sboOk  = sbo  && sbo.ah_ho  != null && sbo.ah_hc  != null;
-      console.log(`  SXY SKIP alert1 [no signal: pin=${pinOk?'ok':'MISS'} b365=${b365Ok?'ok':'MISS'} sbo=${sboOk?'ok':'MISS'}]  ${label}`);
+      flog(liveMin, label, 'SXY-A1', `SKIP: no signal (pin=${pinOk?'ok':'MISS'} b365=${b365Ok?'ok':'MISS'} sbo=${sboOk?'ok':'MISS'})`);
     } else {
       const enabled = sd.type === 'SX' ? cfg.SX_ENABLED : cfg.SY_ENABLED;
       const tier_   = sd.type === 'SX' ? cfg.SX_TIER    : cfg.SY_TIER;
       if (!enabled) {
-        console.log(`  SXY SKIP alert1 [${sd.type} disabled]  ${label}`);
+        flog(liveMin, label, 'SXY-A1', `SKIP: ${sd.type} disabled`);
       } else if (!tierAllowed(tier, tier_)) {
-        console.log(`  SXY SKIP alert1 [tier=${tier} not in ${tier_}]  ${label}`);
+        flog(liveMin, label, 'SXY-A1', `SKIP: tier=${tier} not in ${tier_}`);
       } else {
         if (!sxyCandidates.has(matchId)) {
           sxyCandidates.set(matchId, { ...sd, storedAt: Date.now() });
-          console.log(`  SXY candidate stored: ${label}  type=${sd.type}  books=${sd.confirmedBooks}/3`);
+          flog(liveMin, label, 'SXY-A1', `stored candidate: type=${sd.type} books=${sd.confirmedBooks}/3`);
         }
         const key1 = `${matchId}:${sd.type.toLowerCase()}:1`;
         if (!sxyDedup.has(key1)) {
           const msg = sxyAlert1Format(match, sd, tier);
           await sendTelegram(msg);
           sxyDedup.mark(key1);
-          console.log(`${sd.type} ALERT 1 → ${label}  min=${liveMin}  books=${sd.confirmedBooks}/3  tier=${tier}`);
+          flog(liveMin, label, `SXY-A1`, `ALERT: ${sd.type} 3/3 books steam=${sd.pinSteam.toFixed(2)} tier=${tier}`);
         } else {
-          verbose(`  ${sd.type} SKIP alert1 [already notified]  ${label}`);
+          flogv(liveMin, label, 'SXY-A1', 'SKIP: already notified');
         }
       }
     }
@@ -517,23 +526,23 @@ async function runStrategySXY(match, ctx) {
   // ── Alert 2: 30' check — still 0-0 → Over 0.5 1H ───────────────────────
   if (isSXYMidH) {
     const cand = sxyCandidates.get(matchId);
-    if (!cand) { console.log(`  SXY SKIP alert2 [no candidate stored — match missed alert1 window?]  ${label}`); }
+    if (!cand) { flog(liveMin, label, 'SXY-A2', 'SKIP: no candidate stored (missed alert1 window?)'); }
     else {
       const enabled = cand.type === 'SX' ? cfg.SX_ENABLED : cfg.SY_ENABLED;
       const tier_   = cand.type === 'SX' ? cfg.SX_TIER    : cfg.SY_TIER;
       if (enabled && tierAllowed(tier, tier_)) {
         const key2 = `${matchId}:${cand.type.toLowerCase()}:2`;
         if (sxyDedup.has(key2)) {
-          verbose(`  ${cand.type} SKIP alert2 [already notified]  ${label}`);
+          flogv(liveMin, label, 'SXY-A2', 'SKIP: already notified');
         } else {
           const score = parseScoreStr(match.score);
           if (score && score.home === 0 && score.away === 0) {
             const msg = sxyAlert2Format(match, cand, tier, liveMin);
             await sendTelegram(msg);
             sxyDedup.mark(key2);
-            console.log(`${cand.type} ALERT 2 → ${label}  min=${liveMin}  score=0-0  tier=${tier}`);
+            flog(liveMin, label, 'SXY-A2', `ALERT: score=0-0 tier=${tier}`);
           } else {
-            verbose(`  ${cand.type} SKIP alert2 [score not 0-0: ${match.score}]  ${label}`);
+            flogv(liveMin, label, 'SXY-A2', `SKIP: score not 0-0 (${match.score})`);
           }
         }
       }
@@ -547,7 +556,7 @@ async function runStrategySXY(match, ctx) {
       const score = parseScoreStr(match.score);
       if (score) {
         cand.htScore = { home: score.home, away: score.away };
-        console.log(`  SXY HT score stored: ${label}  HT=${score.home}-${score.away}`);
+        flog(liveMin, label, 'SXY-HT', `stored: HT=${score.home}-${score.away}`);
       }
     }
   }
@@ -556,26 +565,26 @@ async function runStrategySXY(match, ctx) {
   if (isSXYHTFire) {
     const cand = sxyCandidates.get(matchId);
     if (!cand || !cand.htScore) {
-      verbose(`  SXY SKIP alert3 [no HT score stored]  ${label}`);
+      flogv(liveMin, label, 'SXY-A3', 'SKIP: no HT score stored');
     } else {
       const enabled = cand.type === 'SX' ? cfg.SX_ENABLED : cfg.SY_ENABLED;
       const tier_   = cand.type === 'SX' ? cfg.SX_TIER    : cfg.SY_TIER;
       if (enabled && tierAllowed(tier, tier_)) {
         const key3 = `${matchId}:${cand.type.toLowerCase()}:3`;
         if (sxyDedup.has(key3)) {
-          verbose(`  ${cand.type} SKIP alert3 [already notified]  ${label}`);
+          flogv(liveMin, label, 'SXY-A3', 'SKIP: already notified');
         } else {
           const curScore = parseScoreStr(match.score);
-          if (!curScore) { verbose(`  ${cand.type} SKIP alert3 [no current score]  ${label}`); }
+          if (!curScore) { flogv(liveMin, label, 'SXY-A3', 'SKIP: no current score'); }
           else {
             const goals2H = (curScore.home + curScore.away) - (cand.htScore.home + cand.htScore.away);
             if (goals2H > 0) {
-              verbose(`  ${cand.type} SKIP alert3 [${goals2H} goal(s) already in 2H]  ${label}`);
+              flogv(liveMin, label, 'SXY-A3', `SKIP: ${goals2H} goal(s) already in 2H`);
             } else {
               const msg = sxyAlert3Format(match, cand, cand.htScore, tier, liveMin);
               await sendTelegram(msg);
               sxyDedup.mark(key3);
-              console.log(`${cand.type} ALERT 3 → ${label}  min=${liveMin}  HT=${cand.htScore.home}-${cand.htScore.away}  now=${curScore.home}-${curScore.away}  tier=${tier}`);
+              flog(liveMin, label, 'SXY-A3', `ALERT: HT=${cand.htScore.home}-${cand.htScore.away} now=${curScore.home}-${curScore.away} tier=${tier}`);
             }
           }
         }
@@ -634,14 +643,14 @@ function s6Format(match, matchCfg, poolN, bets, b365, tier, timing) {
 async function runStrategy6(match, ctx) {
   const { matchId, label, tier, liveMin, minsToKickoff, isMktEdge } = ctx;
 
-  if (!cfg.S6_ENABLED) { console.log(`  S6 SKIP [disabled]  ${label}`); return; }
-  if (!tierAllowed(tier, cfg.S6_TIER)) { console.log(`  S6 SKIP [tier=${tier} not in ${cfg.S6_TIER}]  ${label}`); return; }
-  if (!isMktEdge) { console.log(`  S6 SKIP [not in mkt window min=${liveMin}]  ${label}`); return; }
-  if (!_dbAll || !_dbAll.length) { console.log(`  S6 SKIP [DB empty]  ${label}`); return; }
-  if (!match.odds) { console.log(`  S6 SKIP [no odds]  ${label}`); return; }
+  if (!cfg.S6_ENABLED) { flog(liveMin, label, 'S6', 'SKIP: disabled'); return; }
+  if (!tierAllowed(tier, cfg.S6_TIER)) { flog(liveMin, label, 'S6', `SKIP: tier=${tier} not in ${cfg.S6_TIER}`); return; }
+  if (!isMktEdge) { flog(liveMin, label, 'S6', `SKIP: not in mkt window (min=${liveMin} needs 1-${cfg.S6_WINDOW_MINUTES})`); return; }
+  if (!_dbAll || !_dbAll.length) { flog(liveMin, label, 'S6', 'SKIP: DB empty'); return; }
+  if (!match.odds) { flog(liveMin, label, 'S6', 'SKIP: no odds'); return; }
 
   const matchCfg = buildCfgFromMatch(match.odds, { LINE_MOVE_ON: true, TL_MOVE_ON: true });
-  if (!matchCfg) { console.log(`  S6 SKIP [buildCfg returned null — odds incomplete?]  ${label}`); return; }
+  if (!matchCfg) { flog(liveMin, label, 'S6', 'SKIP: odds incomplete (buildCfg returned null)'); return; }
 
   const { signals } = matchCfg;
   const hasMovement =
@@ -649,7 +658,7 @@ async function runStrategy6(match, ctx) {
     (signals.tlMove   !== 'STABLE' && signals.tlMove   !== 'UNKNOWN');
 
   if (!hasMovement) {
-    console.log(`  S6 SKIP [no movement: lm=${signals.lineMove} tlm=${signals.tlMove}]  ${label}`);
+    flog(liveMin, label, 'S6', `SKIP: no movement (lm=${signals.lineMove} tlm=${signals.tlMove})`);
     return;
   }
 
@@ -665,13 +674,13 @@ async function runStrategy6(match, ctx) {
   if (!qualifying.length) {
     const mktBets = bets.filter(b => MKT_KEYS.has(b.k));
     const best = mktBets.length ? `best_edge=${Math.max(...mktBets.map(b => b.mkt_edge ?? -999)).toFixed(1)}pp` : 'no_mkt_bets';
-    console.log(`  S6 SKIP [no qualifying bets — pool=${cfgRows.length} ${best} thresh=${cfg.MKT_EDGE_THRESH}pp]  ${label}`);
+    flog(liveMin, label, 'S6', `SKIP: no qualifying bets (pool=${cfgRows.length} ${best} thresh=${cfg.MKT_EDGE_THRESH}pp)`);
     return;
   }
 
   const mktKey = `${matchId}:mktedge`;
   if (s6Dedup.has(mktKey)) {
-    verbose(`  S6 SKIP [already notified]  ${label}`);
+    flogv(liveMin, label, 'S6', 'SKIP: already notified');
     return;
   }
 
@@ -684,7 +693,7 @@ async function runStrategy6(match, ctx) {
   });
 
   if (!toFire.length) {
-    console.log(`  S6 SKIP [all qualifying bets below B365 threshold — b365=${b365 ? 'ok' : 'null'}]  ${label}`);
+    flog(liveMin, label, 'S6', `SKIP: all qualifying bets below B365 threshold (b365=${b365 ? 'ok' : 'null'})`);
     return;
   }
 
@@ -694,7 +703,7 @@ async function runStrategy6(match, ctx) {
   const msg = s6Format(match, matchCfg, cfgRows.length, toFire, b365, tier, timing);
   await sendTelegram(msg);
   s6Dedup.mark(mktKey);
-  console.log(`S6 ALERT → ${label}  pool=${cfgRows.length}  bets=${toFire.map(b => b.k).join(',')}  tier=${tier}`);
+  flog(liveMin, label, 'S6', `ALERT: bets=${toFire.map(b => b.k).join(',')} pool=${cfgRows.length} tier=${tier}`);
 }
 
 // ── Strategy 7: Bet365 vs Pinnacle AH line gap ───────────────────────────────
@@ -736,17 +745,17 @@ function s7Format(match, tier, timing, betTeam, b365Hc, b365Odds, pinHc, absDiff
 async function runStrategy7(match, ctx) {
   const { matchId, label, tier, liveMin, isLive } = ctx;
 
-  if (!cfg.S7_ENABLED) { console.log(`  S7 SKIP [disabled]  ${label}`); return; }
-  if (!tierAllowed(tier, cfg.S7_TIER)) { console.log(`  S7 SKIP [tier=${tier} not in ${cfg.S7_TIER}]  ${label}`); return; }
-  if (!isLive) { console.log(`  S7 SKIP [not in live window min=${liveMin}/${cfg.ALERT_MIN_MINUTE}-${cfg.ALERT_MAX_MINUTE}]  ${label}`); return; }
-  if (!match.odds) { console.log(`  S7 SKIP [no odds]  ${label}`); return; }
+  if (!cfg.S7_ENABLED) { flog(liveMin, label, 'S7', 'SKIP: disabled'); return; }
+  if (!tierAllowed(tier, cfg.S7_TIER)) { flog(liveMin, label, 'S7', `SKIP: tier=${tier} not in ${cfg.S7_TIER}`); return; }
+  if (!isLive) { flog(liveMin, label, 'S7', `SKIP: not in live window (min=${liveMin} needs ${cfg.ALERT_MIN_MINUTE}-${cfg.ALERT_MAX_MINUTE})`); return; }
+  if (!match.odds) { flog(liveMin, label, 'S7', 'SKIP: no odds'); return; }
 
   const pinHc = match.odds.ah_hc;
-  if (pinHc == null) { console.log(`  S7 SKIP [no ah_hc in Pinnacle odds]  ${label}`); return; }
+  if (pinHc == null) { flog(liveMin, label, 'S7', 'SKIP: ah_hc missing in Pinnacle odds'); return; }
 
   const b365 = await fetchBet365Data(matchId);
   if (!b365 || b365.ahHc == null) {
-    console.log(`  S7 SKIP [no B365 data for matchId=${matchId}]  ${label}`);
+    flog(liveMin, label, 'S7', `SKIP: no B365 data (matchId=${matchId})`);
     return;
   }
 
@@ -764,7 +773,7 @@ async function runStrategy7(match, ctx) {
     betTeam  = match.away_team;
     b365Odds = b365.aoC;
   } else {
-    console.log(`  S7 SKIP [hcDiff=${hcDiff.toFixed(2)} < ±${cfg.S7_MIN_HC_DIFF}  pin=${pinHc.toFixed(2)} b365=${b365Hc.toFixed(2)}]  ${label}`);
+    flog(liveMin, label, 'S7', `SKIP: hcDiff=${hcDiff.toFixed(2)} below ±${cfg.S7_MIN_HC_DIFF} (pin=${pinHc.toFixed(2)} b365=${b365Hc.toFixed(2)})`);
     return;
   }
 
@@ -773,13 +782,13 @@ async function runStrategy7(match, ctx) {
 
   // Only fire if Bet365 odds are confirmed at or above the break-even minimum
   if (b365Odds == null || b365Odds < minOdds) {
-    console.log(`  S7 SKIP [b365Odds=${b365Odds != null ? b365Odds.toFixed(2) : 'n/a'} < minOdds=${minOdds.toFixed(2)}  diff=${absDiff.toFixed(2)}]  ${label}`);
+    flog(liveMin, label, 'S7', `SKIP: b365Odds=${b365Odds != null ? b365Odds.toFixed(2) : 'n/a'} below minOdds=${minOdds.toFixed(2)} (diff=${absDiff.toFixed(2)})`);
     return;
   }
 
   const dedupKey = `${matchId}:s7:${betSide}`;
   if (s7Dedup.has(dedupKey)) {
-    verbose(`  S7 SKIP [already notified]  ${label}`);
+    flogv(liveMin, label, 'S7', 'SKIP: already notified');
     return;
   }
 
@@ -787,7 +796,7 @@ async function runStrategy7(match, ctx) {
   const msg = s7Format(match, tier, timing, betTeam, b365Hc, b365Odds, pinHc, absDiff, minOdds);
   await sendTelegram(msg);
   s7Dedup.mark(dedupKey);
-  console.log(`S7 ALERT → ${label}  side=${betSide}  pinHc=${pinHc.toFixed(2)}  b365Hc=${b365Hc.toFixed(2)}  diff=${absDiff.toFixed(2)}  b365Odds=${b365Odds != null ? b365Odds.toFixed(2) : 'n/a'}  minOdds=${minOdds.toFixed(2)}  tier=${tier}`);
+  flog(liveMin, label, 'S7', `ALERT: side=${betSide} pin=${pinHc.toFixed(2)} b365=${b365Hc.toFixed(2)} diff=${absDiff.toFixed(2)} odds=${b365Odds != null ? b365Odds.toFixed(2) : 'n/a'} min=${minOdds.toFixed(2)} tier=${tier}`);
 }
 
 // ── Hash-failure alert (once per failed hash value) ──────────────────────────
@@ -886,10 +895,24 @@ async function runScan() {
 
     const anyWindow = isLive || isUpcoming || isMktEdge || isSXYEarly || isSXYMidH || isSXYHTStore || isSXYHTFire;
     if (!anyWindow) {
-      const reason = minsToKickoff != null
+      const timing = minsToKickoff != null
         ? `min_to_ko=${minsToKickoff.toFixed(1)}`
         : `min=${liveMin ?? 'no_time'}`;
-      verbose(`  SKIP [${reason}]  ${label}`);
+      // Structural diagnostics — show missing books and tier even for out-of-window matches
+      const pin  = match.odds;
+      const b365 = match.bet365_odds;
+      const sbo  = match.sbobet_odds;
+      const pinOk  = pin  && pin.ah_ho  != null && pin.ah_hc  != null;
+      const b365Ok = b365 && b365.ah_ho != null && b365.ah_hc != null;
+      const sboOk  = sbo  && sbo.ah_ho  != null && sbo.ah_hc  != null;
+      const issues = [
+        !pinOk  && 'pin_missing',
+        !b365Ok && 'b365_missing',
+        !sboOk  && 'sbo_missing',
+        !tierAllowed(tier, cfg.SX_TIER) && !tierAllowed(tier, cfg.S6_TIER) && !tierAllowed(tier, cfg.S7_TIER) && `tier=${tier}_excluded`,
+      ].filter(Boolean);
+      const issueStr = issues.length ? `  ⚠ ${issues.join(' ')}` : '';
+      flogv(liveMin, `${label} [${tier}]`, 'ALL', `out-of-window (${timing})${issueStr}`);
       continue;
     }
 
@@ -903,7 +926,7 @@ async function runScan() {
       isSXYHTStore  && `sxy_htstore(${liveMin}')`,
       isSXYHTFire   && `sxy_htfire(${liveMin}')`,
     ].filter(Boolean).join(' ');
-    console.log(`  IN-WINDOW  ${label}  [${tier}]  windows=${windows}  score=${match.score || '—'}  odds_ok=${match.odds ? 'yes' : 'NO'}`);
+    flog(liveMin, `${label} [${tier}]`, 'ALL', `in-window: ${windows}  score=${match.score || '—'}  odds=${match.odds ? 'ok' : 'MISSING'}`);
 
     await runStrategySXY(match, ctx);
     await runStrategy6(match, ctx);
