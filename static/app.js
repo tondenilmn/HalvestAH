@@ -3772,7 +3772,7 @@ function _strategyGates(cfg, allBets) {
 
   // S1 — AH steam: line moved DEEPER toward favourite
   if (cfg.line_move === 'DEEPER' || cfg._signals?.lineMove === 'DEEPER') {
-    const lc = cfg.fav_line != null ? cfg.fav_line.toFixed(2) : '?';
+    const lc = favLc != null ? favLc.toFixed(2) : '?';
     gates.push({ id:'S1', label:'AH steam', status:'pass', detail: `line DEEPER → AH ${lc}` });
   } else {
     const lm = cfg._signals?.lineMove || cfg.line_move || '—';
