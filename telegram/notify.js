@@ -23,15 +23,21 @@ const verbose = VERBOSE ? (...a) => console.log(...a) : () => {};
 // ── Telegram ──────────────────────────────────────────────────────────────────
 async function sendTelegram(text) {
   const url = `https://api.telegram.org/bot${cfg.TELEGRAM_TOKEN}/sendMessage`;
+  const preview = text.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim().slice(0, 120);
+  console.log(`[TELEGRAM] Sending notification → "${preview}…"`);
   try {
     const res = await fetch(url, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({ chat_id: cfg.TELEGRAM_CHAT_ID, text, parse_mode: 'HTML' }),
     });
-    if (!res.ok) console.error(`Telegram error: ${await res.text()}`);
+    if (!res.ok) {
+      console.error(`[TELEGRAM] Send FAILED: ${await res.text()}`);
+    } else {
+      console.log(`[TELEGRAM] Sent OK`);
+    }
   } catch (e) {
-    console.error(`Telegram fetch failed: ${e.message}`);
+    console.error(`[TELEGRAM] Fetch failed: ${e.message}`);
   }
 }
 
