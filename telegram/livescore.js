@@ -3,9 +3,9 @@
 // Adapted from functions/api/livescore.js for Node.js (no Cloudflare runtime).
 // Uses built-in fetch (Node >= 18).
 
-let PINNACLE_HASH = process.env.PINNACLE_HASH || 'ef0e4d72dbf5e72ec109077d824e881b0ac06110';
-let BET365_HASH   = process.env.BET365_HASH   || 'e2e5205f68530c12b66f8e9045fe2fbcc68f5905';
-let SBOBET_HASH   = process.env.SBOBET_HASH   || '99a40a72b62e4a8fb8a6019d1176a882e7ddea30';
+let PINNACLE_HASH = process.env.PINNACLE_HASH || '';
+let BET365_HASH   = process.env.BET365_HASH   || '';
+let SBOBET_HASH   = process.env.SBOBET_HASH   || '';
 const GS_PRIMARY    = 'Q';
 const GS_CANDIDATES = ['Q', '1', '2', '3', 'AH', 'S', 'EU', 'A', 'ah', 's', '4', '5', '10', '6', '7', '8', 'B', 'F'];
 
