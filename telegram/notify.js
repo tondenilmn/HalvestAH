@@ -15,6 +15,7 @@ const {
   applyConfig, applyBaselineConfig,
   buildCfgFromMatch, scoreBets,
 } = require('./engine');
+// const { fetchLiveMatches, fetchNextMatches, fetchNextMatchesAllDays, refreshHashes } = require('./livescore');
 const { fetchLiveMatches, fetchNextMatches, refreshHashes } = require('./livescore');
 
 const VERBOSE = process.argv.includes('--verbose');
@@ -153,6 +154,7 @@ function matchContext(match) {
     isSXYMidH:    liveMin != null && liveMin >= cfg.SXSY_MIDH_MIN      && liveMin <= cfg.SXSY_MIDH_MAX,
     isSXYHTStore: liveMin != null && liveMin >= cfg.SXSY_HT_STORE_MIN  && liveMin <= cfg.SXSY_HT_STORE_MAX,
     isSXYHTFire:  liveMin != null && liveMin >= cfg.SXSY_HT_FIRE_MIN   && liveMin <= cfg.SXSY_HT_FIRE_MAX,
+    isSteamNext:  liveMin == null && (minsToKickoff == null || minsToKickoff > 0),
   };
 }
 
@@ -607,7 +609,7 @@ async function runStrategy6(match, ctx) {
 
   if (!cfg.S6_ENABLED) { flog(liveMin, label, 'S6', 'SKIP: disabled'); return; }
   if (!tierAllowed(tier, cfg.S6_TIER)) { flog(liveMin, label, 'S6', `SKIP: tier=${tier} not in ${cfg.S6_TIER}`); return; }
-  if (!isMktEdge) { flog(liveMin, label, 'S6', `SKIP: not in mkt window (min=${liveMin} needs 1-${cfg.S6_WINDOW_MINUTES})`); return; }
+  if (!isMktEdge) { flogv(liveMin, label, 'S6', `SKIP: not in mkt window (min=${liveMin} needs 1-${cfg.S6_WINDOW_MINUTES})`); return; }
   if (!_dbAll || !_dbAll.length) { flog(liveMin, label, 'S6', 'SKIP: DB empty'); return; }
   if (!match.odds) { flog(liveMin, label, 'S6', 'SKIP: no odds'); return; }
 
@@ -700,7 +702,7 @@ async function runStrategy7(match, ctx) {
 
   if (!cfg.S7_ENABLED) { flog(liveMin, label, 'S7', 'SKIP: disabled'); return; }
   if (!tierAllowed(tier, cfg.S7_TIER)) { flog(liveMin, label, 'S7', `SKIP: tier=${tier} not in ${cfg.S7_TIER}`); return; }
-  if (!isLive) { flog(liveMin, label, 'S7', `SKIP: not in live window (min=${liveMin} needs ${cfg.ALERT_MIN_MINUTE}-${cfg.ALERT_MAX_MINUTE})`); return; }
+  if (!isLive) { flogv(liveMin, label, 'S7', `SKIP: not in live window (min=${liveMin} needs ${cfg.ALERT_MIN_MINUTE}-${cfg.ALERT_MAX_MINUTE})`); return; }
   if (!match.odds) { flog(liveMin, label, 'S7', 'SKIP: no odds'); return; }
 
   const pinHc = match.odds.ah_hc;
@@ -782,7 +784,7 @@ async function fetchMatches() {
     nextMatches = data.next_matches || [];
     if (nextMatches.length === 0) {
       try {
-        const r = await fetchNextMatches();
+        const r = await fetchNextMatchesAllDays(cfg.SN_MAX_DAYS);
         nextMatches        = r.matches;
         pinnacleHashFailed = pinnacleHashFailed || r.pinnacleHashFailed;
         bet365HashFailed   = bet365HashFailed   || r.bet365HashFailed;
@@ -799,14 +801,14 @@ async function fetchMatches() {
     if (liveResult.pinnacleHash) pinnacleHash = liveResult.pinnacleHash;
     if (liveResult.bet365Hash)   bet365Hash   = liveResult.bet365Hash;
     if (liveResult.sbobetHash)   sbobetHash   = liveResult.sbobetHash;
-    try {
-      const nextResult = await fetchNextMatches();
-      nextMatches        = nextResult.matches;
-      pinnacleHashFailed = pinnacleHashFailed || nextResult.pinnacleHashFailed;
-      bet365HashFailed   = bet365HashFailed   || nextResult.bet365HashFailed;
-      if (nextResult.pinnacleHash) pinnacleHash = nextResult.pinnacleHash;
-      if (nextResult.bet365Hash)   bet365Hash   = nextResult.bet365Hash;
-    } catch (e) { console.error(`NextGame fetch failed: ${e.message}`); }
+    // try {
+    //   const nextResult = await fetchNextMatchesAllDays(cfg.SN_MAX_DAYS);
+    //   nextMatches        = nextResult.matches;
+    //   pinnacleHashFailed = pinnacleHashFailed || nextResult.pinnacleHashFailed;
+    //   bet365HashFailed   = bet365HashFailed   || nextResult.bet365HashFailed;
+    //   if (nextResult.pinnacleHash) pinnacleHash = nextResult.pinnacleHash;
+    //   if (nextResult.bet365Hash)   bet365Hash   = nextResult.bet365Hash;
+    // } catch (e) { console.error(`NextGame fetch failed: ${e.message}`); }
   }
 
   // Send Telegram alerts for any stale hashes (throttled to 1/hour per bookmaker)
@@ -826,6 +828,99 @@ async function fetchMatches() {
   return liveMatches;
 }
 
+// ── Strategy SN: Pre-match Pinnacle steam ────────────────────────────────────
+// Fires when Pinnacle moves both AH line AND Total Line before kick-off.
+// The opening→current movement is already embedded in the tablenext payload
+// (ah_ho/tl_o = opening, ah_hc/tl_c = current). No state storage needed.
+// Bet at Bet365 while it still lags Pinnacle's repriced line.
+
+const snDedup = new Dedup(24 * 60 * 60 * 1000); // 24h — reset on process restart
+
+function detectSNSignal(odds) {
+  if (!odds || odds.ah_hc == null || odds.ah_ho == null) return null;
+  if (odds.tl_c == null || odds.tl_o == null) return null;
+
+  const ahMove = odds.ah_hc - odds.ah_ho;  // negative = toward HOME fav (more given to dog)
+  const tlMove = odds.tl_c - odds.tl_o;    // positive = TL rising
+
+  if (Math.abs(ahMove) < cfg.SN_MIN_AH_MOVE) return null;
+  if (Math.abs(tlMove) < cfg.SN_MIN_TL_MOVE) return null;
+
+  // Fav side determined by opening line
+  const favSide = odds.ah_ho < -0.01 ? 'HOME' : odds.ah_ho > 0.01 ? 'AWAY' : null;
+  if (!favSide) return null;
+
+  // Steam = AH moved toward fav (more handicap given to dog); Drift = moved toward dog
+  const direction = (favSide === 'HOME' ? ahMove < 0 : ahMove > 0) ? 'STEAM_FAV' : 'DRIFT_DOG';
+
+  return { ahMove, tlMove, favSide, direction,
+           ahOpen: odds.ah_ho, ahClose: odds.ah_hc,
+           tlOpen: odds.tl_o,  tlClose: odds.tl_c };
+}
+
+function snFormat(match, sd, b365, minsToKickoff) {
+  const side    = sd.favSide;
+  const ahFmt   = v => v >= 0 ? `+${v.toFixed(2)}` : v.toFixed(2);
+  const moveFmt = v => (v >= 0 ? '+' : '') + v.toFixed(2);
+  const koStr   = minsToKickoff == null  ? 'kickoff unknown'
+    : minsToKickoff < 60 ? `in ${Math.round(minsToKickoff)} min`
+    : `in ${(minsToKickoff / 60).toFixed(1)}h`;
+
+  const b365Odds1x2 = b365 ? (side === 'HOME' ? b365.ho_c : b365.ao_c) : null;
+  const oddsStr     = b365Odds1x2 != null ? `@${b365Odds1x2.toFixed(2)}` : '@n/a';
+  const b365Lag     = `B365 AH: ${ahFmt(b365.ah_hc)}  (Pinnacle now: ${ahFmt(sd.ahClose)}  — lag: ${moveFmt(b365.ah_hc - sd.ahClose)})`;
+
+  return buildMessage(
+    sd.direction === 'STEAM_FAV' ? 'SN — Pre-match steam (fav)' : 'SN — Pre-match drift (dog)',
+    match,
+    `Pre-kickoff  [${koStr}]`,
+    [
+      `💰 <b>1x2 ${side} WIN at Bet365  ${oddsStr}</b>`,
+      `📌 AH: ${ahFmt(sd.ahOpen)} → ${ahFmt(sd.ahClose)} (${moveFmt(sd.ahMove)})  ·  TL: ${sd.tlOpen.toFixed(2)} → ${sd.tlClose.toFixed(2)} (${moveFmt(sd.tlMove)})`,
+      `📌 ${b365Lag}`,
+    ],
+  );
+}
+
+async function runStrategySN(match, ctx) {
+  const { matchId, label, tier, liveMin, minsToKickoff, isSteamNext } = ctx;
+
+  if (!cfg.SN_ENABLED || !isSteamNext) return;
+  if (!tierAllowed(tier, cfg.SN_TIER)) { flogv(liveMin, label, 'SN', `SKIP: tier=${tier} not in ${cfg.SN_TIER}`); return; }
+  if (!match.odds) { flogv(liveMin, label, 'SN', 'SKIP: no odds'); return; }
+
+  const sd = detectSNSignal(match.odds);
+  if (!sd) {
+    const ahM = ((match.odds.ah_hc ?? 0) - (match.odds.ah_ho ?? 0)).toFixed(2);
+    const tlM = ((match.odds.tl_c  ?? 0) - (match.odds.tl_o  ?? 0)).toFixed(2);
+    flogv(liveMin, label, 'SN', `SKIP: no signal (ahMove=${ahM} tlMove=${tlM} thresholds: AH≥${cfg.SN_MIN_AH_MOVE} TL≥${cfg.SN_MIN_TL_MOVE})`);
+    return;
+  }
+
+  const dedupKey = `${matchId}:sn:${sd.direction}`;
+  if (snDedup.has(dedupKey)) { flogv(liveMin, label, 'SN', 'SKIP: already notified'); return; }
+
+  const b365 = match.bet365_odds ?? null;
+
+  // Require B365 odds to be present — no point alerting if we can't verify the lag
+  if (!b365 || b365.ah_hc == null) {
+    flog(liveMin, label, 'SN', 'SKIP: no B365 odds');
+    return;
+  }
+
+  // Skip if B365 has already fully repriced (lag below threshold)
+  const lag = Math.abs(b365.ah_hc - sd.ahClose);
+  if (lag < cfg.SN_B365_LAG_MIN) {
+    flog(liveMin, label, 'SN', `SKIP: B365 already repriced (lag=${lag.toFixed(2)} < ${cfg.SN_B365_LAG_MIN})`);
+    return;
+  }
+
+  const msg = snFormat(match, sd, b365, minsToKickoff);
+  await sendTelegram(msg);
+  snDedup.mark(dedupKey);
+  flog(liveMin, label, 'SN', `ALERT: dir=${sd.direction} ahMove=${sd.ahMove.toFixed(2)} tlMove=${sd.tlMove.toFixed(2)} tier=${tier} ko=${minsToKickoff != null ? minsToKickoff.toFixed(0)+'m' : '?'}`);
+}
+
 // ── Core scan ─────────────────────────────────────────────────────────────────
 async function runScan() {
   console.log(`[${new Date().toISOString()}] Scanning…`);
@@ -843,9 +938,9 @@ async function runScan() {
 
   for (const match of matches) {
     const ctx = matchContext(match);
-    const { label, tier, liveMin, minsToKickoff, isLive, isUpcoming, isMktEdge, isSXYEarly, isSXYMidH, isSXYHTStore, isSXYHTFire } = ctx;
+    const { label, tier, liveMin, minsToKickoff, isLive, isUpcoming, isMktEdge, isSXYEarly, isSXYMidH, isSXYHTStore, isSXYHTFire, isSteamNext } = ctx;
 
-    const anyWindow = isLive || isUpcoming || isMktEdge || isSXYEarly || isSXYMidH || isSXYHTStore || isSXYHTFire;
+    const anyWindow = isLive || isUpcoming || isMktEdge || isSXYEarly || isSXYMidH || isSXYHTStore || isSXYHTFire || isSteamNext;
     if (!anyWindow) {
       const timing = minsToKickoff != null
         ? `min_to_ko=${minsToKickoff.toFixed(1)}`
@@ -861,7 +956,7 @@ async function runScan() {
         !pinOk  && 'pin_missing',
         !b365Ok && 'b365_missing',
         !sboOk  && 'sbo_missing',
-        !tierAllowed(tier, cfg.SX_TIER) && !tierAllowed(tier, cfg.S6_TIER) && !tierAllowed(tier, cfg.S7_TIER) && `tier=${tier}_excluded`,
+        !tierAllowed(tier, cfg.SX_TIER) && !tierAllowed(tier, cfg.S6_TIER) && !tierAllowed(tier, cfg.S7_TIER) && !tierAllowed(tier, cfg.SN_TIER) && `tier=${tier}_excluded`,
       ].filter(Boolean);
       const issueStr = issues.length ? `  ⚠ ${issues.join(' ')}` : '';
       flogv(liveMin, `${label} [${tier}]`, 'ALL', `out-of-window (${timing})${issueStr}`);
@@ -869,6 +964,7 @@ async function runScan() {
     }
 
     inWindowCount++;
+    const koLabel = minsToKickoff != null ? `ko=${minsToKickoff.toFixed(0)}m` : '?';
     const windows = [
       isLive        && `live(${cfg.ALERT_MIN_MINUTE}-${cfg.ALERT_MAX_MINUTE}')`,
       isUpcoming    && `upcoming(${minsToKickoff != null ? minsToKickoff.toFixed(1) + 'min' : '?'})`,
@@ -877,12 +973,21 @@ async function runScan() {
       isSXYMidH     && `sxy_midh(${liveMin}')`,
       isSXYHTStore  && `sxy_htstore(${liveMin}')`,
       isSXYHTFire   && `sxy_htfire(${liveMin}')`,
+      isSteamNext   && `steam_next(${koLabel})`,
     ].filter(Boolean).join(' ');
-    flog(liveMin, `${label} [${tier}]`, 'ALL', `in-window: ${windows}  score=${match.score || '—'}  odds=${match.odds ? 'ok' : 'MISSING'}`);
+
+    // Steam-next-only matches (pre-kickoff, no live strategy window active) — log verbose only to avoid spam
+    const steamNextOnly = isSteamNext && !isLive && !isUpcoming && !isMktEdge && !isSXYEarly && !isSXYMidH && !isSXYHTStore && !isSXYHTFire;
+    if (steamNextOnly) {
+      flogv(liveMin, `${label} [${tier}]`, 'SN', `pre-kickoff (${koLabel})  odds=${match.odds ? 'ok' : 'MISSING'}`);
+    } else {
+      flog(liveMin, `${label} [${tier}]`, 'ALL', `in-window: ${windows}  score=${match.score || '—'}  odds=${match.odds ? 'ok' : 'MISSING'}`);
+    }
 
     await runStrategySXY(match, ctx);
     await runStrategy6(match, ctx);
     await runStrategy7(match, ctx);
+    await runStrategySN(match, ctx);
   }
 
   console.log(`Scan done — ${matches.length} matches, ${inWindowCount} in window.`);
@@ -899,6 +1004,7 @@ async function main() {
   console.log(`Strategy SY [${on(cfg.SY_ENABLED)}][${cfg.SY_TIER}]: Steam Away Fav 3-book steam → 1x2 away win  (same windows)`);
   console.log(`Strategy S6 [${on(cfg.S6_ENABLED)}][${cfg.S6_TIER}]: Market edge ≥${cfg.MKT_EDGE_THRESH}pp  n≥${cfg.MKT_EDGE_MIN_N}  window=${cfg.S6_WINDOW_MINUTES}min`);
   console.log(`Strategy S7 [${on(cfg.S7_ENABLED)}][${cfg.S7_TIER}]: Bet365 vs Pinnacle AH line gap ≥${cfg.S7_MIN_HC_DIFF}  (live ${cfg.ALERT_MIN_MINUTE}–${cfg.ALERT_MAX_MINUTE}')`);
+  console.log(`Strategy SN [${on(cfg.SN_ENABLED)}][${cfg.SN_TIER}]: Pre-match steam  AH≥${cfg.SN_MIN_AH_MOVE} + TL≥${cfg.SN_MIN_TL_MOVE}  days=0-${cfg.SN_MAX_DAYS}  b365_lag≥${cfg.SN_B365_LAG_MIN}`);
   console.log(`Global tier default: ${cfg.LEAGUE_TIER}`);
 
   // Refresh all book hashes at startup

@@ -154,8 +154,8 @@ function parseGetDatanext1Calls(jsText) {
   return results;
 }
 
-async function tryNextCombo(hash, gS, timestamp) {
-  const url = `https://botbot3.space/tables/v4/${gS}/tablenext/day0/${hash}.js?date=${timestamp}&_=${timestamp + 1}`;
+async function tryNextCombo(hash, gS, timestamp, day = 0) {
+  const url = `https://botbot3.space/tables/v4/${gS}/tablenext/day${day}/${hash}.js?date=${timestamp}&_=${timestamp + 1}`;
   let jsText;
   try {
     const resp = await fetch(url, { headers: makeBotbotHeaders(gS, hash) });
@@ -356,9 +356,9 @@ async function fetchLiveMatches() {
 
 // Fetch Bet365 AH odds from a tablenext JS file and return { map, hashFailed }.
 // hashFailed = true only on HTTP 404 (stale hash), not on other errors.
-async function fetchBet365OddsMap(timestamp) {
+async function fetchBet365OddsMap(timestamp, day = 0) {
   if (!BET365_HASH) return { map: new Map(), hashFailed: false };
-  const url = `https://botbot3.space/tables/v4/${GS_PRIMARY}/tablenext/day0/${BET365_HASH}.js?date=${timestamp}&_=${timestamp + 1}`;
+  const url = `https://botbot3.space/tables/v4/${GS_PRIMARY}/tablenext/day${day}/${BET365_HASH}.js?date=${timestamp}&_=${timestamp + 1}`;
   let jsText;
   try {
     const resp = await fetch(url, { headers: makeBotbotHeaders(GS_PRIMARY, BET365_HASH) });
@@ -423,4 +423,71 @@ async function fetchNextMatches() {
   return { matches, pinnacleHashFailed: false, pinnacleHash: PINNACLE_HASH, bet365HashFailed: b365HashFailed, bet365Hash: BET365_HASH };
 }
 
+async function fetchNextMatchesAllDays(maxDays = 1) {
+  
+  const timestamp = Date.now();
+  console.log(`NextAll: hash=${PINNACLE_HASH.slice(0,8)}…  fetching day0–day${maxDays}`);
+
+  // Validate hash on day0 first (with autodiscovery), same logic as fetchNextMatches
+  let { matches: m0, hashInvalid: inv0 } = await tryNextCombo(PINNACLE_HASH, GS_PRIMARY, timestamp, 0);
+  if (!m0 && inv0) {
+    console.log('NextAll: hash invalid — auto-discovering…');
+    const discovered = await fetchPinnacleHash();
+    if (discovered && discovered !== PINNACLE_HASH) {
+      console.log(`NextAll: new hash=${discovered.slice(0,8)}… — retrying day0`);
+      PINNACLE_HASH = discovered;
+    }
+    if (discovered) {
+      ({ matches: m0, hashInvalid: inv0 } = await tryNextCombo(PINNACLE_HASH, GS_PRIMARY, timestamp, 0));
+    } else {
+      console.log('NextAll: auto-discovery failed');
+    }
+  }
+  if (!m0) {
+    return { matches: [], pinnacleHashFailed: inv0, pinnacleHash: PINNACLE_HASH, bet365HashFailed: false, bet365Hash: BET365_HASH };
+  }
+
+  // Merge day0 results, then fetch day1..maxDays with the now-confirmed hash
+  const seen = new Map();
+  const addMatches = (list) => {
+    for (const m of list) {
+      if (m.id && !seen.has(m.id)) seen.set(m.id, m);
+      else if (!m.id) seen.set(Symbol(), m);
+    }
+  };
+  addMatches(m0);
+
+  for (let day = 1; day <= maxDays; day++) {
+    try {
+      const { matches: dm } = await tryNextCombo(PINNACLE_HASH, GS_PRIMARY, timestamp, day);
+      if (dm && dm.length) { addMatches(dm); console.log(`  NextAll day${day}: ${dm.length} matches`); }
+      else                  console.log(`  NextAll day${day}: 0 matches (empty or no data)`);
+    } catch (e) {
+      console.error(`  NextAll day${day} failed: ${e.message}`);
+    }
+  }
+
+  const allMatches = [...seen.values()];
+  console.log(`NextAll: ${allMatches.length} unique matches across day0–day${maxDays}`);
+
+  // Attach Bet365 odds for all days
+  let bet365HashFailed = false;
+  const b365Map = new Map();
+  for (let day = 0; day <= maxDays; day++) {
+    const { map, hashFailed } = await fetchBet365OddsMap(timestamp, day);
+    if (hashFailed) { bet365HashFailed = true; break; }
+    for (const [id, odds] of map) b365Map.set(id, odds);
+  }
+  if (b365Map.size > 0) {
+    let attached = 0;
+    for (const m of allMatches) {
+      if (m.id && b365Map.has(m.id)) { m.bet365_odds = b365Map.get(m.id); attached++; }
+    }
+    console.log(`  NextAll bet365: attached to ${attached}/${allMatches.length} matches`);
+  }
+
+  return { matches: allMatches, pinnacleHashFailed: false, pinnacleHash: PINNACLE_HASH, bet365HashFailed, bet365Hash: BET365_HASH };
+}
+
+// module.exports = { fetchLiveMatches, fetchNextMatches, fetchNextMatchesAllDays, refreshHashes };
 module.exports = { fetchLiveMatches, fetchNextMatches, refreshHashes };

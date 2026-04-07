@@ -97,4 +97,16 @@ module.exports = {
   S7_TIER:       process.env.S7_TIER    || 'ALL',
 
   S7_MIN_HC_DIFF: parseFloat(process.env.S7_MIN_HC_DIFF || '0.50'),  // min Bet365–Pinnacle line gap
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // STRATEGY SN — Pre-match Pinnacle steam
+  // Fires when Pinnacle moves both AH line AND Total Line before kick-off.
+  // Bet at soft books (Bet365) while they still lag Pinnacle's repriced line.
+  // ════════════════════════════════════════════════════════════════════════════
+  SN_ENABLED:      process.env.SN_ENABLED === 'false',
+  SN_TIER:         process.env.SN_TIER    || 'TOP+MAJOR',
+  SN_MAX_DAYS:     parseInt(process.env.SN_MAX_DAYS    || '7',    10),  // days ahead to monitor
+  SN_MIN_AH_MOVE:  parseFloat(process.env.SN_MIN_AH_MOVE  || '0.25'), // min AH line movement (opening→current)
+  SN_MIN_TL_MOVE:  parseFloat(process.env.SN_MIN_TL_MOVE  || '0.25'), // min TL movement
+  SN_B365_LAG_MIN: parseFloat(process.env.SN_B365_LAG_MIN || '0.10'), // skip if B365 already repriced within this gap
 };
