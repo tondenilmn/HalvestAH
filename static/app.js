@@ -3852,9 +3852,10 @@ function renderScoutPanel(match, cfg, bets, gates, cfgN) {
   const minute  = match.minute ? `<span class="scout-minute">${esc(match.minute)}</span>` : '';
   const league  = match.league ? `<span class="scout-league">${esc(match.league)}</span>` : '';
 
-  const favLc  = cfg.fav_line;
-  const ahStr  = favLc != null ? `AH ${favLc >= 0 ? '' : ''}${favLc.toFixed(2)}` : '';
-  const tlStr  = cfg.tl_c != null ? ` · TL ${cfg.tl_c.toFixed(2)}` : '';
+  const favLc  = cfg.fav_line != null ? parseFloat(cfg.fav_line) : null;
+  const tlc_   = cfg.tl_c    != null ? parseFloat(cfg.tl_c)    : null;
+  const ahStr  = favLc != null ? `AH ${favLc.toFixed(2)}` : '';
+  const tlStr  = tlc_  != null ? ` · TL ${tlc_.toFixed(2)}` : '';
 
   const sig = cfg._signals || {};
   const sigBadges = [
