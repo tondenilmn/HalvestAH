@@ -1197,3 +1197,107 @@ select.gs-select {
   font-size:10px; color:var(--dim); text-align:right;
   margin-top:8px; font-style:italic;
 }
+
+
+/* ── Scout Tab ────────────────────────────────────────────── */
+.scout-empty {
+  color: var(--dim); font-size: 12px; padding: 20px 0;
+}
+.scout-match-header {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 6px; padding: 12px 14px; margin-bottom: 14px;
+}
+.scout-teams {
+  font-size: 15px; font-weight: bold; color: var(--bright);
+  margin-bottom: 6px;
+}
+.scout-vs { color: var(--dim); font-size: 12px; }
+.scout-live-row { display: flex; gap: 8px; align-items: center; margin-bottom: 4px; }
+.scout-score  { background: #1a4a2a; color: var(--green); padding: 1px 7px; border-radius: 3px; font-weight: bold; font-size: 12px; }
+.scout-minute { background: #3a2e00; color: var(--yellow); padding: 1px 6px; border-radius: 3px; font-size: 12px; }
+.scout-league { color: var(--blue); font-size: 11px; }
+.scout-ah-row { font-size: 12px; color: var(--dim); margin-top: 4px; }
+.scout-pool   { font-size: 11px; color: var(--dim); margin-top: 4px; }
+
+.scout-section-title {
+  font-size: 10px; letter-spacing: 1px; color: var(--dim);
+  text-transform: uppercase; margin: 14px 0 8px;
+  border-bottom: 1px solid var(--border); padding-bottom: 4px;
+}
+
+.scout-bet-card {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-left: 3px solid var(--border);
+  border-radius: 4px; padding: 9px 12px; margin-bottom: 7px;
+}
+.scout-bet-card.scout-bet-strong { border-left-color: var(--green); }
+
+.scout-bet-top {
+  display: flex; align-items: baseline; gap: 10px; margin-bottom: 3px;
+}
+.scout-bet-label { font-size: 13px; color: var(--bright); flex: 1; }
+.scout-bet-z     { font-size: 12px; color: var(--green); }
+.scout-bet-n     { font-size: 11px; color: var(--dim); }
+
+.scout-bet-mid { font-size: 12px; color: var(--text); margin-bottom: 4px; }
+.scout-edge    { color: var(--green); }
+
+.scout-bet-bot  { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.scout-mkt      { font-size: 11px; padding: 1px 6px; border-radius: 3px; }
+.scout-mkt-strong { background: #1a4a2a; color: var(--green); }
+.scout-mkt-pos    { background: var(--bg3); color: var(--green); }
+.scout-mkt-neg    { background: var(--bg3); color: var(--red); }
+.scout-kelly    { font-size: 11px; color: var(--yellow); }
+
+.scout-gate-grid {
+  display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px;
+}
+.scout-gate-row {
+  display: grid; grid-template-columns: 90px 140px 1fr;
+  gap: 8px; align-items: center;
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 4px; padding: 6px 10px; font-size: 12px;
+}
+.scout-gate-id     { font-weight: bold; }
+.scout-gate-pass   .scout-gate-id { color: var(--green); }
+.scout-gate-watch  .scout-gate-id { color: var(--yellow); }
+.scout-gate-na     .scout-gate-id { color: var(--dim); }
+.scout-gate-label  { color: var(--bright); }
+.scout-gate-detail { color: var(--dim); font-size: 11px; }
+
+.scout-cta { margin-top: 16px; }
+
+/* ── Scan Card Bet Tips ───────────────────────────────────── */
+.scan-tip-header {
+  font-size: 10px; letter-spacing: 1px; color: var(--dim);
+  text-transform: uppercase; margin: 7px 0 4px;
+  display: flex; align-items: center; gap: 6px;
+}
+.scan-gs-label {
+  background: #1a3a4a; color: var(--blue);
+  padding: 1px 5px; border-radius: 3px; font-size: 10px;
+  letter-spacing: 0; text-transform: none;
+}
+.scan-gs-approx { background: #2a2a1a; color: var(--yellow); }
+
+.scan-tip-list  { display: flex; flex-direction: column; gap: 3px; }
+.scan-tip-empty { font-size: 11px; color: var(--dim); padding: 4px 0; }
+
+.scan-tip-row {
+  display: grid;
+  grid-template-columns: 62px 1fr 44px 44px 34px;
+  gap: 6px; align-items: center;
+  background: var(--bg3); border-radius: 3px;
+  padding: 4px 7px; font-size: 11px;
+  border-left: 2px solid transparent;
+}
+.scan-tip-row.scan-tip-strong { border-left-color: var(--green); }
+
+.scan-tip-label { color: var(--bright); font-weight: bold; }
+.scan-tip-pct   { color: var(--dim); font-size: 10px; }
+.scan-tip-edge  { color: var(--green); text-align: right; }
+.scan-tip-odds  { color: var(--yellow); text-align: right; font-weight: bold; }
+.scan-tip-z     { text-align: right; font-size: 10px; border-radius: 2px; padding: 1px 3px; }
+.scan-tip-z-strong { background: #1a4a2a; color: var(--green); }
+.scan-tip-z-ok     { background: #2a2a1a; color: var(--yellow); }
+.scan-tip-z-weak   { color: var(--dim); }

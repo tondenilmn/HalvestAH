@@ -84,18 +84,24 @@
         <span class="wf-arr">→</span>
         <div class="wf-step" id="wf-2">
           <span class="wf-num">2</span>
+          <span class="wf-name">SCOUT</span>
+        </div>
+        <span class="wf-arr">→</span>
+        <div class="wf-step" id="wf-3">
+          <span class="wf-num">3</span>
           <span class="wf-name">HT ANALYSIS</span>
         </div>
         <span class="wf-arr">→</span>
-        <div class="wf-step wf-place" id="wf-3">
-          <span class="wf-num">3</span>
+        <div class="wf-step wf-place" id="wf-4">
+          <span class="wf-num">4</span>
           <span class="wf-name">PLACE</span>
         </div>
       </div>
 
-      <!-- Tabs (order matches workflow: SCAN → HT ANALYSIS → ANALYSE → DISCOVER) -->
+      <!-- Tabs (order matches workflow: SCAN → SCOUT → HT ANALYSIS → ANALYSE → DISCOVER) -->
       <div class="tabs">
         <button class="tab-btn active" data-tab="scan"  onclick="switchTab('scan')">LIVE SCAN</button>
+        <button class="tab-btn"        data-tab="scout" onclick="switchTab('scout')">SCOUT</button>
         <button class="tab-btn"        data-tab="gsa"   onclick="switchTab('gsa')">HT ANALYSIS</button>
         <button class="tab-btn"        data-tab="match" onclick="switchTab('match')">ANALYSE</button>
         <button class="tab-btn"        data-tab="disc"  onclick="switchTab('disc')">DISCOVER</button>
@@ -106,7 +112,7 @@
         <p style="color:var(--dim);font-size:11px;margin-bottom:12px;line-height:1.6">
           Shows live matches where the <strong style="color:var(--bright)">AH line or TL has moved</strong>.
           Top 3 bets per match — scored vs the historical DB.<br>
-          Click <strong style="color:var(--green)">Use this match →</strong> to load into HT Analysis.
+          Click <strong style="color:var(--green)">Use this match →</strong> to open in Scout (bet recommendations).
         </p>
 
         <!-- scan-url-input kept for JS but hidden -->
@@ -145,6 +151,11 @@
         <button class="run-btn" id="scan-run-btn" onclick="startBatchScan()">SCAN LIVE MATCHES →</button>
         <div id="scan-results"></div>
       </div><!-- /tab-scan -->
+
+      <!-- ══ SCOUT TAB ════════════════════════════════════ -->
+      <div id="tab-scout" class="tab-pane">
+        <div id="scout-panel"><p class="scout-empty">Load a match from Live Scan to see recommendations.</p></div>
+      </div><!-- /tab-scout -->
 
       <!-- ══ ANALYSE TAB ══════════════════════════════════ -->
       <div id="tab-match" class="tab-pane">

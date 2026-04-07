@@ -44,9 +44,9 @@ module.exports = {
   // Source: master_steam_analysis.html (73,910 fixtures, Jan 2025–Feb 2026)
   // ════════════════════════════════════════════════════════════════════════════
   SX_ENABLED: process.env.SX_ENABLED !== 'false',
-  SX_TIER:    process.env.SX_TIER    || process.env.LEAGUE_TIER || 'TOP+MAJOR',
+  SX_TIER:    process.env.SX_TIER    || process.env.LEAGUE_TIER || 'ALL',
   SY_ENABLED: process.env.SY_ENABLED !== 'false',
-  SY_TIER:    process.env.SY_TIER    || process.env.LEAGUE_TIER || 'TOP+MAJOR',
+  SY_TIER:    process.env.SY_TIER    || process.env.LEAGUE_TIER || 'ALL',
 
   // Min AH move per book to count as steam (0.125 = half a step)
   SXSY_MIN_STEAM: parseFloat(process.env.SXSY_MIN_STEAM || '0.125'),
@@ -65,72 +65,12 @@ module.exports = {
   SXSY_HT_FIRE_MIN:  parseInt(process.env.SXSY_HT_FIRE_MIN  || '55', 10),
   SXSY_HT_FIRE_MAX:  parseInt(process.env.SXSY_HT_FIRE_MAX  || '60', 10),
 
-  // ════════════════════════════════════════════════════════════════════════════
-  // STRATEGY 1 — AH Steam → Bet Dog AH
-  // Fire when the AH line steams toward the favourite by at least LM_STEAM_MIN.
-  // Backtest (TOP+MAJOR, 12m OOS, n=934): 55.8% win rate · +21% ROI
-  // ════════════════════════════════════════════════════════════════════════════
-  S1_ENABLED: process.env.S1_ENABLED === 'false',
-  S1_TIER:    process.env.S1_TIER    || process.env.LEAGUE_TIER || 'TOP+MAJOR',  // 'ALL'|'TOP'|'MAJOR'|'TOP+MAJOR'
-
-  LM_STEAM_MIN: parseFloat(process.env.LM_STEAM_MIN || '0.45'),  // min AH steam magnitude (0.45 ≈ 2 steps)
-
-  // Alert window: minutes into the match (for live alerts)
+  // Alert window: minutes into the match (used by S7 live window check)
   ALERT_MIN_MINUTE: parseInt(process.env.ALERT_MIN_MINUTE || '1',  10),
   ALERT_MAX_MINUTE: parseInt(process.env.ALERT_MAX_MINUTE || '5', 10),
 
   // Pre-kick window: fire when kickoff is within this many minutes
   UPCOMING_WINDOW_MINUTES: parseInt(process.env.UPCOMING_WINDOW_MINUTES || '10', 10),
-
-  // ════════════════════════════════════════════════════════════════════════════
-  // STRATEGY 2 — Strong Fav not winning at HT → Over 0.5 2H at 65–70'
-  // Store candidate at HT if strong fav (AH ≥ S2_FAV_AH_MIN) is not winning.
-  // Fire at S2_FIRE_MIN–S2_FIRE_MAX minutes if still no 2H goal.
-  // ════════════════════════════════════════════════════════════════════════════
-  S2_ENABLED: process.env.S2_ENABLED === 'false',
-  S2_TIER:    process.env.S2_TIER    || process.env.LEAGUE_TIER || 'TOP+MAJOR',
-
-  S2_FAV_AH_MIN:      parseFloat(process.env.S2_FAV_AH_MIN      || '0.88'),  // min AH line to qualify as "strong fav"
-  S2_FIRE_MIN_MINUTE: parseInt(process.env.S2_FIRE_MIN_MINUTE   || '65', 10), // fire window start
-  S2_FIRE_MAX_MINUTE: parseInt(process.env.S2_FIRE_MAX_MINUTE   || '70', 10), // fire window end
-
-  // ════════════════════════════════════════════════════════════════════════════
-  // STRATEGY 3 — TLM steam + TL ≥ 2.5 + 0-0 at 25–32' → Over 0.5 1H
-  // DISABLED by default — backtest shows ~52% hit rate, BE odds 1.94, not profitable.
-  // Set S3_ENABLED=true to re-enable if market conditions change.
-  // ════════════════════════════════════════════════════════════════════════════
-  S3_ENABLED: process.env.S3_ENABLED === 'false',  // default OFF
-  S3_TIER:    process.env.S3_TIER    || process.env.LEAGUE_TIER || 'TOP+MAJOR',
-
-  TLM1H_MIN_TL:     parseFloat(process.env.TLM1H_MIN_TL     || '2.5'),    // min TL closing
-  TLM1H_MIN_STEAM:  parseFloat(process.env.TLM1H_MIN_STEAM  || '0.25'),   // min TL steam (tl_c - tl_o)
-  TLM1H_MIN_MINUTE: parseInt(process.env.TLM1H_MIN_MINUTE   || '25', 10), // alert window start
-  TLM1H_MAX_MINUTE: parseInt(process.env.TLM1H_MAX_MINUTE   || '32', 10), // alert window end
-
-  // ════════════════════════════════════════════════════════════════════════════
-  // STRATEGY 4 — Fav leads +1 at HT, AH 0.25–1.00, TL ≤ 2.75 → Under 1.5 2H
-  // Fires at HT (same HT_MIN/MAX_MINUTE window as S2/S5).
-  // Backtest (TOP+MAJOR, 12m OOS, n=3804): 59.3% hit · σ=2.1% · BE odds 1.69
-  // ════════════════════════════════════════════════════════════════════════════
-  S4_ENABLED: process.env.S4_ENABLED === 'false',
-  S4_TIER:    process.env.S4_TIER    || process.env.LEAGUE_TIER || 'TOP+MAJOR',
-
-  S4_FAV_AH_MIN: parseFloat(process.env.S4_FAV_AH_MIN || '0.13'),  // min AH line (lower bound)
-  S4_FAV_AH_MAX: parseFloat(process.env.S4_FAV_AH_MAX || '1.12'),  // max AH line (upper bound)
-  S4_MAX_TL:     parseFloat(process.env.S4_MAX_TL     || '2.75'),  // max closing TL
-
-  // ════════════════════════════════════════════════════════════════════════════
-  // STRATEGY 5 — HT-as-signal DB probe
-  // At HT, filters the historical DB by AH line + fav side + HT score,
-  // then alerts when a 2H/FT bet shows meaningful z-score above baseline.
-  // Uses full DB (all leagues) for largest possible baseline.
-  // ════════════════════════════════════════════════════════════════════════════
-  S5_ENABLED: process.env.S5_ENABLED === 'false',
-  S5_TIER:    process.env.S5_TIER    || process.env.LEAGUE_TIER || 'TOP+MAJOR',
-
-  HT_MIN_N:        parseInt(process.env.HT_MIN_N        || '200', 10), // min HT-filtered pool size
-  HT_MIN_Z:        parseFloat(process.env.HT_MIN_Z      || '2.5'),     // min z-score
-  HT_MIN_BASELINE: parseFloat(process.env.HT_MIN_BASELINE || '30'),    // min baseline hit rate %
 
   // ════════════════════════════════════════════════════════════════════════════
   // STRATEGY 6 — Market-calibrated edge (pre-match, all leagues)
