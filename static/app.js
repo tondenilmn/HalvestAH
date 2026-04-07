@@ -3702,7 +3702,7 @@ function renderScanMatchCard({ match, cfg, bets, gsBets, n }) {
     tipHtml = tipRows.map(({ label, b }) => {
       const strong  = b.z >= 2.0;
       const zCls    = b.z >= 2.0 ? 'scan-tip-z-strong' : b.z >= 1.5 ? 'scan-tip-z-ok' : 'scan-tip-z-weak';
-      const minOdds = b.mo_lo ? b.mo_lo.toFixed(2) : '—';
+      const minOdds = b.mo_lo || '—';
       const hit     = b.p   != null ? b.p.toFixed(0)   + '%' : '?';
       const bl      = b.bl  != null ? b.bl.toFixed(0)  + '%' : '?';
       const edge    = b.edge != null ? (b.edge > 0 ? '+' : '') + b.edge.toFixed(0) + 'pp' : '';
@@ -3880,7 +3880,7 @@ function renderScoutPanel(match, cfg, bets, gates, cfgN) {
   } else {
     for (const b of bets) {
       const strong   = b.z >= 2.5;
-      const minOdds  = b.mo_lo ? b.mo_lo.toFixed(2) : '—';
+      const minOdds  = b.mo_lo || '—';
       const hitPct   = b.p != null    ? b.p.toFixed(1)    : '?';
       const blPct    = b.bl != null   ? b.bl.toFixed(1)   : '?';
       const edgePp   = b.edge != null ? (b.edge > 0 ? '+' : '') + b.edge.toFixed(1) + 'pp' : '';
@@ -3891,7 +3891,7 @@ function renderScoutPanel(match, cfg, bets, gates, cfgN) {
         ? `<span class="scout-mkt ${b.mkt_edge >= 10 ? 'scout-mkt-strong' : b.mkt_edge >= 0 ? 'scout-mkt-pos' : 'scout-mkt-neg'}">${b.mkt_edge > 0 ? '+' : ''}${b.mkt_edge.toFixed(0)}pp vs mkt</span>`
         : '';
 
-      const kelly    = b.mo_lo ? (_kellyFraction(b.p / 100, b.mo_lo) * 100).toFixed(1) : null;
+      const kelly    = b.mo_lo ? (_kellyFraction(b.p / 100, parseFloat(b.mo_lo)) * 100).toFixed(1) : null;
       const kellyStr = kelly ? `<span class="scout-kelly">Kelly ${kelly}%</span>` : '';
 
       html += `
