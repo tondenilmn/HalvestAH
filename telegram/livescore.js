@@ -3,9 +3,13 @@
 // Adapted from functions/api/livescore.js for Node.js (no Cloudflare runtime).
 // Uses built-in fetch (Node >= 18).
 
-let PINNACLE_HASH = process.env.PINNACLE_HASH || '30e528c380c96b362ffacdc66b2808c8ad59ce9e';
-let BET365_HASH   = process.env.BET365_HASH   || '88cb51b3c128c9bde8e975e9dad5bc62625a8bd5';
-let SBOBET_HASH   = process.env.SBOBET_HASH   || '3232dc0679a9e90f92c895b626b67d7af6c5f661';
+// Hashes are bootstrapped at startup via refreshHashes() — sourced from the
+// Cloudflare Pages dashboard (DATA_URL/api/livescore?hashes=1) when DATA_URL is set,
+// or from asianbetsoccer.com as a fallback for local runs.
+// Do NOT set these as Railway env vars — manage them in the Cloudflare dashboard only.
+let PINNACLE_HASH = '30e528c380c96b362ffacdc66b2808c8ad59ce9e'; // overwritten at startup
+let BET365_HASH   = '88cb51b3c128c9bde8e975e9dad5bc62625a8bd5'; // overwritten at startup
+let SBOBET_HASH   = '3232dc0679a9e90f92c895b626b67d7af6c5f661'; // overwritten at startup
 const GS_PRIMARY    = 'Q';
 const GS_CANDIDATES = ['Q', '1', '2', '3', 'AH', 'S', 'EU', 'A', 'ah', 's', '4', '5', '10', '6', '7', '8', 'B', 'F'];
 
@@ -281,13 +285,39 @@ async function fetchAllBookHashes() {
 }
 
 /**
- * Refresh all book hashes from asianbetsoccer in one page fetch.
- * Updates the module-level variables. Logs what changed.
- * Called at startup and daily by the scheduler.
+ * Refresh all book hashes.
+ * - When DATA_URL is set: fetches from the Cloudflare Pages endpoint (?hashes=1).
+ *   The Cloudflare dashboard is the single source of truth — update hashes there.
+ * - Fallback: scrapes asianbetsoccer directly (used for local runs without DATA_URL).
+ * Updates module-level variables. Logs what changed.
+ * Called at startup and periodically by the scheduler.
  */
 async function refreshHashes() {
-  console.log('Hashes: refreshing from asianbetsoccer…');
-  const { pinnacle, bet365, sbobet } = await fetchAllBookHashes();
+  const dataUrl = process.env.DATA_URL;
+  let pinnacle = null, bet365 = null, sbobet = null;
+
+  if (dataUrl) {
+    try {
+      console.log('Hashes: fetching from Cloudflare dashboard…');
+      const resp = await fetch(`${dataUrl}/api/livescore?hashes=1`);
+      if (resp.ok) {
+        const json = await resp.json();
+        pinnacle = json.pinnacle_hash || null;
+        bet365   = json.bet365_hash   || null;
+        sbobet   = json.sbobet_hash   || null;
+      } else {
+        console.log(`  Cloudflare hashes endpoint returned HTTP ${resp.status} — falling back to asianbetsoccer`);
+      }
+    } catch (e) {
+      console.log(`  Cloudflare hashes fetch failed: ${e.message} — falling back to asianbetsoccer`);
+    }
+  }
+
+  if (!pinnacle && !bet365 && !sbobet) {
+    console.log('Hashes: refreshing from asianbetsoccer…');
+    ({ pinnacle, bet365, sbobet } = await fetchAllBookHashes());
+  }
+
   let changed = 0;
   if (pinnacle && pinnacle !== PINNACLE_HASH) { console.log(`  Pinnacle: ${PINNACLE_HASH.slice(0,8)}… → ${pinnacle.slice(0,8)}…`); PINNACLE_HASH = pinnacle; changed++; }
   if (bet365   && bet365   !== BET365_HASH)   { console.log(`  Bet365:   ${BET365_HASH.slice(0,8)}… → ${bet365.slice(0,8)}…`);   BET365_HASH   = bet365;   changed++; }
