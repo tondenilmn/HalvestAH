@@ -783,14 +783,14 @@ async function fetchMatches() {
     liveMatches = data.matches      || [];
     nextMatches = data.next_matches || [];
     if (nextMatches.length === 0) {
-      try {
-        const r = await fetchNextMatchesAllDays(cfg.SN_MAX_DAYS);
-        nextMatches        = r.matches;
-        pinnacleHashFailed = pinnacleHashFailed || r.pinnacleHashFailed;
-        bet365HashFailed   = bet365HashFailed   || r.bet365HashFailed;
-        if (r.pinnacleHash) pinnacleHash = r.pinnacleHash;
-        if (r.bet365Hash)   bet365Hash   = r.bet365Hash;
-      } catch (e) { console.error(`NextGame fetch failed: ${e.message}`); }
+      // try {
+      //   const r = await fetchNextMatchesAllDays(cfg.SN_MAX_DAYS);
+      //   nextMatches        = r.matches;
+      //   pinnacleHashFailed = pinnacleHashFailed || r.pinnacleHashFailed;
+      //   bet365HashFailed   = bet365HashFailed   || r.bet365HashFailed;
+      //   if (r.pinnacleHash) pinnacleHash = r.pinnacleHash;
+      //   if (r.bet365Hash)   bet365Hash   = r.bet365Hash;
+      // } catch (e) { console.error(`NextGame fetch failed: ${e.message}`); }
     }
   } else {
     const liveResult = await fetchLiveMatches();
