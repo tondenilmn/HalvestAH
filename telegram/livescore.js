@@ -298,18 +298,20 @@ async function refreshHashes() {
 
   if (dataUrl) {
     try {
-      console.log('Hashes: fetching from Cloudflare dashboard…');
-      const resp = await fetch(`${dataUrl}/api/livescore?hashes=1`);
-      if (resp.ok) {
+      const base = dataUrl.replace(/\/+$/, '');
+      const resp = await fetch(`${base}/api/livescore?hashes=1`);
+      const ct   = resp.headers.get('content-type') || '';
+      if (resp.ok && ct.includes('application/json')) {
         const json = await resp.json();
         pinnacle = json.pinnacle_hash || null;
         bet365   = json.bet365_hash   || null;
         sbobet   = json.sbobet_hash   || null;
+        console.log(`Hashes: loaded from Cloudflare dashboard (pin=${pinnacle?.slice(0,8)}… b365=${bet365?.slice(0,8)}… sbo=${sbobet?.slice(0,8)}…)`);
       } else {
-        console.log(`  Cloudflare hashes endpoint returned HTTP ${resp.status} — falling back to asianbetsoccer`);
+        console.log(`Hashes: Cloudflare endpoint not ready (HTTP ${resp.status}, ct=${ct.split(';')[0]}) — falling back to asianbetsoccer`);
       }
     } catch (e) {
-      console.log(`  Cloudflare hashes fetch failed: ${e.message} — falling back to asianbetsoccer`);
+      console.log(`Hashes: Cloudflare fetch error (${e.message}) — falling back to asianbetsoccer`);
     }
   }
 
