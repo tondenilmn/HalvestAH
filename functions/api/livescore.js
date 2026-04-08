@@ -31,6 +31,8 @@
  */
 
 let PINNACLE_HASH = '30e528c380c96b362ffacdc66b2808c8ad59ce9e'; // overridden at runtime from context.env
+let BET365_HASH   = '88cb51b3c128c9bde8e975e9dad5bc62625a8bd5'; // overridden at runtime from context.env
+let SBOBET_HASH   = '3232dc0679a9e90f92c895b626b67d7af6c5f661'; // overridden at runtime from context.env
 // gS candidates — 'Q' is the confirmed primary value; rest are fallbacks.
 // Auto-discovery (fetchPinnacleHash) is tried before the sweep when the primary hash fails.
 // Worst-case subrequest budget: 1 (fast path) + 1 (page fetch) + 1 (Q+discovered) + 18 (sweep) = 21, well under 50.
@@ -69,6 +71,28 @@ async function fetchPinnacleHash() {
   }
 }
 
+/**
+ * Fetch live odds for a secondary bookmaker (Bet365, Sbobet) by hash.
+ * Returns Map<matchId, odds>. Non-fatal — empty map on any error.
+ */
+async function fetchLiveOddsMap(hash, timestamp) {
+  if (!hash) return new Map();
+  const url = `https://botbot3.space/tables/v4/${GS_PRIMARY}/livegame/${hash}.js?date=${timestamp}&_=${timestamp + 1}`;
+  try {
+    const resp = await fetch(url, { headers: makeBotbotHeaders(GS_PRIMARY, hash) });
+    if (!resp.ok) return new Map();
+    const jsText   = await resp.text();
+    const oddsRows = parseGetData2Calls(jsText);
+    const map = new Map();
+    for (const row of oddsRows) {
+      if (row.matchId) map.set(row.matchId, row.odds);
+    }
+    return map;
+  } catch {
+    return new Map();
+  }
+}
+
 function makeBotbotHeaders(gS, book) {
   return {
     Origin:            'https://www.asianbetsoccer.com',
@@ -84,6 +108,8 @@ function makeBotbotHeaders(gS, book) {
 
 export async function onRequest(context) {
   if (context.env?.PINNACLE_HASH) PINNACLE_HASH = context.env.PINNACLE_HASH;
+  if (context.env?.BET365_HASH)   BET365_HASH   = context.env.BET365_HASH;
+  if (context.env?.SBOBET_HASH)   SBOBET_HASH   = context.env.SBOBET_HASH;
 
   const cors = {
     'Access-Control-Allow-Origin':  '*',
@@ -97,6 +123,15 @@ export async function onRequest(context) {
 
   const reqUrl  = new URL(context.request.url);
   const isDebug = reqUrl.searchParams.get('debug') === '1';
+
+  // ?hashes=1 — return current active hashes (from env vars) without any botbot3 fetch.
+  // Used by the Telegram notifier to bootstrap its hashes from the Cloudflare dashboard.
+  if (reqUrl.searchParams.get('hashes') === '1') {
+    return new Response(
+      JSON.stringify({ pinnacle_hash: PINNACLE_HASH, bet365_hash: BET365_HASH, sbobet_hash: SBOBET_HASH }),
+      { headers: cors }
+    );
+  }
 
   // ?debug=1 — inspect the raw JS and show extraction results
   if (isDebug) {
@@ -224,8 +259,19 @@ export async function onRequest(context) {
     );
   }
 
-  // ── Fetch tablenext (upcoming matches) ───────────────────────────────────
-  const nextMatches = await tryNextComboData(PINNACLE_HASH, GS_PRIMARY) ?? [];
+  // ── Fetch tablenext + secondary book odds in parallel ────────────────────
+  const [nextMatches, b365Map, sboMap] = await Promise.all([
+    tryNextComboData(PINNACLE_HASH, GS_PRIMARY).then(r => r ?? []),
+    fetchLiveOddsMap(BET365_HASH, timestamp),
+    fetchLiveOddsMap(SBOBET_HASH, timestamp),
+  ]);
+
+  // Attach secondary odds to each Pinnacle match by shared matchId
+  for (const m of liveResult.matches) {
+    if (!m.id) continue;
+    if (b365Map.has(m.id)) m.bet365_odds = b365Map.get(m.id);
+    if (sboMap.has(m.id))  m.sbobet_odds  = sboMap.get(m.id);
+  }
 
   return new Response(
     JSON.stringify({
@@ -233,6 +279,8 @@ export async function onRequest(context) {
       next_matches: nextMatches,
       gS:           GS_PRIMARY,
       book:         PINNACLE_HASH,
+      bet365_book:  BET365_HASH,
+      sbobet_book:  SBOBET_HASH,
       method:       liveResult.method,
     }),
     { headers: cors }

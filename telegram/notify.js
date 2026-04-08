@@ -470,7 +470,36 @@ async function runStrategySXY(match, ctx) {
       const pinOk  = pin  && pin.ah_ho  != null && pin.ah_hc  != null;
       const b365Ok = b365 && b365.ah_ho != null && b365.ah_hc != null;
       const sboOk  = sbo  && sbo.ah_ho  != null && sbo.ah_hc  != null;
-      flog(liveMin, label, 'SXY-A1', `SKIP: no signal (pin=${pinOk?'ok':'MISS'} b365=${b365Ok?'ok':'MISS'} sbo=${sboOk?'ok':'MISS'})`);
+
+      // Distinguish: not attached vs. attached but no AH odds
+      const bookStatus = bk => !bk ? 'no_data' : (bk.ah_ho != null && bk.ah_hc != null ? 'ok' : 'no_ah');
+      let reason = `pin=${bookStatus(pin)} b365=${bookStatus(b365)} sbo=${bookStatus(sbo)}`;
+
+      // If all 3 books have AH odds, the signal check itself failed — log why
+      if (pinOk && b365Ok && sboOk) {
+        const ahHo = pin.ah_ho;
+        const dir  = ahHo < -0.01 ? 1 : ahHo > 0.01 ? -1 : 0;
+        if (dir === 0) {
+          reason += ' | pick\'em (no fav side)';
+        } else {
+          const minS = cfg.SXSY_MIN_STEAM;
+          const ps = (pin.ah_ho  - pin.ah_hc)  * dir;
+          const bs = (b365.ah_ho - b365.ah_hc) * dir;
+          const ss = (sbo.ah_ho  - sbo.ah_hc)  * dir;
+          const steamFail = [ps < minS && `pin_ah=${ps.toFixed(3)}`, bs < minS && `b365_ah=${bs.toFixed(3)}`, ss < minS && `sbo_ah=${ss.toFixed(3)}`].filter(Boolean);
+          if (steamFail.length) reason += ` | AH steam fail: ${steamFail.join(' ')}`;
+          else {
+            const tlFails = [
+              (pin.tl_c  == null || pin.tl_o  == null || pin.tl_c  <= pin.tl_o)  && `pin_tl=${pin.tl_o}→${pin.tl_c}`,
+              (b365.tl_c == null || b365.tl_o == null || b365.tl_c <= b365.tl_o) && `b365_tl=${b365.tl_o}→${b365.tl_c}`,
+              (sbo.tl_c  == null || sbo.tl_o  == null || sbo.tl_c  <= sbo.tl_o)  && `sbo_tl=${sbo.tl_o}→${sbo.tl_c}`,
+            ].filter(Boolean);
+            if (tlFails.length) reason += ` | TL not rising: ${tlFails.join(' ')}`;
+          }
+        }
+      }
+
+      flog(liveMin, label, 'SXY-A1', `SKIP: no signal (${reason})`);
     } else {
       const enabled = sd.type === 'SX' ? cfg.SX_ENABLED : cfg.SY_ENABLED;
       const tier_   = sd.type === 'SX' ? cfg.SX_TIER    : cfg.SY_TIER;
