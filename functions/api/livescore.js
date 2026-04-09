@@ -373,8 +373,29 @@ function parseArgValue(s) {
  * Parse all `match2text += getData2(...)` calls.
  * Returns array of { matchId, odds }.
  */
+/**
+ * Parse "ah_hc,ah_ho_tl_c,tl_o|..." encoded string from getData1/getData2none args[3].
+ * Confirmed format across all observed matches:
+ *   "ah_hc,ah_ho_tl_c,tl_o|<direction codes>"
+ */
+function parseEncodedOdds(encoded) {
+  if (!encoded || typeof encoded !== 'string') return {};
+  const core  = encoded.split('|')[0];
+  const parts = core.split('_');
+  if (parts.length < 2) return {};
+  const ah = parts[0].split(',').map(parseFloat);
+  const tl = parts[1].split(',').map(parseFloat);
+  return {
+    ah_hc: isNaN(ah[0]) ? null : ah[0],
+    ah_ho: isNaN(ah[1]) ? null : ah[1],
+    tl_c:  isNaN(tl[0]) ? null : tl[0],
+    tl_o:  isNaN(tl[1]) ? null : tl[1],
+  };
+}
+
 function parseGetData2Calls(jsText) {
-  const re = /\bmatch2text\s*\+=\s*getData2\s*\(/g;
+  // Match getData2 and any variant (getData2none, getData2live, etc.)
+  const re = /\bmatch2text\s*\+=\s*getData2\w*\s*\(/g;
   const results = [];
   let m;
 
@@ -386,37 +407,60 @@ function parseGetData2Calls(jsText) {
       return isNaN(n) ? null : n;
     };
 
-    // Detect format variant:
-    // Normal:  [..., encodedStr, matchId,   ah_hc, ah_ho, ...]  matchId at [4], odds at [5]+
-    // Variant: [..., encodedStr, 'R', matchId, 'U', ah_hc, ...]  matchId at [5], odds at [7]+
-    let matchId, o; // o = odds index offset relative to normal
+    // Detect format:
+    // Normal (getData2):     [..., encodedStr, matchId, ah_hc, ah_ho, ...]   matchId at [4]
+    // Variant (getData2none): [..., encodedStr, 'R', matchId, 'U', ah_hc, ah_ho, ...]  matchId at [5]
+    //
+    // For the variant, args after ah_ho use an interleaved string-code format that differs
+    // from getData2 — we cannot apply a simple offset. Instead we extract ah_hc/ah_ho from
+    // args[7]/[8] and tl_c/tl_o from the encoded string in args[3].
     if (typeof args[4] === 'string' && args[4].length >= 20) {
-      matchId = args[4]; o = 0;                    // normal format
+      // ── Normal getData2 ──────────────────────────────────────────────────
+      if (args.length < 31) continue;
+      const matchId = args[4];
+      results.push({
+        matchId,
+        odds: {
+          ah_hc: pf(args[5]),
+          ah_ho: pf(args[6]),
+          ho_c:  pf(args[11]),
+          ho_o:  pf(args[12]),
+          ao_c:  pf(args[16]),
+          ao_o:  pf(args[17]),
+          tl_c:  pf(args[21]),
+          tl_o:  pf(args[22]),
+          ov_c:  pf(args[24]),
+          ov_o:  pf(args[25]),
+          un_c:  pf(args[29]),
+          un_o:  pf(args[30]),
+        },
+      });
     } else if (typeof args[5] === 'string' && args[5].length >= 20) {
-      matchId = args[5]; o = 2;                    // variant: 'R' at [4], 'U' at [6]
-    } else {
-      continue;                                    // can't locate matchId
+      // ── Variant getData2none: 'R' at [4], matchId at [5], 'U' at [6] ───
+      // ah_hc=[7], ah_ho=[8] confirmed. Remaining odds use interleaved codes —
+      // parse tl_c/tl_o from the encoded string in args[3] instead.
+      if (args.length < 9) continue;
+      const matchId = args[5];
+      const enc     = parseEncodedOdds(args[3]);
+      results.push({
+        matchId,
+        odds: {
+          ah_hc: pf(args[7]) ?? enc.ah_hc,
+          ah_ho: pf(args[8]) ?? enc.ah_ho,
+          ho_c:  null,
+          ho_o:  null,
+          ao_c:  null,
+          ao_o:  null,
+          tl_c:  enc.tl_c,
+          tl_o:  enc.tl_o,
+          ov_c:  null,
+          ov_o:  null,
+          un_c:  null,
+          un_o:  null,
+        },
+      });
     }
-
-    if (args.length < 31 + o) continue;
-
-    results.push({
-      matchId,
-      odds: {
-        ah_hc: pf(args[5  + o]),
-        ah_ho: pf(args[6  + o]),
-        ho_c:  pf(args[11 + o]),
-        ho_o:  pf(args[12 + o]),
-        ao_c:  pf(args[16 + o]),
-        ao_o:  pf(args[17 + o]),
-        tl_c:  pf(args[21 + o]),
-        tl_o:  pf(args[22 + o]),
-        ov_c:  pf(args[24 + o]),
-        ov_o:  pf(args[25 + o]),
-        un_c:  pf(args[29 + o]),
-        un_o:  pf(args[30 + o]),
-      },
-    });
+    // else: can't locate matchId — skip
   }
 
   return results;
