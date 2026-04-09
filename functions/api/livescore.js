@@ -381,31 +381,41 @@ function parseGetData2Calls(jsText) {
 
   while ((m = re.exec(jsText)) !== null) {
     const args = extractCallArgs(jsText, m.index + m[0].length);
-    if (args.length < 31) continue;
 
     const pf = v => {
       const n = (typeof v === 'number') ? v : parseFloat(v);
       return isNaN(n) ? null : n;
     };
 
-    // args[4] = matchId (40-char hex)
-    const matchId = (typeof args[4] === 'string' && args[4].length >= 20) ? args[4] : null;
+    // Detect format variant:
+    // Normal:  [..., encodedStr, matchId,   ah_hc, ah_ho, ...]  matchId at [4], odds at [5]+
+    // Variant: [..., encodedStr, 'R', matchId, 'U', ah_hc, ...]  matchId at [5], odds at [7]+
+    let matchId, o; // o = odds index offset relative to normal
+    if (typeof args[4] === 'string' && args[4].length >= 20) {
+      matchId = args[4]; o = 0;                    // normal format
+    } else if (typeof args[5] === 'string' && args[5].length >= 20) {
+      matchId = args[5]; o = 2;                    // variant: 'R' at [4], 'U' at [6]
+    } else {
+      continue;                                    // can't locate matchId
+    }
+
+    if (args.length < 31 + o) continue;
 
     results.push({
       matchId,
       odds: {
-        ah_hc: pf(args[5]),
-        ah_ho: pf(args[6]),
-        ho_c:  pf(args[11]),
-        ho_o:  pf(args[12]),
-        ao_c:  pf(args[16]),
-        ao_o:  pf(args[17]),
-        tl_c:  pf(args[21]),
-        tl_o:  pf(args[22]),
-        ov_c:  pf(args[24]),
-        ov_o:  pf(args[25]),
-        un_c:  pf(args[29]),
-        un_o:  pf(args[30]),
+        ah_hc: pf(args[5  + o]),
+        ah_ho: pf(args[6  + o]),
+        ho_c:  pf(args[11 + o]),
+        ho_o:  pf(args[12 + o]),
+        ao_c:  pf(args[16 + o]),
+        ao_o:  pf(args[17 + o]),
+        tl_c:  pf(args[21 + o]),
+        tl_o:  pf(args[22 + o]),
+        ov_c:  pf(args[24 + o]),
+        ov_o:  pf(args[25 + o]),
+        un_c:  pf(args[29 + o]),
+        un_o:  pf(args[30 + o]),
       },
     });
   }
