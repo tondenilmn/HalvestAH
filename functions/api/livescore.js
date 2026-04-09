@@ -163,11 +163,10 @@ export async function onRequest(context) {
     const orphans = metaRows
       .filter(m => m.matchId && !data2MatchIds.has(m.matchId))
       .map(m => {
-        // Check if the matchId appears anywhere in the raw JS (any getData2 call, even unparsed)
-        const inRawJs  = body.includes(m.matchId);
-        // Check if it appears specifically near 'getData2'
-        const idx      = body.indexOf(m.matchId);
-        const context  = inRawJs ? body.slice(Math.max(0, idx - 60), idx + 60).replace(/\s+/g, ' ') : null;
+        const inRawJs = body.includes(m.matchId);
+        const idx     = body.indexOf(m.matchId);
+        // Show 250 chars before matchId to capture the function name, 100 after for the first few args
+        const context = inRawJs ? body.slice(Math.max(0, idx - 250), idx + 100).replace(/\s+/g, ' ') : null;
         return { matchId: m.matchId, home: m.homeTeam, away: m.awayTeam, minute: m.minute, inRawJs, context };
       });
 
