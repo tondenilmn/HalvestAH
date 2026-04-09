@@ -18,7 +18,7 @@ const {
 // const { fetchLiveMatches, fetchNextMatches, fetchNextMatchesAllDays, refreshHashes } = require('./livescore');
 const { fetchLiveMatches, fetchNextMatches, refreshHashes } = require('./livescore');
 
-const VERBOSE = process.argv.includes('--verbose');
+const VERBOSE = process.argv.includes('--verbose') || process.env.VERBOSE === 'true';
 const verbose = VERBOSE ? (...a) => console.log(...a) : () => {};
 
 // Format: [min'] Match  Strategy  reason
@@ -1091,8 +1091,8 @@ async function main() {
   await loadDb();
 
   const on = s => s ? 'ON ' : 'OFF';
-  console.log(`Strategy SX [${on(cfg.SX_ENABLED)}][${cfg.SX_TIER}]: Conf. Fav 3-book steam → 1x2 home win  (${cfg.SXSY_EARLY_MIN}–${cfg.SXSY_EARLY_MAX}' + 30' + HT  |  min steam ${cfg.SXSY_MIN_STEAM}  |  min books ${cfg.SXSY_MIN_BOOKS}/3)`);
-  console.log(`Strategy SY [${on(cfg.SY_ENABLED)}][${cfg.SY_TIER}]: Steam Away Fav 3-book steam → 1x2 away win  (same windows)`);
+  console.log(`Strategy SX [${on(cfg.SX_ENABLED)}][${cfg.SX_TIER}]: Conf. Fav steam → 1x2 home win  (${cfg.SXSY_EARLY_MIN}–${cfg.SXSY_EARLY_MAX}' + 30' + HT  |  min steam ${cfg.SXSY_MIN_STEAM}  |  books Pin+any1)`);
+  console.log(`Strategy SY [${on(cfg.SY_ENABLED)}][${cfg.SY_TIER}]: Steam Away Fav steam → 1x2 away win  (same windows  |  min steam ${cfg.SXSY_MIN_STEAM}  |  books 3/3 required)`);
   console.log(`Strategy S6 [${on(cfg.S6_ENABLED)}][${cfg.S6_TIER}]: Market edge ≥${cfg.MKT_EDGE_THRESH}pp  n≥${cfg.MKT_EDGE_MIN_N}  window=${cfg.S6_WINDOW_MINUTES}min`);
   console.log(`Strategy S7 [${on(cfg.S7_ENABLED)}][${cfg.S7_TIER}]: Bet365 vs Pinnacle AH line gap ≥${cfg.S7_MIN_HC_DIFF}  (live ${cfg.ALERT_MIN_MINUTE}–${cfg.ALERT_MAX_MINUTE}')`);
   console.log(`Strategy SN [${on(cfg.SN_ENABLED)}][${cfg.SN_TIER}]: Pre-match steam  AH≥${cfg.SN_MIN_AH_MOVE} + TL≥${cfg.SN_MIN_TL_MOVE}  days=0-${cfg.SN_MAX_DAYS}  b365_lag≥${cfg.SN_B365_LAG_MIN}`);

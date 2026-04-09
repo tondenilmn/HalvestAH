@@ -50,8 +50,9 @@ module.exports = {
 
   // Min AH move per book to count as steam (0.125 = half a step)
   SXSY_MIN_STEAM: parseFloat(process.env.SXSY_MIN_STEAM || '0.125'),
-  // All 3 books must confirm — this value is informational only (logic enforces 3)
-  SXSY_MIN_BOOKS: 3,
+  // SX: Pin + any 1 of Bet365/Sbobet; SY: all 3 required (enforced in detectSXYSignal)
+  SXSY_MIN_BOOKS_SX: 2,
+  SXSY_MIN_BOOKS_SY: 3,
   // Alert 1 window: early live
   SXSY_EARLY_MIN: parseInt(process.env.SXSY_EARLY_MIN || '1',  10),
   SXSY_EARLY_MAX: parseInt(process.env.SXSY_EARLY_MAX || '10', 10),
