@@ -328,10 +328,8 @@ function detectSXYSignal(match) {
   const b365 = match.bet365_odds;
   const sbo  = match.sbobet_odds;
 
-  // All 3 books must be present — if any is missing, skip entirely
-  if (!pin  || pin.ah_ho  == null || pin.ah_hc  == null) return null;
-  if (!b365 || b365.ah_ho == null || b365.ah_hc == null) return null;
-  if (!sbo  || sbo.ah_ho  == null || sbo.ah_hc  == null) return null;
+  // Pinnacle must always be present
+  if (!pin || pin.ah_ho == null || pin.ah_hc == null) return null;
 
   // Structural role determined by Pinnacle opening line
   const ahHo = pin.ah_ho;
@@ -345,31 +343,69 @@ function detectSXYSignal(match) {
   const dir      = favSide === 'HOME' ? 1 : -1;
   const minSteam = cfg.SXSY_MIN_STEAM;
 
-  const pinSteam  = pin.ah_ho  - pin.ah_hc;
-  const b365Steam = b365.ah_ho - b365.ah_hc;
-  const sboSteam  = sbo.ah_ho  - sbo.ah_hc;
+  const pinSteam = pin.ah_ho - pin.ah_hc;
 
-  // All 3 books must confirm AH steam in the same direction
-  if (pinSteam  * dir < minSteam) return null;
-  if (b365Steam * dir < minSteam) return null;
-  if (sboSteam  * dir < minSteam) return null;
+  // Pinnacle AH steam must always confirm
+  if (pinSteam * dir < minSteam) return null;
 
-  // TL must rise on all 3 books
-  if (pin.tl_c  == null || pin.tl_o  == null || pin.tl_c  <= pin.tl_o)  return null;
-  if (b365.tl_c == null || b365.tl_o == null || b365.tl_c <= b365.tl_o) return null;
-  if (sbo.tl_c  == null || sbo.tl_o  == null || sbo.tl_c  <= sbo.tl_o)  return null;
+  // Pinnacle TL must always rise
+  if (pin.tl_c == null || pin.tl_o == null || pin.tl_c <= pin.tl_o) return null;
+
+  if (favSide === 'AWAY') {
+    // SY: all 3 books required
+    if (!b365 || b365.ah_ho == null || b365.ah_hc == null) return null;
+    if (!sbo  || sbo.ah_ho  == null || sbo.ah_hc  == null) return null;
+
+    const b365Steam = b365.ah_ho - b365.ah_hc;
+    const sboSteam  = sbo.ah_ho  - sbo.ah_hc;
+
+    if (b365Steam * dir < minSteam) return null;
+    if (sboSteam  * dir < minSteam) return null;
+
+    if (b365.tl_c == null || b365.tl_o == null || b365.tl_c <= b365.tl_o) return null;
+    if (sbo.tl_c  == null || sbo.tl_o  == null || sbo.tl_c  <= sbo.tl_o)  return null;
+
+    return {
+      type: 'SY',
+      favSide,
+      confirmedBooks: 3,
+      pinSteam, b365Steam, sboSteam,
+      pinAhHo:  pin.ah_ho,   pinAhHc:  pin.ah_hc,
+      b365AhHo: b365.ah_ho,  b365AhHc: b365.ah_hc,
+      sboAhHo:  sbo.ah_ho,   sboAhHc:  sbo.ah_hc,
+      tlO: pin.tl_o, tlC: pin.tl_c,
+      b365TlO: b365.tl_o, b365TlC: b365.tl_c,
+      sboTlO:  sbo.tl_o,  sboTlC:  sbo.tl_c,
+    };
+  }
+
+  // SX: Pinnacle + any one of Bet365 or Sbobet must confirm AH steam + TL rising
+  const b365AhOk = b365 && b365.ah_ho != null && b365.ah_hc != null;
+  const sboAhOk  = sbo  && sbo.ah_ho  != null && sbo.ah_hc  != null;
+
+  const b365Confirms = b365AhOk &&
+    (b365.ah_ho - b365.ah_hc) * dir >= minSteam &&
+    b365.tl_c != null && b365.tl_o != null && b365.tl_c > b365.tl_o;
+  const sboConfirms  = sboAhOk &&
+    (sbo.ah_ho - sbo.ah_hc) * dir >= minSteam &&
+    sbo.tl_c  != null && sbo.tl_o  != null && sbo.tl_c  > sbo.tl_o;
+
+  if (!b365Confirms && !sboConfirms) return null;
+
+  const b365Steam = b365AhOk ? b365.ah_ho - b365.ah_hc : null;
+  const sboSteam  = sboAhOk  ? sbo.ah_ho  - sbo.ah_hc  : null;
 
   return {
-    type:     favSide === 'HOME' ? 'SX' : 'SY',
+    type: 'SX',
     favSide,
-    confirmedBooks: 3,
+    confirmedBooks: 1 + (b365Confirms ? 1 : 0) + (sboConfirms ? 1 : 0),
     pinSteam, b365Steam, sboSteam,
-    pinAhHo:  pin.ah_ho,   pinAhHc:  pin.ah_hc,
-    b365AhHo: b365.ah_ho,  b365AhHc: b365.ah_hc,
-    sboAhHo:  sbo.ah_ho,   sboAhHc:  sbo.ah_hc,
+    pinAhHo:  pin.ah_ho,        pinAhHc:  pin.ah_hc,
+    b365AhHo: b365?.ah_ho ?? null, b365AhHc: b365?.ah_hc ?? null,
+    sboAhHo:  sbo?.ah_ho  ?? null, sboAhHc:  sbo?.ah_hc  ?? null,
     tlO: pin.tl_o, tlC: pin.tl_c,
-    b365TlO: b365.tl_o, b365TlC: b365.tl_c,
-    sboTlO:  sbo.tl_o,  sboTlC:  sbo.tl_c,
+    b365TlO: b365?.tl_o ?? null, b365TlC: b365?.tl_c ?? null,
+    sboTlO:  sbo?.tl_o  ?? null, sboTlC:  sbo?.tl_c  ?? null,
   };
 }
 
@@ -387,13 +423,14 @@ function sxyAlert1Format(match, sd, tier) {
   const side    = isSX ? 'HOME' : 'AWAY';
   const minOdds = isSX ? '1.46' : '1.42';
   const winRate = isSX ? '71.8%' : '74.1%';
+  const booksLabel = isSX ? `Pin+${sd.confirmedBooks - 1} book confirmed` : '3/3 books confirmed';
   return buildMessage(
-    isSX ? 'SX — Conf. Fav 3-book steam' : 'SY — Steam Away Fav 3-book steam',
+    isSX ? `SX — Conf. Fav ${sd.confirmedBooks}/3-book steam` : 'SY — Steam Away Fav 3-book steam',
     match,
     `${esc(match.minute)}'  ${match.score || '0-0'}`,
     [
       `💰 <b>1x2 ${side} WIN at soft books</b>`,
-      `📌 Min odds: @${minOdds}  (${winRate} win rate — 3/3 books confirmed)`,
+      `📌 Min odds: @${minOdds}  (${winRate} win rate — ${booksLabel})`,
     ],
   );
 }
@@ -401,10 +438,12 @@ function sxyAlert1Format(match, sd, tier) {
 function sxyAlert2Format(match, sd, tier, liveMin) {
   const isSX     = sd.type === 'SX';
   const minsLeft = 45 - liveMin;
+  const scoreStr = match.score || '0-0';
+  const title    = isSX ? `SX — Home fav 0 goals at ${liveMin}'` : `SY — Still 0-0 at 30'`;
   return buildMessage(
-    isSX ? 'SX — Still 0-0 at 30\'' : 'SY — Still 0-0 at 30\'',
+    title,
     match,
-    `${liveMin}'  0-0`,
+    `${liveMin}'  ${scoreStr}`,
     [
       `💰 <b>Over 0.5 1H (in-play)</b>`,
       `📌 Check live odds  (~${minsLeft} min left)`,
@@ -475,26 +514,47 @@ async function runStrategySXY(match, ctx) {
       const bookStatus = bk => !bk ? 'no_data' : (bk.ah_ho != null && bk.ah_hc != null ? 'ok' : 'no_ah');
       let reason = `pin=${bookStatus(pin)} b365=${bookStatus(b365)} sbo=${bookStatus(sbo)}`;
 
-      // If all 3 books have AH odds, the signal check itself failed — log why
-      if (pinOk && b365Ok && sboOk) {
+      // If Pinnacle has AH odds, diagnose further
+      if (pinOk) {
         const ahHo = pin.ah_ho;
         const dir  = ahHo < -0.01 ? 1 : ahHo > 0.01 ? -1 : 0;
         if (dir === 0) {
           reason += ' | pick\'em (no fav side)';
         } else {
-          const minS = cfg.SXSY_MIN_STEAM;
-          const ps = (pin.ah_ho  - pin.ah_hc)  * dir;
-          const bs = (b365.ah_ho - b365.ah_hc) * dir;
-          const ss = (sbo.ah_ho  - sbo.ah_hc)  * dir;
-          const steamFail = [ps < minS && `pin_ah=${ps.toFixed(3)}`, bs < minS && `b365_ah=${bs.toFixed(3)}`, ss < minS && `sbo_ah=${ss.toFixed(3)}`].filter(Boolean);
-          if (steamFail.length) reason += ` | AH steam fail: ${steamFail.join(' ')}`;
-          else {
-            const tlFails = [
-              (pin.tl_c  == null || pin.tl_o  == null || pin.tl_c  <= pin.tl_o)  && `pin_tl=${pin.tl_o}→${pin.tl_c}`,
-              (b365.tl_c == null || b365.tl_o == null || b365.tl_c <= b365.tl_o) && `b365_tl=${b365.tl_o}→${b365.tl_c}`,
-              (sbo.tl_c  == null || sbo.tl_o  == null || sbo.tl_c  <= sbo.tl_o)  && `sbo_tl=${sbo.tl_o}→${sbo.tl_c}`,
+          const minS   = cfg.SXSY_MIN_STEAM;
+          const isSX   = dir === 1;  // home fav
+          const ps     = (pin.ah_ho - pin.ah_hc) * dir;
+          if (ps < minS) {
+            reason += ` | AH steam fail: pin_ah=${ps.toFixed(3)}`;
+          } else if (pin.tl_c == null || pin.tl_o == null || pin.tl_c <= pin.tl_o) {
+            reason += ` | TL not rising: pin_tl=${pin.tl_o}→${pin.tl_c}`;
+          } else if (isSX) {
+            // SX: need Pinnacle + any one other — diagnose why neither b365 nor sbo qualified
+            const diagBook = (bk, name) => {
+              if (!bk || bk.ah_ho == null || bk.ah_hc == null) return `${name}=no_ah`;
+              const s = (bk.ah_ho - bk.ah_hc) * dir;
+              if (s < minS) return `${name}_ah=${s.toFixed(3)}`;
+              if (bk.tl_c == null || bk.tl_o == null || bk.tl_c <= bk.tl_o) return `${name}_tl=${bk.tl_o}→${bk.tl_c}`;
+              return null;
+            };
+            const fails = [diagBook(b365, 'b365'), diagBook(sbo, 'sbo')].filter(Boolean);
+            if (fails.length) reason += ` | neither b365/sbo qualified: ${fails.join(' ')}`;
+          } else {
+            // SY: all 3 required — report each failure
+            const bs = b365Ok ? (b365.ah_ho - b365.ah_hc) * dir : null;
+            const ss = sboOk  ? (sbo.ah_ho  - sbo.ah_hc)  * dir : null;
+            const steamFail = [
+              bs != null && bs < minS && `b365_ah=${bs.toFixed(3)}`,
+              ss != null && ss < minS && `sbo_ah=${ss.toFixed(3)}`,
             ].filter(Boolean);
-            if (tlFails.length) reason += ` | TL not rising: ${tlFails.join(' ')}`;
+            if (steamFail.length) reason += ` | AH steam fail: ${steamFail.join(' ')}`;
+            else {
+              const tlFails = [
+                b365Ok && (b365.tl_c == null || b365.tl_o == null || b365.tl_c <= b365.tl_o) && `b365_tl=${b365.tl_o}→${b365.tl_c}`,
+                sboOk  && (sbo.tl_c  == null || sbo.tl_o  == null || sbo.tl_c  <= sbo.tl_o)  && `sbo_tl=${sbo.tl_o}→${sbo.tl_c}`,
+              ].filter(Boolean);
+              if (tlFails.length) reason += ` | TL not rising: ${tlFails.join(' ')}`;
+            }
           }
         }
       }
@@ -517,7 +577,7 @@ async function runStrategySXY(match, ctx) {
           const msg = sxyAlert1Format(match, sd, tier);
           await sendTelegram(msg);
           sxyDedup.mark(key1);
-          flog(liveMin, label, `SXY-A1`, `ALERT: ${sd.type} 3/3 books steam=${sd.pinSteam.toFixed(2)} tier=${tier}`);
+          flog(liveMin, label, `SXY-A1`, `ALERT: ${sd.type} ${sd.confirmedBooks}/3 books steam=${sd.pinSteam.toFixed(2)} tier=${tier}`);
         } else {
           flogv(liveMin, label, 'SXY-A1', 'SKIP: already notified');
         }
@@ -525,7 +585,7 @@ async function runStrategySXY(match, ctx) {
     }
   }
 
-  // ── Alert 2: 30' check — still 0-0 → Over 0.5 1H ───────────────────────
+  // ── Alert 2: 30' check — fav home not scored yet → Over 0.5 1H ─────────
   if (isSXYMidH) {
     const cand = sxyCandidates.get(matchId);
     if (!cand) { flog(liveMin, label, 'SXY-A2', 'SKIP: no candidate stored (missed alert1 window?)'); }
@@ -538,13 +598,15 @@ async function runStrategySXY(match, ctx) {
           flogv(liveMin, label, 'SXY-A2', 'SKIP: already notified');
         } else {
           const score = parseScoreStr(match.score);
-          if (score && score.home === 0 && score.away === 0) {
+          // SX: fire if home fav hasn't scored yet (home=0); SY: still requires 0-0
+          const favNotScored = score && (cand.type === 'SX' ? score.home === 0 : score.home === 0 && score.away === 0);
+          if (favNotScored) {
             const msg = sxyAlert2Format(match, cand, tier, liveMin);
             await sendTelegram(msg);
             sxyDedup.mark(key2);
-            flog(liveMin, label, 'SXY-A2', `ALERT: score=0-0 tier=${tier}`);
+            flog(liveMin, label, 'SXY-A2', `ALERT: score=${match.score} fav_not_scored tier=${tier}`);
           } else {
-            flogv(liveMin, label, 'SXY-A2', `SKIP: score not 0-0 (${match.score})`);
+            flogv(liveMin, label, 'SXY-A2', `SKIP: fav already scored (${match.score})`);
           }
         }
       }
