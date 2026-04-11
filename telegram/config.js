@@ -20,7 +20,7 @@ module.exports = {
   LEAGUE_TIER: process.env.LEAGUE_TIER || 'TOP+MAJOR',
 
   // ── Scan frequency ───────────────────────────────────────────────────────────
-  SCAN_INTERVAL_MINUTES: parseInt(process.env.SCAN_INTERVAL_MINUTES || '3', 10),
+  SCAN_INTERVAL_MINUTES: parseInt(process.env.SCAN_INTERVAL_MINUTES || '2', 10),
 
   // ── Site timezone offset ─────────────────────────────────────────────────────
   // botbot3.space returns kickoff times in this UTC offset.
@@ -79,7 +79,7 @@ module.exports = {
   // Pinnacle's market-implied probability for any of the 4 market bets
   // (ahCover, dogCover, overTL, underTL), AND Bet365 odds beat Pinnacle avg.
   // ════════════════════════════════════════════════════════════════════════════
-  S6_ENABLED: process.env.S6_ENABLED !== 'false',
+  S6_ENABLED: process.env.S6_ENABLED === 'true',
   S6_TIER:    process.env.S6_TIER    || 'ALL',  // default ALL — Strategy 6 was designed for all leagues
 
   MKT_EDGE_THRESH:   parseFloat(process.env.MKT_EDGE_THRESH   || '10'),    // min pp above market implied
@@ -110,4 +110,77 @@ module.exports = {
   SN_MIN_AH_MOVE:  parseFloat(process.env.SN_MIN_AH_MOVE  || '0.25'), // min AH line movement (opening→current)
   SN_MIN_TL_MOVE:  parseFloat(process.env.SN_MIN_TL_MOVE  || '0.25'), // min TL movement
   SN_B365_LAG_MIN: parseFloat(process.env.SN_B365_LAG_MIN || '0.10'), // skip if B365 already repriced within this gap
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // STRATEGY S8 — Pinnacle Cross: High Volume steam → Over 2.5 FT at 60'
+  // Pre-match Pinnacle-only signal:
+  //   1. AH closing home <= -1      (home is at least a 1-goal favourite)
+  //   2. AH home steam >= 0.50      (ah_ho − ah_hc ≥ 0.50, strong home steam)
+  //   3. TL moved up >= 0.25        (market pricing in goals)
+  // In-play trigger at ~60': if Over 2.5 FT not yet settled (< 3 goals) → bet it.
+  // ════════════════════════════════════════════════════════════════════════════
+  S8_ENABLED:         process.env.S8_ENABLED !== 'false',
+  S8_TIER:            process.env.S8_TIER    || 'ALL',
+  S8_AH_HC_MAX:       parseFloat(process.env.S8_AH_HC_MAX        || '-1'),   // home closing AH must be <= this (home is at least a 1-goal fav)
+  S8_MIN_HOME_STEAM:  parseFloat(process.env.S8_MIN_HOME_STEAM   || '0.5'),  // min AH steam toward home (ah_ho − ah_hc)
+  S8_MIN_TL_MOVE:     parseFloat(process.env.S8_MIN_TL_MOVE      || '0.25'), // min TL move up (tl_c − tl_o)
+  S8_FIRE_MIN:        parseInt(process.env.S8_FIRE_MIN           || '57',  10), // start of in-play fire window
+  S8_FIRE_MAX:        parseInt(process.env.S8_FIRE_MAX           || '63',  10), // end of in-play fire window
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // STRATEGY S9 — Sbobet Cross → Over 2.5 FT at 60'
+  // Sbobet-only signal (line stable, odds movement only):
+  //   1. AH home closing <= -1        (home at least 1-goal fav)
+  //   2. AH line stable               (|ah_hc − ah_ho| ≤ S9_LINE_STABLE_THRESH)
+  //   3. AH home odds dropped ≥ 0.20  (ho_o − ho_c ≥ threshold)
+  //   4. Total Line stable            (|tl_c − tl_o| ≤ S9_TL_STABLE_THRESH)
+  //   5. Over odds dropped ≥ 0.15     (ov_o − ov_c ≥ threshold)
+  // In-play trigger at ~60': if Over 2.5 FT not yet settled (< 3 goals) → bet it.
+  // ════════════════════════════════════════════════════════════════════════════
+  S9_ENABLED:              process.env.S9_ENABLED !== 'false',
+  S9_TIER:                 process.env.S9_TIER    || 'ALL',
+  S9_AH_HC_MAX:            parseFloat(process.env.S9_AH_HC_MAX            || '-1'),   // home closing AH must be <= this
+  S9_LINE_STABLE_THRESH:   parseFloat(process.env.S9_LINE_STABLE_THRESH   || '0.12'), // max AH line move to count as stable
+  S9_MIN_HO_ODDS_DROP:     parseFloat(process.env.S9_MIN_HO_ODDS_DROP     || '0.20'), // min home odds drop (ho_o − ho_c)
+  S9_TL_STABLE_THRESH:     parseFloat(process.env.S9_TL_STABLE_THRESH     || '0.12'), // max TL move to count as stable
+  S9_MIN_OV_ODDS_DROP:     parseFloat(process.env.S9_MIN_OV_ODDS_DROP     || '0.15'), // min over odds drop (ov_o − ov_c)
+  S9_FIRE_MIN:             parseInt(process.env.S9_FIRE_MIN               || '57',  10),
+  S9_FIRE_MAX:             parseInt(process.env.S9_FIRE_MAX               || '63',  10),
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // STRATEGY S10 — Sbobet Away Steam → Away to score (live)
+  // Sbobet-only signal — line stable, home odds drifting (money going away):
+  //   1. AH home closing in [−0.25, +0.50]  (near pick-em or slight away fav)
+  //   2. AH line stable                      (|ah_hc − ah_ho| ≤ S10_LINE_STABLE_THRESH)
+  //   3. AH home odds rose ≥ 0.35            (ho_c − ho_o ≥ threshold — away backed)
+  //   4. Total Line stable                   (|tl_c − tl_o| ≤ S10_TL_STABLE_THRESH)
+  // In-play trigger at ~20' 1H: bet Away to score (if away hasn't scored yet).
+  // ════════════════════════════════════════════════════════════════════════════
+  S10_ENABLED:             process.env.S10_ENABLED !== 'false',
+  S10_TIER:                process.env.S10_TIER    || 'ALL',
+  S10_AH_HC_MIN:           parseFloat(process.env.S10_AH_HC_MIN           || '-0.25'), // home closing AH >= this
+  S10_AH_HC_MAX:           parseFloat(process.env.S10_AH_HC_MAX           || '0.50'),  // home closing AH <= this
+  S10_LINE_STABLE_THRESH:  parseFloat(process.env.S10_LINE_STABLE_THRESH  || '0.12'),  // max AH line move to count as stable
+  S10_MIN_HO_ODDS_RISE:    parseFloat(process.env.S10_MIN_HO_ODDS_RISE    || '0.35'),  // min home odds rise (ho_c − ho_o)
+  S10_TL_STABLE_THRESH:    parseFloat(process.env.S10_TL_STABLE_THRESH    || '0.12'),  // max TL move to count as stable
+  S10_FIRE_MIN:            parseInt(process.env.S10_FIRE_MIN              || '18',  10),
+  S10_FIRE_MAX:            parseInt(process.env.S10_FIRE_MAX              || '22',  10),
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // STRATEGY S11 — Pinnacle + Sbobet Home → Home to score in 2H (at HT)
+  // Cross-book signal: Pinnacle line steamed home + Sbobet line stable but odds confirm:
+  //   1. Pinnacle AH home closing <= −0.75
+  //   2. Pinnacle AH home steam >= 0.50    (pin.ah_ho − pin.ah_hc ≥ 0.50)
+  //   3. Sbobet AH line stable             (|sbo.ah_hc − sbo.ah_ho| ≤ S11_SBO_LINE_STABLE_THRESH)
+  //   4. Sbobet AH home odds steam >= 0.20 (sbo.ho_o − sbo.ho_c ≥ 0.20)
+  // In-play trigger at HT (44–52'): bet Home to score in 2H, only if home hasn't scored yet.
+  // ════════════════════════════════════════════════════════════════════════════
+  S11_ENABLED:                 process.env.S11_ENABLED !== 'false',
+  S11_TIER:                    process.env.S11_TIER    || 'ALL',
+  S11_PIN_AH_HC_MAX:           parseFloat(process.env.S11_PIN_AH_HC_MAX           || '-0.75'), // Pinnacle home closing <= this
+  S11_PIN_MIN_HOME_STEAM:      parseFloat(process.env.S11_PIN_MIN_HOME_STEAM      || '0.50'),  // Pinnacle home steam (ah_ho − ah_hc)
+  S11_SBO_LINE_STABLE_THRESH:  parseFloat(process.env.S11_SBO_LINE_STABLE_THRESH  || '0.12'),  // max Sbobet AH line move to count as stable
+  S11_SBO_MIN_HO_ODDS_STEAM:   parseFloat(process.env.S11_SBO_MIN_HO_ODDS_STEAM   || '0.20'),  // Sbobet home odds steam (ho_o − ho_c)
+  S11_FIRE_MIN:                parseInt(process.env.S11_FIRE_MIN                  || '44',  10),
+  S11_FIRE_MAX:                parseInt(process.env.S11_FIRE_MAX                  || '52',  10),
 };
