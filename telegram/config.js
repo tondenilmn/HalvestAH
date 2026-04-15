@@ -20,7 +20,7 @@ module.exports = {
   LEAGUE_TIER: process.env.LEAGUE_TIER || 'TOP+MAJOR',
 
   // ── Scan frequency ───────────────────────────────────────────────────────────
-  SCAN_INTERVAL_MINUTES: parseInt(process.env.SCAN_INTERVAL_MINUTES || '3', 10),
+  SCAN_INTERVAL_MINUTES: parseInt(process.env.SCAN_INTERVAL_MINUTES || '2', 10),
 
   // ── Site timezone offset ─────────────────────────────────────────────────────
   // botbot3.space returns kickoff times in this UTC offset.

@@ -45,6 +45,7 @@ async function sendTelegram(text) {
       console.error(`[TELEGRAM] Send FAILED: ${await res.text()}`);
     } else {
       console.log(`[TELEGRAM] Sent OK`);
+      _scanAlerts++;
     }
   } catch (e) {
     console.error(`[TELEGRAM] Fetch failed: ${e.message}`);
@@ -154,6 +155,10 @@ function matchContext(match) {
     isSXYMidH:    liveMin != null && liveMin >= cfg.SXSY_MIDH_MIN      && liveMin <= cfg.SXSY_MIDH_MAX,
     isSXYHTStore: liveMin != null && liveMin >= cfg.SXSY_HT_STORE_MIN  && liveMin <= cfg.SXSY_HT_STORE_MAX,
     isSXYHTFire:  liveMin != null && liveMin >= cfg.SXSY_HT_FIRE_MIN   && liveMin <= cfg.SXSY_HT_FIRE_MAX,
+    isS8Fire:     liveMin != null && liveMin >= cfg.S8_FIRE_MIN        && liveMin <= cfg.S8_FIRE_MAX,
+    isS9Fire:     liveMin != null && liveMin >= cfg.S9_FIRE_MIN        && liveMin <= cfg.S9_FIRE_MAX,
+    isS10Fire:    liveMin != null && liveMin >= cfg.S10_FIRE_MIN       && liveMin <= cfg.S10_FIRE_MAX,
+    isS11Fire:    liveMin != null && liveMin >= cfg.S11_FIRE_MIN       && liveMin <= cfg.S11_FIRE_MAX,
     isSteamNext:  liveMin == null && (minsToKickoff == null || minsToKickoff > 0),
     isS1HTStore:  liveMin != null && liveMin >= cfg.S1_HT_STORE_MIN && liveMin <= cfg.S1_HT_STORE_MAX,
     isS1Fire:     liveMin != null && liveMin >= cfg.S1_FIRE_MIN      && liveMin <= cfg.S1_FIRE_MAX,
@@ -568,18 +573,18 @@ async function runStrategySXY(match, ctx) {
         }
       }
 
-      flog(liveMin, label, 'SXY-A1', `SKIP: no signal (${reason})`);
+      flogv(liveMin, label, 'SXY-A1', `SKIP: no signal (${reason})`);
     } else {
       const enabled = sd.type === 'SX' ? cfg.SX_ENABLED : cfg.SY_ENABLED;
       const tier_   = sd.type === 'SX' ? cfg.SX_TIER    : cfg.SY_TIER;
       if (!enabled) {
-        flog(liveMin, label, 'SXY-A1', `SKIP: ${sd.type} disabled`);
+        flogv(liveMin, label, 'SXY-A1', `SKIP: ${sd.type} disabled`);
       } else if (!tierAllowed(tier, tier_)) {
-        flog(liveMin, label, 'SXY-A1', `SKIP: tier=${tier} not in ${tier_}`);
+        flogv(liveMin, label, 'SXY-A1', `SKIP: tier=${tier} not in ${tier_}`);
       } else {
         if (!sxyCandidates.has(matchId)) {
           sxyCandidates.set(matchId, { ...sd, storedAt: Date.now() });
-          flog(liveMin, label, 'SXY-A1', `stored candidate: type=${sd.type} books=${sd.confirmedBooks}/3`);
+          flogv(liveMin, label, 'SXY-A1', `stored candidate: type=${sd.type} books=${sd.confirmedBooks}/3`);
         }
         const key1 = `${matchId}:${sd.type.toLowerCase()}:1`;
         if (!sxyDedup.has(key1)) {
@@ -597,7 +602,7 @@ async function runStrategySXY(match, ctx) {
   // ── Alert 2: 30' check — fav home not scored yet → Over 0.5 1H ─────────
   if (isSXYMidH) {
     const cand = sxyCandidates.get(matchId);
-    if (!cand) { flog(liveMin, label, 'SXY-A2', 'SKIP: no candidate stored (missed alert1 window?)'); }
+    if (!cand) { flogv(liveMin, label, 'SXY-A2', 'SKIP: no candidate stored (missed alert1 window?)'); }
     else {
       const enabled = cand.type === 'SX' ? cfg.SX_ENABLED : cfg.SY_ENABLED;
       const tier_   = cand.type === 'SX' ? cfg.SX_TIER    : cfg.SY_TIER;
@@ -629,7 +634,7 @@ async function runStrategySXY(match, ctx) {
       const score = parseScoreStr(match.score);
       if (score) {
         cand.htScore = { home: score.home, away: score.away };
-        flog(liveMin, label, 'SXY-HT', `stored: HT=${score.home}-${score.away}`);
+        flogv(liveMin, label, 'SXY-HT', `stored: HT=${score.home}-${score.away}`);
       }
     }
   }
@@ -707,14 +712,14 @@ function s6Format(match, matchCfg, poolN, bets, b365, tier, minuteScore) {
 async function runStrategy6(match, ctx) {
   const { matchId, label, tier, liveMin, minsToKickoff, isMktEdge } = ctx;
 
-  if (!cfg.S6_ENABLED) { flog(liveMin, label, 'S6', 'SKIP: disabled'); return; }
-  if (!tierAllowed(tier, cfg.S6_TIER)) { flog(liveMin, label, 'S6', `SKIP: tier=${tier} not in ${cfg.S6_TIER}`); return; }
+  if (!cfg.S6_ENABLED) { flogv(liveMin, label, 'S6', 'SKIP: disabled'); return; }
+  if (!tierAllowed(tier, cfg.S6_TIER)) { flogv(liveMin, label, 'S6', `SKIP: tier=${tier} not in ${cfg.S6_TIER}`); return; }
   if (!isMktEdge) { flogv(liveMin, label, 'S6', `SKIP: not in mkt window (min=${liveMin} needs 1-${cfg.S6_WINDOW_MINUTES})`); return; }
   if (!_dbAll || !_dbAll.length) { flog(liveMin, label, 'S6', 'SKIP: DB empty'); return; }
-  if (!match.odds) { flog(liveMin, label, 'S6', 'SKIP: no odds'); return; }
+  if (!match.odds) { flogv(liveMin, label, 'S6', 'SKIP: no odds'); return; }
 
   const matchCfg = buildCfgFromMatch(match.odds, { LINE_MOVE_ON: true, TL_MOVE_ON: true });
-  if (!matchCfg) { flog(liveMin, label, 'S6', 'SKIP: odds incomplete (buildCfg returned null)'); return; }
+  if (!matchCfg) { flogv(liveMin, label, 'S6', 'SKIP: odds incomplete (buildCfg returned null)'); return; }
 
   const { signals } = matchCfg;
   const hasMovement =
@@ -722,7 +727,7 @@ async function runStrategy6(match, ctx) {
     (signals.tlMove   !== 'STABLE' && signals.tlMove   !== 'UNKNOWN');
 
   if (!hasMovement) {
-    flog(liveMin, label, 'S6', `SKIP: no movement (lm=${signals.lineMove} tlm=${signals.tlMove})`);
+    flogv(liveMin, label, 'S6', `SKIP: no movement (lm=${signals.lineMove} tlm=${signals.tlMove})`);
     return;
   }
 
@@ -738,7 +743,7 @@ async function runStrategy6(match, ctx) {
   if (!qualifying.length) {
     const mktBets = bets.filter(b => MKT_KEYS.has(b.k));
     const best = mktBets.length ? `best_edge=${Math.max(...mktBets.map(b => b.mkt_edge ?? -999)).toFixed(1)}pp` : 'no_mkt_bets';
-    flog(liveMin, label, 'S6', `SKIP: no qualifying bets (pool=${cfgRows.length} ${best} thresh=${cfg.MKT_EDGE_THRESH}pp)`);
+    flogv(liveMin, label, 'S6', `SKIP: no qualifying bets (pool=${cfgRows.length} ${best} thresh=${cfg.MKT_EDGE_THRESH}pp)`);
     return;
   }
 
@@ -757,7 +762,7 @@ async function runStrategy6(match, ctx) {
   });
 
   if (!toFire.length) {
-    flog(liveMin, label, 'S6', `SKIP: all qualifying bets below B365 threshold (b365=${b365 ? 'ok' : 'null'})`);
+    flogv(liveMin, label, 'S6', `SKIP: all qualifying bets below B365 threshold (b365=${b365 ? 'ok' : 'null'})`);
     return;
   }
 
@@ -800,17 +805,17 @@ function s7Format(match, tier, minuteScore, betTeam, b365Hc, b365Odds, pinHc, ab
 async function runStrategy7(match, ctx) {
   const { matchId, label, tier, liveMin, isLive } = ctx;
 
-  if (!cfg.S7_ENABLED) { flog(liveMin, label, 'S7', 'SKIP: disabled'); return; }
-  if (!tierAllowed(tier, cfg.S7_TIER)) { flog(liveMin, label, 'S7', `SKIP: tier=${tier} not in ${cfg.S7_TIER}`); return; }
+  if (!cfg.S7_ENABLED) { flogv(liveMin, label, 'S7', 'SKIP: disabled'); return; }
+  if (!tierAllowed(tier, cfg.S7_TIER)) { flogv(liveMin, label, 'S7', `SKIP: tier=${tier} not in ${cfg.S7_TIER}`); return; }
   if (!isLive) { flogv(liveMin, label, 'S7', `SKIP: not in live window (min=${liveMin} needs ${cfg.ALERT_MIN_MINUTE}-${cfg.ALERT_MAX_MINUTE})`); return; }
-  if (!match.odds) { flog(liveMin, label, 'S7', 'SKIP: no odds'); return; }
+  if (!match.odds) { flogv(liveMin, label, 'S7', 'SKIP: no odds'); return; }
 
   const pinHc = match.odds.ah_hc;
-  if (pinHc == null) { flog(liveMin, label, 'S7', 'SKIP: ah_hc missing in Pinnacle odds'); return; }
+  if (pinHc == null) { flogv(liveMin, label, 'S7', 'SKIP: ah_hc missing in Pinnacle odds'); return; }
 
   const b365 = await fetchBet365Data(matchId);
   if (!b365 || b365.ahHc == null) {
-    flog(liveMin, label, 'S7', `SKIP: no B365 data (matchId=${matchId})`);
+    flogv(liveMin, label, 'S7', `SKIP: no B365 data (matchId=${matchId})`);
     return;
   }
 
@@ -828,7 +833,7 @@ async function runStrategy7(match, ctx) {
     betTeam  = match.away_team;
     b365Odds = b365.aoC;
   } else {
-    flog(liveMin, label, 'S7', `SKIP: hcDiff=${hcDiff.toFixed(2)} below ±${cfg.S7_MIN_HC_DIFF} (pin=${pinHc.toFixed(2)} b365=${b365Hc.toFixed(2)})`);
+    flogv(liveMin, label, 'S7', `SKIP: hcDiff=${hcDiff.toFixed(2)} below ±${cfg.S7_MIN_HC_DIFF} (pin=${pinHc.toFixed(2)} b365=${b365Hc.toFixed(2)})`);
     return;
   }
 
@@ -837,7 +842,7 @@ async function runStrategy7(match, ctx) {
 
   // Only fire if Bet365 odds are confirmed at or above the break-even minimum
   if (b365Odds == null || b365Odds < minOdds) {
-    flog(liveMin, label, 'S7', `SKIP: b365Odds=${b365Odds != null ? b365Odds.toFixed(2) : 'n/a'} below minOdds=${minOdds.toFixed(2)} (diff=${absDiff.toFixed(2)})`);
+    flogv(liveMin, label, 'S7', `SKIP: b365Odds=${b365Odds != null ? b365Odds.toFixed(2) : 'n/a'} below minOdds=${minOdds.toFixed(2)} (diff=${absDiff.toFixed(2)})`);
     return;
   }
 
@@ -851,6 +856,342 @@ async function runStrategy7(match, ctx) {
   await sendTelegram(msg);
   s7Dedup.mark(dedupKey);
   flog(liveMin, label, 'S7', `ALERT: side=${betSide} pin=${pinHc.toFixed(2)} b365=${b365Hc.toFixed(2)} diff=${absDiff.toFixed(2)} odds=${b365Odds != null ? b365Odds.toFixed(2) : 'n/a'} min=${minOdds.toFixed(2)} tier=${tier}`);
+}
+
+// ── Strategy S8: Pinnacle Cross – High Volume → Over 2.5 FT at 60' ──────────
+// Pre-match Pinnacle-only signal:
+//   1. AH closing home >= -1  (high-volume: home not a heavy favourite)
+//   2. AH home steam >= 0.50  (ah_ho − ah_hc ≥ 0.50)
+//   3. TL moved up >= 0.25    (market pricing in goals)
+// Fires at ~60' when Over 2.5 FT is still unsettled (total goals < 3).
+
+const s8Dedup = new Dedup(4 * 60 * 60 * 1000);
+
+function detectS8Signal(odds) {
+  if (!odds) return null;
+  const { ah_hc: ahHc, ah_ho: ahHo, tl_c: tlC, tl_o: tlO } = odds;
+  if (ahHc == null || ahHo == null) return null;
+  if (ahHc > cfg.S8_AH_HC_MAX) return null;              // home closing must be <= -1 (home at least 1-goal fav)
+  const homeSteam = ahHo - ahHc;
+  if (homeSteam < cfg.S8_MIN_HOME_STEAM) return null;     // home steam >= 0.50
+  if (tlC == null || tlO == null) return null;
+  const tlMove = tlC - tlO;
+  if (tlMove < cfg.S8_MIN_TL_MOVE) return null;           // TL up >= 0.25
+  return { ahHc, ahHo, homeSteam, tlC, tlO, tlMove };
+}
+
+function s8Format(match, sd, liveMin) {
+  const fmt      = v => v >= 0 ? `+${v.toFixed(2)}` : v.toFixed(2);
+  const minsLeft = 90 - liveMin;
+  return buildMessage(
+    'S8 — High Volume Over 2.5',
+    match,
+    `${liveMin}'  ${match.score || '?-?'}`,
+    [
+      `💰 <b>Over 2.5 FT (in-play)</b>`,
+      `📌 Check live odds  (~${minsLeft} min left, score still unsettled)`,
+      `📌 AH home: ${fmt(sd.ahHo)} → ${fmt(sd.ahHc)}  (steam +${sd.homeSteam.toFixed(2)})`,
+      `📌 TL: ${sd.tlO.toFixed(2)} → ${sd.tlC.toFixed(2)}  (↑${sd.tlMove.toFixed(2)})`,
+    ],
+  );
+}
+
+async function runStrategy8(match, ctx) {
+  const { matchId, label, tier, liveMin, isS8Fire } = ctx;
+
+  if (!cfg.S8_ENABLED) { flogv(liveMin, label, 'S8', 'SKIP: disabled'); return; }
+  if (!tierAllowed(tier, cfg.S8_TIER)) { flogv(liveMin, label, 'S8', `SKIP: tier=${tier} not in ${cfg.S8_TIER}`); return; }
+  if (!isS8Fire) { flogv(liveMin, label, 'S8', `SKIP: not in fire window (min=${liveMin} needs ${cfg.S8_FIRE_MIN}-${cfg.S8_FIRE_MAX})`); return; }
+  if (!match.odds) { flogv(liveMin, label, 'S8', 'SKIP: no odds'); return; }
+
+  const sd = detectS8Signal(match.odds);
+  if (!sd) {
+    const ahHc       = match.odds.ah_hc ?? '?';
+    const homeSteam  = ((match.odds.ah_ho ?? 0) - (match.odds.ah_hc ?? 0)).toFixed(2);
+    const tlMove     = ((match.odds.tl_c  ?? 0) - (match.odds.tl_o  ?? 0)).toFixed(2);
+    flogv(liveMin, label, 'S8', `SKIP: no signal (ahHc=${ahHc} homeSteam=${homeSteam} tlMove=${tlMove})`);
+    return;
+  }
+
+  const score = parseScoreStr(match.score);
+  if (!score) { flogv(liveMin, label, 'S8', 'SKIP: no score'); return; }
+
+  const totalGoals = score.home + score.away;
+  if (totalGoals >= 3) {
+    flogv(liveMin, label, 'S8', `SKIP: Over 2.5 already settled (${match.score})`);
+    return;
+  }
+
+  const dedupKey = `${matchId}:s8`;
+  if (s8Dedup.has(dedupKey)) { flogv(liveMin, label, 'S8', 'SKIP: already notified'); return; }
+
+  const msg = s8Format(match, sd, liveMin);
+  await sendTelegram(msg);
+  s8Dedup.mark(dedupKey);
+  flog(liveMin, label, 'S8', `ALERT: score=${match.score} goals=${totalGoals} ahHc=${sd.ahHc.toFixed(2)} steam=${sd.homeSteam.toFixed(2)} tlMove=${sd.tlMove.toFixed(2)} tier=${tier}`);
+}
+
+// ── Strategy S9: Sbobet Cross → Over 2.5 FT at 60' ──────────────────────────
+// Sbobet-only signal — line stable, pure odds compression:
+//   1. AH home closing <= -1
+//   2. AH line stable (no handicap move)
+//   3. AH home odds dropped >= 0.20
+//   4. Total Line stable
+//   5. Over odds dropped >= 0.15
+// Fires at ~60' when Over 2.5 FT is still unsettled (total goals < 3).
+
+const s9Dedup = new Dedup(4 * 60 * 60 * 1000);
+
+function detectS9Signal(sbo) {
+  if (!sbo) return null;
+  const { ah_hc: ahHc, ah_ho: ahHo, ho_c: hoC, ho_o: hoO,
+          tl_c: tlC, tl_o: tlO, ov_c: ovC, ov_o: ovO } = sbo;
+
+  if (ahHc == null || ahHo == null) return null;
+  if (ahHc > cfg.S9_AH_HC_MAX) return null;                           // home closing must be <= -1
+
+  const ahLineMove = Math.abs(ahHc - ahHo);
+  if (ahLineMove > cfg.S9_LINE_STABLE_THRESH) return null;            // AH line must be stable
+
+  if (hoC == null || hoO == null) return null;
+  const hoOddsDrop = hoO - hoC;
+  if (hoOddsDrop < cfg.S9_MIN_HO_ODDS_DROP) return null;              // home odds must have dropped >= 0.20
+
+  if (tlC == null || tlO == null) return null;
+  const tlMove = Math.abs(tlC - tlO);
+  if (tlMove > cfg.S9_TL_STABLE_THRESH) return null;                  // TL must be stable
+
+  if (ovC == null || ovO == null) return null;
+  const ovOddsDrop = ovO - ovC;
+  if (ovOddsDrop < cfg.S9_MIN_OV_ODDS_DROP) return null;              // over odds must have dropped >= 0.15
+
+  return { ahHc, ahHo, ahLineMove, hoC, hoO, hoOddsDrop,
+           tlC, tlO, ovC, ovO, ovOddsDrop };
+}
+
+function s9Format(match, sd, liveMin) {
+  const fmt      = v => v >= 0 ? `+${v.toFixed(2)}` : v.toFixed(2);
+  const minsLeft = 90 - liveMin;
+  return buildMessage(
+    'S9 — Sbobet Cross Over 2.5',
+    match,
+    `${liveMin}'  ${match.score || '?-?'}`,
+    [
+      `💰 <b>Over 2.5 FT (in-play)</b>`,
+      `📌 Check live odds  (~${minsLeft} min left, score still unsettled)`,
+      `📌 AH home close: ${fmt(sd.ahHc)}  (line stable, move: ${sd.ahLineMove.toFixed(2)})`,
+      `📌 Home odds: ${sd.hoO.toFixed(2)} → ${sd.hoC.toFixed(2)}  (↓${sd.hoOddsDrop.toFixed(2)})`,
+      `📌 Over odds: ${sd.ovO.toFixed(2)} → ${sd.ovC.toFixed(2)}  (↓${sd.ovOddsDrop.toFixed(2)})`,
+    ],
+  );
+}
+
+async function runStrategy9(match, ctx) {
+  const { matchId, label, tier, liveMin, isS9Fire } = ctx;
+
+  if (!cfg.S9_ENABLED) { flogv(liveMin, label, 'S9', 'SKIP: disabled'); return; }
+  if (!tierAllowed(tier, cfg.S9_TIER)) { flogv(liveMin, label, 'S9', `SKIP: tier=${tier} not in ${cfg.S9_TIER}`); return; }
+  if (!isS9Fire) { flogv(liveMin, label, 'S9', `SKIP: not in fire window (min=${liveMin} needs ${cfg.S9_FIRE_MIN}-${cfg.S9_FIRE_MAX})`); return; }
+
+  const sbo = match.sbobet_odds;
+  if (!sbo) { flogv(liveMin, label, 'S9', 'SKIP: no Sbobet odds'); return; }
+
+  const sd = detectS9Signal(sbo);
+  if (!sd) {
+    const ahHc      = sbo.ah_hc ?? '?';
+    const ahLine    = Math.abs((sbo.ah_hc ?? 0) - (sbo.ah_ho ?? 0)).toFixed(2);
+    const hoOdds    = ((sbo.ho_o ?? 0) - (sbo.ho_c ?? 0)).toFixed(2);
+    const tlLine    = Math.abs((sbo.tl_c ?? 0) - (sbo.tl_o ?? 0)).toFixed(2);
+    const ovOdds    = ((sbo.ov_o ?? 0) - (sbo.ov_c ?? 0)).toFixed(2);
+    flogv(liveMin, label, 'S9', `SKIP: no signal (ahHc=${ahHc} ahLine=${ahLine} hoOddsDrop=${hoOdds} tlMove=${tlLine} ovOddsDrop=${ovOdds})`);
+    return;
+  }
+
+  const score = parseScoreStr(match.score);
+  if (!score) { flogv(liveMin, label, 'S9', 'SKIP: no score'); return; }
+
+  const totalGoals = score.home + score.away;
+  if (totalGoals >= 3) {
+    flogv(liveMin, label, 'S9', `SKIP: Over 2.5 already settled (${match.score})`);
+    return;
+  }
+
+  const dedupKey = `${matchId}:s9`;
+  if (s9Dedup.has(dedupKey)) { flogv(liveMin, label, 'S9', 'SKIP: already notified'); return; }
+
+  const msg = s9Format(match, sd, liveMin);
+  await sendTelegram(msg);
+  s9Dedup.mark(dedupKey);
+  flog(liveMin, label, 'S9', `ALERT: score=${match.score} goals=${totalGoals} ahHc=${sd.ahHc.toFixed(2)} hoOddsDrop=${sd.hoOddsDrop.toFixed(2)} ovOddsDrop=${sd.ovOddsDrop.toFixed(2)} tier=${tier}`);
+}
+
+// ── Strategy S10: Sbobet Away Steam → Away to score (live at ~20') ───────────
+// Sbobet-only signal — line stable, home odds drifting up (money going away):
+//   1. AH home closing in [−0.25, +0.50]
+//   2. AH line stable
+//   3. AH home odds rose >= 0.35  (ho_c − ho_o ≥ threshold)
+//   4. TL stable
+// Fires at ~20' 1H if away team hasn't scored yet.
+
+const s10Dedup = new Dedup(4 * 60 * 60 * 1000);
+
+function detectS10Signal(sbo) {
+  if (!sbo) return null;
+  const { ah_hc: ahHc, ah_ho: ahHo, ho_c: hoC, ho_o: hoO,
+          tl_c: tlC, tl_o: tlO } = sbo;
+
+  if (ahHc == null || ahHo == null) return null;
+  if (ahHc < cfg.S10_AH_HC_MIN || ahHc > cfg.S10_AH_HC_MAX) return null;  // home closing in [−0.25, +0.50]
+
+  const ahLineMove = Math.abs(ahHc - ahHo);
+  if (ahLineMove > cfg.S10_LINE_STABLE_THRESH) return null;                // AH line must be stable
+
+  if (hoC == null || hoO == null) return null;
+  const hoOddsRise = hoC - hoO;
+  if (hoOddsRise < cfg.S10_MIN_HO_ODDS_RISE) return null;                  // home odds must have risen >= 0.35
+
+  if (tlC == null || tlO == null) return null;
+  const tlMove = Math.abs(tlC - tlO);
+  if (tlMove > cfg.S10_TL_STABLE_THRESH) return null;                      // TL must be stable
+
+  return { ahHc, ahHo, ahLineMove, hoC, hoO, hoOddsRise, tlC, tlO };
+}
+
+function s10Format(match, sd, liveMin) {
+  const fmt      = v => v >= 0 ? `+${v.toFixed(2)}` : v.toFixed(2);
+  const minsLeft1H = 45 - liveMin;
+  return buildMessage(
+    'S10 — Sbobet Away Steam',
+    match,
+    `${liveMin}'  ${match.score || '?-?'}`,
+    [
+      `💰 <b>Away to score (live)</b>`,
+      `📌 Check live odds  (~${minsLeft1H} min to HT, then 2H)`,
+      `📌 AH home close: ${fmt(sd.ahHc)}  (line stable, move: ${sd.ahLineMove.toFixed(2)})`,
+      `📌 Home odds: ${sd.hoO.toFixed(2)} → ${sd.hoC.toFixed(2)}  (↑${sd.hoOddsRise.toFixed(2)} — away backed)`,
+    ],
+  );
+}
+
+async function runStrategy10(match, ctx) {
+  const { matchId, label, tier, liveMin, isS10Fire } = ctx;
+
+  if (!cfg.S10_ENABLED) { flogv(liveMin, label, 'S10', 'SKIP: disabled'); return; }
+  if (!tierAllowed(tier, cfg.S10_TIER)) { flogv(liveMin, label, 'S10', `SKIP: tier=${tier} not in ${cfg.S10_TIER}`); return; }
+  if (!isS10Fire) { flogv(liveMin, label, 'S10', `SKIP: not in fire window (min=${liveMin} needs ${cfg.S10_FIRE_MIN}-${cfg.S10_FIRE_MAX})`); return; }
+
+  const sbo = match.sbobet_odds;
+  if (!sbo) { flogv(liveMin, label, 'S10', 'SKIP: no Sbobet odds'); return; }
+
+  const sd = detectS10Signal(sbo);
+  if (!sd) {
+    const ahHc     = sbo.ah_hc ?? '?';
+    const ahLine   = Math.abs((sbo.ah_hc ?? 0) - (sbo.ah_ho ?? 0)).toFixed(2);
+    const hoRise   = ((sbo.ho_c ?? 0) - (sbo.ho_o ?? 0)).toFixed(2);
+    const tlLine   = Math.abs((sbo.tl_c ?? 0) - (sbo.tl_o ?? 0)).toFixed(2);
+    flogv(liveMin, label, 'S10', `SKIP: no signal (ahHc=${ahHc} ahLine=${ahLine} hoOddsRise=${hoRise} tlMove=${tlLine})`);
+    return;
+  }
+
+  const score = parseScoreStr(match.score);
+  if (!score) { flogv(liveMin, label, 'S10', 'SKIP: no score'); return; }
+
+  if (score.away >= 1) {
+    flogv(liveMin, label, 'S10', `SKIP: away already scored (${match.score})`);
+    return;
+  }
+
+  const dedupKey = `${matchId}:s10`;
+  if (s10Dedup.has(dedupKey)) { flogv(liveMin, label, 'S10', 'SKIP: already notified'); return; }
+
+  const msg = s10Format(match, sd, liveMin);
+  await sendTelegram(msg);
+  s10Dedup.mark(dedupKey);
+  flog(liveMin, label, 'S10', `ALERT: score=${match.score} ahHc=${sd.ahHc.toFixed(2)} hoOddsRise=${sd.hoOddsRise.toFixed(2)} tlMove=${(Math.abs(sd.tlC - sd.tlO)).toFixed(2)} tier=${tier}`);
+}
+
+// ── Strategy S11: Pinnacle + Sbobet Home → Home to score 2H (at HT) ─────────
+// Cross-book: Pinnacle line steamed home + Sbobet line stable but odds confirm home steam.
+// Fires at HT (44–52') when home hasn't scored yet → bet home scores in 2H.
+
+const s11Dedup = new Dedup(4 * 60 * 60 * 1000);
+
+function detectS11Signal(pin, sbo) {
+  if (!pin || !sbo) return null;
+
+  // ── Pinnacle checks ──────────────────────────────────────────────────────
+  const { ah_hc: pinAhHc, ah_ho: pinAhHo } = pin;
+  if (pinAhHc == null || pinAhHo == null) return null;
+  if (pinAhHc > cfg.S11_PIN_AH_HC_MAX) return null;              // Pinnacle home closing <= −0.75
+  const pinHomeSteam = pinAhHo - pinAhHc;
+  if (pinHomeSteam < cfg.S11_PIN_MIN_HOME_STEAM) return null;    // Pinnacle home steam >= 0.50
+
+  // ── Sbobet checks ────────────────────────────────────────────────────────
+  const { ah_hc: sboAhHc, ah_ho: sboAhHo, ho_c: sboHoC, ho_o: sboHoO } = sbo;
+  if (sboAhHc == null || sboAhHo == null) return null;
+  const sboLineMove = Math.abs(sboAhHc - sboAhHo);
+  if (sboLineMove > cfg.S11_SBO_LINE_STABLE_THRESH) return null; // Sbobet AH line must be stable
+  if (sboHoC == null || sboHoO == null) return null;
+  const sboHoOddsSteam = sboHoO - sboHoC;
+  if (sboHoOddsSteam < cfg.S11_SBO_MIN_HO_ODDS_STEAM) return null; // Sbobet home odds steam >= 0.20
+
+  return { pinAhHc, pinAhHo, pinHomeSteam,
+           sboAhHc, sboAhHo, sboLineMove, sboHoC, sboHoO, sboHoOddsSteam };
+}
+
+function s11Format(match, sd, liveMin, htScore) {
+  const fmt    = v => v >= 0 ? `+${v.toFixed(2)}` : v.toFixed(2);
+  const htStr  = htScore ? `${htScore.home}-${htScore.away}` : match.score || '?-?';
+  return buildMessage(
+    'S11 — Pin+Sbo Home 2H',
+    match,
+    `HT  ${htStr}`,
+    [
+      `💰 <b>Home to score in 2H (live)</b>`,
+      `📌 Home yet to score — bet now at HT`,
+      `📌 Pinnacle AH home: ${fmt(sd.pinAhHo)} → ${fmt(sd.pinAhHc)}  (steam +${sd.pinHomeSteam.toFixed(2)})`,
+      `📌 Sbobet  AH home: ${fmt(sd.sboAhHc)}  (line stable)  ·  odds: ${sd.sboHoO.toFixed(2)} → ${sd.sboHoC.toFixed(2)}  (↓${sd.sboHoOddsSteam.toFixed(2)})`,
+    ],
+  );
+}
+
+async function runStrategy11(match, ctx) {
+  const { matchId, label, tier, liveMin, isS11Fire } = ctx;
+
+  if (!cfg.S11_ENABLED) { flogv(liveMin, label, 'S11', 'SKIP: disabled'); return; }
+  if (!tierAllowed(tier, cfg.S11_TIER)) { flogv(liveMin, label, 'S11', `SKIP: tier=${tier} not in ${cfg.S11_TIER}`); return; }
+  if (!isS11Fire) { flogv(liveMin, label, 'S11', `SKIP: not in HT window (min=${liveMin} needs ${cfg.S11_FIRE_MIN}-${cfg.S11_FIRE_MAX})`); return; }
+
+  const pin = match.odds;
+  const sbo = match.sbobet_odds;
+  if (!pin) { flogv(liveMin, label, 'S11', 'SKIP: no Pinnacle odds'); return; }
+  if (!sbo) { flogv(liveMin, label, 'S11', 'SKIP: no Sbobet odds'); return; }
+
+  const sd = detectS11Signal(pin, sbo);
+  if (!sd) {
+    const pinAhHc  = pin.ah_hc ?? '?';
+    const pinSteam = ((pin.ah_ho ?? 0) - (pin.ah_hc ?? 0)).toFixed(2);
+    const sboLine  = Math.abs((sbo.ah_hc ?? 0) - (sbo.ah_ho ?? 0)).toFixed(2);
+    const sboOdds  = ((sbo.ho_o ?? 0) - (sbo.ho_c ?? 0)).toFixed(2);
+    flogv(liveMin, label, 'S11', `SKIP: no signal (pinAhHc=${pinAhHc} pinSteam=${pinSteam} sboLine=${sboLine} sboOddsSteam=${sboOdds})`);
+    return;
+  }
+
+  const score = parseScoreStr(match.score);
+  if (!score) { flogv(liveMin, label, 'S11', 'SKIP: no score'); return; }
+
+  if (score.home >= 1) {
+    flogv(liveMin, label, 'S11', `SKIP: home already scored (${match.score})`);
+    return;
+  }
+
+  const dedupKey = `${matchId}:s11`;
+  if (s11Dedup.has(dedupKey)) { flogv(liveMin, label, 'S11', 'SKIP: already notified'); return; }
+
+  const msg = s11Format(match, sd, liveMin, score);
+  await sendTelegram(msg);
+  s11Dedup.mark(dedupKey);
+  flog(liveMin, label, 'S11', `ALERT: score=${match.score} pinSteam=${sd.pinHomeSteam.toFixed(2)} sboOdds=${sd.sboHoOddsSteam.toFixed(2)} tier=${tier}`);
 }
 
 // ── Hash-failure alert (once per failed hash value) ──────────────────────────
@@ -1648,7 +1989,10 @@ function cleanupSS6Candidates() {
 }
 
 // ── Core scan ─────────────────────────────────────────────────────────────────
+let _scanAlerts = 0;
+
 async function runScan() {
+  _scanAlerts = 0;
   console.log(`[${new Date().toISOString()}] Scanning…`);
 
   let matches;
@@ -1656,7 +2000,6 @@ async function runScan() {
   catch (e) { console.error(`Livescore fetch failed: ${e.message}`); return; }
 
   if (!matches.length) { console.log('No matches found.'); return; }
-  console.log(`Found ${matches.length} match(es).`);
 
   cleanupSxyCandidates();
   cleanupS1Candidates();
@@ -1703,6 +2046,10 @@ async function runScan() {
       isSXYMidH     && `sxy_midh(${liveMin}')`,
       isSXYHTStore  && `sxy_htstore(${liveMin}')`,
       isSXYHTFire   && `sxy_htfire(${liveMin}')`,
+      isS8Fire      && `s8_fire(${liveMin}')`,
+      isS9Fire      && `s9_fire(${liveMin}')`,
+      isS10Fire     && `s10_fire(${liveMin}')`,
+      isS11Fire     && `s11_fire(${liveMin}')`,
       isSteamNext   && `steam_next(${koLabel})`,
       isS1HTStore   && `s1_htstore(${liveMin}')`,
       isS1Fire      && `s1_fire(${liveMin}')`,
@@ -1715,13 +2062,7 @@ async function runScan() {
       isSS6Fire     && `ss6_fire(${liveMin}')`,
     ].filter(Boolean).join(' ');
 
-    // Steam-next-only matches (pre-kickoff, no live strategy window active) — log verbose only to avoid spam
-    const steamNextOnly = isSteamNext && !isLive && !isUpcoming && !isMktEdge && !isSXYEarly && !isSXYMidH && !isSXYHTStore && !isSXYHTFire;
-    if (steamNextOnly) {
-      flogv(liveMin, `${label} [${tier}]`, 'SN', `pre-kickoff (${koLabel})  odds=${match.odds ? 'ok' : 'MISSING'}`);
-    } else {
-      flog(liveMin, `${label} [${tier}]`, 'ALL', `in-window: ${windows}  score=${match.score || '—'}  odds=${match.odds ? 'ok' : 'MISSING'}`);
-    }
+    flogv(liveMin, `${label} [${tier}]`, 'ALL', `in-window: ${windows}  score=${match.score || '—'}  odds=${match.odds ? 'ok' : 'MISSING'}`);
 
     await runStrategySXY(match, ctx);
     await runStrategy6(match, ctx);
@@ -1734,7 +2075,7 @@ async function runScan() {
     await runStrategySS6(match, ctx);
   }
 
-  console.log(`Scan done — ${matches.length} matches, ${inWindowCount} in window.`);
+  console.log(`Scan done — ${matches.length} matches · ${inWindowCount} in window · ${_scanAlerts} alert(s) sent.`);
 }
 
 // ── Entry point ──────────────────────────────────────────────────────────────
