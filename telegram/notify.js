@@ -155,6 +155,15 @@ function matchContext(match) {
     isSXYHTStore: liveMin != null && liveMin >= cfg.SXSY_HT_STORE_MIN  && liveMin <= cfg.SXSY_HT_STORE_MAX,
     isSXYHTFire:  liveMin != null && liveMin >= cfg.SXSY_HT_FIRE_MIN   && liveMin <= cfg.SXSY_HT_FIRE_MAX,
     isSteamNext:  liveMin == null && (minsToKickoff == null || minsToKickoff > 0),
+    isS1HTStore:  liveMin != null && liveMin >= cfg.S1_HT_STORE_MIN && liveMin <= cfg.S1_HT_STORE_MAX,
+    isS1Fire:     liveMin != null && liveMin >= cfg.S1_FIRE_MIN      && liveMin <= cfg.S1_FIRE_MAX,
+    isS2HTStore:  liveMin != null && liveMin >= cfg.S2_HT_STORE_MIN && liveMin <= cfg.S2_HT_STORE_MAX,
+    isS2Fire:     liveMin != null && liveMin >= cfg.S2_FIRE_MIN      && liveMin <= cfg.S2_FIRE_MAX,
+    isS3Fire:     liveMin != null && liveMin >= cfg.S3_FIRE_MIN      && liveMin <= cfg.S3_FIRE_MAX,
+    isS5HTStore:  liveMin != null && liveMin >= cfg.S5_HT_STORE_MIN  && liveMin <= cfg.S5_HT_STORE_MAX,
+    isS5Fire:     liveMin != null && liveMin >= cfg.S5_FIRE_MIN       && liveMin <= cfg.S5_FIRE_MAX,
+    isSS6HTStore: liveMin != null && liveMin >= cfg.SS6_HT_STORE_MIN && liveMin <= cfg.SS6_HT_STORE_MAX,
+    isSS6Fire:    liveMin != null && liveMin >= cfg.SS6_FIRE_MIN      && liveMin <= cfg.SS6_FIRE_MAX,
   };
 }
 
@@ -927,6 +936,24 @@ async function fetchMatches() {
 
 const snDedup = new Dedup(24 * 60 * 60 * 1000); // 24h — reset on process restart
 
+const s1Candidates = new Map(); // matchId → { favSide, ahHc, hoMove, aoMove, ovMove, tlC, storedAt, htScore }
+// S2 shares the same pre-match candidates map as S1 (identical detection gates)
+const S1C_TTL      = 5 * 60 * 60 * 1000;
+const s1Dedup      = new Dedup(6 * 60 * 60 * 1000);
+const s2Dedup      = new Dedup(6 * 60 * 60 * 1000);
+
+const s3Candidates = new Map(); // matchId → { lineMove, aoOddsMove, ahHc, tlC, storedAt }
+const S3C_TTL      = 5 * 60 * 60 * 1000;
+const s3Dedup      = new Dedup(6 * 60 * 60 * 1000);
+
+const s5Candidates  = new Map(); // matchId → { ovMove, tlMove, tlC, storedAt, htScore }
+const S5C_TTL       = 5 * 60 * 60 * 1000;
+const s5Dedup       = new Dedup(6 * 60 * 60 * 1000);
+
+const ss6Candidates = new Map(); // matchId → { aoOddsMove, ahHc, tlC, storedAt, htScore }
+const SS6C_TTL      = 5 * 60 * 60 * 1000;
+const ss6Dedup      = new Dedup(6 * 60 * 60 * 1000);
+
 function detectSNSignal(odds) {
   if (!odds || odds.ah_hc == null || odds.ah_ho == null) return null;
   if (odds.tl_c == null || odds.tl_o == null) return null;
@@ -1012,6 +1039,614 @@ async function runStrategySN(match, ctx) {
   flog(liveMin, label, 'SN', `ALERT: dir=${sd.direction} ahMove=${sd.ahMove.toFixed(2)} tlMove=${sd.tlMove.toFixed(2)} tier=${tier} ko=${minsToKickoff != null ? minsToKickoff.toFixed(0)+'m' : '?'}`);
 }
 
+// ── Strategy S1: Sbobet S1 — pre-match AH+Over odds steam → Over 0.5 Goals Remaining at 65' ─
+//
+// Pre-match gates (all required):
+//   1. (ho_c − ho_o) ≤ −0.20  OR  (ao_c − ao_o) ≤ −0.20   (AH odds steam on either side)
+//   2. (ov_c − ov_o) ≤ −0.15                                 (Over odds steam)
+//   3. AH closing line in [−1.5, +1.5]
+//   4. TL closing in [2.0, 3.0]
+//
+// In-play fire at ~65' (all required):
+//   • Fav team was winning at HT
+//   • Current score diff ≤ 1 goal
+//   • Current total goals ≤ 3
+//   Bet: Over 0.5 Goals Remaining
+
+function detectS1Signal(odds) {
+  if (!odds) return null;
+  const { ah_hc, ho_c, ho_o, ao_c, ao_o, ov_c, ov_o, tl_c } = odds;
+  if (ah_hc == null || ho_c == null || ho_o == null || ao_c == null || ao_o == null) return null;
+  if (ov_c == null || ov_o == null || tl_c == null) return null;
+
+  const hoMove = ho_c - ho_o;
+  const aoMove = ao_c - ao_o;
+  // At least one AH side must have dropped by ≥ threshold
+  if (hoMove > cfg.S1_MIN_AH_ODDS_MOVE && aoMove > cfg.S1_MIN_AH_ODDS_MOVE) return null;
+
+  // Over odds must have dropped by ≥ threshold
+  const ovMove = ov_c - ov_o;
+  if (ovMove > cfg.S1_MIN_OV_ODDS_MOVE) return null;
+
+  // AH closing line range
+  if (ah_hc < cfg.S1_AH_LINE_MIN || ah_hc > cfg.S1_AH_LINE_MAX) return null;
+
+  // TL closing range
+  if (tl_c < cfg.S1_TL_MIN || tl_c > cfg.S1_TL_MAX) return null;
+
+  // Fav side
+  let favSide;
+  if      (ah_hc < -0.01) favSide = 'HOME';
+  else if (ah_hc >  0.01) favSide = 'AWAY';
+  else    favSide = (ho_c <= ao_c) ? 'HOME' : 'AWAY';
+
+  return { favSide, ahHc: ah_hc, hoMove, aoMove, ovMove, tlC: tl_c };
+}
+
+function s1Format(match, cand, liveMin) {
+  const htStr    = `${cand.htScore.home}-${cand.htScore.away}`;
+  const minsLeft = 90 - liveMin;
+  const ahHcStr  = cand.ahHc >= 0 ? `+${cand.ahHc.toFixed(2)}` : cand.ahHc.toFixed(2);
+  const steamSide = cand.hoMove <= cfg.S1_MIN_AH_ODDS_MOVE ? 'HOME' : 'AWAY';
+  const steamOdds = steamSide === 'HOME' ? cand.hoMove : cand.aoMove;
+  return buildMessage(
+    'Sbobet_S1 — Over 0.5 Goals Remaining',
+    match,
+    `${liveMin}'  ${match.score || '—'}  [HT ${htStr}]`,
+    [
+      `💰 <b>Over 0.5 Goals Remaining (in-play)</b>`,
+      `📌 Look for in-play Over 0.5  (~${minsLeft} min left)`,
+      `📌 AH ${ahHcStr}  ·  TL ${cand.tlC.toFixed(2)}  ·  fav: ${cand.favSide}`,
+      `📌 Pre-match steam: AH ${steamSide} ${steamOdds >= 0 ? '+' : ''}${steamOdds.toFixed(2)}  ·  Over ${cand.ovMove >= 0 ? '+' : ''}${cand.ovMove.toFixed(2)}`,
+    ],
+  );
+}
+
+async function runStrategyS1(match, ctx) {
+  const { matchId, label, tier, liveMin, isSteamNext, isS1HTStore, isS1Fire } = ctx;
+
+  if (!cfg.S1_ENABLED) return;
+  if (!tierAllowed(tier, cfg.S1_TIER)) { flogv(liveMin, label, 'Sbobet_S1', `SKIP: tier=${tier} not in ${cfg.S1_TIER}`); return; }
+
+  // ── Pre-match: detect signal and store candidate ─────────────────────────
+  if (isSteamNext) {
+    const sbo = match.sbobet_odds;
+    if (!sbo) { flogv(liveMin, label, 'Sbobet_S1', 'SKIP: no Sbobet odds'); return; }
+    const sd = detectS1Signal(sbo);
+    if (!sd) {
+      const hoM = (sbo.ho_c != null && sbo.ho_o != null) ? (sbo.ho_c - sbo.ho_o).toFixed(2) : 'n/a';
+      const aoM = (sbo.ao_c != null && sbo.ao_o != null) ? (sbo.ao_c - sbo.ao_o).toFixed(2) : 'n/a';
+      const ovM = (sbo.ov_c != null && sbo.ov_o != null) ? (sbo.ov_c - sbo.ov_o).toFixed(2) : 'n/a';
+      flogv(liveMin, label, 'Sbobet_S1', `no prematch signal (sbo: hoM=${hoM} aoM=${aoM} ovM=${ovM} ahHc=${sbo.ah_hc} tlC=${sbo.tl_c})`);
+      return;
+    }
+    if (!s1Candidates.has(matchId)) {
+      s1Candidates.set(matchId, { ...sd, storedAt: Date.now(), htScore: null });
+      flog(liveMin, label, 'Sbobet_S1', `stored pre-match candidate: fav=${sd.favSide} ahHc=${sd.ahHc.toFixed(2)} tlC=${sd.tlC.toFixed(2)} hoM=${sd.hoMove.toFixed(2)} aoM=${sd.aoMove.toFixed(2)} ovM=${sd.ovMove.toFixed(2)}`);
+    }
+    return;
+  }
+
+  // ── HT window: store HT score ────────────────────────────────────────────
+  if (isS1HTStore) {
+    const cand = s1Candidates.get(matchId);
+    if (cand && !cand.htScore) {
+      const score = parseScoreStr(match.score);
+      if (score) {
+        cand.htScore = { home: score.home, away: score.away };
+        flog(liveMin, label, 'Sbobet_S1', `stored HT score: ${score.home}-${score.away} fav=${cand.favSide}`);
+      }
+    }
+    return;
+  }
+
+  // ── 65' fire window ──────────────────────────────────────────────────────
+  if (isS1Fire) {
+    const cand = s1Candidates.get(matchId);
+    if (!cand) { flogv(liveMin, label, 'Sbobet_S1', 'SKIP: no candidate (missed pre-match window?)'); return; }
+    if (!cand.htScore) { flogv(liveMin, label, 'Sbobet_S1', 'SKIP: no HT score stored'); return; }
+
+    const dedupKey = `${matchId}:s1:fire`;
+    if (s1Dedup.has(dedupKey)) { flogv(liveMin, label, 'Sbobet_S1', 'SKIP: already notified'); return; }
+
+    // Fav must have been winning at HT
+    const htFavGoals = cand.favSide === 'HOME' ? cand.htScore.home : cand.htScore.away;
+    const htDogGoals = cand.favSide === 'HOME' ? cand.htScore.away : cand.htScore.home;
+    if (htFavGoals <= htDogGoals) {
+      flogv(liveMin, label, 'Sbobet_S1', `SKIP: fav not winning at HT (${cand.htScore.home}-${cand.htScore.away} fav=${cand.favSide})`);
+      return;
+    }
+
+    const curScore = parseScoreStr(match.score);
+    if (!curScore) { flogv(liveMin, label, 'Sbobet_S1', 'SKIP: no current score'); return; }
+
+    const totalGoals = curScore.home + curScore.away;
+    const scoreDiff  = Math.abs(curScore.home - curScore.away);
+
+    if (scoreDiff > cfg.S1_MAX_SCORE_DIFF) {
+      flogv(liveMin, label, 'Sbobet_S1', `SKIP: score diff ${scoreDiff} > ${cfg.S1_MAX_SCORE_DIFF} (score=${match.score})`);
+      return;
+    }
+    if (totalGoals > cfg.S1_MAX_TOTAL_GOALS) {
+      flogv(liveMin, label, 'Sbobet_S1', `SKIP: total goals ${totalGoals} > ${cfg.S1_MAX_TOTAL_GOALS} (score=${match.score})`);
+      return;
+    }
+
+    const msg = s1Format(match, cand, liveMin);
+    await sendTelegram(msg);
+    s1Dedup.mark(dedupKey);
+    flog(liveMin, label, 'Sbobet_S1', `ALERT: HT=${cand.htScore.home}-${cand.htScore.away} score=${match.score} diff=${scoreDiff} goals=${totalGoals} tier=${tier}`);
+  }
+}
+
+function cleanupS1Candidates() {
+  const now = Date.now();
+  for (const [id, c] of s1Candidates) {
+    if (now - c.storedAt > S1C_TTL) s1Candidates.delete(id);
+  }
+}
+
+// ── Strategy S2: Sbobet S2 — same pre-match gates as S1; HT 1-1 → Over 0.5 Goals Remaining ─
+//
+// Pre-match gates: identical to S1 (reuses s1Candidates)
+// HT condition: score must be exactly 1-1
+// Fire at 65': score diff ≤ 1 (draw or one-goal game)
+// Bet: Over 0.5 Goals Remaining
+
+function s2Format(match, cand, liveMin) {
+  const htStr    = `${cand.htScore.home}-${cand.htScore.away}`;
+  const minsLeft = 90 - liveMin;
+  const ahHcStr  = cand.ahHc >= 0 ? `+${cand.ahHc.toFixed(2)}` : cand.ahHc.toFixed(2);
+  const steamSide = cand.hoMove <= cfg.S1_MIN_AH_ODDS_MOVE ? 'HOME' : 'AWAY';
+  const steamOdds = steamSide === 'HOME' ? cand.hoMove : cand.aoMove;
+  const curScore  = match.score || '—';
+  return buildMessage(
+    'Sbobet_S2 — Over 0.5 Goals Remaining',
+    match,
+    `${liveMin}'  ${curScore}  [HT ${htStr}]`,
+    [
+      `💰 <b>Over 0.5 Goals Remaining (in-play)</b>`,
+      `📌 Look for in-play Over 0.5  (~${minsLeft} min left)`,
+      `📌 AH ${ahHcStr}  ·  TL ${cand.tlC.toFixed(2)}  ·  fav: ${cand.favSide}`,
+      `📌 Pre-match steam: AH ${steamSide} ${steamOdds >= 0 ? '+' : ''}${steamOdds.toFixed(2)}  ·  Over ${cand.ovMove >= 0 ? '+' : ''}${cand.ovMove.toFixed(2)}`,
+    ],
+  );
+}
+
+async function runStrategyS2(match, ctx) {
+  const { matchId, label, tier, liveMin, isSteamNext, isS2HTStore, isS2Fire } = ctx;
+
+  if (!cfg.S2_ENABLED) return;
+  if (!tierAllowed(tier, cfg.S2_TIER)) { flogv(liveMin, label, 'Sbobet_S2', `SKIP: tier=${tier} not in ${cfg.S2_TIER}`); return; }
+
+  // ── Pre-match: reuse S1 detection — candidate is stored by runStrategyS1 ─
+  // (runStrategyS1 runs first in the scan loop, so s1Candidates is already populated)
+
+  // ── HT window: store HT score (shared map with S1) ───────────────────────
+  // S1 already handles storage in its own isS1HTStore block.
+  // S2 uses the same s1Candidates map, so nothing extra to store here —
+  // unless S2 has a different HT window (it defaults to the same 44-52').
+  if (isS2HTStore) {
+    const cand = s1Candidates.get(matchId);
+    if (cand && !cand.htScore) {
+      const score = parseScoreStr(match.score);
+      if (score) {
+        cand.htScore = { home: score.home, away: score.away };
+        flog(liveMin, label, 'Sbobet_S2', `stored HT score: ${score.home}-${score.away}`);
+      }
+    }
+    return;
+  }
+
+  // ── 65' fire window ──────────────────────────────────────────────────────
+  if (isS2Fire) {
+    const cand = s1Candidates.get(matchId);
+    if (!cand) { flogv(liveMin, label, 'Sbobet_S2', 'SKIP: no candidate (missed pre-match window?)'); return; }
+    if (!cand.htScore) { flogv(liveMin, label, 'Sbobet_S2', 'SKIP: no HT score stored'); return; }
+
+    const dedupKey = `${matchId}:s2:fire`;
+    if (s2Dedup.has(dedupKey)) { flogv(liveMin, label, 'Sbobet_S2', 'SKIP: already notified'); return; }
+
+    // HT must be exactly 1-1
+    if (cand.htScore.home !== 1 || cand.htScore.away !== 1) {
+      flogv(liveMin, label, 'Sbobet_S2', `SKIP: HT not 1-1 (was ${cand.htScore.home}-${cand.htScore.away})`);
+      return;
+    }
+
+    const curScore = parseScoreStr(match.score);
+    if (!curScore) { flogv(liveMin, label, 'Sbobet_S2', 'SKIP: no current score'); return; }
+
+    const scoreDiff  = Math.abs(curScore.home - curScore.away);
+    const totalGoals = curScore.home + curScore.away;
+
+    if (scoreDiff > cfg.S2_MAX_SCORE_DIFF) {
+      flogv(liveMin, label, 'Sbobet_S2', `SKIP: score diff ${scoreDiff} > ${cfg.S2_MAX_SCORE_DIFF} (score=${match.score})`);
+      return;
+    }
+    if (totalGoals > cfg.S2_MAX_TOTAL_GOALS) {
+      flogv(liveMin, label, 'Sbobet_S2', `SKIP: total goals ${totalGoals} > ${cfg.S2_MAX_TOTAL_GOALS} (score=${match.score})`);
+      return;
+    }
+
+    const msg = s2Format(match, cand, liveMin);
+    await sendTelegram(msg);
+    s2Dedup.mark(dedupKey);
+    flog(liveMin, label, 'Sbobet_S2', `ALERT: HT=1-1 score=${match.score} diff=${scoreDiff} goals=${totalGoals} tier=${tier}`);
+  }
+}
+
+// ── Strategy S3: Sbobet S3 — contradictory signal → Away Team Score Next Goal ─
+//
+// Pre-match gates (all required, from sbobet_odds):
+//   1. AH line moves toward home ≥ 0.75  (ah_ho − ah_hc ≥ 0.75)
+//   2. Away AH closing odds drop ≥ 0.10   (ao_c − ao_o ≤ −0.10) ← sharp money on away
+//   3. AH closing line in [−1.0, +1.5]
+//   4. TL closing in [2.25, 3.0]
+//
+// Fire at 65' (no HT condition):
+//   Goal difference ≤ 1
+//   Away conceded ≤ 2 goals (home goals ≤ 2)
+//   Bet: Away Team Score Next Goal  @min 1.80
+
+function detectS3Signal(odds) {
+  if (!odds) return null;
+  const { ah_hc, ah_ho, ao_c, ao_o, tl_c } = odds;
+  if (ah_hc == null || ah_ho == null || ao_c == null || ao_o == null || tl_c == null) return null;
+
+  // AH line moved toward home by ≥ threshold (opening − closing ≥ 0.75)
+  const lineMove = ah_ho - ah_hc;
+  if (lineMove < cfg.S3_MIN_LINE_MOVE) return null;
+
+  // Away AH odds dropped (contradictory sharp signal)
+  const aoOddsMove = ao_c - ao_o;
+  if (aoOddsMove > cfg.S3_MIN_AWAY_ODDS_DROP) return null;
+
+  // AH closing line range
+  if (ah_hc < cfg.S3_AH_LINE_MIN || ah_hc > cfg.S3_AH_LINE_MAX) return null;
+
+  // TL closing range
+  if (tl_c < cfg.S3_TL_MIN || tl_c > cfg.S3_TL_MAX) return null;
+
+  return { lineMove, aoOddsMove, ahHo: ah_ho, ahHc: ah_hc, tlC: tl_c };
+}
+
+function s3Format(match, cand, liveMin) {
+  const minsLeft  = 90 - liveMin;
+  const ahHoStr   = cand.ahHo >= 0 ? `+${cand.ahHo.toFixed(2)}` : cand.ahHo.toFixed(2);
+  const ahHcStr   = cand.ahHc >= 0 ? `+${cand.ahHc.toFixed(2)}` : cand.ahHc.toFixed(2);
+  return buildMessage(
+    'Sbobet_S3 — Away Next Goal (contradictory signal)',
+    match,
+    `${liveMin}'  ${match.score || '—'}`,
+    [
+      `💰 <b>Away Team Score Next Goal</b>`,
+      `📌 Min odds: @${cfg.S3_MIN_ODDS.toFixed(2)}  (~${minsLeft} min left)`,
+      `📌 AH: ${ahHoStr} → ${ahHcStr}  (line moved +${cand.lineMove.toFixed(2)} toward home)`,
+      `📌 Away odds move: ${cand.aoOddsMove >= 0 ? '+' : ''}${cand.aoOddsMove.toFixed(2)}  TL: ${cand.tlC.toFixed(2)}  ⚠️ Sharp money on away`,
+    ],
+  );
+}
+
+async function runStrategyS3(match, ctx) {
+  const { matchId, label, tier, liveMin, isSteamNext, isS3Fire } = ctx;
+
+  if (!cfg.S3_ENABLED) return;
+  if (!tierAllowed(tier, cfg.S3_TIER)) { flogv(liveMin, label, 'Sbobet_S3', `SKIP: tier=${tier} not in ${cfg.S3_TIER}`); return; }
+
+  // ── Pre-match: detect signal and store candidate ─────────────────────────
+  if (isSteamNext) {
+    const sbo = match.sbobet_odds;
+    if (!sbo) { flogv(liveMin, label, 'Sbobet_S3', 'SKIP: no Sbobet odds'); return; }
+    const sd = detectS3Signal(sbo);
+    if (!sd) {
+      const lineM  = (sbo.ah_ho != null && sbo.ah_hc != null) ? (sbo.ah_ho - sbo.ah_hc).toFixed(2) : 'n/a';
+      const aoM    = (sbo.ao_c  != null && sbo.ao_o  != null) ? (sbo.ao_c  - sbo.ao_o).toFixed(2)  : 'n/a';
+      flogv(liveMin, label, 'Sbobet_S3', `no prematch signal (sbo: lineMove=${lineM} aoM=${aoM} ahHc=${sbo.ah_hc} tlC=${sbo.tl_c})`);
+      return;
+    }
+    if (!s3Candidates.has(matchId)) {
+      s3Candidates.set(matchId, { ...sd, storedAt: Date.now() });
+      flog(liveMin, label, 'Sbobet_S3', `stored pre-match candidate: lineMove=${sd.lineMove.toFixed(2)} aoOddsMove=${sd.aoOddsMove.toFixed(2)} ahHc=${sd.ahHc.toFixed(2)} tlC=${sd.tlC.toFixed(2)}`);
+    }
+    return;
+  }
+
+  // ── 65' fire window ──────────────────────────────────────────────────────
+  if (isS3Fire) {
+    const cand = s3Candidates.get(matchId);
+    if (!cand) { flogv(liveMin, label, 'Sbobet_S3', 'SKIP: no candidate (missed pre-match window?)'); return; }
+
+    const dedupKey = `${matchId}:s3:fire`;
+    if (s3Dedup.has(dedupKey)) { flogv(liveMin, label, 'Sbobet_S3', 'SKIP: already notified'); return; }
+
+    const curScore = parseScoreStr(match.score);
+    if (!curScore) { flogv(liveMin, label, 'Sbobet_S3', 'SKIP: no current score'); return; }
+
+    const scoreDiff     = Math.abs(curScore.home - curScore.away);
+    const awayConceded  = curScore.home;  // goals conceded by away = goals scored by home
+
+    if (scoreDiff > cfg.S3_MAX_SCORE_DIFF) {
+      flogv(liveMin, label, 'Sbobet_S3', `SKIP: score diff ${scoreDiff} > ${cfg.S3_MAX_SCORE_DIFF} (score=${match.score})`);
+      return;
+    }
+    if (awayConceded > cfg.S3_MAX_AWAY_CONCEDED) {
+      flogv(liveMin, label, 'Sbobet_S3', `SKIP: away conceded ${awayConceded} > ${cfg.S3_MAX_AWAY_CONCEDED} (score=${match.score})`);
+      return;
+    }
+
+    const msg = s3Format(match, cand, liveMin);
+    await sendTelegram(msg);
+    s3Dedup.mark(dedupKey);
+    flog(liveMin, label, 'Sbobet_S3', `ALERT: score=${match.score} diff=${scoreDiff} awayConceded=${awayConceded} tier=${tier}`);
+  }
+}
+
+function cleanupS3Candidates() {
+  const now = Date.now();
+  for (const [id, c] of s3Candidates) {
+    if (now - c.storedAt > S3C_TTL) s3Candidates.delete(id);
+  }
+}
+
+// ── Strategy S5: Sbobet S5 — Over odds steam + flat/rising TL → Over 0.5 Remaining ──────────
+//
+// Pre-match gates (sbobet_odds):
+//   1. (ov_c − ov_o) ≤ −0.25   Over odds drop ≥ 0.25
+//   2. (tl_c − tl_o) ≥ 0       TL flat or rising (does not decrease)
+//   3. tl_c in [2.0, 2.75]
+//
+// HT condition (44–52'): total goals at HT = 0 or 1
+// Fire at 65–70': total goals ≤ 2  +  goal difference ≤ 1
+// Bet: Over 0.5 Goals Remaining
+
+function detectS5Signal(odds) {
+  if (!odds) return null;
+  const { ov_c, ov_o, tl_c, tl_o } = odds;
+  if (ov_c == null || ov_o == null || tl_c == null || tl_o == null) return null;
+
+  // Over odds must have dropped by ≥ threshold
+  const ovMove = ov_c - ov_o;
+  if (ovMove > cfg.S5_MIN_OV_DROP) return null;
+
+  // TL must be flat or rising (not decreasing)
+  const tlMove = tl_c - tl_o;
+  if (tlMove < 0) return null;
+
+  // TL closing range
+  if (tl_c < cfg.S5_TL_MIN || tl_c > cfg.S5_TL_MAX) return null;
+
+  return { ovMove, tlMove, tlC: tl_c, tlO: tl_o };
+}
+
+function s5Format(match, cand, liveMin) {
+  const htStr    = `${cand.htScore.home}-${cand.htScore.away}`;
+  const htGoals  = cand.htScore.home + cand.htScore.away;
+  const minsLeft = 90 - liveMin;
+  const tlDir    = cand.tlMove > 0 ? `↑ +${cand.tlMove.toFixed(2)}` : '→ flat';
+  return buildMessage(
+    'Sbobet_S5 — Over 0.5 Goals Remaining',
+    match,
+    `${liveMin}'  ${match.score || '—'}  [HT ${htStr}]`,
+    [
+      `💰 <b>Over 0.5 Goals Remaining (in-play)</b>`,
+      `📌 Look for in-play Over 0.5  (~${minsLeft} min left)`,
+      `📌 TL: ${cand.tlO.toFixed(2)} → ${cand.tlC.toFixed(2)} (${tlDir})  ·  Over move: ${cand.ovMove >= 0 ? '+' : ''}${cand.ovMove.toFixed(2)}`,
+      `📌 HT goals: ${htGoals}  (0 or 1 required)`,
+    ],
+  );
+}
+
+async function runStrategyS5(match, ctx) {
+  const { matchId, label, tier, liveMin, isSteamNext, isS5HTStore, isS5Fire } = ctx;
+
+  if (!cfg.S5_ENABLED) return;
+  if (!tierAllowed(tier, cfg.S5_TIER)) { flogv(liveMin, label, 'Sbobet_S5', `SKIP: tier=${tier} not in ${cfg.S5_TIER}`); return; }
+
+  // ── Pre-match: detect signal and store candidate ─────────────────────────
+  if (isSteamNext) {
+    const sbo = match.sbobet_odds;
+    if (!sbo) { flogv(liveMin, label, 'Sbobet_S5', 'SKIP: no Sbobet odds'); return; }
+    const sd = detectS5Signal(sbo);
+    if (!sd) {
+      const ovM  = (sbo.ov_c != null && sbo.ov_o != null) ? (sbo.ov_c - sbo.ov_o).toFixed(2) : 'n/a';
+      const tlM  = (sbo.tl_c != null && sbo.tl_o != null) ? (sbo.tl_c - sbo.tl_o).toFixed(2) : 'n/a';
+      flogv(liveMin, label, 'Sbobet_S5', `no prematch signal (sbo: ovM=${ovM} tlM=${tlM} tlC=${sbo.tl_c})`);
+      return;
+    }
+    if (!s5Candidates.has(matchId)) {
+      s5Candidates.set(matchId, { ...sd, storedAt: Date.now(), htScore: null });
+      flog(liveMin, label, 'Sbobet_S5', `stored pre-match candidate: ovM=${sd.ovMove.toFixed(2)} tlM=${sd.tlMove.toFixed(2)} tlC=${sd.tlC.toFixed(2)}`);
+    }
+    return;
+  }
+
+  // ── HT window: store HT score and validate HT goals ─────────────────────
+  if (isS5HTStore) {
+    const cand = s5Candidates.get(matchId);
+    if (cand && !cand.htScore) {
+      const score = parseScoreStr(match.score);
+      if (score) {
+        cand.htScore = { home: score.home, away: score.away };
+        const htGoals = score.home + score.away;
+        flog(liveMin, label, 'Sbobet_S5', `stored HT score: ${score.home}-${score.away} (goals=${htGoals})`);
+      }
+    }
+    return;
+  }
+
+  // ── 65–70' fire window ───────────────────────────────────────────────────
+  if (isS5Fire) {
+    const cand = s5Candidates.get(matchId);
+    if (!cand) { flogv(liveMin, label, 'Sbobet_S5', 'SKIP: no candidate (missed pre-match window?)'); return; }
+    if (!cand.htScore) { flogv(liveMin, label, 'Sbobet_S5', 'SKIP: no HT score stored'); return; }
+
+    const dedupKey = `${matchId}:s5:fire`;
+    if (s5Dedup.has(dedupKey)) { flogv(liveMin, label, 'Sbobet_S5', 'SKIP: already notified'); return; }
+
+    // HT total goals must be 0 or 1
+    const htGoals = cand.htScore.home + cand.htScore.away;
+    if (htGoals > cfg.S5_HT_MAX_GOALS) {
+      flogv(liveMin, label, 'Sbobet_S5', `SKIP: HT goals ${htGoals} > ${cfg.S5_HT_MAX_GOALS} (${cand.htScore.home}-${cand.htScore.away})`);
+      return;
+    }
+
+    const curScore = parseScoreStr(match.score);
+    if (!curScore) { flogv(liveMin, label, 'Sbobet_S5', 'SKIP: no current score'); return; }
+
+    const totalGoals = curScore.home + curScore.away;
+    const scoreDiff  = Math.abs(curScore.home - curScore.away);
+
+    if (totalGoals > cfg.S5_MAX_TOTAL_GOALS) {
+      flogv(liveMin, label, 'Sbobet_S5', `SKIP: total goals ${totalGoals} > ${cfg.S5_MAX_TOTAL_GOALS} (score=${match.score})`);
+      return;
+    }
+    if (scoreDiff > cfg.S5_MAX_SCORE_DIFF) {
+      flogv(liveMin, label, 'Sbobet_S5', `SKIP: score diff ${scoreDiff} > ${cfg.S5_MAX_SCORE_DIFF} (score=${match.score})`);
+      return;
+    }
+
+    const msg = s5Format(match, cand, liveMin);
+    await sendTelegram(msg);
+    s5Dedup.mark(dedupKey);
+    flog(liveMin, label, 'Sbobet_S5', `ALERT: HT=${cand.htScore.home}-${cand.htScore.away}(goals=${htGoals}) score=${match.score} total=${totalGoals} diff=${scoreDiff} tier=${tier}`);
+  }
+}
+
+function cleanupS5Candidates() {
+  const now = Date.now();
+  for (const [id, c] of s5Candidates) {
+    if (now - c.storedAt > S5C_TTL) s5Candidates.delete(id);
+  }
+}
+
+// ── Strategy SS6: Sbobet S6 — Strong Away Steam → Away Team Score Next Goal ──
+//
+// Pre-match gates (sbobet_odds):
+//   1. ao_c − ao_o ≤ −0.35   strong away odds steam
+//   2. ah_hc in [−0.5, +1.5]  away fav or small underdog
+//   3. tl_c in [2.0, 3.0]
+//
+// HT condition (44–52'): away winning, drawing, or losing by ≤1  (home − away ≤ 1)
+// Fire at 65': home − away ≤ 1  +  total goals ≤ 3
+// Bet: Away Team Score Next Goal  @min 1.60
+
+function detectSS6Signal(odds) {
+  if (!odds) return null;
+  const { ah_hc, ao_c, ao_o, tl_c } = odds;
+  if (ah_hc == null || ao_c == null || ao_o == null || tl_c == null) return null;
+
+  // Strong away odds steam
+  const aoOddsMove = ao_c - ao_o;
+  if (aoOddsMove > cfg.SS6_MIN_AWAY_DROP) return null;
+
+  // AH closing line range
+  if (ah_hc < cfg.SS6_AH_LINE_MIN || ah_hc > cfg.SS6_AH_LINE_MAX) return null;
+
+  // TL closing range
+  if (tl_c < cfg.SS6_TL_MIN || tl_c > cfg.SS6_TL_MAX) return null;
+
+  return { aoOddsMove, ahHc: ah_hc, tlC: tl_c };
+}
+
+function ss6Format(match, cand, liveMin) {
+  const htStr    = `${cand.htScore.home}-${cand.htScore.away}`;
+  const minsLeft = 90 - liveMin;
+  const ahHcStr  = cand.ahHc >= 0 ? `+${cand.ahHc.toFixed(2)}` : cand.ahHc.toFixed(2);
+  return buildMessage(
+    'Sbobet_S6 — Away Next Goal (Strong Steam)',
+    match,
+    `${liveMin}'  ${match.score || '—'}  [HT ${htStr}]`,
+    [
+      `💰 <b>Away Team Score Next Goal</b>`,
+      `📌 Min odds: @${cfg.SS6_MIN_ODDS.toFixed(2)}  (~${minsLeft} min left)`,
+      `📌 Away odds move: ${cand.aoOddsMove >= 0 ? '+' : ''}${cand.aoOddsMove.toFixed(2)}  (strong steam ≤ ${cfg.SS6_MIN_AWAY_DROP})`,
+      `📌 AH: ${ahHcStr}  ·  TL: ${cand.tlC.toFixed(2)}`,
+    ],
+  );
+}
+
+async function runStrategySS6(match, ctx) {
+  const { matchId, label, tier, liveMin, isSteamNext, isSS6HTStore, isSS6Fire } = ctx;
+
+  if (!cfg.SS6_ENABLED) return;
+  if (!tierAllowed(tier, cfg.SS6_TIER)) { flogv(liveMin, label, 'Sbobet_S6', `SKIP: tier=${tier} not in ${cfg.SS6_TIER}`); return; }
+
+  // ── Pre-match: detect signal and store candidate ─────────────────────────
+  if (isSteamNext) {
+    const sbo = match.sbobet_odds;
+    if (!sbo) { flogv(liveMin, label, 'Sbobet_S6', 'SKIP: no Sbobet odds'); return; }
+    const sd = detectSS6Signal(sbo);
+    if (!sd) {
+      const aoM = (sbo.ao_c != null && sbo.ao_o != null) ? (sbo.ao_c - sbo.ao_o).toFixed(2) : 'n/a';
+      flogv(liveMin, label, 'Sbobet_S6', `no prematch signal (sbo: aoM=${aoM} ahHc=${sbo.ah_hc} tlC=${sbo.tl_c})`);
+      return;
+    }
+    if (!ss6Candidates.has(matchId)) {
+      ss6Candidates.set(matchId, { ...sd, storedAt: Date.now(), htScore: null });
+      flog(liveMin, label, 'Sbobet_S6', `stored pre-match candidate: aoM=${sd.aoOddsMove.toFixed(2)} ahHc=${sd.ahHc.toFixed(2)} tlC=${sd.tlC.toFixed(2)}`);
+    }
+    return;
+  }
+
+  // ── HT window: store HT score ────────────────────────────────────────────
+  if (isSS6HTStore) {
+    const cand = ss6Candidates.get(matchId);
+    if (cand && !cand.htScore) {
+      const score = parseScoreStr(match.score);
+      if (score) {
+        cand.htScore = { home: score.home, away: score.away };
+        const deficit = score.home - score.away;
+        flog(liveMin, label, 'Sbobet_S6', `stored HT score: ${score.home}-${score.away} (home-away=${deficit})`);
+      }
+    }
+    return;
+  }
+
+  // ── 65' fire window ──────────────────────────────────────────────────────
+  if (isSS6Fire) {
+    const cand = ss6Candidates.get(matchId);
+    if (!cand) { flogv(liveMin, label, 'Sbobet_S6', 'SKIP: no candidate (missed pre-match window?)'); return; }
+    if (!cand.htScore) { flogv(liveMin, label, 'Sbobet_S6', 'SKIP: no HT score stored'); return; }
+
+    const dedupKey = `${matchId}:ss6:fire`;
+    if (ss6Dedup.has(dedupKey)) { flogv(liveMin, label, 'Sbobet_S6', 'SKIP: already notified'); return; }
+
+    // HT condition: away not losing by 2+ (home − away ≤ 1)
+    const htDeficit = cand.htScore.home - cand.htScore.away;
+    if (htDeficit > cfg.SS6_MAX_AWAY_DEFICIT) {
+      flogv(liveMin, label, 'Sbobet_S6', `SKIP: HT away deficit ${htDeficit} > ${cfg.SS6_MAX_AWAY_DEFICIT} (${cand.htScore.home}-${cand.htScore.away})`);
+      return;
+    }
+
+    const curScore = parseScoreStr(match.score);
+    if (!curScore) { flogv(liveMin, label, 'Sbobet_S6', 'SKIP: no current score'); return; }
+
+    const curDeficit = curScore.home - curScore.away;
+    const totalGoals = curScore.home + curScore.away;
+
+    if (curDeficit > cfg.SS6_MAX_AWAY_DEFICIT) {
+      flogv(liveMin, label, 'Sbobet_S6', `SKIP: away losing by ${curDeficit} > ${cfg.SS6_MAX_AWAY_DEFICIT} (score=${match.score})`);
+      return;
+    }
+    if (totalGoals > cfg.SS6_MAX_TOTAL_GOALS) {
+      flogv(liveMin, label, 'Sbobet_S6', `SKIP: total goals ${totalGoals} > ${cfg.SS6_MAX_TOTAL_GOALS} (score=${match.score})`);
+      return;
+    }
+
+    const msg = ss6Format(match, cand, liveMin);
+    await sendTelegram(msg);
+    ss6Dedup.mark(dedupKey);
+    flog(liveMin, label, 'Sbobet_S6', `ALERT: HT=${cand.htScore.home}-${cand.htScore.away} score=${match.score} deficit=${curDeficit} goals=${totalGoals} tier=${tier}`);
+  }
+}
+
+function cleanupSS6Candidates() {
+  const now = Date.now();
+  for (const [id, c] of ss6Candidates) {
+    if (now - c.storedAt > SS6C_TTL) ss6Candidates.delete(id);
+  }
+}
+
 // ── Core scan ─────────────────────────────────────────────────────────────────
 async function runScan() {
   console.log(`[${new Date().toISOString()}] Scanning…`);
@@ -1024,14 +1659,18 @@ async function runScan() {
   console.log(`Found ${matches.length} match(es).`);
 
   cleanupSxyCandidates();
+  cleanupS1Candidates();
+  cleanupS3Candidates();
+  cleanupS5Candidates();
+  cleanupSS6Candidates();
 
   let inWindowCount = 0;
 
   for (const match of matches) {
     const ctx = matchContext(match);
-    const { label, tier, liveMin, minsToKickoff, isLive, isUpcoming, isMktEdge, isSXYEarly, isSXYMidH, isSXYHTStore, isSXYHTFire, isSteamNext } = ctx;
+    const { label, tier, liveMin, minsToKickoff, isLive, isUpcoming, isMktEdge, isSXYEarly, isSXYMidH, isSXYHTStore, isSXYHTFire, isSteamNext, isS1HTStore, isS1Fire, isS2HTStore, isS2Fire, isS3Fire, isS5HTStore, isS5Fire, isSS6HTStore, isSS6Fire } = ctx;
 
-    const anyWindow = isLive || isUpcoming || isMktEdge || isSXYEarly || isSXYMidH || isSXYHTStore || isSXYHTFire || isSteamNext;
+    const anyWindow = isLive || isUpcoming || isMktEdge || isSXYEarly || isSXYMidH || isSXYHTStore || isSXYHTFire || isSteamNext || isS1HTStore || isS1Fire || isS2HTStore || isS2Fire || isS3Fire || isS5HTStore || isS5Fire || isSS6HTStore || isSS6Fire;
     if (!anyWindow) {
       const timing = minsToKickoff != null
         ? `min_to_ko=${minsToKickoff.toFixed(1)}`
@@ -1047,7 +1686,7 @@ async function runScan() {
         !pinOk  && 'pin_missing',
         !b365Ok && 'b365_missing',
         !sboOk  && 'sbo_missing',
-        !tierAllowed(tier, cfg.SX_TIER) && !tierAllowed(tier, cfg.S6_TIER) && !tierAllowed(tier, cfg.S7_TIER) && !tierAllowed(tier, cfg.SN_TIER) && `tier=${tier}_excluded`,
+        !tierAllowed(tier, cfg.SX_TIER) && !tierAllowed(tier, cfg.S6_TIER) && !tierAllowed(tier, cfg.S7_TIER) && !tierAllowed(tier, cfg.SN_TIER) && !tierAllowed(tier, cfg.S1_TIER) && !tierAllowed(tier, cfg.S3_TIER) && !tierAllowed(tier, cfg.SS6_TIER) && `tier=${tier}_excluded`,
       ].filter(Boolean);
       const issueStr = issues.length ? `  ⚠ ${issues.join(' ')}` : '';
       flogv(liveMin, `${label} [${tier}]`, 'ALL', `out-of-window (${timing})${issueStr}`);
@@ -1065,6 +1704,15 @@ async function runScan() {
       isSXYHTStore  && `sxy_htstore(${liveMin}')`,
       isSXYHTFire   && `sxy_htfire(${liveMin}')`,
       isSteamNext   && `steam_next(${koLabel})`,
+      isS1HTStore   && `s1_htstore(${liveMin}')`,
+      isS1Fire      && `s1_fire(${liveMin}')`,
+      isS2HTStore   && `s2_htstore(${liveMin}')`,
+      isS2Fire      && `s2_fire(${liveMin}')`,
+      isS3Fire      && `s3_fire(${liveMin}')`,
+      isS5HTStore   && `s5_htstore(${liveMin}')`,
+      isS5Fire      && `s5_fire(${liveMin}')`,
+      isSS6HTStore  && `ss6_htstore(${liveMin}')`,
+      isSS6Fire     && `ss6_fire(${liveMin}')`,
     ].filter(Boolean).join(' ');
 
     // Steam-next-only matches (pre-kickoff, no live strategy window active) — log verbose only to avoid spam
@@ -1079,6 +1727,11 @@ async function runScan() {
     await runStrategy6(match, ctx);
     await runStrategy7(match, ctx);
     await runStrategySN(match, ctx);
+    await runStrategyS1(match, ctx);
+    await runStrategyS2(match, ctx);
+    await runStrategyS3(match, ctx);
+    await runStrategyS5(match, ctx);
+    await runStrategySS6(match, ctx);
   }
 
   console.log(`Scan done — ${matches.length} matches, ${inWindowCount} in window.`);
@@ -1096,6 +1749,11 @@ async function main() {
   console.log(`Strategy S6 [${on(cfg.S6_ENABLED)}][${cfg.S6_TIER}]: Market edge ≥${cfg.MKT_EDGE_THRESH}pp  n≥${cfg.MKT_EDGE_MIN_N}  window=${cfg.S6_WINDOW_MINUTES}min`);
   console.log(`Strategy S7 [${on(cfg.S7_ENABLED)}][${cfg.S7_TIER}]: Bet365 vs Pinnacle AH line gap ≥${cfg.S7_MIN_HC_DIFF}  (live ${cfg.ALERT_MIN_MINUTE}–${cfg.ALERT_MAX_MINUTE}')`);
   console.log(`Strategy SN [${on(cfg.SN_ENABLED)}][${cfg.SN_TIER}]: Pre-match steam  AH≥${cfg.SN_MIN_AH_MOVE} + TL≥${cfg.SN_MIN_TL_MOVE}  days=0-${cfg.SN_MAX_DAYS}  b365_lag≥${cfg.SN_B365_LAG_MIN}`);
+  console.log(`Strategy Sbobet_S1 [${on(cfg.S1_ENABLED)}][${cfg.S1_TIER}]: (sbobet_odds)  AH_odds≤${cfg.S1_MIN_AH_ODDS_MOVE} + Over≤${cfg.S1_MIN_OV_ODDS_MOVE}  ahLine[${cfg.S1_AH_LINE_MIN},${cfg.S1_AH_LINE_MAX}]  TL[${cfg.S1_TL_MIN},${cfg.S1_TL_MAX}]  fire=${cfg.S1_FIRE_MIN}-${cfg.S1_FIRE_MAX}'`);
+  console.log(`Strategy Sbobet_S2 [${on(cfg.S2_ENABLED)}][${cfg.S2_TIER}]: (sbobet_odds)  same prematch as S1  HT=1-1  scoreDiff≤${cfg.S2_MAX_SCORE_DIFF}  goals≤${cfg.S2_MAX_TOTAL_GOALS}  fire=${cfg.S2_FIRE_MIN}-${cfg.S2_FIRE_MAX}'`);
+  console.log(`Strategy Sbobet_S3 [${on(cfg.S3_ENABLED)}][${cfg.S3_TIER}]: (sbobet_odds)  lineMove≥${cfg.S3_MIN_LINE_MOVE} + awayOddsDrop≤${cfg.S3_MIN_AWAY_ODDS_DROP}  ahLine[${cfg.S3_AH_LINE_MIN},${cfg.S3_AH_LINE_MAX}]  TL[${cfg.S3_TL_MIN},${cfg.S3_TL_MAX}]  fire=${cfg.S3_FIRE_MIN}-${cfg.S3_FIRE_MAX}'  minOdds=${cfg.S3_MIN_ODDS}`);
+  console.log(`Strategy Sbobet_S5 [${on(cfg.S5_ENABLED)}][${cfg.S5_TIER}]: (sbobet_odds)  overDrop≤${cfg.S5_MIN_OV_DROP} + TLflat/up  TL[${cfg.S5_TL_MIN},${cfg.S5_TL_MAX}]  HT_goals≤${cfg.S5_HT_MAX_GOALS}  fire=${cfg.S5_FIRE_MIN}-${cfg.S5_FIRE_MAX}'`);
+  console.log(`Strategy Sbobet_S6 [${on(cfg.SS6_ENABLED)}][${cfg.SS6_TIER}]: (sbobet_odds)  awayDrop≤${cfg.SS6_MIN_AWAY_DROP}  ahLine[${cfg.SS6_AH_LINE_MIN},${cfg.SS6_AH_LINE_MAX}]  TL[${cfg.SS6_TL_MIN},${cfg.SS6_TL_MAX}]  HTdeficit≤${cfg.SS6_MAX_AWAY_DEFICIT}  goals≤${cfg.SS6_MAX_TOTAL_GOALS}  fire=${cfg.SS6_FIRE_MIN}-${cfg.SS6_FIRE_MAX}'  minOdds=${cfg.SS6_MIN_ODDS}`);
   console.log(`Global tier default: ${cfg.LEAGUE_TIER}`);
 
   // Refresh all book hashes at startup
