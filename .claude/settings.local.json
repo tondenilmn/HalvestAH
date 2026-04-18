@@ -1,32 +1,22 @@
 {
   "permissions": {
     "allow": [
-      "Bash(cd:*)",
-      "Bash(ls:*)",
-      "WebFetch(domain:www.asianbetsoccer.com)",
-      "WebFetch(domain:botbot3.space)",
-      "WebSearch",
-      "Bash(curl -s -I https://botbot3.space/tables/v4/livegame.js)",
-      "Bash(curl -s -I https://botbot3.space/tables/v4/live.js)",
-      "Bash(curl -s -I https://botbot3.space/tables/v4/liveodds.js)",
-      "Bash(curl -s -I https://botbot3.space/tables/v4/currentgames.js)",
-      "Bash(curl -s -I https://botbot3.space/tables/v4/today.js)",
-      "Bash(curl -s -I https://www.asianbetsoccer.com/api/livescore)",
-      "Bash(curl -s -I https://www.asianbetsoccer.com/api/live)",
-      "Bash(curl -s -I https://www.asianbetsoccer.com/it/api/live)",
-      "Bash(curl -s \"https://www.asianbetsoccer.com/it/livescore.html\")",
-      "Bash(curl -s \"https://www.asianbetsoccer.com/settings/tablefunc.v5.book.min.js\")",
-      "Bash(curl -s \"https://www.asianbetsoccer.com/settings/onloaded_V4.js?v1\")",
-      "Bash(curl -s https://www.asianbetsoccer.com/settings/onloaded_V4.js?v1 2)",
+      "Read(//d//**)",
+      "Bash(git -C \"D:\\\\HalvestAH\" status)",
+      "Bash(node notify.js --once)",
+      "Bash(node:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git checkout:*)",
+      "Bash(git merge:*)",
+      "Bash(git fetch:*)",
+      "Bash(git stash:*)",
+      "Read(//d/BET/**)",
+      "Bash(curl -s -L https://www.asianbetsoccer.com/it/livescore.html -H 'User-Agent: Mozilla/5.0 \\(Windows NT 10.0; Win64; x64\\) AppleWebKit/537.36 \\(KHTML, like Gecko\\) Chrome/122.0.0.0 Safari/537.36' -H 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8' -o /tmp/abs.html)",
       "Read(//tmp/**)",
-      "Bash(curl -s \"https://www.asianbetsoccer.com/settings/cookiebanner.bookies.v3.js\")",
-      "Bash(curl -s -I \"https://botbot3.space/tables/v4/Q/livegame/pinnacle.js\")",
-      "Bash(curl -s -I \"https://botbot3.space/tables/v4/L/livegame/pinnacle.js\")",
-      "Bash(curl -s -I \"https://botbot3.space/tables/v4/A/livegame/pinnacle.js\")",
-      "Bash(curl -s \"https://botbot3.space/tables/v4/L/livegame/pinnacle.js\")",
-      "Bash(curl -s \"https://botbot3.space/tables/v4/L/livegame/pinnacle.js?date=1710892800000\")",
-      "Bash(curl -s \"https://botbot3.space/tables/v4/oddsComp/pinnacle.js\")",
-      "Bash(curl -s \"https://www.asianbetsoccer.com/functions/api/scrape.js\")"
+      "Bash(python pinnacle_vs_bet365.py)",
+      "Bash(python -c ':*)"
     ]
   }
 }
