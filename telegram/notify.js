@@ -159,6 +159,7 @@ function matchContext(match) {
     isS9Fire:     liveMin != null && liveMin >= cfg.S9_FIRE_MIN        && liveMin <= cfg.S9_FIRE_MAX,
     isS10Fire:    liveMin != null && liveMin >= cfg.S10_FIRE_MIN       && liveMin <= cfg.S10_FIRE_MAX,
     isS11Fire:    liveMin != null && liveMin >= cfg.S11_FIRE_MIN       && liveMin <= cfg.S11_FIRE_MAX,
+    isS12Fire:    liveMin != null && liveMin >= cfg.S12_FIRE_MIN       && liveMin <= cfg.S12_FIRE_MAX,
     isSteamNext:  liveMin == null && (minsToKickoff == null || minsToKickoff > 0),
   };
 }
@@ -1185,6 +1186,83 @@ async function runStrategy11(match, ctx) {
   flog(liveMin, label, 'S11', `ALERT: score=${match.score} pinSteam=${sd.pinHomeSteam.toFixed(2)} sboOdds=${sd.sboHoOddsSteam.toFixed(2)} tier=${tier}`);
 }
 
+// ── Strategy S12: Pinnacle Fav Steam → Over 0.5 remaining at 65' ─────────────
+// Pre-match Pinnacle signal: line deepened toward fav + fav odds shortened.
+// Fires at ~65' when fav is Drawing or Losing → bet Over 0.5 remaining goals.
+
+const s12Dedup = new Dedup(4 * 60 * 60 * 1000);
+
+function detectS12Signal(odds) {
+  if (!odds) return null;
+  const { ah_hc, ah_ho, ho_c, ho_o, ao_c, ao_o } = odds;
+  if (ah_hc == null || ah_ho == null) return null;
+
+  let favSide, favOc, favOo;
+  if (ah_hc < -0.01) {
+    favSide = 'HOME'; favOc = ho_c; favOo = ho_o;
+  } else if (ah_hc > 0.01) {
+    favSide = 'AWAY'; favOc = ao_c; favOo = ao_o;
+  } else {
+    return null; // pick'em — skip
+  }
+  if (favOc == null || favOo == null) return null;
+
+  const lineSteam = Math.abs(ah_hc) - Math.abs(ah_ho);
+  if (lineSteam < cfg.S12_MIN_LINE_STEAM) return null;
+
+  const oddsSteam = favOo - favOc;
+  if (oddsSteam < cfg.S12_MIN_ODDS_STEAM) return null;
+
+  return { favSide, ah_hc, ah_ho, lineSteam, favOc, favOo, oddsSteam };
+}
+
+async function runStrategy12(match, ctx) {
+  const { matchId, label, tier, liveMin, isS12Fire } = ctx;
+
+  if (!cfg.S12_ENABLED)            { flogv(liveMin, label, 'S12', 'SKIP: disabled'); return; }
+  if (!tierAllowed(tier, cfg.S12_TIER)) { flogv(liveMin, label, 'S12', `SKIP: tier=${tier} not in ${cfg.S12_TIER}`); return; }
+  if (!isS12Fire)                  { flogv(liveMin, label, 'S12', `SKIP: not in fire window (min=${liveMin} needs ${cfg.S12_FIRE_MIN}-${cfg.S12_FIRE_MAX})`); return; }
+  if (!match.odds)                 { flogv(liveMin, label, 'S12', 'SKIP: no odds'); return; }
+
+  const sd = detectS12Signal(match.odds);
+  if (!sd) {
+    const ahHc = match.odds.ah_hc ?? '?';
+    const ls   = (Math.abs(match.odds.ah_hc ?? 0) - Math.abs(match.odds.ah_ho ?? 0)).toFixed(2);
+    flogv(liveMin, label, 'S12', `SKIP: no signal (ahHc=${ahHc} lineSteam=${ls})`);
+    return;
+  }
+
+  const score = parseScoreStr(match.score);
+  if (!score) { flogv(liveMin, label, 'S12', 'SKIP: no score'); return; }
+
+  const favGoals = sd.favSide === 'HOME' ? score.home : score.away;
+  const dogGoals = sd.favSide === 'HOME' ? score.away : score.home;
+  if (favGoals > dogGoals) { flogv(liveMin, label, 'S12', `SKIP: fav winning (${match.score})`); return; }
+
+  const dedupKey = `${matchId}:s12`;
+  if (s12Dedup.has(dedupKey)) { flogv(liveMin, label, 'S12', 'SKIP: already notified'); return; }
+
+  const favTeam  = sd.favSide === 'HOME' ? match.home_team : match.away_team;
+  const state    = favGoals === dogGoals ? 'DRAW' : 'LOSING';
+  const minsLeft = 90 - liveMin;
+  const fmt      = v => v >= 0 ? `+${v.toFixed(2)}` : v.toFixed(2);
+
+  const msg = buildMessage(
+    'S12 — Fav Steam → Over 0.5 remaining',
+    match,
+    `${liveMin}'  ${match.score || '?-?'}  (${esc(favTeam)} is <b>${state}</b>)`,
+    [
+      `💰 <b>Over 0.5 goals remaining</b>  (~${minsLeft} min left)`,
+      `📌 Pinnacle AH: ${fmt(sd.ah_ho)} → ${fmt(sd.ah_hc)}  (line +${sd.lineSteam.toFixed(2)})`,
+      `📌 Fav odds: ${sd.favOo.toFixed(2)} → ${sd.favOc.toFixed(2)}  (↓${sd.oddsSteam.toFixed(2)})`,
+    ],
+  );
+
+  await sendTelegram(msg);
+  s12Dedup.mark(dedupKey);
+  flog(liveMin, label, 'S12', `ALERT: ${state} score=${match.score} lineSteam=${sd.lineSteam.toFixed(2)} oddsSteam=${sd.oddsSteam.toFixed(2)} tier=${tier}`);
+}
+
 // ── Hash-failure alert (once per failed hash value) ──────────────────────────
 const _hashAlerted = new Set();
 async function notifyHashFailed(bookmaker, shortHash) {
@@ -1424,6 +1502,7 @@ async function runScan() {
     await runStrategy9(match, ctx);
     await runStrategy10(match, ctx);
     await runStrategy11(match, ctx);
+    await runStrategy12(match, ctx);
   }
 
   console.log(`Scan done — ${matches.length} matches · ${inWindowCount} in window · ${_scanAlerts} alert(s) sent.`);

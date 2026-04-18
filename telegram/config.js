@@ -183,4 +183,18 @@ module.exports = {
   S11_SBO_MIN_HO_ODDS_STEAM:   parseFloat(process.env.S11_SBO_MIN_HO_ODDS_STEAM   || '0.20'),  // Sbobet home odds steam (ho_o − ho_c)
   S11_FIRE_MIN:                parseInt(process.env.S11_FIRE_MIN                  || '44',  10),
   S11_FIRE_MAX:                parseInt(process.env.S11_FIRE_MAX                  || '52',  10),
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // STRATEGY S12 — Pinnacle Fav Steam → Over 0.5 remaining at 65'
+  // Pre-match Pinnacle-only signal:
+  //   1. AH line deepened toward fav by ≥ S12_MIN_LINE_STEAM (|ah_hc| > |ah_ho|)
+  //   2. Fav closing odds < fav opening odds by ≥ S12_MIN_ODDS_STEAM
+  // In-play trigger at ~65': if fav is Drawing or Losing → bet Over 0.5 remaining goals.
+  // ════════════════════════════════════════════════════════════════════════════
+  S12_ENABLED:        process.env.S12_ENABLED !== 'false',
+  S12_TIER:           process.env.S12_TIER    || 'ALL',
+  S12_MIN_LINE_STEAM: parseFloat(process.env.S12_MIN_LINE_STEAM || '0.25'), // min AH line deepening
+  S12_MIN_ODDS_STEAM: parseFloat(process.env.S12_MIN_ODDS_STEAM || '0.05'), // min fav odds drop
+  S12_FIRE_MIN:       parseInt(process.env.S12_FIRE_MIN         || '62', 10),
+  S12_FIRE_MAX:       parseInt(process.env.S12_FIRE_MAX         || '68', 10),
 };
