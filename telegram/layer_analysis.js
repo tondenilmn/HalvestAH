@@ -71,7 +71,7 @@ const SOURCE     = getArg('--source', 'bet365'); // 'bet365' | 'pinnacle'
 
 // Bet365 export dataset — plain directory of CSVs, no manifest.json (that file
 // is only generated for the Cloudflare Pages static/data/ bundle).
-const BET365_DIR = 'D:\\BET\\Match_Dataset\\Bet365_Data_months';
+const BET365_DIR = process.env.BET365_DIR || 'D:\\BET\\Match_Dataset\\Bet365_Data_months';
 const DATA_DIR = path.resolve(__dirname, '../static/data');
 
 // Loads every *.csv directly from a directory — no manifest.json required.
@@ -128,8 +128,10 @@ function applyTier(rows) {
   return rows.filter(r => r.league_tier === 'TOP' || r.league_tier === 'MAJOR');
 }
 
+// Gates on the Wilson CI lower bound (b.lo), not the raw point estimate
+// (b.edge) — see config.js's L123_MIN_EDGE comment for why.
 function qualifies(b) {
-  return b.n >= MIN_N && b.z >= MIN_Z && b.edge >= MIN_EDGE && b.bl >= MIN_BL;
+  return b.n >= MIN_N && b.z >= MIN_Z && (b.lo - b.bl) >= MIN_EDGE && b.bl >= MIN_BL;
 }
 
 function bestQualifying(bets) {

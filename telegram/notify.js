@@ -2,8 +2,8 @@
 // ── HalvestAH Telegram Notifier ───────────────────────────────────────────────
 // Runs a single strategy: L123 — Layer 1/2/3 consensus (see config.js for the
 // full description). Polls the live match feed every SCAN_INTERVAL_MINUTES
-// (default 2 min) and fires when a match is live at minute L123_FIRE_MIN–
-// L123_FIRE_MAX and >= L123_MIN_AGREE of the 3 layers agree on the same bet.
+// (default 2 min) and fires as soon as the match is live and >= L123_MIN_AGREE
+// of the 3 layers agree on the same bet.
 //
 // Usage:
 //   node notify.js          — start scheduler (runs every N minutes)
@@ -101,7 +101,7 @@ function matchContext(match) {
     label:      `${match.home_team} vs ${match.away_team}`,
     tier:       classifyLeague(match.league || ''),
     liveMin,
-    isL123Fire: liveMin != null && liveMin >= cfg.L123_FIRE_MIN && liveMin <= cfg.L123_FIRE_MAX,
+    isL123Fire: liveMin != null,
   };
 }
 
@@ -184,8 +184,14 @@ function inBand(v, band) {
   return (lo == null || v >= lo) && (hi == null || v < hi);
 }
 
+// Qualifies on the Wilson CI *lower bound* (b.lo) rather than the raw point
+// estimate (b.p/b.edge) — the point estimate is inflated by winner's-curse
+// selection (each layer picks the single best-scoring cell out of thousands
+// swept), so gating on it prices bets off a number that regresses toward
+// baseline out-of-sample. Gating on the pessimistic end of the CI bakes that
+// regression in up front instead of getting surprised by it after the fact.
 function l123Qualifies(b) {
-  return b.n >= cfg.L123_MIN_N && b.z >= cfg.L123_MIN_Z && b.edge >= cfg.L123_MIN_EDGE && b.bl >= cfg.L123_MIN_BASELINE;
+  return b.n >= cfg.L123_MIN_N && b.z >= cfg.L123_MIN_Z && (b.lo - b.bl) >= cfg.L123_MIN_EDGE && b.bl >= cfg.L123_MIN_BASELINE;
 }
 function l123BestQualifying(bets) {
   const q = bets.filter(l123Qualifies);
@@ -226,25 +232,39 @@ function layer3Live(favLine, favSide, favOc, tlC) {
 
 const l123Dedup = new Dedup(24 * 60 * 60 * 1000);
 
-function l123Format(match, agreeCount, bet, votes, liveMin) {
+function l123Format(match, agreeCount, bet, votes, liveMin, liveOdds) {
+  const liveLine = liveOdds != null
+    ? `📌 Live Bet365 price: @${liveOdds.toFixed(2)}  (needed ≥ @${bet.mo_lo ?? '—'})`
+    : `📌 Min odds to look for: @${bet.mo_lo ?? '—'}  (optimistic @${bet.mo ?? '—'})`;
   return buildMessage(
     `L123 — ${agreeCount}/3 Layer Consensus`,
     match,
     `${liveMin}'  ${match.score || '0-0'}`,
     [
       `💰 <b>${esc(bet.label)}</b>`,
-      `📌 Min odds: @${bet.mo ?? '—'}  (conservative @${bet.mo_lo ?? '—'})`,
+      liveLine,
       `📌 ${bet.p.toFixed(1)}% hit vs ${bet.bl.toFixed(1)}% baseline  ·  edge +${bet.edge.toFixed(1)}pp  ·  z=${bet.z.toFixed(2)}  ·  n=${bet.n}`,
       `📌 Agreeing layers: ${votes.join('  ·  ')}`,
     ],
   );
 }
 
+// The only bet types with a live Bet365 price already in the feed
+// (match.bet365_odds) — the 4 with a 1:1 marketOddsKey in engine.js's BETS.
+// For everything else there is no live price to check against.
+function liveOddsForBet(betKey, odds, favSide) {
+  if (betKey === 'ahCover')  return favSide === 'HOME' ? odds.ho_c : odds.ao_c;
+  if (betKey === 'dogCover') return favSide === 'HOME' ? odds.ao_c : odds.ho_c;
+  if (betKey === 'overTL')   return odds.ov_c;
+  if (betKey === 'underTL')  return odds.un_c;
+  return null;
+}
+
 async function runStrategyL123(match, ctx) {
   const { matchId, label, tier, liveMin, isL123Fire } = ctx;
 
   if (!cfg.L123_ENABLED) return;
-  if (!isL123Fire) { flogv(liveMin, label, 'L123', `SKIP: not in fire window (min=${liveMin} needs ${cfg.L123_FIRE_MIN}-${cfg.L123_FIRE_MAX})`); return; }
+  if (!isL123Fire) { flogv(liveMin, label, 'L123', `SKIP: match not live yet (min=${liveMin})`); return; }
   if (!tierAllowed(tier, cfg.L123_TIER)) { flogv(liveMin, label, 'L123', `SKIP: tier=${tier} not in ${cfg.L123_TIER}`); return; }
   if (!_dbAll || !_dbAll.length) { flog(liveMin, label, 'L123', 'SKIP: DB empty'); return; }
 
@@ -289,14 +309,23 @@ async function runStrategyL123(match, ctx) {
     return;
   }
 
-  const dedupKey = `${matchId}:l123:${topKey}`;
-  if (l123Dedup.has(dedupKey)) { flogv(liveMin, label, 'L123', 'SKIP: already notified'); return; }
-
   const agreeing = recs.filter(x => x.rec.k === topKey);
   const bet      = agreeing[0].rec;
   const votes    = agreeing.map(x => x.name);
 
-  const msg = l123Format(match, topCount, bet, votes, liveMin);
+  // For the 4 bet types with a live Bet365 price in the feed, require the
+  // actual live price to still clear the conservative (Wilson lower-bound)
+  // min odds before alerting — otherwise the "edge" only existed on paper.
+  const liveOdds = liveOddsForBet(topKey, odds, favSide);
+  if (liveOdds != null && bet.mo_lo != null && liveOdds < bet.mo_lo) {
+    flogv(liveMin, label, 'L123', `SKIP: live price @${liveOdds.toFixed(2)} below conservative min @${bet.mo_lo} for ${topKey}`);
+    return;
+  }
+
+  const dedupKey = `${matchId}:l123:${topKey}`;
+  if (l123Dedup.has(dedupKey)) { flogv(liveMin, label, 'L123', 'SKIP: already notified'); return; }
+
+  const msg = l123Format(match, topCount, bet, votes, liveMin, liveOdds);
   await sendTelegram(msg);
   l123Dedup.mark(dedupKey);
   flog(liveMin, label, 'L123', `ALERT: ${topCount}/3 agree on ${topKey} edge=${bet.edge.toFixed(1)}pp z=${bet.z.toFixed(2)} n=${bet.n} tier=${tier}`);
@@ -343,12 +372,12 @@ async function runScan() {
     const { label, tier, liveMin, isL123Fire } = ctx;
 
     if (!isL123Fire) {
-      flogv(liveMin, `${label} [${tier}]`, 'ALL', `out-of-window (min=${liveMin ?? 'no_time'})`);
+      flogv(liveMin, `${label} [${tier}]`, 'ALL', `not live (min=${liveMin ?? 'no_time'})`);
       continue;
     }
 
     inWindowCount++;
-    flogv(liveMin, `${label} [${tier}]`, 'ALL', `in-window: l123_fire(${liveMin}')  score=${match.score || '—'}  bet365_odds=${match.bet365_odds ? 'ok' : 'MISSING'}`);
+    flogv(liveMin, `${label} [${tier}]`, 'ALL', `live(${liveMin}')  score=${match.score || '—'}  bet365_odds=${match.bet365_odds ? 'ok' : 'MISSING'}`);
 
     await runStrategyL123(match, ctx);
   }
@@ -363,7 +392,7 @@ async function main() {
   await loadDb();
 
   const on = s => s ? 'ON ' : 'OFF';
-  console.log(`Strategy L123 [${on(cfg.L123_ENABLED)}][${cfg.L123_TIER}]: Layer 1(open)/2(move)/3(close) consensus  minAgree=${cfg.L123_MIN_AGREE}/3  fire=${cfg.L123_FIRE_MIN}-${cfg.L123_FIRE_MAX}'  n≥${cfg.L123_MIN_N} z≥${cfg.L123_MIN_Z} edge≥${cfg.L123_MIN_EDGE}pp bl≥${cfg.L123_MIN_BASELINE}%`);
+  console.log(`Strategy L123 [${on(cfg.L123_ENABLED)}][${cfg.L123_TIER}]: Layer 1(open)/2(move)/3(close) consensus  minAgree=${cfg.L123_MIN_AGREE}/3  fire=any live minute  n≥${cfg.L123_MIN_N} z≥${cfg.L123_MIN_Z} edge≥${cfg.L123_MIN_EDGE}pp bl≥${cfg.L123_MIN_BASELINE}%`);
   console.log(`Global tier default: ${cfg.LEAGUE_TIER}`);
 
   // Refresh all book hashes at startup

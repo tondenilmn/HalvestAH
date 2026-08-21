@@ -118,48 +118,15 @@ function extractHtml(jsText, tableId) {
   return chars.join('');
 }
 
-/* ── Main parser ────────────────────────────────────────────────────── */
-function parseMatchData(jsText) {
-  // Step 1: find Pinnacle's bookmaker index from tablematch1
-  const tm1Html = extractHtml(jsText, 'tablematch1');
-  if (!tm1Html) {
-    const preview = jsText.slice(0, 120).replace(/\n/g, ' ');
-    return { error: `Could not extract match data. Response preview: "${preview}"` };
-  }
+const parseTds = html => [...html.matchAll(/<td[^>]*>([^<]*)<\/td>/g)].map(m => m[1].trim());
+const pf = v => { const n = parseFloat(v); return isNaN(n) ? null : n; };
 
-  const bookmakers = [...tm1Html.matchAll(/class='bnfsd'>([^<]+)</g)].map(m => m[1].trim());
-  const pinIdx = bookmakers.findIndex(b => b.includes('Pinnacle'));
-
-  if (pinIdx === -1) {
-    return { error: 'Pinnacle odds not found — make sure the URL points to a match that includes Pinnacle.' };
-  }
-
-  // Step 2: extract tablematch2 and split into per-bookmaker groups
-  // Groups are separated by <tr class='vrng'> rows; order matches tablematch1
-  const tm2Html = extractHtml(jsText, 'tablematch2');
-  if (!tm2Html) {
-    return { error: 'Could not extract AH/TL data — source format may have changed' };
-  }
-
-  const groups = tm2Html.split("<tr class='vrng'><td colspan='25'></td></tr>");
-
-  if (pinIdx >= groups.length) {
-    return { error: 'Pinnacle AH odds not available for this match.' };
-  }
-
-  const pinGroup = groups[pinIdx];
-
-  // Step 3: extract H and A rows from the Pinnacle group
-  const hRowMatch = pinGroup.match(/<tr[^>]*><td>H<\/td>(.*?)<\/tr>/);
-  const aRowMatch = pinGroup.match(/<tr[^>]*><td>A<\/td>(.*?)<\/tr>/);
-
-  if (!hRowMatch || !aRowMatch) {
-    return { error: 'Could not parse Pinnacle AH row structure.' };
-  }
-
-  // Extract all TD text values in order (positional — CSS classes vary by match)
-  const parseTds = html => [...html.matchAll(/<td[^>]*>([^<]*)<\/td>/g)].map(m => m[1].trim());
-  const pf = v => { const n = parseFloat(v); return isNaN(n) ? null : n; };
+// Extract H/A odds for one bookmaker's group out of tablematch2 (see cell-position
+// comment block at the top of this file for what each index means).
+function parseBookmakerGroup(group) {
+  const hRowMatch = group.match(/<tr[^>]*><td>H<\/td>(.*?)<\/tr>/);
+  const aRowMatch = group.match(/<tr[^>]*><td>A<\/td>(.*?)<\/tr>/);
+  if (!hRowMatch || !aRowMatch) return null;
 
   const h = parseTds(hRowMatch[1]);
   const a = parseTds(aRowMatch[1]);
@@ -179,9 +146,49 @@ function parseMatchData(jsText) {
     un_o:  pf(a[8]),   // Under odds opening
   };
 
-  const hasData = Object.values(result).some(v => v !== null);
-  if (!hasData) {
-    return { error: 'Parsed Pinnacle section but could not extract odds values — structure may differ for this match.' };
+  return Object.values(result).some(v => v !== null) ? result : null;
+}
+
+/* ── Main parser ────────────────────────────────────────────────────── */
+function parseMatchData(jsText) {
+  // Step 1: read the bookmaker name list from tablematch1 (names only appear here)
+  const tm1Html = extractHtml(jsText, 'tablematch1');
+  if (!tm1Html) {
+    const preview = jsText.slice(0, 120).replace(/\n/g, ' ');
+    return { error: `Could not extract match data. Response preview: "${preview}"` };
+  }
+
+  const bookmakers = [...tm1Html.matchAll(/class='bnfsd'>([^<]+)</g)].map(m => m[1].trim());
+  const pinIdx    = bookmakers.findIndex(b => b.includes('Pinnacle'));
+  const bet365Idx = bookmakers.findIndex(b => /bet\s*365/i.test(b));
+
+  if (pinIdx === -1) {
+    return { error: 'Pinnacle odds not found — make sure the URL points to a match that includes Pinnacle.' };
+  }
+
+  // Step 2: extract tablematch2 and split into per-bookmaker groups
+  // Groups are separated by <tr class='vrng'> rows; order matches tablematch1
+  const tm2Html = extractHtml(jsText, 'tablematch2');
+  if (!tm2Html) {
+    return { error: 'Could not extract AH/TL data — source format may have changed' };
+  }
+
+  const groups = tm2Html.split("<tr class='vrng'><td colspan='25'></td></tr>");
+
+  if (pinIdx >= groups.length) {
+    return { error: 'Pinnacle AH odds not available for this match.' };
+  }
+
+  // Step 3: parse Pinnacle (drives the analysis — the historical dataset is Pinnacle-calibrated)
+  const result = parseBookmakerGroup(groups[pinIdx]);
+  if (!result) {
+    return { error: 'Could not parse Pinnacle AH row structure.' };
+  }
+
+  // Step 4: parse Bet365 too, if listed — reference odds only (what you'd actually get
+  // at execution time), never fed into the analysis engine itself.
+  if (bet365Idx !== -1 && bet365Idx < groups.length) {
+    result.bet365 = parseBookmakerGroup(groups[bet365Idx]);
   }
 
   return result;

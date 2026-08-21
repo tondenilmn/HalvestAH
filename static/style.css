@@ -311,12 +311,24 @@ header {
   width: 100%; padding: 7px; font-size: 11px;
 }
 .url-import-btn:disabled { opacity: 0.5; cursor: wait; }
+.url-refresh-btn { width: 100%; padding: 7px; font-size: 11px; }
 .url-import-status {
   font-size: 11px; min-height: 15px; color: var(--dim);
 }
 .url-import-status.loading { color: var(--dim); }
 .url-import-status.ok      { color: var(--green); }
 .url-import-status.error   { color: var(--red); }
+
+.bet365-ref {
+  display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center;
+  margin-top: 8px; padding: 6px 8px;
+  background: var(--bg2); border: 1px solid var(--border); border-radius: 4px;
+  font-size: 11px; color: var(--bright);
+}
+.bet365-ref-label {
+  font-size: 10px; font-weight: 700; color: var(--yellow); letter-spacing: 0.03em;
+  margin-right: 4px;
+}
 
 /* ── Game state ──────────────────────────────────────────── */
 .gs-triggers { display: flex; gap: 6px; margin-bottom: 8px; }
@@ -455,6 +467,10 @@ select.gs-select {
 /* ── Merged bet card ─────────────────────────────────────── */
 .bet-merged-header { padding: 6px 12px 8px; }
 .bet-merged-header h3 { font-size: 13px; font-weight: bold; color: var(--bright); margin-bottom: 2px; }
+.bet-explain {
+  padding: 0 12px 8px; font-size: 11px; font-style: italic; color: var(--dim);
+  line-height: 1.4;
+}
 .bet-scenarios {
   display: grid; grid-template-columns: 1fr 1fr;
   gap: 1px; background: var(--border); margin-bottom: 8px;
@@ -1092,111 +1108,41 @@ select.gs-select {
 .pcard-odds-state  { font-size:11px; color:var(--dim); }
 .pcard-sep         { width:1px; height:28px; background:rgba(255,255,255,0.07); flex-shrink:0; }
 
-/* ── HT Live Panel ────────────────────────────────────────────────────────
-   Row-based layout optimised for quick scanning at half-time.
-   Primary CTA is MIN ODDS (Wilson lower bound) — bet only above it.
-   ──────────────────────────────────────────────────────────────────────── */
-.htlive-header {
-  margin-bottom:14px; padding:10px 12px;
-  background:rgba(26,159,255,0.06);
-  border:1px solid rgba(26,159,255,0.18);
-  border-radius:6px;
+/* ── Live-odds EV / Kelly-stake widget (buildBetCol, Top Pick banner) ────── */
+.col-your-odds {
+  display:flex; align-items:center; gap:6px; flex-wrap:wrap;
+  margin-top:8px; padding-top:8px; border-top:1px solid var(--border);
 }
-.htlive-title {
-  font-size:13px; font-weight:700; color:var(--bright); margin-bottom:4px;
-}
-.htlive-meta {
-  font-size:11px; color:var(--dim); margin-bottom:3px;
-}
-.htlive-reliability       { font-weight:600; }
-.htlive-reliability.green  { color:var(--green); }
-.htlive-reliability.yellow { color:var(--yellow); }
-.htlive-reliability.red    { color:var(--red); }
-.htlive-legend {
-  font-size:10px; color:var(--dim); font-style:italic; line-height:1.4;
-}
-
-/* Column grid: label | hit% | delta | MIN ODDS | fair | n */
-.htlive-table  { margin-bottom:6px; }
-.htlive-thead,
-.htlive-row    {
-  display:grid;
-  grid-template-columns: 1fr 50px 66px 72px 46px 30px 38px 58px 46px;
-  align-items:center; gap:4px; padding:4px 6px;
-}
-.htlive-thead {
-  border-bottom:1px solid var(--border);
-  margin-bottom:2px;
-}
-.htlive-th-label,
-.htlive-th-prob,
-.htlive-th-delta,
-.htlive-th-minodds,
-.htlive-th-fair,
-.htlive-th-n,
-.htlive-th-offered,
-.htlive-th-kelly {
-  font-size:9px; text-transform:uppercase; letter-spacing:0.06em;
-  color:var(--dim); font-weight:600;
-}
-.htlive-th-prob,
-.htlive-th-delta  { text-align:right; }
-.htlive-th-minodds,
-.htlive-th-fair,
-.htlive-th-n,
-.htlive-th-z,
-.htlive-th-offered,
-.htlive-th-kelly  { text-align:center; }
-
-/* Row styling */
-.htlive-row {
-  border-radius:4px; border-left:3px solid transparent;
-  margin-bottom:2px; background:var(--bg1);
-}
-.htlive-row:hover          { background:var(--bg2); }
-.htlive-row-strong         { border-left-color:var(--green);  background:rgba(0,229,170,0.05); }
-.htlive-row-good           { border-left-color:var(--blue);   background:rgba(26,159,255,0.04); }
-.htlive-row-weak           { border-left-color:var(--border); }
-
-/* Cell styles */
-.htlive-col-label   { font-size:12px; font-weight:600; color:var(--bright); }
-.htlive-col-prob    { font-size:12px; font-weight:700; color:var(--text);   text-align:right; }
-.htlive-col-delta   { font-size:11px; text-align:right; }
-.htlive-col-fair    { font-size:11px; color:var(--dim); text-align:center; }
-.htlive-col-n       { text-align:center; }
-.htlive-col-z       { font-size:11px; text-align:center; color:var(--dim); }
-.htlive-col-offered { text-align:center; }
-.htlive-col-kelly   { font-size:11px; font-weight:700; text-align:center; color:var(--dim); }
-
-.kelly-input {
-  width:50px; background:var(--bg2); border:1px solid var(--border);
-  color:var(--text); font-size:11px; padding:2px 4px; border-radius:3px;
+.your-odds-input {
+  width:56px; background:var(--bg2); border:1px solid var(--border);
+  color:var(--text); font-size:11px; padding:3px 5px; border-radius:3px;
   text-align:center;
 }
-.kelly-input:focus { outline:none; border-color:var(--blue); }
-.kelly-strong { color:var(--green) !important; }
-.kelly-grey   { color:var(--yellow) !important; }
-.kelly-none   { color:var(--red) !important; font-size:9px; }
+.your-odds-input:focus { outline:none; border-color:var(--blue); }
+.odds-edge { font-size:11px; font-weight:600; }
+.odds-edge.pos { color:var(--green); }
+.odds-edge.neg { color:var(--red); }
+.odds-kelly    { font-size:11px; font-weight:700; color:var(--dim); }
+.kelly-strong  { color:var(--green) !important; }
+.kelly-grey    { color:var(--yellow) !important; }
+.kelly-none    { color:var(--red) !important; }
 
-/* MIN ODDS pill — the number the user needs to beat at the soft book */
-.htlive-col-minodds         { text-align:center; }
-.htlive-minodds-strong,
-.htlive-minodds-good,
-.htlive-minodds-weak        {
-  display:inline-block; padding:2px 7px; border-radius:3px;
-  font-size:13px; font-weight:700;
+.bankroll-row {
+  display:flex; align-items:center; gap:8px; margin:6px 0 14px;
+  font-size:11px; color:var(--dim);
 }
-.htlive-minodds-strong { color:#000; background:var(--green); }
-.htlive-minodds-good   { color:#000; background:var(--yellow); }
-.htlive-minodds-weak   {
-  color:var(--text); background:var(--bg2);
-  border:1px solid var(--border);
+.bankroll-input {
+  width:80px; background:var(--bg2); border:1px solid var(--border);
+  color:var(--text); font-size:11px; padding:4px 6px; border-radius:3px;
 }
+.bankroll-input:focus { outline:none; border-color:var(--blue); }
 
-.htlive-skipped {
-  font-size:10px; color:var(--dim); text-align:right;
-  margin-top:8px; font-style:italic;
+.top-pick-banner {
+  margin-bottom:18px; padding:2px; border-radius:8px;
+  border:1px solid var(--yellow);
+  box-shadow:0 0 0 1px rgba(245,166,35,0.15);
 }
+.top-pick-banner .bet-card { margin-bottom:0; }
 
 
 /* ── Scout Tab ────────────────────────────────────────────── */
@@ -1247,7 +1193,6 @@ select.gs-select {
 .scout-mkt-strong { background: #1a4a2a; color: var(--green); }
 .scout-mkt-pos    { background: var(--bg3); color: var(--green); }
 .scout-mkt-neg    { background: var(--bg3); color: var(--red); }
-.scout-kelly    { font-size: 11px; color: var(--yellow); }
 
 .scout-gate-grid {
   display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px;

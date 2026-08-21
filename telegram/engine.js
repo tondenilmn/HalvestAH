@@ -42,6 +42,12 @@ const COL_MAP = {
   'under odds opening': 'Under Odds Opening', 'under_odds_opening': 'Under Odds Opening',
   'ht result': 'HT Result', 'ht_result': 'HT Result',
   'ft result': 'FT Result', 'ft_result': 'FT Result', 'result': 'FT Result',
+  '1x2 home closing': '1X2 Home Closing', '1x2_home_closing': '1X2 Home Closing',
+  '1x2 draw closing': '1X2 Draw Closing', '1x2_draw_closing': '1X2 Draw Closing',
+  '1x2 away closing': '1X2 Away Closing', '1x2_away_closing': '1X2 Away Closing',
+  '1x2 home opening': '1X2 Home Opening', '1x2_home_opening': '1X2 Home Opening',
+  '1x2 draw opening': '1X2 Draw Opening', '1x2_draw_opening': '1X2 Draw Opening',
+  '1x2 away opening': '1X2 Away Opening', '1x2_away_opening': '1X2 Away Opening',
 };
 
 const BETS = [
@@ -74,9 +80,9 @@ const BETS = [
   { k: 'under05_1H',    label: 'Under 0.5 1H' },
   { k: 'under15_1H',    label: 'Under 1.5 1H' },
   { k: 'btts1H',        label: 'BTTS 1H' },
-  { k: 'homeWinsFT',    label: 'Home wins FT',    favSideBaseline: 'HOME' },
-  { k: 'awayWinsFT',    label: 'Away wins FT',    favSideBaseline: 'AWAY' },
-  { k: 'drawFT',        label: 'Draw FT' },
+  { k: 'homeWinsFT',    label: 'Home wins FT',    favSideBaseline: 'HOME', marketOddsKey: 'x2_home_c' },
+  { k: 'awayWinsFT',    label: 'Away wins FT',    favSideBaseline: 'AWAY', marketOddsKey: 'x2_away_c' },
+  { k: 'drawFT',        label: 'Draw FT',         marketOddsKey: 'x2_draw_c' },
   { k: 'btts',          label: 'BTTS FT' },
   { k: 'over15FT',      label: 'Over 1.5 FT' },
   { k: 'over25FT',      label: 'Over 2.5 FT' },
@@ -229,6 +235,12 @@ function processRow(row, fileLabel) {
   const ovO  = sf(nr['Over Odds Opening']);
   const unC  = sf(nr['Under Odds Closing']);
   const unO  = sf(nr['Under Odds Opening']);
+  const x2HomeC = sf(nr['1X2 Home Closing']);
+  const x2DrawC = sf(nr['1X2 Draw Closing']);
+  const x2AwayC = sf(nr['1X2 Away Closing']);
+  const x2HomeO = sf(nr['1X2 Home Opening']);
+  const x2DrawO = sf(nr['1X2 Draw Opening']);
+  const x2AwayO = sf(nr['1X2 Away Opening']);
 
   if ([ahHc, ahHo, hoC, hoO, aoC, aoO].some(v => v === null)) return null;
 
@@ -279,6 +291,8 @@ function processRow(row, fileLabel) {
     fav_side: favSide, fav_line: favLine, fav_lc: favLc, fav_lo: favLo,
     fav_oc: favOc, fav_oo: favOo, dog_oc: dogOc, dog_oo: dogOo,
     tl_c: tlC, tl_o: tlO, ov_c: ovC, ov_o: ovO, un_c: unC, un_o: unO,
+    x2_home_c: x2HomeC, x2_draw_c: x2DrawC, x2_away_c: x2AwayC,
+    x2_home_o: x2HomeO, x2_draw_o: x2DrawO, x2_away_o: x2AwayO,
     line_move: lineMove,
     fav_odds_move: oddsDir(favOc, favOo),
     dog_odds_move: oddsDir(dogOc, dogOo),
