@@ -212,36 +212,15 @@ async function tryCombo(hash, gS, timestamp) {
   return { matches, hashInvalid: false };
 }
 
-// Fetch live odds for any bookmaker by hash → Map<matchId, odds>.
-// hashInvalid = true only on HTTP 404 (stale hash).
-async function fetchLiveOddsMap(hash, bookLabel, timestamp) {
-  if (!hash) return { map: new Map(), hashInvalid: false };
-  const url = `https://botbot3.space/tables/v4/${GS_PRIMARY}/livegame/${hash}.js?date=${timestamp}&_=${timestamp + 1}`;
-  try {
-    const resp = await fetch(url, { headers: makeBotbotHeaders(GS_PRIMARY, hash) });
-    if (!resp.ok) {
-      console.log(`  ${bookLabel}/${hash.slice(0, 8)}… livegame → HTTP ${resp.status}`);
-      return { map: new Map(), hashInvalid: resp.status === 404 };
-    }
-    const jsText   = await resp.text();
-    const oddsRows = parseGetData2Calls(jsText);
-    console.log(`  ${bookLabel}/${hash.slice(0, 8)}… livegame → ${oddsRows.length} rows`);
-    const map = new Map();
-    for (const row of oddsRows) {
-      if (row.matchId) map.set(row.matchId, row.odds);
-    }
-    return { map, hashInvalid: false };
-  } catch (e) {
-    console.log(`  ${bookLabel} livegame fetch error: ${e.message}`);
-    return { map: new Map(), hashInvalid: false };
-  }
-}
-
-// Book name patterns for #book_filter option matching (case-insensitive)
+// Book name patterns for #book_filter option matching (case-insensitive).
+// Anchored exact-match — the page also lists a separate "Bet365 Live" option
+// whose hash serves a different feed (0 odds rows on the livegame endpoint);
+// a loose /bet\s*365/i match would collide with it and silently overwrite
+// the correct hash with a broken one since the loop below takes the last match.
 const BOOK_PATTERNS = {
-  pinnacle: /pinnacle/i,
-  bet365:   /bet\s*365/i,
-  sbobet:   /sbo\s*bet/i,
+  pinnacle: /^pinnacle$/i,
+  bet365:   /^bet\s*365$/i,
+  sbobet:   /^sbo\s*bet$/i,
 };
 
 /**
@@ -249,15 +228,27 @@ const BOOK_PATTERNS = {
  * from the #book_filter <select> options (e.g. <option value="<40-hex>">Pinnacle</option>).
  * Returns { pinnacle, bet365, sbobet } — any value may be null if not found.
  */
+// asianbetsoccer.com's WAF blocks a full desktop-Chrome User-Agent string
+// (403) from some networks while accepting a bare "Mozilla/5.0" — try the
+// full header set first (looks like a real browser where it isn't blocked),
+// then fall back to the minimal UA that's known to get through.
+const LIVESCORE_HEADER_SETS = [
+  {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+    Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+    'Accept-Language': 'it-IT,it;q=0.9,en-US;q=0.8,en;q=0.7',
+  },
+  { 'User-Agent': 'Mozilla/5.0' },
+];
+
 async function fetchAllBookHashes() {
   try {
-    const resp = await fetch('https://www.asianbetsoccer.com/it/livescore.html', {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language': 'it-IT,it;q=0.9,en-US;q=0.8,en;q=0.7',
-      },
-    });
+    let resp;
+    for (const headers of LIVESCORE_HEADER_SETS) {
+      resp = await fetch('https://www.asianbetsoccer.com/it/livescore.html', { headers });
+      if (resp.ok) break;
+      console.log(`  livescore.html → HTTP ${resp.status} (UA "${headers['User-Agent'].slice(0, 20)}…") — trying next header set`);
+    }
     if (!resp.ok) return { pinnacle: null, bet365: null, sbobet: null };
     const html = await resp.text();
 
@@ -266,10 +257,11 @@ async function fetchAllBookHashes() {
     const optRe = /value="([a-f0-9]{40})"[^>]*>\s*([^<]+)/gi;
     let m;
     while ((m = optRe.exec(html)) !== null) {
-      const [, hash, label] = m;
-      if (BOOK_PATTERNS.pinnacle.test(label)) result.pinnacle = hash;
-      else if (BOOK_PATTERNS.bet365.test(label))   result.bet365   = hash;
-      else if (BOOK_PATTERNS.sbobet.test(label))   result.sbobet   = hash;
+      const [, hash, rawLabel] = m;
+      const label = rawLabel.trim();
+      if (!result.pinnacle && BOOK_PATTERNS.pinnacle.test(label)) result.pinnacle = hash;
+      else if (!result.bet365 && BOOK_PATTERNS.bet365.test(label)) result.bet365   = hash;
+      else if (!result.sbobet && BOOK_PATTERNS.sbobet.test(label)) result.sbobet   = hash;
     }
 
     // Fallback for Pinnacle: botbot3.space livegame URL embedded in page scripts
@@ -334,56 +326,47 @@ async function fetchPinnacleHash() {
   return pinnacle;
 }
 
+async function fetchBet365Hash() {
+  const { bet365 } = await fetchAllBookHashes();
+  return bet365;
+}
+
+// Bet365 is the primary (and only) source: it carries both the match list
+// (teams/minute/score, via getDatalive1/getDatalast1) and the odds (via
+// getData2) off the same livegame/{hash}.js payload — see tryCombo. Pinnacle
+// is no longer listed on the asianbetsoccer book_filter dropdown, so its hash
+// can't be auto-discovered any more; Bet365's can.
 async function fetchLiveMatches() {
   const timestamp = Date.now();
 
-  console.log(`Livescore: trying Pinnacle hash=${PINNACLE_HASH.slice(0,8)}…`);
-  let { matches, hashInvalid } = await tryCombo(PINNACLE_HASH, GS_PRIMARY, timestamp);
+  console.log(`Livescore: trying Bet365 hash=${BET365_HASH.slice(0,8)}…`);
+  let { matches, hashInvalid } = await tryCombo(BET365_HASH, GS_PRIMARY, timestamp);
 
   // Auto-discovery: if hash is stale (404), fetch new hash from asianbetsoccer page
   if (!matches && hashInvalid) {
-    console.log('Livescore: hash invalid — auto-discovering new Pinnacle hash…');
-    const discovered = await fetchPinnacleHash();
-    if (discovered && discovered !== PINNACLE_HASH) {
+    console.log('Livescore: hash invalid — auto-discovering new Bet365 hash…');
+    const discovered = await fetchBet365Hash();
+    if (discovered && discovered !== BET365_HASH) {
       console.log(`Livescore: discovered new hash=${discovered.slice(0,8)}… — retrying`);
-      PINNACLE_HASH = discovered;
-      ({ matches, hashInvalid } = await tryCombo(PINNACLE_HASH, GS_PRIMARY, timestamp));
+      BET365_HASH = discovered;
+      ({ matches, hashInvalid } = await tryCombo(BET365_HASH, GS_PRIMARY, timestamp));
     } else if (!discovered) {
-      console.log('Livescore: auto-discovery failed — update PINNACLE_HASH manually');
+      console.log('Livescore: auto-discovery failed — update BET365_HASH manually');
     }
   }
 
   if (!matches) {
-    if (hashInvalid) console.log('Livescore: Pinnacle hash invalid (404) — update PINNACLE_HASH in livescore.js');
-    else             console.log('Livescore: hash failed — update PINNACLE_HASH in livescore.js');
-    return { matches: [], pinnacleHashFailed: hashInvalid, pinnacleHash: PINNACLE_HASH };
+    if (hashInvalid) console.log('Livescore: Bet365 hash invalid (404) — update BET365_HASH in livescore.js');
+    else             console.log('Livescore: hash failed — update BET365_HASH in livescore.js');
+    return { matches: [], bet365HashFailed: hashInvalid, bet365Hash: BET365_HASH };
   }
 
-  // Fetch Bet365 and Sbobet live odds in parallel (non-fatal — Pinnacle is the primary source)
-  const [b365Result, sboResult] = await Promise.all([
-    fetchLiveOddsMap(BET365_HASH, 'bet365', timestamp),
-    fetchLiveOddsMap(SBOBET_HASH, 'sbobet', timestamp),
-  ]);
+  // Alias odds onto match.bet365_odds — the field name notify.js's L123
+  // strategy reads, kept distinct from the generic match.odds in case another
+  // book is ever attached as secondary enrichment later.
+  for (const m of matches) m.bet365_odds = m.odds;
 
-  // Attach multi-book odds to each Pinnacle match by shared matchId
-  let b365Attached = 0, sboAttached = 0;
-  for (const m of matches) {
-    if (!m.id) continue;
-    if (b365Result.map.has(m.id)) { m.bet365_odds = b365Result.map.get(m.id); b365Attached++; }
-    if (sboResult.map.has(m.id))  { m.sbobet_odds  = sboResult.map.get(m.id);  sboAttached++; }
-  }
-  if (BET365_HASH) console.log(`  bet365 live: attached to ${b365Attached}/${matches.length} matches`);
-  if (SBOBET_HASH) console.log(`  sbobet live: attached to ${sboAttached}/${matches.length} matches`);
-
-  return {
-    matches,
-    pinnacleHashFailed: false,
-    pinnacleHash:       PINNACLE_HASH,
-    bet365HashFailed:   b365Result.hashInvalid,
-    bet365Hash:         BET365_HASH,
-    sbobetHashFailed:   sboResult.hashInvalid,
-    sbobetHash:         SBOBET_HASH,
-  };
+  return { matches, bet365HashFailed: false, bet365Hash: BET365_HASH };
 }
 
 // Fetch Bet365 AH odds from a tablenext JS file and return { map, hashFailed }.

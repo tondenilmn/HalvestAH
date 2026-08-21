@@ -540,6 +540,24 @@ function loadDatabase(dataDir) {
   return db;
 }
 
+// ── CSV loader — plain directory (no manifest.json required) ─────────────────
+// Used for datasets that aren't bundled into the Cloudflare Pages static/data/
+// folder (e.g. the Bet365 export set) — just scans *.csv directly.
+function loadDatasetDir(dir) {
+  const files = fs.readdirSync(dir).filter(f => f.toLowerCase().endsWith('.csv'));
+  const db = [];
+  for (const f of files) {
+    const csv = fs.readFileSync(path.join(dir, f), 'utf8');
+    const { data } = Papa.parse(csv, { header: true, skipEmptyLines: true });
+    const label = path.basename(f, '.csv');
+    for (const row of data) {
+      const processed = processRow(row, label);
+      if (processed) db.push(processed);
+    }
+  }
+  return db;
+}
+
 // ── CSV loader — remote (Cloudflare Pages) ────────────────────────────────────
 // Fetches manifest.json then all CSV files from the deployed static site.
 // Uses concurrency of 20 to keep startup fast without hammering the CDN.
@@ -586,6 +604,7 @@ module.exports = {
   processRow,
   loadDatabase,
   loadDatabaseFromUrl,
+  loadDatasetDir,
   buildCfgFromMatch,
   applyConfig,
   applyBaselineConfig,
