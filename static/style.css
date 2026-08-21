@@ -780,11 +780,35 @@ select.gs-select {
 
 /* ── Responsive ──────────────────────────────────────────── */
 @media (max-width: 900px) {
-  .main { flex-direction: column; overflow: auto; }
+  html, body { overflow-x: hidden; }
+  .main { flex-direction: column; overflow: auto; padding: 8px; }
+  .left-panel, .right-panel { min-width: 0; }
   .left-panel { width: 100%; max-width: 100%; padding-right: 0; }
   .right-panel { padding-left: 0; min-height: 600px; }
   .bet-body { grid-template-columns: 1fr; }
   .disc-card { grid-template-columns: 1fr; }
+
+  /* Header: fixed 58px height + long instructional subtitle wraps and
+     clips on narrow screens — drop the subtitle (redundant with the
+     results panel's own empty-state prompt) and let the header size to
+     its content instead of clipping it. */
+  header {
+    height: auto; min-height: 52px; padding: 10px 14px;
+    flex-wrap: wrap; row-gap: 4px;
+  }
+  .header-sub { display: none; }
+  .header-title { font-size: 15px; }
+
+  /* Touch targets: filter/tier/recency/min-n buttons were sized for mouse
+     pointers (~26-27px tall) — bump to a comfortable tap height. */
+  .gs-trigger-btn { padding: 11px 8px; font-size: 12px; }
+  .min-n-preset   { padding: 10px 12px; font-size: 12px; }
+
+  /* Very narrow phones (<380px): 4-column odds-input grid gets too
+     cramped to read/tap accurately — collapse to 2 columns. */
+  @media (max-width: 380px) {
+    .input-grid.cols-4 { grid-template-columns: repeat(2, 1fr); }
+  }
 }
 
 /* ── Pinnacle Signal Guide ───────────────────────────────── */
@@ -1143,6 +1167,17 @@ select.gs-select {
   box-shadow:0 0 0 1px rgba(245,166,35,0.15);
 }
 .top-pick-banner .bet-card { margin-bottom:0; }
+
+.top-value-banner {
+  margin-bottom:18px; padding:10px; border-radius:8px;
+  border:1px solid var(--blue);
+  box-shadow:0 0 0 1px rgba(26,159,255,0.15);
+}
+.top-value-banner .vh-card { margin-bottom:0; }
+.tv-label {
+  font-size:11px; font-weight:bold; color:var(--blue);
+  letter-spacing:0.03em; margin-bottom:8px;
+}
 
 
 /* ── Scout Tab ────────────────────────────────────────────── */

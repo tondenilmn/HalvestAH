@@ -2475,6 +2475,19 @@ function renderTopPickBanner(qualifying, gsLabelText, cfg) {
   return `<div class="top-pick-banner">${card}</div>`;
 }
 
+// Headline card for the single best value bet (no strong historical edge
+// yet, but positive edge and the best fair-odds opportunity) — the other
+// actionable answer alongside the Top Pick, surfaced without needing to
+// open the collapsed Value Hunting section further down. Reuses
+// renderValueHuntCard's markup (also used in the full list).
+function renderTopValueBanner(bet) {
+  if (!bet) return '';
+  return `<div class="top-value-banner">
+    <div class="tv-label">💎 BEST VALUE BET  ·  no edge vs baseline yet — best fair-odds watch</div>
+    ${renderValueHuntCard(bet)}
+  </div>`;
+}
+
 function renderBetDashboard(preMap, gsMap) {
   const betDefMap = new Map(BETS.map(b => [b.k, b]));
 
@@ -2608,10 +2621,23 @@ function renderMatchResults({ cfg_n, allBets, bets, gsAllBets, gsLabelText, ftra
   }
   qualifying.sort((a, b) => b.bestZ - a.bestZ);
 
+  // Value hunt — positive edge but below the z bar (pre-match pool).
+  // Computed up front (not just before its full-list section further down)
+  // so the single best one can headline right after the Top Pick banner.
+  // allBets is already sorted by edge>0 first, then z*(lo/100) descending
+  // (see scoreBets) — filtering preserves that order, so vhBets[0] is
+  // already the highest CI-adjusted-value bet in the list, not just the
+  // first one found.
+  const vhBets = allBets.filter(b => Math.abs(b.z) < MIN_Z && b.edge > 0 && b.n >= min_n);
+
   // Top Pick goes first — before the title, before everything — so the
   // single strongest recommendation is the very first thing visible,
-  // with zero scrolling or reading required.
+  // with zero scrolling or reading required. The best value bet (no
+  // strong historical edge yet, but the best fair-odds opportunity)
+  // follows immediately after, since it's the other actionable headline
+  // a user wants without scrolling to the collapsed Value Hunting section.
   let html = renderTopPickBanner(qualifying, gsLabelText, cfg);
+  html += renderTopValueBanner(vhBets[0]);
   html += `<h2 class="results-title">BEST BETS</h2>`;
   html += `<div class="bankroll-row">
     <span class="col-min-odds-label">BANKROLL (optional)</span>
@@ -2632,8 +2658,7 @@ function renderMatchResults({ cfg_n, allBets, bets, gsAllBets, gsLabelText, ftra
       <p>No bets clear the statistical bar (z ≥ ${MIN_Z}) yet.<br>Try a different AH line, or add the HT / current score once available.</p></div>`;
   }
 
-  // Value hunt — positive edge but below the z bar (pre-match pool)
-  const vhBets = allBets.filter(b => Math.abs(b.z) < MIN_Z && b.edge > 0 && b.n >= min_n);
+  // Full value hunting list (vhBets computed earlier, alongside qualifying)
   if (vhBets.length) html += renderValueHuntSection(vhBets);
 
   right.innerHTML = html;
