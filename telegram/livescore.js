@@ -3,13 +3,18 @@
 // Adapted from functions/api/livescore.js for Node.js (no Cloudflare runtime).
 // Uses built-in fetch (Node >= 18).
 
-// Hashes are bootstrapped at startup via refreshHashes() — sourced from the
-// Cloudflare Pages dashboard (DATA_URL/api/livescore?hashes=1) when DATA_URL is set,
-// or from asianbetsoccer.com as a fallback for local runs.
-// Do NOT set these as Railway env vars — manage them in the Cloudflare dashboard only.
-let PINNACLE_HASH = '30e528c380c96b362ffacdc66b2808c8ad59ce9e'; // overwritten at startup
-let BET365_HASH   = '88cb51b3c128c9bde8e975e9dad5bc62625a8bd5'; // overwritten at startup
-let SBOBET_HASH   = '3232dc0679a9e90f92c895b626b67d7af6c5f661'; // overwritten at startup
+// Hashes are bootstrapped at startup via refreshHashes(), which scrapes
+// asianbetsoccer.com directly (see fetchAllBookHashes below) — self-heals on
+// every call. The hardcoded values below are just the seed/fallback in case
+// that scrape fails on startup (e.g. asianbetsoccer's WAF blocking the host's
+// outbound IP — seen on Railway even when it works fine locally). If
+// BET365_HASH/PINNACLE_HASH/SBOBET_HASH env vars are set, they override the
+// seed — a manual stopgap you can set in the Railway dashboard without a
+// redeploy when auto-discovery is stuck (paste the fresh hash from a local
+// `node -e "require('./livescore').refreshHashes().then(console.log)"` run).
+let PINNACLE_HASH = process.env.PINNACLE_HASH || '30e528c380c96b362ffacdc66b2808c8ad59ce9e';
+let BET365_HASH   = process.env.BET365_HASH   || 'db99a099ea57c8aebaf8afb65b25b074e3706b2b';
+let SBOBET_HASH   = process.env.SBOBET_HASH   || 'd52dd259629d3561be50b5cd7def478fbee5af6a';
 const GS_PRIMARY    = 'Q';
 const GS_CANDIDATES = ['Q', '1', '2', '3', 'AH', 'S', 'EU', 'A', 'ah', 's', '4', '5', '10', '6', '7', '8', 'B', 'F'];
 
@@ -271,7 +276,12 @@ async function fetchAllBookHashes() {
     }
 
     return result;
-  } catch {
+  } catch (e) {
+    // Was previously a bare `catch {}` — swallowed the real error (e.g. a
+    // network-level failure fetching asianbetsoccer.com, distinct from an
+    // HTTP error status) with no log line at all, making a Railway-specific
+    // failure indistinguishable from "site returned no matches" in logs.
+    console.log(`  livescore.html fetch threw: ${e.message}`);
     return { pinnacle: null, bet365: null, sbobet: null };
   }
 }
