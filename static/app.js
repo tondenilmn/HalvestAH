@@ -1292,10 +1292,22 @@ function discover(db, favLine, favSide, inLineMove, inTlMove, gs, minN = DEFAULT
    LIVE ODDS ENGINE  (Poisson time-decay, ported from live_odds.py)
    ════════════════════════════════════════════════════════════ */
 
-const _1H_INTENSITY = [[0,5,0.70],[5,15,0.90],[15,30,1.00],[30,40,1.10],[40,45,1.35]];
-const _2H_INTENSITY = [[0,5,0.75],[5,15,0.90],[15,25,1.05],[25,35,1.20],[35,45,1.55]];
+// Within-half goal-timing shape. NOT derived from this app's dataset — the
+// CSVs have no goal-minute timestamps (HT/FT scores only), so this shape is
+// fundamentally unverifiable against our own data. Sourced from published
+// per-15-minute goal distributions (playthepercentage.com; cross-checked
+// against soccerstats.com's multi-league HT/FT split and broader literature
+// summaries), normalised to mean 1.0 within each half. Buckets are relative
+// elapsed minutes into the half. _FLAT_INTENSITY is the user-toggleable
+// "no clustering assumption" alternative (state.useFlatDecay).
+const _1H_INTENSITY = [[0,15,0.667],[15,30,1.000],[30,45,1.333]];
+const _2H_INTENSITY = [[0,15,0.818],[15,30,1.091],[30,45,1.091]];
+const _FLAT_INTENSITY = [[0,45,1.000]];
 const _IT_2H = 4;
 
+// Validated against this app's own ~165k-match dataset (AH line vs. average
+// 2H goals) — observed ratios landed within ~1-2% of these values, so kept
+// unchanged rather than "corrected".
 const _LINE_STRENGTH_MOD = {0.25:0.92,0.50:0.96,0.75:1.00,1.00:1.06,1.25:1.12,1.50:1.18};
 const _2H_BETS_SET = new Set([
   'over05_2H','over15_2H','over25_2H','favScored2H','favWins2H','ahCover',
@@ -1317,25 +1329,66 @@ const _BET_GOAL_THRESHOLD = {
   'homeOver15_2H':2,'awayOver15_2H':2,
 };
 
+// Score-state modifiers — calibrated from this app's own dataset (HT margin
+// -> subsequent 2H scoring, n=6,323-63,386 per bucket). Keyed by the current
+// in-2H fav-minus-dog goal margin (same bucketing the old single modifier
+// used), applied as a bet-class-specific multiplier rather than one blanket
+// scalar. Caveat: measured conditioning on HT margin -> rest-of-2H scoring
+// (the only thing measurable without goal-minute data) and applied here
+// keyed by live in-2H margin-so-far — a reasonable proxy, not an exact match
+// to what was measured.
+const _FAV_SCORE_MOD   = {'-2':1.08, '-1':1.08, '0':1.00, '1':1.09, '2':1.45};
+const _DOG_SCORE_MOD   = {'-2':1.32, '-1':1.09, '0':1.00, '1':1.06, '2':1.04};
+const _TOTAL_SCORE_MOD = {'-2':1.16, '-1':1.08, '0':1.00, '1':1.08, '2':1.30};
+const _BET_SCORE_MOD_CLASS = {
+  favScored2H:'fav', favWins2H:'fav', ahCover:'fav',
+  homeScored2H:'side', awayScored2H:'side', homeWins2H:'side', awayWins2H:'side',
+  homeOver15_2H:'side', awayOver15_2H:'side',
+  over05_2H:'total', over15_2H:'total', over25_2H:'total',
+  under05_2H:'total', under15_2H:'total', draw2H:'total',
+};
+
+function _marginBucket(d){
+  if(d<=-2)return '-2'; if(d===-1)return '-1'; if(d===0)return '0';
+  if(d===1)return '1'; return '2';
+}
+
+// Replaces the old single _scoreStateMod(fav2h,dog2h): dispatches to the
+// bet-class-appropriate table. `home`/`away`-scoped bets resolve to the fav
+// or dog table depending on which side is the favourite (favSide).
+function _pickScoreMod(betKey, fav2h, dog2h, favSide){
+  const cls = _BET_SCORE_MOD_CLASS[betKey];
+  const bucket = _marginBucket(fav2h - dog2h);
+  if(cls === 'fav')   return _FAV_SCORE_MOD[bucket];
+  if(cls === 'total') return _TOTAL_SCORE_MOD[bucket];
+  if(cls === 'side'){
+    const isFavBet = (favSide === 'HOME' && (betKey === 'homeScored2H' || betKey === 'homeWins2H' || betKey === 'homeOver15_2H'))
+                   || (favSide === 'AWAY' && (betKey === 'awayScored2H' || betKey === 'awayWins2H' || betKey === 'awayOver15_2H'));
+    return isFavBet ? _FAV_SCORE_MOD[bucket] : _DOG_SCORE_MOD[bucket];
+  }
+  return 1.0;
+}
+
 function _fac(n){let r=1;for(let i=2;i<=n;i++)r*=i;return r;}
 
-function _goalIntAt(e,half){
-  const t=half===1?_1H_INTENSITY:_2H_INTENSITY;
+function _goalIntAt(e,half,curve){
+  const t = curve || (half===1?_1H_INTENSITY:_2H_INTENSITY);
   for(const[s,en,m]of t)if(e>=s&&e<en)return m;
   return t[t.length-1][2];
 }
 
-function _integrateInt(from,to,half){
+function _integrateInt(from,to,half,curve){
   if(to<=from)return 0;
   const steps=Math.max(1,Math.round((to-from)*4));
   const step=(to-from)/steps;
   let total=0;
-  for(let i=0;i<steps;i++)total+=_goalIntAt(from+(i+0.5)*step,half)*step;
+  for(let i=0;i<steps;i++)total+=_goalIntAt(from+(i+0.5)*step,half,curve)*step;
   return total;
 }
 
-function _baseInt2h(){
-  return _integrateInt(0,45,2)+_2H_INTENSITY[_2H_INTENSITY.length-1][2]*_IT_2H;
+function _baseInt2h(curve){
+  const c = curve || _2H_INTENSITY;
+  return _integrateInt(0,45,2,c)+c[c.length-1][2]*_IT_2H;
 }
 
 function _solveLam(p,k,lo=0,hi=50,iters=60){
@@ -1356,19 +1409,14 @@ function _poissonAtLeast(lam,k){
   return Math.max(0,Math.min(1,1-cum));
 }
 
-function _scoreStateMod(fav2h,dog2h){
-  const d=fav2h-dog2h;
-  if(d<=-2)return 1.20;if(d===-1)return 1.10;if(d===0)return 1.00;
-  if(d===1)return 0.93;return 0.82;
-}
-
 function computeLiveOdd(pHtPct,betKey,matchMinute,favLine=0.75,
-                        favGoals2h=0,dogGoals2h=0,favSide='HOME'){
+                        favGoals2h=0,dogGoals2h=0,favSide='HOME',useFlatDecay=false){
   if(_FT_BETS_SET.has(betKey))
     return{live_p:null,fair_odd:null,note:'Full-time bet — HT reference only'};
   if(!_2H_BETS_SET.has(betKey))
     return{live_p:null,fair_odd:null,note:'—'};
 
+  const curve=useFlatDecay?_FLAT_INTENSITY:_2H_INTENSITY;
   const homeG2h=favSide==='HOME'?favGoals2h:dogGoals2h;
   const awayG2h=favSide==='HOME'?dogGoals2h:favGoals2h;
   const p=Math.max(0.001,Math.min(0.999,pHtPct/100));
@@ -1387,7 +1435,7 @@ function computeLiveOdd(pHtPct,betKey,matchMinute,favLine=0.75,
   const closest=lineKeys.reduce((a,b)=>Math.abs(b-favLine)<Math.abs(a-favLine)?b:a);
   lam*=_LINE_STRENGTH_MOD[closest];
 
-  const baseInt=_baseInt2h();
+  const baseInt=_baseInt2h(curve);
   let elapsed2h,remaining2h,note,fg2h=favGoals2h,dg2h=dogGoals2h;
   if(matchMinute<=45){
     elapsed2h=0;remaining2h=45;fg2h=0;dg2h=0;
@@ -1398,13 +1446,19 @@ function computeLiveOdd(pHtPct,betKey,matchMinute,favLine=0.75,
     note=`Min ${matchMinute} — ${Math.round(remaining2h)} min left in 2H`;
   }
 
-  if(remaining2h<=0)return{live_p:100.0,fair_odd:1.01,note:'Match over'};
+  // NOTE: previously this short-circuited to a hardcoded live_p:100 whenever
+  // remaining2h<=0 ("match over"), which was wrong whenever the bet's
+  // condition hadn't actually been met (e.g. Over 1.5 2H, still 0-0, no time
+  // left, would have incorrectly shown 100%). Removed — the Poisson math
+  // below already resolves this correctly and deterministically via the
+  // "already hit"/"already busted" checks and remLam naturally -> ~0 as
+  // remaining time -> 0 (injury-time allowance aside).
 
-  const itRate=_2H_INTENSITY[_2H_INTENSITY.length-1][2];
-  const remInt=_integrateInt(elapsed2h,45,2)+itRate*_IT_2H;
+  const itRate=curve[curve.length-1][2];
+  const remInt=_integrateInt(elapsed2h,45,2,curve)+itRate*_IT_2H;
   const intFrac=remInt/baseInt;
   const bayMod=1-(elapsed2h/45)*0.05;
-  let remLam=lam*intFrac*bayMod*_scoreStateMod(fg2h,dg2h);
+  let remLam=lam*intFrac*bayMod*_pickScoreMod(betKey,fg2h,dg2h,favSide);
 
   const goalsScored=fg2h+dg2h;
   let liveP;
@@ -1437,6 +1491,35 @@ function computeLiveOdd(pHtPct,betKey,matchMinute,favLine=0.75,
   };
 }
 
+// Wraps computeLiveOdd's output back into a scoreBets()-shaped bet object so
+// it drops straight into the existing buildBetCol/renderOddsKellyWidget/
+// calcKellyStake pipeline unchanged. anchorBet must be the HT-conditioned
+// (minute-agnostic) historical bet — never the coarse INPLAY_2H-bucket one,
+// to avoid double-counting "goals scored since HT" in both the historical
+// pool match AND the Poisson time-decay.
+function buildLiveAdjustedBet(anchorBet, minute, favG2h, dogG2h, favSide, favLine, useFlatDecay) {
+  if (!_BET_SCORE_MOD_CLASS.hasOwnProperty(anchorBet.k)) return null;
+  const favLineNum = parseFloat(favLine) || 0.75;
+
+  const pointRes = computeLiveOdd(anchorBet.p,  anchorBet.k, minute, favLineNum, favG2h, dogG2h, favSide, useFlatDecay);
+  if (pointRes.live_p == null) return null;
+  const loRes = computeLiveOdd(anchorBet.lo, anchorBet.k, minute, favLineNum, favG2h, dogG2h, favSide, useFlatDecay);
+
+  const p  = pointRes.live_p;
+  const lo = Math.min(p, loRes.live_p != null ? loRes.live_p : p);
+
+  return {
+    ...anchorBet,
+    p, lo,
+    edge: p - anchorBet.bl,
+    mo: minOdds(p),
+    mo_mid: minOdds((p + lo) / 2),
+    matches: [], // historical match list belongs to the (undecayed) anchor rate — drop it rather than show stale detail
+    _liveDecayed: true,
+    _liveLabel: `LIVE @ ${minute}'`,
+  };
+}
+
 /* ════════════════════════════════════════════════════════════
    APP STATE & DB
    ════════════════════════════════════════════════════════════ */
@@ -1454,6 +1537,7 @@ const state = {
   recencyMonths: null,  // null = all time, else 3|6|12
   selectedLeague: '',   // for the league-coverage sample-relevance stat
   lastImportedUrl: null, // last successfully imported match link, for Refresh
+  useFlatDecay: false,   // live 2H odds: shaped (literature-sourced) vs flat time-decay
 };
 
 // Bundled CSVs use ISO "YYYY-MM-DD" dates (confirmed across all 15 files in
@@ -1901,6 +1985,13 @@ function setBankroll(v) {
   state.bankroll = isFinite(n) && n > 0 ? n : null;
 }
 
+function setUseFlatDecay(checked) {
+  state.useFlatDecay = !!checked;
+  if (_db.length && document.getElementById('right-panel')?.querySelector('.results-title')) {
+    analyzeMatch();
+  }
+}
+
 // Reusable "YOUR ODDS" input + edge%/Kelly% readout, appended after a bet
 // column's existing min-odds block. widgetId must be unique per rendered
 // instance (e.g. `${rank}-${colId}`, or 'top' for the Top Pick banner).
@@ -1960,13 +2051,26 @@ function readGameState() {
   if (htH == null || htA == null) return null;
 
   const minuteRaw = v('gs_minute');
-  const minute = minuteRaw != null ? parseInt(minuteRaw, 10) : null;
+  const minuteParsed = minuteRaw != null ? parseInt(minuteRaw, 10) : null;
+  const minute = (minuteParsed != null && !isNaN(minuteParsed)) ? minuteParsed : null;
   const curH = v('gs_cur_home'), curA = v('gs_cur_away');
 
-  if (minute != null && !isNaN(minute) && minute > 56 && curH != null && curA != null) {
+  // HT score (home_goals/away_goals), minute, and (when a current score is
+  // typed) goals-scored-in-2H-so-far are always included, regardless of
+  // trigger, so analyzeMatch() can derive the HT-conditioned anchor + live
+  // time-decay inputs independent of which bucket trigger below ends up
+  // being the "displayed" fallback for non-2H-eligible bets.
+  const base = { home_goals: htH, away_goals: htA, minute };
+  if (curH != null && curA != null) {
+    base.cur_home_2h = Math.max(0, parseInt(curH, 10) - parseInt(htH, 10));
+    base.cur_away_2h = Math.max(0, parseInt(curA, 10) - parseInt(htA, 10));
+  }
+
+  if (minute != null && minute > 56 && curH != null && curA != null) {
     const home2h = Math.max(0, parseInt(curH, 10) - parseInt(htH, 10));
     const away2h = Math.max(0, parseInt(curA, 10) - parseInt(htA, 10));
     return {
+      ...base,
       trigger: 'INPLAY_2H',
       home_2h: String(home2h),
       away_2h: String(away2h),
@@ -1975,9 +2079,8 @@ function readGameState() {
   }
 
   return {
+    ...base,
     trigger: 'HT',
-    home_goals: htH,
-    away_goals: htA,
     label: `HT ${htH}-${htA}`,
   };
 }
@@ -2111,6 +2214,29 @@ function analyzeMatch() {
         const gsBlRows  = applyGameState(baselineRows, gs);
         const gsBlSide  = applyGameState(blSide,        gs);
         gsAllBets = scoreBets(gsSigRows, gsBlRows, gsBlSide, minN);
+
+        // Live time-decay for 2H-eligible bets once the match is into the
+        // 2nd half: replaces the coarse bucket-matched numbers above, for
+        // just those bet keys, with a minute-aware Poisson estimate anchored
+        // on the (always minute-agnostic) HT-conditioned historical rate —
+        // never the INPLAY_2H bucket, to avoid double-counting.
+        if (gs.minute != null && gs.minute > 45) {
+          const htGs     = { trigger: 'HT', home_goals: gs.home_goals, away_goals: gs.away_goals };
+          const htRows   = applyGameState(cfgRows,      htGs);
+          const htBlRows = applyGameState(baselineRows, htGs);
+          const htBlSide = applyGameState(blSide,        htGs);
+          const htAnchorBets = scoreBets(htRows, htBlRows, htBlSide, minN);
+
+          const favG2h = cfg.fav_side === 'HOME' ? (gs.cur_home_2h || 0) : (gs.cur_away_2h || 0);
+          const dogG2h = cfg.fav_side === 'HOME' ? (gs.cur_away_2h || 0) : (gs.cur_home_2h || 0);
+
+          const liveMap = new Map(gsAllBets.map(b => [b.k, b]));
+          for (const anchor of htAnchorBets) {
+            const live = buildLiveAdjustedBet(anchor, gs.minute, favG2h, dogG2h, cfg.fav_side, cfg.fav_line, state.useFlatDecay);
+            if (live) liveMap.set(anchor.k, live);
+          }
+          gsAllBets = [...liveMap.values()];
+        }
       }
 
       const ftrace = traceConfig(activeDb, cfg, gs);
@@ -2202,6 +2328,7 @@ function buildBetCol(bet, passes, title, subtitle, rank, colId, minN) {
     </div>`;
   }
   _lastBetsByWidget.set(`${rank}-${colId}`, bet);
+  if (bet._liveDecayed) subtitle = bet._liveLabel;
 
   const lowN     = minN != null && bet.n < minN;
   const hasMkt   = bet.mkt_bl != null;
@@ -2249,6 +2376,7 @@ function buildBetCol(bet, passes, title, subtitle, rank, colId, minN) {
     <div class="col-hdr">
       <span class="col-title">${title}</span>
       <span class="col-sub">${subtitle}</span>
+      ${bet._liveDecayed ? '<span class="col-badge-mkt" title="Poisson time-decay model, not a historical bucket match">MODEL</span>' : ''}
       ${hasMkt ? '<span class="col-badge-mkt">MKT</span>' : ''}
       ${lowN ? '<span class="col-badge-lown">⚠ low n</span>' : passes ? '<span class="col-badge-pass">✓</span>' : '<span class="col-badge-weak">z&lt;1.5</span>'}
     </div>
@@ -2468,12 +2596,15 @@ function renderMatchResults({ cfg_n, allBets, bets, gsAllBets, gsLabelText, ftra
   }
   qualifying.sort((a, b) => b.bestZ - a.bestZ);
 
-  let html = `<h2 class="results-title">BEST BETS</h2>`;
+  // Top Pick goes first — before the title, before everything — so the
+  // single strongest recommendation is the very first thing visible,
+  // with zero scrolling or reading required.
+  let html = renderTopPickBanner(qualifying, gsLabelText, cfg);
+  html += `<h2 class="results-title">BEST BETS</h2>`;
   html += `<div class="bankroll-row">
     <span class="col-min-odds-label">BANKROLL (optional)</span>
     <input type="text" class="bankroll-input" placeholder="e.g. 500" value="${state.bankroll ?? ''}" oninput="setBankroll(this.value)">
   </div>`;
-  html += renderTopPickBanner(qualifying, gsLabelText, cfg);
   html += cfgSummary;
   html += buildTraceHtml(ftrace, 'FILTER TRACE');
 

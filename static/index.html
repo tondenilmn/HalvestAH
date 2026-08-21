@@ -167,6 +167,17 @@
           <input class="score-input" id="gs_cur_away" type="text" placeholder="—" maxlength="2">
           <span class="score-label">  HOME – AWAY</span>
         </div>
+
+        <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);margin-top:10px;cursor:pointer">
+          <input type="checkbox" id="use-flat-decay" onchange="setUseFlatDecay(this.checked)">
+          Use flat (non-clustered) time decay
+        </label>
+        <p style="font-size:10px;color:var(--dim);font-style:italic;margin-top:6px;line-height:1.4">
+          2H bets marked <b>MODEL</b> once a live minute is entered: half-split, score-state and
+          AH-line effects are calibrated from this app's own dataset; the within-half timing shape
+          is sourced from published research, not backtested here — toggle above to compare against
+          flat (no clustering) decay.
+        </p>
       </div><!-- /game state card -->
 
       <!-- Min N -->
