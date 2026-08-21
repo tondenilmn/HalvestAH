@@ -277,40 +277,19 @@ async function fetchAllBookHashes() {
 }
 
 /**
- * Refresh all book hashes.
- * - When DATA_URL is set: fetches from the Cloudflare Pages endpoint (?hashes=1).
- *   The Cloudflare dashboard is the single source of truth — update hashes there.
- * - Fallback: scrapes asianbetsoccer directly (used for local runs without DATA_URL).
+ * Refresh all book hashes by scraping asianbetsoccer.com's #book_filter
+ * dropdown directly (see fetchAllBookHashes). This is the only source now —
+ * an earlier design also read a Cloudflare Pages Function endpoint
+ * (?hashes=1) as a "dashboard" source of truth, but that endpoint's hashes
+ * are only as fresh as whatever was last set in the Cloudflare env vars by
+ * hand, which drifted stale and caused live matches to silently stop
+ * resolving. Direct scraping self-heals on every call instead.
  * Updates module-level variables. Logs what changed.
- * Called at startup and periodically by the scheduler.
+ * Called at startup, on a 404 mid-scan, and daily by the scheduler.
  */
 async function refreshHashes() {
-  const dataUrl = process.env.DATA_URL;
-  let pinnacle = null, bet365 = null, sbobet = null;
-
-  if (dataUrl) {
-    try {
-      const base = dataUrl.replace(/\/+$/, '');
-      const resp = await fetch(`${base}/api/livescore?hashes=1`);
-      const ct   = resp.headers.get('content-type') || '';
-      if (resp.ok && ct.includes('application/json')) {
-        const json = await resp.json();
-        pinnacle = json.pinnacle_hash || null;
-        bet365   = json.bet365_hash   || null;
-        sbobet   = json.sbobet_hash   || null;
-        console.log(`Hashes: loaded from Cloudflare dashboard (pin=${pinnacle?.slice(0,8)}… b365=${bet365?.slice(0,8)}… sbo=${sbobet?.slice(0,8)}…)`);
-      } else {
-        console.log(`Hashes: Cloudflare endpoint not ready (HTTP ${resp.status}, ct=${ct.split(';')[0]}) — falling back to asianbetsoccer`);
-      }
-    } catch (e) {
-      console.log(`Hashes: Cloudflare fetch error (${e.message}) — falling back to asianbetsoccer`);
-    }
-  }
-
-  if (!pinnacle && !bet365 && !sbobet) {
-    console.log('Hashes: refreshing from asianbetsoccer…');
-    ({ pinnacle, bet365, sbobet } = await fetchAllBookHashes());
-  }
+  console.log('Hashes: refreshing from asianbetsoccer…');
+  const { pinnacle, bet365, sbobet } = await fetchAllBookHashes();
 
   let changed = 0;
   if (pinnacle && pinnacle !== PINNACLE_HASH) { console.log(`  Pinnacle: ${PINNACLE_HASH.slice(0,8)}… → ${pinnacle.slice(0,8)}…`); PINNACLE_HASH = pinnacle; changed++; }

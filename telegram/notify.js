@@ -314,15 +314,12 @@ async function notifyHashFailed(bookmaker, shortHash) {
 }
 
 // ── Match fetcher (live matches only — L123 fires early live, not pre-match) ─
+// Always goes straight to Bet365 via livescore.js's own hash discovery — NOT
+// through the Cloudflare Pages Function (functions/api/livescore.js), which
+// is still Pinnacle-oriented and wasn't updated for the Bet365 migration.
+// DATA_URL only controls where the historical CSV dataset is loaded from
+// (see loadDb()) — it's unrelated to live match fetching.
 async function fetchMatches() {
-  if (cfg.DATA_URL) {
-    const url  = `${cfg.DATA_URL.replace(/\/$/, '')}/api/livescore`;
-    const resp = await fetch(url);
-    if (!resp.ok) throw new Error(`Cloudflare livescore returned HTTP ${resp.status}`);
-    const data = await resp.json();
-    return data.matches || [];
-  }
-
   const liveResult = await fetchLiveMatches();
   if (liveResult.bet365HashFailed) await notifyHashFailed('Bet365', (liveResult.bet365Hash || '????????').slice(0, 8));
   return liveResult.matches;
