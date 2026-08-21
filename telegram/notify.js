@@ -66,15 +66,6 @@ function esc(s) {
   return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-function nowTime() {
-  return new Intl.DateTimeFormat('it-IT', {
-    timeZone: cfg.DISPLAY_TZ,
-    hour:     '2-digit',
-    minute:   '2-digit',
-    hour12:   false,
-  }).format(new Date());
-}
-
 // Parse live minute from match.minute. Returns null if upcoming/not started.
 function parseLiveMinute(minute) {
   if (minute == null) return null;
@@ -123,14 +114,14 @@ class Dedup {
 }
 
 // ── Message builder ────────────────────────────────────────────────────────────
-// Common message frame. betLines: array of strings (each '💰 <bet>' / '📌 …').
+// Common message frame — match info first, then the strategy's bet lines
+// (the actionable part).
 function buildMessage(strategyName, match, minuteScore, betLines) {
   return [
-    `<b>${strategyName}</b>`,
+    `🎯 <b>${strategyName}</b>`,
     ``,
-    `🕐 ${nowTime()}`,
+    `⚽ <b>${esc(match.home_team)} vs ${esc(match.away_team)}</b>`,
     `🏆 ${esc(match.league) || '—'}`,
-    `⚽ ${esc(match.home_team)} vs ${esc(match.away_team)}`,
     `⏱ ${minuteScore}`,
     ``,
     ...betLines,
@@ -233,18 +224,23 @@ function layer3Live(favLine, favSide, favOc, tlC) {
 const l123Dedup = new Dedup(24 * 60 * 60 * 1000);
 
 function l123Format(match, agreeCount, bet, votes, liveMin, liveOdds) {
-  const liveLine = liveOdds != null
-    ? `📌 Live Bet365 price: @${liveOdds.toFixed(2)}  (needed ≥ @${bet.mo_lo ?? '—'})`
-    : `📌 Min odds to look for: @${bet.mo_lo ?? '—'}  (optimistic @${bet.mo ?? '—'})`;
+  // The action line is the single thing to actually do — put it right under
+  // the bet name, bolded, with a clear pass/fail marker against live price
+  // (always ✅ here: runStrategyL123 already skips the alert otherwise).
+  const actionLine = liveOdds != null
+    ? `✅ Bet  @${liveOdds.toFixed(2)} — clears the min (≥ @${bet.mo_lo ?? '—'})`
+    : `📌 Bet at ≥ <b>@${bet.mo_lo ?? '—'}</b>  (best case @${bet.mo ?? '—'})`;
   return buildMessage(
-    `L123 — ${agreeCount}/3 Layer Consensus`,
+    `L123 ALERT — ${agreeCount}/3 layers agree`,
     match,
-    `${liveMin}'  ${match.score || '0-0'}`,
+    `${liveMin}' · Score ${match.score || '0-0'}`,
     [
       `💰 <b>${esc(bet.label)}</b>`,
-      liveLine,
-      `📌 ${bet.p.toFixed(1)}% hit vs ${bet.bl.toFixed(1)}% baseline  ·  edge +${bet.edge.toFixed(1)}pp  ·  z=${bet.z.toFixed(2)}  ·  n=${bet.n}`,
-      `📌 Agreeing layers: ${votes.join('  ·  ')}`,
+      actionLine,
+      ``,
+      `📊 HitRate ${bet.p.toFixed(1)}% (baseline +${bet.edge.toFixed(1)}%)`,
+      `🔎 Confidence: z=${bet.z.toFixed(2)} (n=${bet.n})`,
+      `🔀 Layers : ${votes.join(', ')}`,
     ],
   );
 }

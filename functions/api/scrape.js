@@ -2,17 +2,24 @@
  * Cloudflare Pages Function: GET /api/scrape?url=<asianbetsoccer URL>
  *
  * Fetches the botbot3.space JS data file (server-side, bypassing CORS),
- * extracts the Pinnacle AH/TL odds from the embedded HTML table,
- * and returns clean JSON for the webapp to pre-fill its inputs.
+ * extracts AH/TL odds from the embedded HTML table, and returns clean JSON
+ * for the webapp to pre-fill its inputs.
+ *
+ * Bookmaker priority: Bet365 first, falling back to Pinnacle if the match
+ * page doesn't list Bet365 or its row can't be parsed. The bundled
+ * historical dataset (static/data/Bet365/*.csv) is itself Bet365-sourced,
+ * so Bet365 is what the analysis is actually calibrated against — Pinnacle
+ * is kept only as a fallback for match pages that don't carry Bet365.
  *
  * Strategy:
- *   1. Parse tablematch1 (1X2 table) to find Pinnacle's bookmaker index —
+ *   1. Parse tablematch1 (1X2 table) to find each bookmaker's index —
  *      bookmaker names only appear here, not in tablematch2.
  *   2. Parse tablematch2 (AH/TL table) — split into per-bookmaker groups
  *      by <tr class='vrng'> separator rows (same order as tablematch1).
- *   3. Extract the Pinnacle group and parse H/A rows by cell position —
- *      CSS classes (SU/SD/SN/V3/V4) encode movement direction and vary
- *      per match, so positional parsing is the only reliable approach.
+ *   3. Extract the primary bookmaker's group and parse H/A rows by cell
+ *      position — CSS classes (SU/SD/SN/V3/V4) encode movement direction
+ *      and vary per match, so positional parsing is the only reliable
+ *      approach.
  *
  * H row cell positions (after the "H" label cell):
  *   [0] AH closing line  [1] AH opening line  [2] movement (empty)
@@ -162,8 +169,8 @@ function parseMatchData(jsText) {
   const pinIdx    = bookmakers.findIndex(b => b.includes('Pinnacle'));
   const bet365Idx = bookmakers.findIndex(b => /bet\s*365/i.test(b));
 
-  if (pinIdx === -1) {
-    return { error: 'Pinnacle odds not found — make sure the URL points to a match that includes Pinnacle.' };
+  if (pinIdx === -1 && bet365Idx === -1) {
+    return { error: 'Neither Bet365 nor Pinnacle odds found — make sure the URL points to a valid match page.' };
   }
 
   // Step 2: extract tablematch2 and split into per-bookmaker groups
@@ -175,19 +182,27 @@ function parseMatchData(jsText) {
 
   const groups = tm2Html.split("<tr class='vrng'><td colspan='25'></td></tr>");
 
-  if (pinIdx >= groups.length) {
-    return { error: 'Pinnacle AH odds not available for this match.' };
-  }
-
-  // Step 3: parse Pinnacle (drives the analysis — the historical dataset is Pinnacle-calibrated)
-  const result = parseBookmakerGroup(groups[pinIdx]);
-  if (!result) {
-    return { error: 'Could not parse Pinnacle AH row structure.' };
-  }
-
-  // Step 4: parse Bet365 too, if listed — reference odds only (what you'd actually get
-  // at execution time), never fed into the analysis engine itself.
+  // Step 3: Bet365 first (matches the bundled historical dataset), Pinnacle
+  // as a fallback for matches that don't list Bet365 or fail to parse.
+  let result = null, source = null;
   if (bet365Idx !== -1 && bet365Idx < groups.length) {
+    result = parseBookmakerGroup(groups[bet365Idx]);
+    if (result) source = 'bet365';
+  }
+  if (!result && pinIdx !== -1 && pinIdx < groups.length) {
+    result = parseBookmakerGroup(groups[pinIdx]);
+    if (result) source = 'pinnacle';
+  }
+  if (!result) {
+    return { error: 'Could not parse Bet365 or Pinnacle odds for this match — source format may have changed.' };
+  }
+  result.source = source;
+
+  // Step 4: parse the other bookmaker too, if listed — reference odds only,
+  // never fed into the analysis engine itself.
+  if (source === 'bet365' && pinIdx !== -1 && pinIdx < groups.length) {
+    result.pinnacle = parseBookmakerGroup(groups[pinIdx]);
+  } else if (source === 'pinnacle' && bet365Idx !== -1 && bet365Idx < groups.length) {
     result.bet365 = parseBookmakerGroup(groups[bet365Idx]);
   }
 

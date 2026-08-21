@@ -1892,7 +1892,8 @@ async function doImport(url, btnIdleLabel) {
       status.className   = 'url-import-status error';
     } else {
       fillFromScraped(data);
-      status.textContent = '✓ Imported — check fields and analyze';
+      const sourceLabel = data.source === 'pinnacle' ? 'Pinnacle' : 'Bet365';
+      status.textContent = `✓ Imported (${sourceLabel}) — check fields and analyze`;
       status.className   = 'url-import-status ok';
       state.lastImportedUrl = url;
       const refreshBtn = document.getElementById('url-refresh-btn');
@@ -1938,29 +1939,40 @@ function fillFromScraped(data) {
   set('un_c',  data.un_c);
   set('un_o',  data.un_o);
 
-  renderBet365Ref(data.bet365);
+  // The primary market fields above are Bet365 odds (matches the bundled
+  // historical dataset, static/data/Bet365/*.csv) whenever Bet365 is listed
+  // on the match page, falling back to Pinnacle only if it isn't. Whichever
+  // one *wasn't* used for the main fields is shown as a reference-only strip.
+  if (data.source === 'pinnacle' && data.bet365) {
+    renderOddsRef(data.bet365, 'BET365 (reference)');
+  } else if (data.source === 'bet365' && data.pinnacle) {
+    renderOddsRef(data.pinnacle, 'PINNACLE (reference)');
+  } else {
+    renderOddsRef(null);
+  }
 
   onInputChange();
 }
 
-// Bet365 reference odds — display only, never fed into the analysis engine
-// (the historical dataset and signal detection are Pinnacle-calibrated).
-// Useful to see what you'd actually get at execution time.
-function renderBet365Ref(b365) {
+// Secondary-bookmaker reference odds — display only, never fed into the
+// analysis engine. Useful to see what another book is pricing the same
+// match at, or what you'd get at execution time if it differs from the
+// dataset-matching bookmaker used for the main fields.
+function renderOddsRef(ref, label) {
   const el = document.getElementById('bet365-ref');
   if (!el) return;
-  if (!b365) { el.style.display = 'none'; el.innerHTML = ''; return; }
+  if (!ref) { el.style.display = 'none'; el.innerHTML = ''; return; }
 
   const f = v => v != null ? v.toFixed(2) : '—';
   el.style.display = '';
   el.innerHTML = `
-    <span class="bet365-ref-label">BET365 (reference)</span>
-    <span>AH ${f(b365.ah_hc)}</span>
-    <span>Home ${f(b365.ho_c)}</span>
-    <span>Away ${f(b365.ao_c)}</span>
-    <span>TL ${f(b365.tl_c)}</span>
-    <span>O ${f(b365.ov_c)}</span>
-    <span>U ${f(b365.un_c)}</span>
+    <span class="bet365-ref-label">${label}</span>
+    <span>AH ${f(ref.ah_hc)}</span>
+    <span>Home ${f(ref.ho_c)}</span>
+    <span>Away ${f(ref.ao_c)}</span>
+    <span>TL ${f(ref.tl_c)}</span>
+    <span>O ${f(ref.ov_c)}</span>
+    <span>U ${f(ref.un_c)}</span>
   `;
 }
 
