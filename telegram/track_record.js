@@ -146,9 +146,9 @@ async function apiGet(urlPath, key) {
   // settlePendingAlerts's per-entry try/catch and simply retried on the
   // next 30-min cycle — nothing is lost.
   if (!budget.canSpend(1, 'settlement')) {
-    throw new Error(`api-football daily budget guard: settlement capped at ${budget.DAILY_LIMIT - budget.NOTIFICATION_RESERVE}/${budget.DAILY_LIMIT} (${budget.spentToday()} already spent) — deferring ${urlPath}`);
+    throw new Error(`api-football daily budget guard: settlement pool ${budget.spentToday('settlement')}/${budget.SETTLEMENT_BUDGET} already spent — deferring ${urlPath}`);
   }
-  budget.recordSpend(1);
+  budget.recordSpend(1, 'settlement');
   const res = await fetch(`https://v3.football.api-sports.io${urlPath}`, { headers: { 'x-apisports-key': key } });
   if (!res.ok) throw new Error(`api-football ${urlPath} -> HTTP ${res.status}`);
   const json = await res.json();

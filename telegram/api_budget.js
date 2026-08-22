@@ -2,27 +2,26 @@
 // ── Shared daily call budget for api-football.com (100 req/day free plan) ────
 // Tracked across both alert-time verification (apifootball.js) and
 // settlement (track_record.js) so the two don't silently compete for the
-// same shared quota. Live alert-time checks are treated as higher priority
-// than settlement: a missed settlement check just retries on the next
-// 30-min cycle with nothing lost, but a missed alert-time check means that
-// alert fires without price verification for good. So settlement is capped
-// below the full daily limit, reserving a slice of the quota exclusively
-// for notifications — settlement backs off gracefully (throws, caught by
-// its own per-entry try/catch, retried later) once it would eat into that
-// reserve, rather than racing notifications for the same budget.
+// same shared quota. Split into two independent pools rather than one
+// shared counter: notifications get their own fixed daily allowance, and
+// settlement gets its own — one running out never lets the other borrow
+// from it. A refused settlement call is caught by its own per-entry
+// try/catch and just retries on the next 30-min cycle with nothing lost;
+// a refused notification check just means that alert sends without price
+// verification for good.
 //
 // In-memory only (resets on process restart) — matches the existing
 // _fixtureCache pattern in apifootball.js. A restart mid-day just resets to
 // a fresh budget; this is a soft safety margin, not a hard external
 // rate-limiter, and doesn't need to survive restarts to do its job.
 
-const DAILY_LIMIT = parseInt(process.env.APIFOOTBALL_DAILY_LIMIT || '100', 10);
-// Calls reserved exclusively for alert-time (notification) checks —
-// settlement can never push total spend past (DAILY_LIMIT - this).
-const NOTIFICATION_RESERVE = parseInt(process.env.APIFOOTBALL_NOTIFICATION_RESERVE || '20', 10);
+const NOTIFICATION_BUDGET = parseInt(process.env.APIFOOTBALL_NOTIFICATION_BUDGET || '80', 10);
+const SETTLEMENT_BUDGET = parseInt(process.env.APIFOOTBALL_SETTLEMENT_BUDGET || '20', 10);
+const DAILY_LIMIT = NOTIFICATION_BUDGET + SETTLEMENT_BUDGET;
 
 let day = null;
-let spent = 0;
+let notificationSpent = 0;
+let settlementSpent = 0;
 
 function today() {
   return new Date().toISOString().slice(0, 10);
@@ -30,29 +29,33 @@ function today() {
 
 function _resetIfNewDay() {
   const d = today();
-  if (d !== day) { day = d; spent = 0; }
+  if (d !== day) { day = d; notificationSpent = 0; settlementSpent = 0; }
 }
 
 // priority: 'alert' (notification/verification checks) or 'settlement'.
 function canSpend(n, priority) {
   _resetIfNewDay();
-  const cap = priority === 'settlement' ? DAILY_LIMIT - NOTIFICATION_RESERVE : DAILY_LIMIT;
-  return spent + n <= cap;
+  return priority === 'settlement'
+    ? settlementSpent + n <= SETTLEMENT_BUDGET
+    : notificationSpent + n <= NOTIFICATION_BUDGET;
 }
 
-function recordSpend(n) {
+function recordSpend(n, priority) {
   _resetIfNewDay();
-  spent += n;
+  if (priority === 'settlement') settlementSpent += n;
+  else notificationSpent += n;
 }
 
-function remaining() {
+function remaining(priority) {
   _resetIfNewDay();
-  return Math.max(0, DAILY_LIMIT - spent);
+  return priority === 'settlement'
+    ? Math.max(0, SETTLEMENT_BUDGET - settlementSpent)
+    : Math.max(0, NOTIFICATION_BUDGET - notificationSpent);
 }
 
-function spentToday() {
+function spentToday(priority) {
   _resetIfNewDay();
-  return spent;
+  return priority === 'settlement' ? settlementSpent : notificationSpent;
 }
 
-module.exports = { canSpend, recordSpend, remaining, spentToday, DAILY_LIMIT, NOTIFICATION_RESERVE };
+module.exports = { canSpend, recordSpend, remaining, spentToday, DAILY_LIMIT, NOTIFICATION_BUDGET, SETTLEMENT_BUDGET };

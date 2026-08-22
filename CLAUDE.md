@@ -55,11 +55,11 @@ telegram/
                           # called once per alert (not a scanning gate) so the message can say
                           # "odds OK"/"odds lower"
   api_budget.js           # Shared daily call-budget guard for api-football.com's 100 req/day free
-                          # plan, used by both apifootball.js (alert-time checks) and track_record.js
-                          # (settlement) so they don't silently compete for the same quota —
-                          # settlement is capped below the full limit (APIFOOTBALL_NOTIFICATION_RESERVE,
-                          # default 20) so it can never starve notifications of their reserved slice;
-                          # a refused settlement call just retries on the next 30-min cycle.
+                          # plan, split into two independent pools so notifications (apifootball.js)
+                          # and settlement (track_record.js) can never compete for or borrow from
+                          # each other's quota: APIFOOTBALL_NOTIFICATION_BUDGET (default 80) and
+                          # APIFOOTBALL_SETTLEMENT_BUDGET (default 20); a refused settlement call
+                          # just retries on the next 30-min cycle.
   track_record.js         # Logs an alert only when notify.js verified a real live/api-football
                           # price that clears the target fair odds (verifiedGoodPrice()) — an alert
                           # that fires with no verifiable or sub-target price is still sent to
@@ -322,7 +322,7 @@ Adapted from `functions/api/livescore.js` for Node ≥ 18 native fetch. **Bet365
 
 **Optional — `telegram/apifootball.js`:** independent Bet365 price verification via api-football.com, purely informational — it does **not** change whether an alert fires (that decision is made entirely by each strategy's own logic before this runs). If `APIFOOTBALL_KEY` is set in `config.js`, `notify.js` calls `verifyBet365Price(betKey, ctx, key)` once, right before sending an alert, for whatever bet was just picked (L123, or the equivalent real market LATEGOAL/QUIET2H substituted in), and appends an "✅ ODDS OK" / "⚠️ ODDS LOWER" / "🔍 not available" line to the message — so there's no need to open Bet365 manually to check. Only called at alert-send time, never on every scan cycle, since the free plan caps at 100 req/day (2 calls per alert: one fixture lookup, cached per match, plus one odds lookup). Covers the markets api-football reliably lists as a single matchable value: Asian Handicap (`ahCover`/`dogCover`), Goals Over/Under (`overTL`/`underTL`), Match Winner (`homeWinsFT`/`awayWinsFT`/`drawFT`), and Both Teams Score (`btts`) — the other ~24 bet types (half-specific/derived stats like `favWins2H`) return `{ supported: false }` immediately, no API call spent, and the message says the check wasn't available for that market, unless LATEGOAL/QUIET2H's equivalence trick substitutes in one of the supported ones. Leave `APIFOOTBALL_KEY` unset to disable entirely — alerts fire exactly as before, just without the extra line.
 
-**Daily budget guard (`telegram/api_budget.js`, added 2026-08-23):** both `apifootball.js` (alert-time verification) and `track_record.js` (settlement) route every real API call through a shared in-memory daily counter, since both draw on the same 100 req/day quota. Notifications are treated as higher priority — a missed alert-time check means that alert fires with no price verification for good, while a missed settlement check just retries on the next 30-min cycle with nothing lost. So settlement is capped at `DAILY_LIMIT - APIFOOTBALL_NOTIFICATION_RESERVE` (default 80/100) and refuses to spend past that, throwing an error its own per-entry `try/catch` already handles gracefully — notifications keep access to the full 100 regardless of how much settlement has spent. Resets at UTC midnight; resets early (fresh budget) on a process restart, since it's in-memory only, matching the existing `_fixtureCache` pattern.
+**Daily budget guard (`telegram/api_budget.js`, added 2026-08-23):** both `apifootball.js` (alert-time verification) and `track_record.js` (settlement) route every real API call through a shared in-memory tracker, since both draw on the same 100 req/day quota. Rather than one shared counter, the quota is split into two independent, non-overlapping pools — `APIFOOTBALL_NOTIFICATION_BUDGET` (default 80) and `APIFOOTBALL_SETTLEMENT_BUDGET` (default 20) — so neither can ever borrow from or starve the other; exhausting one pool has zero effect on the other's remaining allowance. A refused settlement call throws an error its own per-entry `try/catch` already handles gracefully, simply retrying on the next 30-min cycle with nothing lost. Resets at UTC midnight; resets early (fresh budget) on a process restart, since it's in-memory only, matching the existing `_fixtureCache` pattern.
 
 ## Legacy Strategies & Backtests (`telegram/`)
 
