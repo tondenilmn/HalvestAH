@@ -16,7 +16,8 @@
       "Bash(curl -s -L https://www.asianbetsoccer.com/it/livescore.html -H 'User-Agent: Mozilla/5.0 \\(Windows NT 10.0; Win64; x64\\) AppleWebKit/537.36 \\(KHTML, like Gecko\\) Chrome/122.0.0.0 Safari/537.36' -H 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8' -o /tmp/abs.html)",
       "Read(//tmp/**)",
       "Bash(python pinnacle_vs_bet365.py)",
-      "Bash(python -c ':*)"
+      "Bash(python -c ':*)",
+      "WebSearch"
     ]
   }
 }

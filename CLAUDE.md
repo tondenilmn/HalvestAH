@@ -44,15 +44,26 @@ static/
     manifest.json         # Auto-generated — do not edit by hand
     *.csv / **/*.csv      # Pinnacle export CSVs (nested folders supported)
 telegram/
-  config.js               # All configuration (credentials, thresholds, scan interval)
+  config.js               # All configuration (credentials, L123 thresholds, scan interval)
   engine.js               # Direct port of app.js analysis logic for Node.js
-  livescore.js            # Adapted livescore fetcher (Node.js, no Cloudflare runtime)
-  notify.js               # Entry point: cron scheduler + Telegram message formatting
-  apifootball.js          # Bet365 AH dog odds fetcher via api-football.com (Strategy 1 gate)
-  backtest.js             # Full GSA backtest — 3 gates (MA / Bayesian / HT game state)
-  backtest_mkt.js         # Market-calibrated backtest — mkt_edge gate on 4 market bets
-  backtest_tlm1h.js       # Strategy 3 backtest — TLM steam + TL ≥ 2.5 + 0-0 → Over 0.5 1H
-  backtest_under15ht.js   # Under 1.5 2H at HT backtest — fav leads +1 at HT
+  livescore.js            # Live match + odds fetcher — Bet365 is now the primary book (Node.js, no Cloudflare runtime)
+  notify.js               # Entry point: cron scheduler + Strategy L123 (Layer 1/2/3 consensus) + Telegram formatting
+  layer_analysis.js       # Convergence study behind L123 (which layer-agreement buckets have the best hit%/ROI)
+  tune_l123.js            # Walk-forward validator for L123's Wilson-CI qualifying gate
+  apifootball.js          # Optional api-football.com Bet365 price verification — fetches the live
+                          # price for whatever bet L123 is about to alert on, called once per alert
+                          # (not a scanning gate) so the message can say "odds OK"/"odds lower"
+  track_record.js         # Logs every alert sent, settles it once the match finishes (via
+                          # api-football), and sends a daily Telegram scorecard (hit rate + ROI@price
+                          # shown at alert time) — closes the loop on whether live alerts actually
+                          # work, not just historical backtests. Persists to telegram/data/ (gitignored).
+  backtest.js, backtest_mkt.js, backtest_tlm1h.js, backtest_under15ht.js,
+  backtest_baseline.js, backtest_config.js, backtest_crossbook.js,
+  backtest_dogah_favsteam.js, backtest_favsteam.js, backtest_gsa.js,
+  backtest_ht.js, backtest_lm2.js, backtest_prematch.js, backtest_rules.js,
+  backtest_s6_yesterday.js, backtest_under_tlsteam.js
+                           # LEGACY — backtests for earlier strategies (pre-L123); kept for reference, see git history
+  discover.js              # Config Discovery CLI port
 BETTING_EDGE_ANALYSIS.md  # Reference: betting edge theory, workflow, Kelly sizing guide
 ```
 
@@ -182,19 +193,39 @@ Score is only extracted for live matches (those with a minute field); upcoming m
 
 **Odds tolerance quick buttons (Basic mode):** EXACT · 0.02 · 0.05 · 0.07 · 0.10
 
+## Best Value Bet Banner & Top Pick (`static/app.js`)
+
+After a Match Analysis run, two headline banners render above the full results table so the actionable answer doesn't require scrolling:
+1. **Top Pick** — the single highest-ranked qualifying bet (same CI-adjusted `z*lo` metric `scoreBets` sorts by).
+2. **Best Value Bet** — the best positive-edge bet that falls *below* the z-score bar (wouldn't otherwise surface outside the collapsed Value Hunting section), ranked by the same metric.
+
+Both render right after each other, Top Pick first. Mobile layout was also fixed in the same change: a `min-width:360px` rule on the left panel wasn't overridden under the 900px breakpoint, causing real horizontal overflow on phones narrower than ~384px; the header's long instructional copy is hidden on small screens.
+
 ## The Scrape Function (`functions/api/scrape.js`)
 
 Accepts `GET /api/scrape?url=<asianbetsoccer.com/match?id=HEX>`. Strategy:
 
 1. Extracts the `?id=` hex from the asianbetsoccer URL.
 2. Fetches `https://botbot3.space/tables/v4/oddsComp/<id>.js` server-side (CORS bypass).
-3. Parses `tablematch1` to find Pinnacle's bookmaker index.
-4. Parses `tablematch2`, splits groups by `<tr class='vrng'>` separator rows, extracts the Pinnacle group.
+3. Parses `tablematch1` to find each bookmaker's index. **Bet365 is tried first** (the bundled historical dataset is Bet365-sourced, so analysis is calibrated against it); falls back to Pinnacle only if Bet365 isn't listed or fails to parse. Previously a match with no Pinnacle odds errored out even when Bet365 was available.
+4. Parses `tablematch2`, splits groups by `<tr class='vrng'>` separator rows, extracts the chosen book's group.
 5. Parses H/A rows **by TD cell position** (not CSS class — classes like `SU`/`SD`/`SN` vary per match).
 
-Returns JSON: `ah_hc`, `ah_ho`, `ho_c`, `ho_o`, `ao_c`, `ao_o`, `tl_c`, `tl_o`, `ov_c`, `ov_o`, `un_c`, `un_o` — mapped directly to app input fields.
+Returns JSON: `ah_hc`, `ah_ho`, `ho_c`, `ho_o`, `ao_c`, `ao_o`, `tl_c`, `tl_o`, `ov_c`, `ov_o`, `un_c`, `un_o` — mapped directly to app input fields. `static/app.js`'s reference-odds display shows whichever book *wasn't* used for the primary fields, labeled accordingly.
 
 **If the source HTML structure changes**, update positional offsets in `parseTds` (lines ~164–180 of `scrape.js`).
+
+## Live 2H Time-Decay Odds (`computeLiveOdd` in `static/app.js`)
+
+Estimates a live fair probability/odd for 2H-only bets given HT hit%, match minute, and current 2H score. Recalibrated (2026-08-21) against this app's own ~165k-match dataset:
+- **Score-state modifier** is now three bet-class-specific tables derived from the app's own data (previously backwards — it boosted the *trailing* team instead of the already-leading favourite).
+- **Intra-half timing curve** was sourced from external published goal-timing research and gated behind a flat-decay toggle, since it couldn't be validated against this dataset (no goal-minute data, only HT/FT scores) — see the next paragraph, this blocker is now closed.
+- Fixed a bug where the function returned `live_p:100` whenever time ran out, regardless of whether the bet had actually hit.
+
+**Updated 2026-08-22, validated against real goal-minute data** (`football-data/data/goals_time2` via `telegram/goal_timing.js`, 12 domestic leagues × 3 seasons × 27,321 goals):
+- **`_1H_INTENSITY`/`_2H_INTENSITY`** (the intra-half timing curve) replaced with the real empirical shape — the old externally-sourced curve significantly overstated 1st-half late-game clustering and got the 2nd half's 15-30-minute bucket's direction backwards (assumed elevated, real data shows it's the *lowest* of the three buckets). Cross-league standard deviation was small (0.03-0.05) despite very different leagues, so a single pooled curve is used (`computeLiveOdd` has no league parameter — see `static/data/goal_timing_summary.json` for the per-league breakdown if this is revisited).
+- **`_TOTAL_SCORE_MOD`** replaced with real data too — this table is a genuine apples-to-apples fix (total goals don't care which side is the favourite, only the margin's magnitude, so goals_time2's home/away-only data measures it directly). Real total 2H scoring barely responds to the current margin (leading team's own scoring rises ~27% at a 2+ margin, trailing team's falls ~23%, nearly cancelling out — net +2.6%, not the +30% previously assumed).
+- **`_FAV_SCORE_MOD`/`_DOG_SCORE_MOD` left unchanged** — goals_time2 has no pre-match favourite designation, only home/away, so it can't isolate a favourite-specific effect from a generic leading/trailing-team effect. A generic leading/trailing re-derivation found the "leading" side's pattern roughly consistent with the existing tables, but a real divergence on the "trailing favourite" entries — generic trailing teams score progressively *less* as the margin grows (0.99/0.95/0.77 at margin 0/1/2+), not the flat-to-mild-increase the table assumes for a trailing favourite specifically. Plausibly explained by favourites retaining more quality when behind than a generic trailing team, but unverifiable without linking to pre-match odds — treat the "-1"/"-2" (favourite trailing) entries with more caution than "1"/"2" (favourite leading).
 
 ## CSV Workflow
 
@@ -206,116 +237,65 @@ Required columns: AH Home/Away Closing+Opening, Home/Away Odds Closing+Opening, 
 
 ## Telegram Notifier (`telegram/`)
 
-Standalone Node.js service that runs periodic live scans and sends Telegram alerts for qualifying bets. Deployable to Railway or run locally.
+Standalone Node.js service that polls live matches and sends Telegram alerts for qualifying bets under **Strategy L123** — currently the only active strategy (everything else is legacy, see below). Deployable to Railway or run locally.
 
 ```bash
 cd telegram
 npm install
 
-node notify.js          # start scheduler (runs every N minutes)
+node notify.js          # start scheduler (runs every SCAN_INTERVAL_MINUTES, default 2 min)
 node notify.js --once   # single scan + exit (for testing)
-node backtest.js        # simulate against last month (Feb 2026) — TOP+MAJOR filter
-node backtest.js --all      # same but all leagues
-node backtest.js --summary  # suppress per-bet breakdown table, show aggregate stats only
-node backtest.js --verbose  # also print matches skipped by signal gate + Bayes suppressions
-node backtest_mkt.js        # market-calibrated backtest — mkt_edge gate, 4 market bets (May 2025 test set)
-node backtest_mkt.js --all  # same but all leagues
-node backtest_tlm1h.js      # Strategy 3 backtest — TLM steam + TL ≥ 2.5 + 0-0 at ~28' → Over 0.5 1H
-node backtest_tlm1h.js --all   # same but all leagues
-node backtest_tlm1h.js --wide  # also test relaxed params (TL 2.0+, steam 0.13)
-node backtest_under15ht.js     # Under 1.5 2H at HT backtest — fav +1 at HT, AH/TL grid
-node backtest_under15ht.js --all  # same but all leagues
+node tune_l123.js       # walk-forward validator for the L123 qualifying gate (Wilson CI vs point estimate)
+node layer_analysis.js  # convergence study — which layer-agreement bucket (1/3, 2/3, 3/3) has the best hit%/ROI
 ```
 
-**Architecture:** `notify.js` orchestrates — it calls `engine.js` (port of `app.js` analysis logic) and `livescore.js` (adapted from `functions/api/livescore.js` for Node >= 18 native fetch). Config lives entirely in `telegram/config.js`.
+**Strategy L123 — Layer 1/2/3 consensus** (`notify.js` + `config.js`): three independent layers each independently recommend a bet from historical data, each restricted to only the information that layer is allowed to see:
+- **Layer 1 — opening odds only** (fav opening odds band + opening TL band)
+- **Layer 2 — movement only** (`line_move`, fav/dog odds move, `tl_move`)
+- **Layer 3 — closing odds only** (fav closing odds band + closing TL band)
+
+An alert fires in the **10-minute pre-match window** (kickoff minus 10 minutes down to kickoff itself — see `PRE_MATCH_WINDOW_MIN` in `notify.js`'s `matchContext()`) once `L123_MIN_AGREE` (default 2) of the 3 layers independently land on the same bet, using odds polled every `SCAN_INTERVAL_MINUTES`. Pre-match rather than in-play by design — it gives time to actually place the bet at a stable price instead of needing fast in-play execution once the match has started. This came out of `layer_analysis.js`'s convergence study, which found the "2/3 agree" and "3/3 agree" buckets beat any single layer alone or matches where layers disagree.
+
+Note this pre-match timing is a real shift from how L123 was originally walk-forward validated (see the ROI numbers below) — Layer 3 ("closing odds only") was validated against the true closing line *at* kickoff, and odds polled up to 10 minutes early can still move before then, so it's a same-idea-different-timing approximation of "closing," not the exact thing the walk-forward backtest measured.
+
+**Qualifying gate (walk-forward validated 2026-08-21):** bets qualify off the **Wilson CI lower bound**, not the raw point estimate — `(b.lo - b.bl) >= L123_MIN_EDGE`, plus `n >= L123_MIN_N`, `z >= L123_MIN_Z`, baseline `>= L123_MIN_BASELINE` — per layer. The prior point-estimate gate produced negative-to-flat ROI@fair OOS despite good-looking hit rates (winner's-curse selection from sweeping thousands of cells). Gating on the CI lower bound instead: **+7.3% ROI@fair** pooled across 5 exploratory held-out months (5/5 positive), **+10.6%** across 2 never-touched lock-box months (2/2 positive). `telegram/tune_l123.js` is the reusable validator.
 
 **Current config values (`config.js`):**
 
-| Setting | Value | Reason |
+| Setting | Value | Meaning |
 |---|---|---|
-| `MIN_N` | 35 | Minimum historical pool size after signal filtering |
-| `MIN_Z` | 2.0 | Minimum z-score for statistical significance |
-| `MIN_EDGE` | 6 | Minimum pp above baseline |
-| `MIN_BASELINE` | 25 | **Suppresses low base-rate bets** — see below |
-| `REQUIRE_MOVEMENT` | true | Skip matches where every active signal is STABLE/UNKNOWN |
-| `LEAGUE_TIER` | `TOP+MAJOR` | See below |
-| `SCAN_INTERVAL_MINUTES` | 3 | Poll frequency |
+| `L123_ENABLED` | `true` | Only active strategy |
+| `L123_TIER` | `TOP+MAJOR` | League tier filter (falls back to `LEAGUE_TIER`) |
+| `L123_MIN_N` | 30 | Min historical pool size per layer |
+| `L123_MIN_Z` | 1.8 | Min z-score per layer |
+| `L123_MIN_EDGE` | 0 | Min pp the Wilson CI *lower bound* must clear baseline by |
+| `L123_MIN_BASELINE` | 20 | Min baseline hit rate per layer |
+| `L123_MIN_AGREE` | 2 | 2 = fire on 2/3 or 3/3 agreement; 3 = require 3/3 |
+| `SCAN_INTERVAL_MINUTES` | 2 | Poll frequency |
 
-**Why `LEAGUE_TIER = TOP+MAJOR` (not ALL):**
-Backtested against Feb 2026 (10,040 matches, all data before Feb excluded as DB):
-- ALL leagues: 1,908 alerts, **40% hit rate, −1.5pp edge** — obscure leagues pollute the signal
-- TOP+MAJOR: 664 alerts, **43% hit rate, +2.7pp edge**
+**Live price gate:** before alerting, the recommended bet's Bet365 live price is checked against the conservative min odds (`bet.mo_lo`, derived from the Wilson CI) — the alert only fires if the live price is at or above it.
 
-TOP+MAJOR keeps leagues where the Pinnacle market is deep and the DB coverage is consistent. `engine.js` implements both tiers — `_T1_RULES` for TOP (top 5 EU + UEFA competitions), `_T2_KEYS` for MAJOR (~40 strong national/continental leagues). Both must be kept in sync with `app.js` if the classification changes.
+**Data source:** the historical pool is `static/data/Bet365/*.csv` (Bet365-priced, matching the live `match.bet365_odds` it's compared against) — see `DATA_URL`/`DATA_DIR` in `config.js`.
 
-**Why `MIN_BASELINE = 25` (suppress low base-rate bets):**
-Bets with a baseline hit rate below ~25% — e.g. Home Over 1.5 2H (baseline ~4%), Away wins 1H (~7%), BTTS 1H (~9%), Over 3.5 FT (~11%) — consistently underperform out-of-sample despite high z-scores. The historical pattern doesn't hold for rare events because the cell sizes are too small to be reliable even at z ≥ 2.0.
+**Architecture:** `notify.js` orchestrates — it calls `engine.js` (port of `app.js` analysis logic) and `livescore.js` (live match + odds fetcher, Bet365 is the primary book — see below). Config lives entirely in `telegram/config.js`.
 
-Applying `MIN_BASELINE = 25` on the Feb 2026 backtest (TOP+MAJOR):
-- Dropped from 664 → **452 alerts** (−32%)
-- Hit rate improved from 43% → **56%**
-- Edge improved from +2.7pp → **+5.3pp**
-
-Surviving bets are high-frequency markets where the signal genuinely holds: Over 0.5 1H/2H, Fav/Home scores 1H/2H, Under 1.5 2H, Over 2.5 FT, Draw 1H.
-
-**Why `REQUIRE_MOVEMENT = true`:**
-Without this, a match where both LM and TLM are STABLE would still be scored. The AH line + TL combination alone can show spurious historical edge in small cells. Requiring at least one active signal to be non-STABLE/non-UNKNOWN ensures every alert has a genuine market movement story.
-
-**Message format:**
-Each alert contains: league, match, score/minute, AH line + signal summary, then per bet: name, 💰 min odds to look for, hit% vs baseline%, edge, z-score, n. Sorted by z-score descending. In-play game state shown per bet when available (n ≥ 10).
-
-**Backtest gates:** `backtest.js` runs 3 independent gates against the Feb 2026 test set (rows whose `file_label` contains `_02_26_` — i.e. CSV filenames containing that substring):
-1. **Gate 1 (MA only)** — standard z/edge/n/baseline thresholds
-2. **Gate 2 (MA + Bayesian)** — adds a Laplace-smoothed likelihood-ratio filter per signal dimension (`lm`, `om`, `tlm`, `ovm`); suppresses alerts where posterior delta ≤ 0. Cells with < 15 hits or misses are kept (unreliable — can't judge).
-3. **Gate 3 (MA + HT game state)** — re-scores using actual HT score from the test row as a `HT` trigger filter; uses `HT_MIN_N = 15`.
-
-**Deduplication in `notify.js`:** In-memory `_notified` map keyed by `matchId:betKey`, expires after 2 hours. Resets on process restart — a restarted notifier will re-alert for active matches.
-
-**HT second pass in `notify.js`:** During the HT window (`minute` 46–56), the notifier runs a game state pass with `GS_MIN_N = 15` and appends per-bet in-play stats to the message if `n ≥ 10`. Outside the HT window, for 2H matches the current score is used as a HT proxy (marked `⚠️approx`); for 1H matches the `FIRST_GOAL` trigger is used.
+**Deduplication in `notify.js`:** in-memory `_notified`/`l123Dedup` map keyed by `matchId:betKey`, expires after 2 hours. Resets on process restart — a restarted notifier will re-alert for active matches.
 
 **Sync requirement:** `telegram/engine.js` is a direct port of `static/app.js` constants + engine sections. When changing scoring logic, filter modes, the bet set, or league tier classification in `app.js`, mirror those changes in `telegram/engine.js`.
 
-**Railway deployment:** set `TELEGRAM_TOKEN`, `TELEGRAM_CHAT_ID`, `DATA_URL`, and optionally `APIFOOTBALL_KEY` as env vars in the Railway dashboard. The `railway.json` in `telegram/` defines the start command.
+**Railway deployment:** set `TELEGRAM_TOKEN`, `TELEGRAM_CHAT_ID`, `DATA_URL` as env vars in the Railway dashboard. Also supports `BET365_HASH`/`PINNACLE_HASH`/`SBOBET_HASH` overrides as a no-redeploy manual stopgap if hash auto-discovery breaks (e.g. asianbetsoccer.com's WAF blocking Railway's outbound IP — auto-discovery failures now log the real fetch error instead of swallowing it in a bare `catch{}`). The `railway.json` in `telegram/` defines the start command.
 
-## Bet365 Odds Enrichment (`telegram/apifootball.js`)
+## Live Match & Odds Feed (`telegram/livescore.js`)
 
-Fetches live Bet365 AH dog odds from api-football.com and appends them to alerts. Used as a secondary gate for Strategy 1 (steam alerts): fires only when Bet365 dog odds ≥ Pinnacle dog odds.
+Adapted from `functions/api/livescore.js` for Node ≥ 18 native fetch. **Bet365 is now the primary (and only) live book** — it carries both the match list and odds, so Pinnacle can no longer be auto-discovered but Bet365's hash can. Odds are aliased onto `match.bet365_odds`, the field name Strategy L123 reads for its live price gate. Hash auto-discovery/fallback logic otherwise mirrors `functions/api/livescore.js` (see below).
 
-**Endpoint used:**
-- `GET /fixtures?live=all` — finds the fixture ID by fuzzy team name matching (normalises "FC", "AFC", "United", etc.)
-- `GET /odds?fixture=ID&bookmaker=8&bet=7` — Bet365 (id=8), Asian Handicap (bet id=7)
+**Optional — `telegram/apifootball.js`:** independent Bet365 price verification via api-football.com, purely informational — it does **not** change whether L123 fires (that decision is made entirely by `runStrategyL123` before this runs). If `APIFOOTBALL_KEY` is set in `config.js`, `notify.js` calls `verifyBet365Price(betKey, ctx, key)` once, right before sending an alert, for whatever bet L123 just picked, and appends an "✅ ODDS OK" / "⚠️ ODDS LOWER" / "🔍 not available" line to the message — so there's no need to open Bet365 manually to check. Only called at alert-send time, never on every scan cycle, since the free plan caps at 100 req/day (2 calls per alert: one fixture lookup, cached per match, plus one odds lookup). Covers the markets api-football reliably lists as a single matchable value: Asian Handicap (`ahCover`/`dogCover`), Goals Over/Under (`overTL`/`underTL`), Match Winner (`homeWinsFT`/`awayWinsFT`/`drawFT`), and Both Teams Score (`btts`) — the other ~24 L123 bet types (half-specific/derived stats like `favWins2H`) return `{ supported: false }` immediately, no API call spent, and the message says the check wasn't available for that market. Leave `APIFOOTBALL_KEY` unset to disable entirely — alerts fire exactly as before, just without the extra line.
 
-**Key behaviour:**
-- Fixture IDs are cached in `_fixtureCache` (Map, process lifetime) to reduce requests.
-- Falls back to today's scheduled fixtures if no live match found.
-- `favLc` (positive AH line) is used to match the dog's handicap (±0.13 tolerance).
-- If the fixture or odds are not found, returns `null` — the alert still fires, just without Bet365 data.
-- **Rate limit (free plan): 100 requests/day.** Each alert = 2 requests (fixture lookup + odds). Cache cuts this to 1 for subsequent alerts on the same match.
+## Legacy Strategies & Backtests (`telegram/`)
 
-**Config:** Set `APIFOOTBALL_KEY` in `config.js` / Railway env. If `null`, odds enrichment is skipped entirely.
+Everything below predates Strategy L123 (superseded 2026-08-21) and is **not called from `notify.js`**. Kept for reference / historical context — see git log for the strategies that used them (movement-signal Gate 1/2/3 MA+Bayesian+HT scoring, market-calibrated `mkt_edge`, TLM-steam Over 0.5 1H, Under 1.5 2H at HT, etc.): `backtest.js`, `backtest_mkt.js`, `backtest_tlm1h.js`, `backtest_under15ht.js`, `backtest_baseline.js`, `backtest_config.js`, `backtest_crossbook.js`, `backtest_dogah_favsteam.js`, `backtest_favsteam.js`, `backtest_gsa.js`, `backtest_ht.js`, `backtest_lm2.js`, `backtest_prematch.js`, `backtest_rules.js`, `backtest_s6_yesterday.js`, `backtest_under_tlsteam.js`.
 
-## Specialised Backtests
-
-### `backtest_mkt.js` — Market-Calibrated Backtest
-Tests the 4 bets with direct Pinnacle market odds: `ahCover`, `dogCover`, `overTL`, `underTL`. Gate: `mkt_edge ≥ MKT_EDGE_THRESH` (default 10pp above market implied) + `MIN_N=35` + `MIN_Z=1.5`. Reports P&L at both historical fair min odds and at Pinnacle average odds. Test set defaults to `_04_25_` (April 2025). Use `--all` for all leagues.
-
-### `backtest_tlm1h.js` — Strategy 3: TLM Steam → Over 0.5 1H
-**Problem:** CSV data has only HT/FT scores, no minute-by-minute timestamps. Strategy fires at ~25–32' when the match is still 0-0. Cannot directly filter "0-0 at minute 25" in historical data.
-
-**Approach:** Uses a uniform goal-timing model to estimate conditional hit rate:
-```
-hit_rate ≈ [over05_1H% × (45−M)/45] / [under05_1H% + over05_1H% × (45−M)/45]
-```
-where `M = 28.5'` (midpoint of 25–32 window). Reports direct rate (upper bound), conditional estimate, break-even odds, Wilson CI safe odds, and month-by-month σ.
-
-Filter: `tl_c ≥ 2.5` + `(tl_c − tl_o) ≥ 0.25` (TL steam). Sections: current config, TL cluster breakdown, steam sensitivity, wide grid (`--wide`), profitability summary.
-
-### `backtest_under15ht.js` — Under 1.5 2H at HT
-**Hypothesis:** When the favourite leads by exactly +1 at HT in a low-to-medium total line game, the 2nd half tends to be defended → Under 1.5 2H.
-
-Runs 12-month walk-forward OOS across: AH line range breakdown (0.00–0.50, 0.25–1.00, ≥1.00), TL filter breakdown (≤2.50, ≤2.75, ≤3.00, ≥3.00), steam variants, and alternative bets for the same scenario (`under05_2H`, `ahCover`, `favScored2H`, `under25FT`). Reports fair odds, Wilson CI safe odds, and ROI at in-play odds 1.60–1.85.
-
-**Best combo from backtest:** `fav_lc 0.25–1.00` + `tl_c ≤ 2.75` + `fav_ht − dog_ht = 1`. Fires at HT interval (~min 44–50).
+**Why earlier league-tier and low-base-rate findings still matter:** `L123_TIER` defaults to `TOP+MAJOR` and `L123_MIN_BASELINE` defaults to 20, carrying forward two findings validated during the pre-L123 era — obscure leagues and low base-rate bets (e.g. rare 2H/1H side markets) both underperform out-of-sample despite passing z-score/edge thresholds, because cell sizes are too small to be reliable even at high z.
 
 ## Key Differences vs Python Desktop App
 

@@ -172,6 +172,33 @@ function classifyLeague(name) {
   return 'OTHER';
 }
 
+// One canonical name per `_T1_RULES` entry — the "top leagues" segmentation
+// used by telegram/league_analysis.js. Two `_T1_RULES` rows (the
+// "italy serie a" / "italian serie a" spelling variants) map to the same
+// canonical name so they merge into one group.
+const TOP_LEAGUE_GROUPS = [
+  { inc: 'english premier league',  exc: ['u21','women','reserve','international club'], name: 'England Premier League' },
+  { inc: 'spanish la liga',         exc: ['la liga 2','segunda','ladies','women','youth','supercopa','rfef'], name: 'Spain La Liga' },
+  { inc: 'german bundesliga',       exc: ['bundesliga 2','2. bundesliga','junioren','frauen','women'], name: 'Germany Bundesliga' },
+  { inc: 'italy serie a',           exc: ['serie b','serie c','serie d','women','primavera'], name: 'Italy Serie A' },
+  { inc: 'italian serie a',         exc: ['serie b','serie c','women','primavera'], name: 'Italy Serie A' },
+  { inc: 'france ligue 1',          exc: ['ligue 2','ligue 3','ligue 5','women','youth'], name: 'France Ligue 1' },
+  { inc: 'uefa champions league',   exc: ['afc','qualification','women','youth','u19','u21'], name: 'UEFA Champions League' },
+  { inc: 'uefa europa league',      exc: ['conference','qualification','women'], name: 'UEFA Europa League' },
+  { inc: 'uefa conference league',  exc: ['qualification','women'], name: 'UEFA Conference League' },
+];
+
+// Returns the canonical top-league name for a row's raw `league` string, or
+// null if it isn't in any top-league rule (i.e. MAJOR/OTHER tier).
+function topLeagueGroup(name) {
+  if (!name) return null;
+  const n = name.toLowerCase();
+  for (const { inc, exc, name: canonical } of TOP_LEAGUE_GROUPS) {
+    if (n.includes(inc) && !exc.some(e => n.includes(e))) return canonical;
+  }
+  return null;
+}
+
 // ── Data layer ────────────────────────────────────────────────────────────────
 function sf(v) {
   const f = parseFloat(String(v == null ? '' : v).trim());
@@ -625,10 +652,15 @@ module.exports = {
   applyGameState,
   scoreBets,
   classifyLeague,
+  topLeagueGroup,
+  TOP_LEAGUE_GROUPS,
   pct,
   zScore,
   wilsonCI,
+  minOdds,
+  avgMarketImplied,
   VALID_LINES,
+  TL_CLUSTERS,
   BETS,
   GS_PROBE_OUTCOMES,
   computeHtAsSignalProbe,

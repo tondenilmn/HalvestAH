@@ -29,6 +29,15 @@ module.exports = {
   // IANA timezone used for the timestamp shown in Telegram messages.
   DISPLAY_TZ: process.env.DISPLAY_TZ || 'Europe/Rome',
 
+  // ── api-football.com odds verification (optional) ────────────────────────────
+  // If set, telegram/apifootball.js fetches Bet365's live price for whatever
+  // bet L123 is about to alert on, from an independent source — so the
+  // message tells you "odds OK" / "odds lower" directly instead of you having
+  // to open Bet365 yourself to check. Only called once per alert (never on
+  // every scan cycle) since the free plan caps at 100 req/day. Leave unset to
+  // disable — alerts still fire normally, just without this extra line.
+  APIFOOTBALL_KEY: process.env.APIFOOTBALL_KEY || '0b7b5d6268aea444fcc7a761147f600f',
+
   // ════════════════════════════════════════════════════════════════════════════
   // STRATEGY L123 — Layer 1/2/3 consensus
   // Three independent layers each recommend a bet from historical data, using
@@ -36,9 +45,12 @@ module.exports = {
   //   Layer 1 — OPENING ODDS ONLY  (fav opening odds band + opening TL band)
   //   Layer 2 — MOVEMENT ONLY     (line_move, fav/dog odds move, tl_move)
   //   Layer 3 — CLOSING ODDS ONLY (fav closing odds band + closing TL band)
-  // Fires as soon as the match is live when >= L123_MIN_AGREE of the 3 layers
-  // independently land on the same bet — odds are read from the live feed
-  // (polled every SCAN_INTERVAL_MINUTES, default 2 min). Source: telegram/
+  // Fires in the 10-minute pre-match window (kickoff minus 10 min down to
+  // kickoff) when >= L123_MIN_AGREE of the 3 layers independently land on
+  // the same bet — odds are read from the live feed (polled every
+  // SCAN_INTERVAL_MINUTES, default 2 min). Pre-match rather than in-play so
+  // there's time to actually place the bet at a stable price — see
+  // PRE_MATCH_WINDOW_MIN in notify.js's matchContext(). Source: telegram/
   // layer_analysis.js convergence study — the "2/3 agree" and "3/3 agree"
   // buckets showed higher hit%/ROI than any single layer alone or matches
   // where layers disagree.
@@ -63,4 +75,40 @@ module.exports = {
   L123_MIN_EDGE:     parseFloat(process.env.L123_MIN_EDGE     || '0'),
   L123_MIN_BASELINE: parseFloat(process.env.L123_MIN_BASELINE || '20'),       // min baseline hit rate per layer
   L123_MIN_AGREE:    parseInt(process.env.L123_MIN_AGREE      || '2',   10),  // 2 = fire on 2/3 or 3/3; 3 = 3/3 only
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // STRATEGY LATEGOAL — "still no 2H goal" watch
+  // Fires once per match at LATEGOAL_TRIGGER_MINUTE (default 70') if: (a) the
+  // HT-conditioned historical pool (fav line/side + HT score, same query the
+  // GSA tab runs) shows a qualifying "a goal happens in 2H" bet
+  // (LATEGOAL_BETS), AND (b) no goal has actually been scored in the 2nd
+  // half yet (current score still equals the HT score captured earlier).
+  // The message reports both the static HT-anchor rate AND the live,
+  // time-decayed fair odds at the current minute (telegram/live_odds.js,
+  // the Node port of computeLiveOdd) — that's the number to check against
+  // Bet365's actual in-play price; this strategy does NOT auto-verify a live
+  // price itself (unlike L123's 4 market-priced bets, "goal in 2H" markets
+  // aren't reliably listed as a single matchable value by api-football —
+  // see apifootball.js's SUPPORTED set).
+  //
+  // Research backing which leagues/configs actually run hot for a 2H goal
+  // (2026-08-22): driven almost entirely by each league's OVERALL scoring
+  // rate, not a front/back-loading bias — goals_time2 independently confirms
+  // the 2H-goal-share is nearly flat (53-56%) across every league checked.
+  // Fav-odds-band sweeps within top leagues found no meaningful additional
+  // signal (z<1.5 throughout) — league choice is the only real lever, which
+  // is exactly what LATEGOAL_TIER controls. NOT walk-forward validated yet
+  // (unlike L123) — treat early alerts from this strategy with the same
+  // caution as everything pre-validation in this codebase.
+  // ════════════════════════════════════════════════════════════════════════════
+  LATEGOAL_ENABLED:       process.env.LATEGOAL_ENABLED !== 'false',
+  LATEGOAL_TIER:          process.env.LATEGOAL_TIER          || 'TOP+MAJOR',
+  LATEGOAL_TRIGGER_MINUTE: parseInt(process.env.LATEGOAL_TRIGGER_MINUTE || '70', 10),
+  // "a goal happens in 2H"-flavoured bets this strategy considers — any goal
+  // by either side, the favourite specifically, or one side specifically.
+  LATEGOAL_BETS:          (process.env.LATEGOAL_BETS || 'over05_2H,favScored2H,homeScored2H,awayScored2H').split(','),
+  LATEGOAL_MIN_N:         parseInt(process.env.LATEGOAL_MIN_N    || '30',  10),
+  LATEGOAL_MIN_Z:         parseFloat(process.env.LATEGOAL_MIN_Z  || '1.8'),
+  LATEGOAL_MIN_EDGE:      parseFloat(process.env.LATEGOAL_MIN_EDGE || '0'), // same Wilson-CI-lower-bound discipline as L123
+  LATEGOAL_MIN_BASELINE:  parseFloat(process.env.LATEGOAL_MIN_BASELINE || '20'),
 };

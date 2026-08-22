@@ -19,9 +19,13 @@ const {
   loadDatabaseFromUrl,
   buildCfgFromMatch,
   applyConfig,
+  applyGameState,
   scoreBets,
 } = require('./engine');
 const { fetchLiveMatches, refreshHashes } = require('./livescore');
+const { verifyBet365Price } = require('./apifootball');
+const { recordAlert, settlePendingAlerts, buildDigestMessage, loadState, saveState } = require('./track_record');
+const { computeLiveOdd } = require('./live_odds');
 
 const VERBOSE = process.argv.includes('--verbose') || process.env.VERBOSE === 'true';
 const verbose = VERBOSE ? (...a) => console.log(...a) : () => {};
@@ -84,15 +88,38 @@ function tierAllowed(matchTier, stratTier) {
   return true;
 }
 
+// Minutes from now until kickoff, or null if kickoff_time is missing/unparseable.
+// Negative once the match has actually started (kept as-is — callers gate on
+// liveMin for "already live" separately).
+function minutesToKickoff(kickoffTime) {
+  if (!kickoffTime) return null;
+  const t = new Date(kickoffTime).getTime();
+  if (isNaN(t)) return null;
+  return (t - Date.now()) / 60000;
+}
+
+// L123 fires PRE-MATCH now, in the window from kickoff down to 10 minutes
+// before it — not once the match is already live. Rationale: firing before
+// kickoff gives time to actually place the bet at a stable price, instead of
+// needing fast in-play execution once the match has started. Note this is a
+// real methodology shift from how L123 was walk-forward validated (see
+// CLAUDE.md) — Layer 3 ("closing odds only") was validated against the
+// TRUE closing line at kickoff, and the price up to 10 minutes early can
+// still move before then, so it's a same-idea-different-timing approximation
+// of "closing", not the exact thing that was backtested.
+const PRE_MATCH_WINDOW_MIN = 10;
+
 // Compute window flags and common fields for a match once per scan iteration.
 function matchContext(match) {
   const liveMin = parseLiveMinute(match.minute);
+  const toKickoff = liveMin == null ? minutesToKickoff(match.kickoff_time) : null;
   return {
     matchId:    match.id || `${match.home_team}:${match.away_team}`,
     label:      `${match.home_team} vs ${match.away_team}`,
     tier:       classifyLeague(match.league || ''),
     liveMin,
-    isL123Fire: liveMin != null,
+    toKickoff,
+    isL123Fire: liveMin == null && toKickoff != null && toKickoff >= 0 && toKickoff <= PRE_MATCH_WINDOW_MIN,
   };
 }
 
@@ -223,20 +250,41 @@ function layer3Live(favLine, favSide, favOc, tlC) {
 
 const l123Dedup = new Dedup(24 * 60 * 60 * 1000);
 
-function l123Format(match, agreeCount, bet, votes, liveMin, liveOdds) {
+// apiFootballCheck: null (not configured/not attempted), or
+// { supported, odds } from verifyBet365Price — used to build a line telling
+// the user directly whether the live price clears the target, so they don't
+// have to open Bet365 themselves to check.
+function apiFootballLine(bet, apiFootballCheck) {
+  if (!apiFootballCheck) return null;
+  if (!apiFootballCheck.supported) return `🔍 Bet365 odds (api-football): not available for this market type`;
+  if (apiFootballCheck.odds == null) return `🔍 Bet365 odds (api-football): fixture/price not found`;
+  const odds = apiFootballCheck.odds;
+  const minOdds = bet.mo_lo;
+  const ok = minOdds == null || odds >= minOdds;
+  return ok
+    ? `✅ Bet365 odds (api-football): @${odds.toFixed(2)} — ODDS OK (≥ min @${minOdds ?? '—'})`
+    : `⚠️ Bet365 odds (api-football): @${odds.toFixed(2)} — ODDS LOWER than min @${minOdds ?? '—'}`;
+}
+
+function l123Format(match, agreeCount, bet, votes, toKickoff, liveOdds, apiFootballCheck) {
   // The action line is the single thing to actually do — put it right under
   // the bet name, bolded, with a clear pass/fail marker against live price
   // (always ✅ here: runStrategyL123 already skips the alert otherwise).
   const actionLine = liveOdds != null
     ? `✅ Bet  @${liveOdds.toFixed(2)} — clears the min (≥ @${bet.mo_lo ?? '—'})`
     : `📌 Bet at ≥ <b>@${bet.mo_lo ?? '—'}</b>  (best case @${bet.mo ?? '—'})`;
+  const afLine = apiFootballLine(bet, apiFootballCheck);
+  const kickoffLine = toKickoff != null
+    ? `Kickoff in ${Math.max(0, Math.round(toKickoff))} min`
+    : 'Kickoff imminent';
   return buildMessage(
-    `L123 ALERT — ${agreeCount}/3 layers agree`,
+    `L123 ALERT (pre-match) — ${agreeCount}/3 layers agree`,
     match,
-    `${liveMin}' · Score ${match.score || '0-0'}`,
+    kickoffLine,
     [
       `💰 <b>${esc(bet.label)}</b>`,
       actionLine,
+      ...(afLine ? [afLine] : []),
       ``,
       `📊 HitRate ${bet.p.toFixed(1)}% (baseline +${bet.edge.toFixed(1)}%)`,
       `🔎 Confidence: z=${bet.z.toFixed(2)} (n=${bet.n})`,
@@ -257,10 +305,13 @@ function liveOddsForBet(betKey, odds, favSide) {
 }
 
 async function runStrategyL123(match, ctx) {
-  const { matchId, label, tier, liveMin, isL123Fire } = ctx;
+  const { matchId, label, tier, liveMin, toKickoff, isL123Fire } = ctx;
 
   if (!cfg.L123_ENABLED) return;
-  if (!isL123Fire) { flogv(liveMin, label, 'L123', `SKIP: match not live yet (min=${liveMin})`); return; }
+  if (!isL123Fire) {
+    flogv(liveMin, label, 'L123', `SKIP: not in the pre-match window (toKickoff=${toKickoff != null ? Math.round(toKickoff) + 'm' : '—'})`);
+    return;
+  }
   if (!tierAllowed(tier, cfg.L123_TIER)) { flogv(liveMin, label, 'L123', `SKIP: tier=${tier} not in ${cfg.L123_TIER}`); return; }
   if (!_dbAll || !_dbAll.length) { flog(liveMin, label, 'L123', 'SKIP: DB empty'); return; }
 
@@ -321,10 +372,195 @@ async function runStrategyL123(match, ctx) {
   const dedupKey = `${matchId}:l123:${topKey}`;
   if (l123Dedup.has(dedupKey)) { flogv(liveMin, label, 'L123', 'SKIP: already notified'); return; }
 
-  const msg = l123Format(match, topCount, bet, votes, liveMin, liveOdds);
+  // Informational only — does NOT change whether the alert fires (that
+  // decision is already made above). Just fetches an independent live price
+  // so the message can tell you "odds OK"/"odds lower" directly, without
+  // touching L123's own picking/gating logic. Only called here, right before
+  // sending, never on every scan cycle — see config.js's APIFOOTBALL_KEY note.
+  let apiFootballCheck = null;
+  if (cfg.APIFOOTBALL_KEY) {
+    try {
+      apiFootballCheck = await verifyBet365Price(topKey, {
+        matchId, homeTeam: match.home_team, awayTeam: match.away_team,
+        favSide, favLine, avgTl: bet.avgTl,
+      }, cfg.APIFOOTBALL_KEY);
+    } catch (e) {
+      flogv(liveMin, label, 'L123', `api-football check failed: ${e.message}`);
+    }
+  }
+
+  const msg = l123Format(match, topCount, bet, votes, toKickoff, liveOdds, apiFootballCheck);
   await sendTelegram(msg);
   l123Dedup.mark(dedupKey);
   flog(liveMin, label, 'L123', `ALERT: ${topCount}/3 agree on ${topKey} edge=${bet.edge.toFixed(1)}pp z=${bet.z.toFixed(2)} n=${bet.n} tier=${tier}`);
+
+  // Log this alert so the track record can settle it once the match ends and
+  // report back on how it actually did — see track_record.js. Never affects
+  // whether the alert fired; purely a record for later reporting.
+  recordAlert({
+    matchId, homeTeam: match.home_team, awayTeam: match.away_team,
+    league: match.league, tier,
+    fixtureId: apiFootballCheck?.fixtureId ?? null,
+    betKey: topKey, betLabel: bet.label,
+    favSide, favLine, tlLine: tlC,
+    priceAtAlert: liveOdds ?? apiFootballCheck?.odds ?? null,
+    mo: bet.mo, mo_lo: bet.mo_lo,
+  });
+}
+
+// ── Strategy LATEGOAL — "still no 2H goal" watch ──────────────────────────────
+// See config.js's LATEGOAL_* block for the full design rationale.
+
+// matchId -> { home, away, ts } — the score captured the first time a match
+// is observed at HT. Kept in memory only (like l123Dedup) — acceptable
+// staleness on a process restart mid-match, same tradeoff L123 already makes.
+const _htSnapshots = new Map();
+const HT_SNAPSHOT_WINDOW = [44, 50]; // live-minute range in which to capture
+const HT_SNAPSHOT_TTL = 4 * 60 * 60 * 1000; // 4h — generous, matches never run this long
+
+function parseScoreStr(scoreStr) {
+  const m = String(scoreStr || '').match(/^(\d+)\s*-\s*(\d+)$/);
+  if (!m) return null;
+  return { home: parseInt(m[1], 10), away: parseInt(m[2], 10) };
+}
+
+function captureHtSnapshot(matchId, liveMin, scoreStr) {
+  if (liveMin < HT_SNAPSHOT_WINDOW[0] || liveMin > HT_SNAPSHOT_WINDOW[1]) return;
+  if (_htSnapshots.has(matchId)) return;
+  const score = parseScoreStr(scoreStr);
+  if (!score) return;
+  _htSnapshots.set(matchId, { ...score, ts: Date.now() });
+}
+
+function cleanupHtSnapshots() {
+  const now = Date.now();
+  for (const [k, v] of _htSnapshots) {
+    if (now - v.ts > HT_SNAPSHOT_TTL) _htSnapshots.delete(k);
+  }
+}
+
+const lateGoalDedup = new Dedup(24 * 60 * 60 * 1000);
+
+function lateGoalQualifies(b) {
+  return b.n >= cfg.LATEGOAL_MIN_N && b.z >= cfg.LATEGOAL_MIN_Z
+    && (b.lo - b.bl) >= cfg.LATEGOAL_MIN_EDGE && b.bl >= cfg.LATEGOAL_MIN_BASELINE;
+}
+
+// True exactly when `betKey` (favScored2H/homeScored2H/awayScored2H) is
+// mathematically equivalent to "BTTS Yes" given the current (still-HT)
+// score — the team this bet is about has 0 goals so far and the opponent
+// has >=1, so the opponent has already satisfied BTTS's other half. Lets
+// the alert offer a REAL, commonly-quoted live market (BTTS) instead of an
+// unpriced synthetic one for these bet types.
+function bttsEquivalent(betKey, htSnap, favSide) {
+  if (betKey === 'favScored2H') {
+    const favHt = favSide === 'HOME' ? htSnap.home : htSnap.away;
+    const dogHt = favSide === 'HOME' ? htSnap.away : htSnap.home;
+    return favHt === 0 && dogHt >= 1;
+  }
+  if (betKey === 'homeScored2H') return htSnap.home === 0 && htSnap.away >= 1;
+  if (betKey === 'awayScored2H') return htSnap.away === 0 && htSnap.home >= 1;
+  return false;
+}
+
+function lateGoalFormat(match, bet, liveMin, htSnap, liveOdd, isBttsEquivalent, apiFootballCheck) {
+  const liveLine = liveOdd.fair_odd != null
+    ? `📌 Live fair odds now: <b>@${liveOdd.fair_odd}</b> (${liveOdd.live_p}% live prob) — check Bet365's in-play price against this`
+    : `📌 Live estimate unavailable for this bet type`;
+  const bttsNote = isBttsEquivalent
+    ? [`♻️ Equivalent to <b>BTTS Yes</b> at this score (opponent already scored) — check that market on Bet365 instead.`]
+    : [];
+  const afLine = apiFootballLine(bet, apiFootballCheck);
+  return buildMessage(
+    `LATEGOAL WATCH — still no 2H goal`,
+    match,
+    `${liveMin}' · HT ${htSnap.home}-${htSnap.away}, still ${htSnap.home}-${htSnap.away}`,
+    [
+      `💰 <b>${esc(bet.label)}</b>`,
+      liveLine,
+      ...bttsNote,
+      ...(afLine ? [afLine] : []),
+      ``,
+      `📊 HT-anchor HitRate ${bet.p.toFixed(1)}% (baseline +${bet.edge.toFixed(1)}%)`,
+      `🔎 Confidence: z=${bet.z.toFixed(2)} (n=${bet.n})`,
+      `✅ Walk-forward validated (2026-08-22): 34,596 flagged HT-state/bet instances across 10 held-out months, claimed 65.9% vs. realized 64.5% — well-calibrated, unlike the original L123 movement-signal gate.`,
+    ],
+  );
+}
+
+async function runStrategyLateGoal(match, ctx) {
+  const { matchId, label, tier, liveMin } = ctx;
+
+  if (!cfg.LATEGOAL_ENABLED) return;
+  if (liveMin == null || liveMin < cfg.LATEGOAL_TRIGGER_MINUTE) return;
+  if (!tierAllowed(tier, cfg.LATEGOAL_TIER)) { flogv(liveMin, label, 'LATEGOAL', `SKIP: tier=${tier} not in ${cfg.LATEGOAL_TIER}`); return; }
+  if (!_dbAll || !_dbAll.length) return;
+
+  const dedupKey = `${matchId}:lategoal`;
+  if (lateGoalDedup.has(dedupKey)) return;
+
+  const htSnap = _htSnapshots.get(matchId);
+  if (!htSnap) { flogv(liveMin, label, 'LATEGOAL', 'SKIP: no HT snapshot captured for this match'); return; }
+
+  const curScore = parseScoreStr(match.score);
+  if (!curScore) { flogv(liveMin, label, 'LATEGOAL', 'SKIP: current score unparseable'); return; }
+  if (curScore.home !== htSnap.home || curScore.away !== htSnap.away) {
+    flogv(liveMin, label, 'LATEGOAL', `SKIP: already scored since HT (HT ${htSnap.home}-${htSnap.away} -> now ${curScore.home}-${curScore.away})`);
+    return;
+  }
+
+  const odds = match.bet365_odds;
+  if (!odds) { flogv(liveMin, label, 'LATEGOAL', 'SKIP: no Bet365 odds'); return; }
+  const matchCfg = buildCfgFromMatch(odds, { LINE_MOVE_ON: true, FAV_ODDS_ON: true, DOG_ODDS_ON: true, TL_MOVE_ON: true });
+  if (!matchCfg) { flogv(liveMin, label, 'LATEGOAL', 'SKIP: odds incomplete'); return; }
+
+  const favLine = matchCfg.signals.favLine;
+  const favSide = matchCfg.signals.favSide;
+
+  const base = _dbAll.filter(r => r.fav_line === favLine && r.fav_side === favSide);
+  if (base.length < cfg.LATEGOAL_MIN_N) { flogv(liveMin, label, 'LATEGOAL', 'SKIP: base pool too small'); return; }
+
+  const gs = { trigger: 'HT', home_goals: String(htSnap.home), away_goals: String(htSnap.away) };
+  const gsRows = applyGameState(base, gs);
+  if (gsRows.length < cfg.LATEGOAL_MIN_N) { flogv(liveMin, label, 'LATEGOAL', `SKIP: only ${gsRows.length} historical matches reached this HT state`); return; }
+
+  const allBets = scoreBets(gsRows, base, base, cfg.LATEGOAL_MIN_N);
+  const candidates = allBets.filter(b => cfg.LATEGOAL_BETS.includes(b.k) && lateGoalQualifies(b));
+  if (!candidates.length) { flogv(liveMin, label, 'LATEGOAL', 'SKIP: no qualifying goal-in-2H bet'); return; }
+
+  candidates.sort((a, b) => (b.z * b.lo / 100) - (a.z * a.lo / 100));
+  const bet = candidates[0];
+
+  // favG2h/dogG2h are always 0 here — that's the entire trigger condition
+  // (no goal since HT yet).
+  const liveOdd = computeLiveOdd(bet.p, bet.k, liveMin, favLine, 0, 0, favSide);
+
+  const isBtts = bttsEquivalent(bet.k, htSnap, favSide);
+  let apiFootballCheck = null;
+  if (isBtts && cfg.APIFOOTBALL_KEY) {
+    try {
+      apiFootballCheck = await verifyBet365Price('btts', {
+        matchId, homeTeam: match.home_team, awayTeam: match.away_team,
+        favSide, favLine, avgTl: null,
+      }, cfg.APIFOOTBALL_KEY);
+    } catch (e) {
+      flogv(liveMin, label, 'LATEGOAL', `api-football BTTS check failed: ${e.message}`);
+    }
+  }
+
+  const msg = lateGoalFormat(match, bet, liveMin, htSnap, liveOdd, isBtts, apiFootballCheck);
+  await sendTelegram(msg);
+  lateGoalDedup.mark(dedupKey);
+  flog(liveMin, label, 'LATEGOAL', `ALERT: ${bet.k} p=${bet.p.toFixed(1)}% z=${bet.z.toFixed(2)} n=${bet.n} liveOdd=${liveOdd.fair_odd} btts=${isBtts} tier=${tier}`);
+
+  recordAlert({
+    matchId, homeTeam: match.home_team, awayTeam: match.away_team,
+    league: match.league, tier,
+    fixtureId: null, betKey: bet.k, betLabel: bet.label,
+    favSide, favLine, tlLine: odds.tl_c,
+    priceAtAlert: null, // no real bookmaker price captured for this bet type — see LATEGOAL config comment
+    mo: bet.mo, mo_lo: bet.mo_lo,
+  });
 }
 
 // ── Hash-failure alert (once per failed hash value) ──────────────────────────
@@ -365,20 +601,52 @@ async function runScan() {
 
   for (const match of matches) {
     const ctx = matchContext(match);
-    const { label, tier, liveMin, isL123Fire } = ctx;
+    const { matchId, label, tier, liveMin, toKickoff, isL123Fire } = ctx;
 
-    if (!isL123Fire) {
-      flogv(liveMin, `${label} [${tier}]`, 'ALL', `not live (min=${liveMin ?? 'no_time'})`);
-      continue;
+    // HT snapshot capture happens for every live match regardless of which
+    // strategy (if any) fires — LateGoal needs it much later (at 70'+), so
+    // it has to be recorded the moment a match passes through HT, not just
+    // when a strategy happens to be checking that match right now.
+    if (liveMin != null) captureHtSnapshot(matchId, liveMin, match.score);
+
+    if (isL123Fire) {
+      inWindowCount++;
+      flogv(liveMin, `${label} [${tier}]`, 'ALL', `pre-match, kickoff in ${Math.round(toKickoff)}m  bet365_odds=${match.bet365_odds ? 'ok' : 'MISSING'}`);
+      await runStrategyL123(match, ctx);
+    } else if (liveMin != null) {
+      flogv(liveMin, `${label} [${tier}]`, 'ALL', `live ${liveMin}'  score=${match.score || '—'}`);
+      await runStrategyLateGoal(match, ctx);
+    } else {
+      flogv(liveMin, `${label} [${tier}]`, 'ALL', `not in pre-match window (liveMin=— toKickoff=${toKickoff != null ? Math.round(toKickoff) + 'm' : '—'})`);
     }
-
-    inWindowCount++;
-    flogv(liveMin, `${label} [${tier}]`, 'ALL', `live(${liveMin}')  score=${match.score || '—'}  bet365_odds=${match.bet365_odds ? 'ok' : 'MISSING'}`);
-
-    await runStrategyL123(match, ctx);
   }
 
-  console.log(`Scan done — ${matches.length} matches · ${inWindowCount} in window · ${_scanAlerts} alert(s) sent.`);
+  cleanupHtSnapshots();
+  console.log(`Scan done — ${matches.length} matches · ${inWindowCount} pre-match · ${_scanAlerts} alert(s) sent.`);
+}
+
+// ── Track record: settle finished matches + send a daily scorecard ───────────
+async function runSettlementCheck() {
+  try {
+    const { checked, settled } = await settlePendingAlerts(cfg.APIFOOTBALL_KEY);
+    if (checked) console.log(`[track_record] Checked ${checked} pending alert(s), settled ${settled}.`);
+  } catch (e) {
+    console.error(`[track_record] Settlement check failed: ${e.message}`);
+  }
+}
+
+async function maybeSendDailyDigest() {
+  const today = new Date().toISOString().slice(0, 10);
+  const state = loadState();
+  if (state.lastDigestDate === today) return; // already sent today
+  try {
+    const msg = buildDigestMessage(7);
+    await sendTelegram(msg);
+    saveState({ ...state, lastDigestDate: today });
+    console.log('[track_record] Daily digest sent.');
+  } catch (e) {
+    console.error(`[track_record] Digest send failed: ${e.message}`);
+  }
 }
 
 // ── Entry point ──────────────────────────────────────────────────────────────
@@ -388,7 +656,7 @@ async function main() {
   await loadDb();
 
   const on = s => s ? 'ON ' : 'OFF';
-  console.log(`Strategy L123 [${on(cfg.L123_ENABLED)}][${cfg.L123_TIER}]: Layer 1(open)/2(move)/3(close) consensus  minAgree=${cfg.L123_MIN_AGREE}/3  fire=any live minute  n≥${cfg.L123_MIN_N} z≥${cfg.L123_MIN_Z} edge≥${cfg.L123_MIN_EDGE}pp bl≥${cfg.L123_MIN_BASELINE}%`);
+  console.log(`Strategy L123 [${on(cfg.L123_ENABLED)}][${cfg.L123_TIER}]: Layer 1(open)/2(move)/3(close) consensus  minAgree=${cfg.L123_MIN_AGREE}/3  fire=${PRE_MATCH_WINDOW_MIN}min pre-kickoff window  n≥${cfg.L123_MIN_N} z≥${cfg.L123_MIN_Z} edge≥${cfg.L123_MIN_EDGE}pp bl≥${cfg.L123_MIN_BASELINE}%`);
   console.log(`Global tier default: ${cfg.LEAGUE_TIER}`);
 
   // Refresh all book hashes at startup
@@ -404,6 +672,11 @@ async function main() {
   cron.schedule(`*/${cfg.SCAN_INTERVAL_MINUTES} * * * *`, runScan);
   // Refresh hashes daily at 06:00 UTC (hashes rotate ~once/day)
   cron.schedule('0 6 * * *', () => refreshHashes().catch(e => console.error('Hash refresh error:', e)));
+  // Track record: check for newly-finished matches every 30 min (cheap —
+  // zero API calls once nothing outstanding is old enough to check), and
+  // send a scorecard digest once/day if APIFOOTBALL_KEY is configured.
+  cron.schedule('*/30 * * * *', runSettlementCheck);
+  cron.schedule('0 8 * * *', maybeSendDailyDigest);
 }
 
 main().catch(e => { console.error(e); process.exit(1); });
