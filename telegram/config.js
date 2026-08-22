@@ -78,7 +78,8 @@ module.exports = {
 
   // ════════════════════════════════════════════════════════════════════════════
   // STRATEGY LATEGOAL — "still no 2H goal" watch
-  // Fires once per match at LATEGOAL_TRIGGER_MINUTE (default 70') if: (a) the
+  // Fires once per match within the LATEGOAL_TRIGGER_WINDOW (default 68-72')
+  // if: (a) the
   // HT-conditioned historical pool (fav line/side + HT score, same query the
   // GSA tab runs) shows a qualifying "a goal happens in 2H" bet
   // (LATEGOAL_BETS), AND (b) no goal has actually been scored in the 2nd
@@ -103,7 +104,12 @@ module.exports = {
   // ════════════════════════════════════════════════════════════════════════════
   LATEGOAL_ENABLED:       process.env.LATEGOAL_ENABLED !== 'false',
   LATEGOAL_TIER:          process.env.LATEGOAL_TIER          || 'TOP+MAJOR',
-  LATEGOAL_TRIGGER_MINUTE: parseInt(process.env.LATEGOAL_TRIGGER_MINUTE || '70', 10),
+  // Windowed (not a single minute) so a missed/delayed scan cycle can't let
+  // the alert fire arbitrarily late in the 2nd half once outside the window.
+  LATEGOAL_TRIGGER_WINDOW: [
+    parseInt(process.env.LATEGOAL_TRIGGER_MIN || '68', 10),
+    parseInt(process.env.LATEGOAL_TRIGGER_MAX || '72', 10),
+  ],
   // "a goal happens in 2H"-flavoured bets this strategy considers — any goal
   // by either side, the favourite specifically, or one side specifically.
   LATEGOAL_BETS:          (process.env.LATEGOAL_BETS || 'over05_2H,favScored2H,homeScored2H,awayScored2H').split(','),

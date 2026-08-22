@@ -539,7 +539,7 @@ async function runStrategyLateGoal(match, ctx) {
   const { matchId, label, tier, liveMin } = ctx;
 
   if (!cfg.LATEGOAL_ENABLED) return;
-  if (liveMin == null || liveMin < cfg.LATEGOAL_TRIGGER_MINUTE) return;
+  if (liveMin == null || liveMin < cfg.LATEGOAL_TRIGGER_WINDOW[0] || liveMin > cfg.LATEGOAL_TRIGGER_WINDOW[1]) return;
   if (!tierAllowed(tier, cfg.LATEGOAL_TIER)) { flogv(liveMin, label, 'LATEGOAL', `SKIP: tier=${tier} not in ${cfg.LATEGOAL_TIER}`); return; }
   if (!_dbAll || !_dbAll.length) return;
 
@@ -679,7 +679,7 @@ async function runStrategyQuiet2H(match, ctx) {
   const { matchId, label, tier, liveMin } = ctx;
 
   if (!cfg.QUIET2H_ENABLED) return;
-  if (liveMin == null || liveMin < 45) return;
+  if (liveMin == null || liveMin < HT_SNAPSHOT_WINDOW[0] || liveMin > HT_SNAPSHOT_WINDOW[1]) return;
   if (!tierAllowed(tier, cfg.QUIET2H_TIER)) { flogv(liveMin, label, 'QUIET2H', `SKIP: tier=${tier} not in ${cfg.QUIET2H_TIER}`); return; }
   if (!_dbAll || !_dbAll.length) return;
 
