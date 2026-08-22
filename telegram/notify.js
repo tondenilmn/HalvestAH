@@ -640,7 +640,7 @@ async function runStrategyLateGoal(match, ctx) {
     recordAlert({
       matchId, homeTeam: match.home_team, awayTeam: match.away_team,
       league: match.league, tier,
-      fixtureId: null, betKey: bet.k, betLabel: bet.label,
+      fixtureId: apiFootballCheck?.fixtureId ?? null, betKey: bet.k, betLabel: bet.label,
       favSide, favLine, tlLine: odds.tl_c,
       priceAtAlert: lateGoalPrice,
       mo: bet.mo, mo_lo: bet.mo_lo,
@@ -772,7 +772,7 @@ async function runStrategyQuiet2H(match, ctx) {
     recordAlert({
       matchId, homeTeam: match.home_team, awayTeam: match.away_team,
       league: match.league, tier,
-      fixtureId: null, betKey: bet.k, betLabel: bet.label,
+      fixtureId: apiFootballCheck?.fixtureId ?? null, betKey: bet.k, betLabel: bet.label,
       favSide, favLine, tlLine: odds.tl_c,
       priceAtAlert: quiet2hPrice,
       mo: bet.mo, mo_lo: bet.mo_lo,

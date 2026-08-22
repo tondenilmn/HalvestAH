@@ -20,6 +20,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const budget = require('./api_budget');
 
 const DATA_DIR = path.join(__dirname, 'data');
 const LOG_FILE = path.join(DATA_DIR, 'alert_log.json');
@@ -139,6 +140,15 @@ function settleBetKey(betKey, { ftH, ftA, htH, htA, favSide, favLine, tlLine }) 
 
 // ── api-football fixture-result lookup ────────────────────────────────────────
 async function apiGet(urlPath, key) {
+  // Settlement priority — capped below the full daily limit so it can never
+  // starve alert-time verification of its reserved slice. See
+  // api_budget.js's header comment. A refusal here is caught by
+  // settlePendingAlerts's per-entry try/catch and simply retried on the
+  // next 30-min cycle — nothing is lost.
+  if (!budget.canSpend(1, 'settlement')) {
+    throw new Error(`api-football daily budget guard: settlement capped at ${budget.DAILY_LIMIT - budget.NOTIFICATION_RESERVE}/${budget.DAILY_LIMIT} (${budget.spentToday()} already spent) — deferring ${urlPath}`);
+  }
+  budget.recordSpend(1);
   const res = await fetch(`https://v3.football.api-sports.io${urlPath}`, { headers: { 'x-apisports-key': key } });
   if (!res.ok) throw new Error(`api-football ${urlPath} -> HTTP ${res.status}`);
   const json = await res.json();

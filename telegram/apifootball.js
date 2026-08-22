@@ -26,6 +26,7 @@
 // silently guessing.
 
 const BASE = 'https://v3.football.api-sports.io';
+const budget = require('./api_budget');
 
 // ── Fixture ID cache ──────────────────────────────────────────────────────────
 const _fixtureCache = new Map();
@@ -46,6 +47,12 @@ function namesMatch(a, b) {
 }
 
 async function apiGet(path, key) {
+  // Notification (alert-time) priority — see api_budget.js's header comment
+  // for why settlement is the one that backs off, not this.
+  if (!budget.canSpend(1, 'alert')) {
+    throw new Error(`api-football daily budget guard: ${budget.spentToday()}/${budget.DAILY_LIMIT} already spent — skipping ${path}`);
+  }
+  budget.recordSpend(1);
   const res = await fetch(`${BASE}${path}`, { headers: { 'x-apisports-key': key } });
   if (!res.ok) throw new Error(`api-football ${path} → HTTP ${res.status}`);
   const json = await res.json();
