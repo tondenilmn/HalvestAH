@@ -237,7 +237,7 @@ Required columns: AH Home/Away Closing+Opening, Home/Away Odds Closing+Opening, 
 
 ## Telegram Notifier (`telegram/`)
 
-Standalone Node.js service that polls live matches and sends Telegram alerts for qualifying bets under **Strategy L123** — currently the only active strategy (everything else is legacy, see below). Deployable to Railway or run locally.
+Standalone Node.js service that polls live matches and sends Telegram alerts under two active strategies — **L123** (pre-match) and **LATEGOAL** (in-play, see below); everything else is legacy (see further down). Deployable to Railway or run locally.
 
 ```bash
 cd telegram
@@ -284,6 +284,20 @@ Note this pre-match timing is a real shift from how L123 was originally walk-for
 **Sync requirement:** `telegram/engine.js` is a direct port of `static/app.js` constants + engine sections. When changing scoring logic, filter modes, the bet set, or league tier classification in `app.js`, mirror those changes in `telegram/engine.js`.
 
 **Railway deployment:** set `TELEGRAM_TOKEN`, `TELEGRAM_CHAT_ID`, `DATA_URL` as env vars in the Railway dashboard. Also supports `BET365_HASH`/`PINNACLE_HASH`/`SBOBET_HASH` overrides as a no-redeploy manual stopgap if hash auto-discovery breaks (e.g. asianbetsoccer.com's WAF blocking Railway's outbound IP — auto-discovery failures now log the real fetch error instead of swallowing it in a bare `catch{}`). The `railway.json` in `telegram/` defines the start command.
+
+**Strategy LATEGOAL — "still no 2H goal" watch** (`notify.js` + `config.js`, added 2026-08-22): fires once per match at `LATEGOAL_TRIGGER_MINUTE` (default 70') if the match's HT scoreline historically supports a 2nd-half goal (checked against a fav-line/side + exact-HT-state historical bucket, further split by the match's own closing **Total Line band** — see below) AND no goal has actually been scored since HT (an in-memory HT-score snapshot, captured for every live match crossing minute 44-50 regardless of strategy, is compared against the current score). Considers `over05_2H`/`favScored2H`/`homeScored2H`/`awayScored2H` (`LATEGOAL_BETS`).
+
+**TL-band filter (added 2026-08-23):** the historical pool is bucketed by the match's own closing TL (`TL_BANDS`, same 4 buckets L123's `layer1Live`/`layer3Live` use), falling back to the TL-blind pool if the band is unknown or has fewer than `LATEGOAL_MIN_N` rows. Two identical HT scorelines mean very different things depending on how much of the pre-match total-goals expectation is already "used up" — e.g. HT 0-0 with TL 3.5 vs. HT 0-0 with TL 1.5 — and pooling them together was diluting the signal (`over05_2H` at HT 0-0 ranged 71%-83% across TL bands vs. a flat 75.4% from the TL-blind pool). Walk-forward re-check after adding the band: 1.9pp claimed-vs-actual gap (vs. 2.5pp before), while surfacing more distinct qualifying cells (16 vs. 11) — a genuine improvement, not overfitting, since `bet.p` (and therefore both the message's headline rate and `computeLiveOdd`'s live fair-odds target) now reflects the TL-matched pool automatically. The alert message also shows a `tlPaceLine()` — current goals vs. the match's own TL — so ahead-of/behind-pace context is visible even where the fallback pool is used.
+
+**Walk-forward validated (2026-08-22, pre-TL-split baseline):** 34,596 flagged (HT-state, bet) instances across 10 held-out months — 65.9% claimed vs. 64.5% realized hit rate, well-calibrated (unlike L123's original point-estimate gate). Note this validates the *historical signal claim* only (does a goal happen somewhere in the 2nd half); it can't validate the exact "still nothing by minute 70 specifically" timing against real minute-level data, since `goals_time2` (the only source with real goal minutes) has no favourite/odds designation to replicate the signal selection — see `telegram/live_odds.js`'s header comment.
+
+**No bookmaker lists any of the 4 LATEGOAL bet types directly** — but every one of them is mathematically equivalent to a real, standard market once you condition on the score being unchanged since HT (`equivalentRealMarket()` in `notify.js`):
+- `favScored2H`/`homeScored2H`/`awayScored2H`: if that side has 0 goals so far and the opponent has ≥1, "this side scores" = **BTTS Yes** (the opponent already satisfied BTTS's other half).
+- `over05_2H` ("any goal happens"): always equivalent to **Over (current total + 0.5) FT** — e.g. still 0-0 → Over 0.5 FT; still 0-2, 2-0, or 1-1 → Over 2.5 FT; still 0-1 or 1-0 → Over 1.5 FT.
+
+When the equivalence applies, the alert calls `apifootball.js`'s `verifyBet365Price()` for that *real* market instead of showing only the internal Poisson estimate — same api-football integration L123 uses, `overTL`/`btts` were already supported market types.
+
+**Live fair-odds estimate:** `telegram/live_odds.js` is a Node port of `static/app.js`'s `computeLiveOdd` (verified to produce identical output) — used to time-decay the HT-anchor hit rate down to a live fair probability/odds at the current minute, given no goal has happened yet.
 
 ## Live Match & Odds Feed (`telegram/livescore.js`)
 
