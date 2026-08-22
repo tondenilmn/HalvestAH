@@ -111,4 +111,38 @@ module.exports = {
   LATEGOAL_MIN_Z:         parseFloat(process.env.LATEGOAL_MIN_Z  || '1.8'),
   LATEGOAL_MIN_EDGE:      parseFloat(process.env.LATEGOAL_MIN_EDGE || '0'), // same Wilson-CI-lower-bound discipline as L123
   LATEGOAL_MIN_BASELINE:  parseFloat(process.env.LATEGOAL_MIN_BASELINE || '20'),
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // STRATEGY QUIET2H — "expect a quiet 2nd half" watch
+  // Mirror image of LATEGOAL: fires once per match right as the 2nd half
+  // starts (as soon as an HT snapshot exists, i.e. liveMin >= 45 — no need
+  // to wait, unlike LATEGOAL, since this doesn't depend on the 2nd half
+  // staying goalless first) if the match's own closing Total Line is low
+  // (QUIET2H_TL_BANDS) and the HT-conditioned historical pool (fav
+  // line/side + TL band + exact HT score) shows a qualifying
+  // under05_2H/under15_2H bet.
+  //
+  // Research + walk-forward validation (2026-08-23): TL band is by far the
+  // dominant driver — TL<2 shows ~32-39% under05_2H / ~70-75% under15_2H
+  // (vs. 22.2%/54.9% pooled baseline), TL 2-2.5 shows a smaller but still
+  // real elevation (~25-33% / ~60-67%), TL>=2.5 shows no edge at all
+  // (QUIET2H_TL_BANDS excludes those bands by default). Walk-forward:
+  // 79 qualifying (fav_line/side, TL band, HT state) cells across 10
+  // held-out months — 50.6% claimed vs. 49.1% realized (1.5pp gap),
+  // tighter than LATEGOAL's own TL-banded calibration.
+  //
+  // No bookmaker market equivalence trick needed here (unlike LATEGOAL) —
+  // "Total Goals — 2nd Half Under 0.5/1.5" is typically a real, directly
+  // quotable Bet365 market on its own; api-football just doesn't support
+  // checking it (2H-scoped markets aren't in its matchable set), so the
+  // message shows the internal computeLiveOdd target only, same as
+  // LATEGOAL's fallback when no equivalence/verification applies.
+  // ════════════════════════════════════════════════════════════════════════════
+  QUIET2H_ENABLED:      process.env.QUIET2H_ENABLED !== 'false',
+  QUIET2H_TIER:         process.env.QUIET2H_TIER          || 'TOP+MAJOR',
+  QUIET2H_TL_BANDS:     (process.env.QUIET2H_TL_BANDS     || '<2,2-2.5').split(','),
+  QUIET2H_BETS:         (process.env.QUIET2H_BETS         || 'under05_2H,under15_2H').split(','),
+  QUIET2H_MIN_N:        parseInt(process.env.QUIET2H_MIN_N    || '40',  10),
+  QUIET2H_MIN_Z:        parseFloat(process.env.QUIET2H_MIN_Z  || '1.8'),
+  QUIET2H_MIN_EDGE:     parseFloat(process.env.QUIET2H_MIN_EDGE || '0'),
 };

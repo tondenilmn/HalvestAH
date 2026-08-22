@@ -201,6 +201,9 @@ function inBand(v, band) {
   const [lo, hi] = band;
   return (lo == null || v >= lo) && (hi == null || v < hi);
 }
+function tlBandOf(v) {
+  return Object.entries(TL_BANDS).find(([, b]) => inBand(v, b))?.[0] ?? null;
+}
 
 // Qualifies on the Wilson CI *lower bound* (b.lo) rather than the raw point
 // estimate (b.p/b.edge) — the point estimate is inflated by winner's-curse
@@ -623,6 +626,95 @@ async function runStrategyLateGoal(match, ctx) {
   });
 }
 
+// ── Strategy QUIET2H — "expect a quiet 2nd half" watch ───────────────────────
+const quiet2hDedup = new Dedup(24 * 60 * 60 * 1000);
+
+function quiet2hQualifies(b) {
+  return b.n >= cfg.QUIET2H_MIN_N && b.z >= cfg.QUIET2H_MIN_Z && (b.lo - b.bl) >= cfg.QUIET2H_MIN_EDGE;
+}
+
+function quiet2hFormat(match, bet, liveMin, htSnap, liveOdd, odds, tlBandUsed) {
+  const targetOdds = liveOdd.fair_odd != null ? `@${liveOdd.fair_odd}` : '—';
+  const verdictLine = `📌 Target: at least ${targetOdds} (based on ${liveOdd.live_p}% live probability right now). No automated live-price check for this market — it's a real Bet365 market ("Total Goals — 2nd Half"), just not one api-football verifies.`;
+  const moveLine = lineMovementLine(odds);
+  return buildMessage(
+    `Quiet 2nd half expected`,
+    match,
+    `${liveMin}' · HT score ${htSnap.home}-${htSnap.away} · TL ${odds.tl_c ?? '—'}`,
+    [
+      `👉 <b>${esc(bet.label)}</b>  —  bet at ${targetOdds} or better`,
+      verdictLine,
+      ...(moveLine ? [moveLine] : []),
+      ``,
+      DIVIDER,
+      `Why: in ${bet.n} similar matches (same fav line/side${tlBandUsed ? ', comparable Total Line' : ''}, same HT score), this hit ${bet.p.toFixed(0)}% of the time (vs. ${bet.bl.toFixed(0)}% baseline). Walk-forward validated: 1.5pp claimed-vs-actual gap across 79 historical cells, ~16.5k held-out test matches.`,
+    ],
+  );
+}
+
+async function runStrategyQuiet2H(match, ctx) {
+  const { matchId, label, tier, liveMin } = ctx;
+
+  if (!cfg.QUIET2H_ENABLED) return;
+  if (liveMin == null || liveMin < 45) return;
+  if (!tierAllowed(tier, cfg.QUIET2H_TIER)) { flogv(liveMin, label, 'QUIET2H', `SKIP: tier=${tier} not in ${cfg.QUIET2H_TIER}`); return; }
+  if (!_dbAll || !_dbAll.length) return;
+
+  const dedupKey = `${matchId}:quiet2h`;
+  if (quiet2hDedup.has(dedupKey)) return;
+
+  const htSnap = _htSnapshots.get(matchId);
+  if (!htSnap) { flogv(liveMin, label, 'QUIET2H', 'SKIP: no HT snapshot captured for this match'); return; }
+
+  const odds = match.bet365_odds;
+  if (!odds) { flogv(liveMin, label, 'QUIET2H', 'SKIP: no Bet365 odds'); return; }
+  const matchCfg = buildCfgFromMatch(odds, { LINE_MOVE_ON: true, FAV_ODDS_ON: true, DOG_ODDS_ON: true, TL_MOVE_ON: true });
+  if (!matchCfg) { flogv(liveMin, label, 'QUIET2H', 'SKIP: odds incomplete'); return; }
+
+  const favLine = matchCfg.signals.favLine;
+  const favSide = matchCfg.signals.favSide;
+
+  // Only TL<2 and TL 2-2.5 showed a validated edge for a quiet 2nd half —
+  // TL>=2.5 matches showed no elevation over baseline at all (see config.js
+  // comment), so skip outright rather than fire a false-confidence alert.
+  const tlBand = tlBandOf(odds.tl_c);
+  if (!cfg.QUIET2H_TL_BANDS.includes(tlBand)) { flogv(liveMin, label, 'QUIET2H', `SKIP: TL band ${tlBand} not in ${cfg.QUIET2H_TL_BANDS}`); return; }
+
+  const lineBase = _dbAll.filter(r => r.fav_line === favLine && r.fav_side === favSide);
+  const bandBase = lineBase.filter(r => tlBandOf(r.tl_c) === tlBand);
+  const base = bandBase.length >= cfg.QUIET2H_MIN_N ? bandBase : lineBase;
+  if (base.length < cfg.QUIET2H_MIN_N) { flogv(liveMin, label, 'QUIET2H', 'SKIP: base pool too small'); return; }
+
+  const gs = { trigger: 'HT', home_goals: String(htSnap.home), away_goals: String(htSnap.away) };
+  const gsRows = applyGameState(base, gs);
+  if (gsRows.length < cfg.QUIET2H_MIN_N) { flogv(liveMin, label, 'QUIET2H', `SKIP: only ${gsRows.length} historical matches reached this HT state`); return; }
+
+  const allBets = scoreBets(gsRows, base, base, cfg.QUIET2H_MIN_N);
+  const candidates = allBets.filter(b => cfg.QUIET2H_BETS.includes(b.k) && quiet2hQualifies(b));
+  if (!candidates.length) { flogv(liveMin, label, 'QUIET2H', 'SKIP: no qualifying quiet-2H bet'); return; }
+
+  candidates.sort((a, b) => (b.z * b.lo / 100) - (a.z * a.lo / 100));
+  const bet = candidates[0];
+
+  // favG2h/dogG2h are always 0 here — QUIET2H fires right as the 2nd half
+  // starts, before any 2H goals could have happened yet.
+  const liveOdd = computeLiveOdd(bet.p, bet.k, liveMin, favLine, 0, 0, favSide);
+
+  const msg = quiet2hFormat(match, bet, liveMin, htSnap, liveOdd, odds, base === bandBase);
+  await sendTelegram(msg);
+  quiet2hDedup.mark(dedupKey);
+  flog(liveMin, label, 'QUIET2H', `ALERT: ${bet.k} p=${bet.p.toFixed(1)}% z=${bet.z.toFixed(2)} n=${bet.n} liveOdd=${liveOdd.fair_odd} tier=${tier}`);
+
+  recordAlert({
+    matchId, homeTeam: match.home_team, awayTeam: match.away_team,
+    league: match.league, tier,
+    fixtureId: null, betKey: bet.k, betLabel: bet.label,
+    favSide, favLine, tlLine: odds.tl_c,
+    priceAtAlert: null,
+    mo: bet.mo, mo_lo: bet.mo_lo,
+  });
+}
+
 // ── Hash-failure alert (once per failed hash value) ──────────────────────────
 const _hashAlerted = new Set();
 async function notifyHashFailed(bookmaker, shortHash) {
@@ -675,6 +767,7 @@ async function runScan() {
       await runStrategyL123(match, ctx);
     } else if (liveMin != null) {
       flogv(liveMin, `${label} [${tier}]`, 'ALL', `live ${liveMin}'  score=${match.score || '—'}`);
+      await runStrategyQuiet2H(match, ctx);
       await runStrategyLateGoal(match, ctx);
     } else {
       flogv(liveMin, `${label} [${tier}]`, 'ALL', `not in pre-match window (liveMin=— toKickoff=${toKickoff != null ? Math.round(toKickoff) + 'm' : '—'})`);

@@ -237,7 +237,7 @@ Required columns: AH Home/Away Closing+Opening, Home/Away Odds Closing+Opening, 
 
 ## Telegram Notifier (`telegram/`)
 
-Standalone Node.js service that polls live matches and sends Telegram alerts under two active strategies — **L123** (pre-match) and **LATEGOAL** (in-play, see below); everything else is legacy (see further down). Deployable to Railway or run locally.
+Standalone Node.js service that polls live matches and sends Telegram alerts under three active strategies — **L123** (pre-match), **LATEGOAL** (in-play, still no 2H goal), and **QUIET2H** (in-play, expect a quiet 2nd half; see below); everything else is legacy (see further down). Deployable to Railway or run locally.
 
 ```bash
 cd telegram
@@ -298,6 +298,10 @@ Note this pre-match timing is a real shift from how L123 was originally walk-for
 When the equivalence applies, the alert calls `apifootball.js`'s `verifyBet365Price()` for that *real* market instead of showing only the internal Poisson estimate — same api-football integration L123 uses, `overTL`/`btts` were already supported market types.
 
 **Live fair-odds estimate:** `telegram/live_odds.js` is a Node port of `static/app.js`'s `computeLiveOdd` (verified to produce identical output) — used to time-decay the HT-anchor hit rate down to a live fair probability/odds at the current minute, given no goal has happened yet.
+
+**Strategy QUIET2H — "expect a quiet 2nd half" watch** (`notify.js` + `config.js`, added 2026-08-23): the mirror image of LATEGOAL. Fires once per match as soon as the 2nd half starts (as soon as an HT snapshot exists, i.e. `liveMin >= 45` — no need to wait for a condition to hold first, unlike LATEGOAL) if the match's own closing Total Line is low (`QUIET2H_TL_BANDS`, default `<2` and `2-2.5` only) and the HT-conditioned historical pool (fav line/side + TL band + exact HT score) shows a qualifying `under05_2H`/`under15_2H` bet. Message includes the `computeLiveOdd` target fair odds directly (advised odds) — there's no api-football verification path here (2H-scoped markets aren't in its matchable set), unlike LATEGOAL's equivalence-market trick, though "Total Goals — 2nd Half Under 0.5/1.5" is typically a real, directly quotable Bet365 market on its own.
+
+**Research + walk-forward validation (2026-08-23):** Total Line band is by far the dominant driver of a quiet 2nd half — TL`<2` shows ~32-39% under05_2H / ~70-75% under15_2H (vs. 22.2%/54.9% pooled baseline), TL `2-2.5` shows a smaller but still real elevation (~25-33%/~60-67%), TL`>=2.5` shows no edge at all (excluded by default). Walk-forward: 79 qualifying (fav_line/side, TL band, HT state) cells across 10 held-out months — 50.6% claimed vs. 49.1% realized (1.5pp gap), tighter than even LATEGOAL's own TL-banded calibration. Two follow-up movement checks were tested and **rejected** — neither survives walk-forward on top of the TL-band+HT-state query: `tl_move` showed no residual effect once TL band is controlled for, and `under_move=IN`/`over_move=OUT` (Over/Under odds steaming toward Under) showed a real pooled effect (z≈3 in the TL `2-2.5` band) but widened the calibration gap from 0.3pp to 1.5pp and shrank coverage by ~4x once stacked on the HT-state split — the plain TL-band query was already better calibrated on its own.
 
 ## Live Match & Odds Feed (`telegram/livescore.js`)
 
