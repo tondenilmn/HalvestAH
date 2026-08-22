@@ -633,9 +633,31 @@ function quiet2hQualifies(b) {
   return b.n >= cfg.QUIET2H_MIN_N && b.z >= cfg.QUIET2H_MIN_Z && (b.lo - b.bl) >= cfg.QUIET2H_MIN_EDGE;
 }
 
-function quiet2hFormat(match, bet, liveMin, htSnap, liveOdd, odds, tlBandUsed) {
+// Same equivalence trick as LATEGOAL's equivalentRealMarket, run in reverse:
+// QUIET2H fires the moment 2H starts, so the current score always equals the
+// HT snapshot (no 2H goals possible yet) — "no more goals in 2H" therefore
+// always equals "FT total stays at the current total", and "at most 1 more
+// goal in 2H" always equals "FT total rises by at most 1". Both re-express as
+// a standard, directly quotable Under-Total-Goals FT market:
+//   under05_2H (0 more goals) -> Under (current total + 0.5) FT
+//     e.g. HT 1-0 or 0-1 (total 1) -> Under 1.5 FT
+//   under15_2H (<=1 more goal) -> Under (current total + 1.5) FT
+//     e.g. HT 1-0 or 0-1 (total 1) -> Under 2.5 FT
+function equivalentRealMarketQuiet2h(betKey, htSnap) {
+  const total = htSnap.home + htSnap.away;
+  if (betKey === 'under05_2H') return { apiKey: 'underTL', avgTl: total + 0.5, label: `Under ${total + 0.5} FT` };
+  if (betKey === 'under15_2H') return { apiKey: 'underTL', avgTl: total + 1.5, label: `Under ${total + 1.5} FT` };
+  return null;
+}
+
+function quiet2hFormat(match, bet, liveMin, htSnap, liveOdd, equivalent, apiFootballCheck, odds, tlBandUsed) {
   const targetOdds = liveOdd.fair_odd != null ? `@${liveOdd.fair_odd}` : '—';
-  const verdictLine = `📌 Target: at least ${targetOdds} (based on ${liveOdd.live_p}% live probability right now). No automated live-price check for this market — it's a real Bet365 market ("Total Goals — 2nd Half"), just not one api-football verifies.`;
+  const marketLabel = equivalent ? equivalent.label : bet.label;
+  const verdictLine = apiFootballVerdictLine(marketLabel, liveOdd.fair_odd, apiFootballCheck)
+    ?? `📌 Target: at least ${targetOdds} (based on ${liveOdd.live_p}% live probability right now).`;
+  const equivNote = equivalent
+    ? [`♻️ Same as betting <b>${equivalent.label}</b> at this score — look for that market on Bet365.`]
+    : [];
   const moveLine = lineMovementLine(odds);
   return buildMessage(
     `Quiet 2nd half expected`,
@@ -644,6 +666,7 @@ function quiet2hFormat(match, bet, liveMin, htSnap, liveOdd, odds, tlBandUsed) {
     [
       `👉 <b>${esc(bet.label)}</b>  —  bet at ${targetOdds} or better`,
       verdictLine,
+      ...equivNote,
       ...(moveLine ? [moveLine] : []),
       ``,
       DIVIDER,
@@ -700,10 +723,23 @@ async function runStrategyQuiet2H(match, ctx) {
   // starts, before any 2H goals could have happened yet.
   const liveOdd = computeLiveOdd(bet.p, bet.k, liveMin, favLine, 0, 0, favSide);
 
-  const msg = quiet2hFormat(match, bet, liveMin, htSnap, liveOdd, odds, base === bandBase);
+  const equivalent = equivalentRealMarketQuiet2h(bet.k, htSnap);
+  let apiFootballCheck = null;
+  if (equivalent && cfg.APIFOOTBALL_KEY) {
+    try {
+      apiFootballCheck = await verifyBet365Price(equivalent.apiKey, {
+        matchId, homeTeam: match.home_team, awayTeam: match.away_team,
+        favSide, favLine, avgTl: equivalent.avgTl,
+      }, cfg.APIFOOTBALL_KEY);
+    } catch (e) {
+      flogv(liveMin, label, 'QUIET2H', `api-football check failed: ${e.message}`);
+    }
+  }
+
+  const msg = quiet2hFormat(match, bet, liveMin, htSnap, liveOdd, equivalent, apiFootballCheck, odds, base === bandBase);
   await sendTelegram(msg);
   quiet2hDedup.mark(dedupKey);
-  flog(liveMin, label, 'QUIET2H', `ALERT: ${bet.k} p=${bet.p.toFixed(1)}% z=${bet.z.toFixed(2)} n=${bet.n} liveOdd=${liveOdd.fair_odd} tier=${tier}`);
+  flog(liveMin, label, 'QUIET2H', `ALERT: ${bet.k} p=${bet.p.toFixed(1)}% z=${bet.z.toFixed(2)} n=${bet.n} liveOdd=${liveOdd.fair_odd} equiv=${equivalent ? equivalent.label : '—'} tier=${tier}`);
 
   recordAlert({
     matchId, homeTeam: match.home_team, awayTeam: match.away_team,
