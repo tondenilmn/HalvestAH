@@ -15,8 +15,11 @@
 // a fresh budget; this is a soft safety margin, not a hard external
 // rate-limiter, and doesn't need to survive restarts to do its job.
 
-const NOTIFICATION_BUDGET = parseInt(process.env.APIFOOTBALL_NOTIFICATION_BUDGET || '80', 10);
-const SETTLEMENT_BUDGET = parseInt(process.env.APIFOOTBALL_SETTLEMENT_BUDGET || '20', 10);
+// Settlement given 0 for now (2026-08-23) — all quota reserved for
+// notifications. Set APIFOOTBALL_SETTLEMENT_BUDGET back to a positive
+// value to resume spending API calls on settling alerts.
+const NOTIFICATION_BUDGET = parseInt(process.env.APIFOOTBALL_NOTIFICATION_BUDGET || '100', 10);
+const SETTLEMENT_BUDGET = parseInt(process.env.APIFOOTBALL_SETTLEMENT_BUDGET || '0', 10);
 const DAILY_LIMIT = NOTIFICATION_BUDGET + SETTLEMENT_BUDGET;
 
 let day = null;
