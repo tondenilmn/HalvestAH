@@ -268,6 +268,16 @@ function realPriceVerdict(marketLabel, odds, minOdds) {
   return `❌ Bet365 ${marketLabel} is only @${odds.toFixed(2)} (need ≥ @${minOdds.toFixed(2)}) — skip unless you find better elsewhere.`;
 }
 
+// Track-record recording gate: only log an alert to track_record.js if we
+// actually have a real, verified price AND it clears the advised/target
+// fair odds — an alert that fires but shows a price below target (or no
+// price at all) still gets sent to Telegram (so the user sees it and can
+// check Bet365 manually), but is deliberately excluded from the track
+// record so hit-rate/ROI reporting only reflects genuinely bettable picks.
+function verifiedGoodPrice(price, minOdds) {
+  return price != null && minOdds != null && price >= minOdds;
+}
+
 // apiFootballCheck: null (not attempted/configured), or { supported, odds }
 // from verifyBet365Price. marketLabel is what to call the market in the
 // message (may be a substituted equivalent market, not the bet's own name).
@@ -418,16 +428,23 @@ async function runStrategyL123(match, ctx) {
 
   // Log this alert so the track record can settle it once the match ends and
   // report back on how it actually did — see track_record.js. Never affects
-  // whether the alert fired; purely a record for later reporting.
-  recordAlert({
-    matchId, homeTeam: match.home_team, awayTeam: match.away_team,
-    league: match.league, tier,
-    fixtureId: apiFootballCheck?.fixtureId ?? null,
-    betKey: topKey, betLabel: bet.label,
-    favSide, favLine, tlLine: tlC,
-    priceAtAlert: liveOdds ?? apiFootballCheck?.odds ?? null,
-    mo: bet.mo, mo_lo: bet.mo_lo,
-  });
+  // whether the alert fired; purely a record for later reporting. Only
+  // recorded if we have a real, verified price that actually clears the
+  // target — see verifiedGoodPrice's comment.
+  const l123Price = liveOdds ?? (apiFootballCheck?.supported ? apiFootballCheck.odds : null);
+  if (verifiedGoodPrice(l123Price, bet.mo_lo)) {
+    recordAlert({
+      matchId, homeTeam: match.home_team, awayTeam: match.away_team,
+      league: match.league, tier,
+      fixtureId: apiFootballCheck?.fixtureId ?? null,
+      betKey: topKey, betLabel: bet.label,
+      favSide, favLine, tlLine: tlC,
+      priceAtAlert: l123Price,
+      mo: bet.mo, mo_lo: bet.mo_lo,
+    });
+  } else {
+    flogv(liveMin, label, 'L123', 'Not recorded to track record — no verified price clearing target.');
+  }
 }
 
 // ── Strategy LATEGOAL — "still no 2H goal" watch ──────────────────────────────
@@ -616,14 +633,21 @@ async function runStrategyLateGoal(match, ctx) {
   lateGoalDedup.mark(dedupKey);
   flog(liveMin, label, 'LATEGOAL', `ALERT: ${bet.k} p=${bet.p.toFixed(1)}% z=${bet.z.toFixed(2)} n=${bet.n} liveOdd=${liveOdd.fair_odd} equiv=${equivalent ? equivalent.label : '—'} tier=${tier}`);
 
-  recordAlert({
-    matchId, homeTeam: match.home_team, awayTeam: match.away_team,
-    league: match.league, tier,
-    fixtureId: null, betKey: bet.k, betLabel: bet.label,
-    favSide, favLine, tlLine: odds.tl_c,
-    priceAtAlert: null, // no real bookmaker price captured for this bet type — see LATEGOAL config comment
-    mo: bet.mo, mo_lo: bet.mo_lo,
-  });
+  // Only recorded if api-football found a real price for the equivalent
+  // market AND it clears the target fair odds — see verifiedGoodPrice.
+  const lateGoalPrice = apiFootballCheck?.supported ? apiFootballCheck.odds : null;
+  if (verifiedGoodPrice(lateGoalPrice, liveOdd.fair_odd)) {
+    recordAlert({
+      matchId, homeTeam: match.home_team, awayTeam: match.away_team,
+      league: match.league, tier,
+      fixtureId: null, betKey: bet.k, betLabel: bet.label,
+      favSide, favLine, tlLine: odds.tl_c,
+      priceAtAlert: lateGoalPrice,
+      mo: bet.mo, mo_lo: bet.mo_lo,
+    });
+  } else {
+    flogv(liveMin, label, 'LATEGOAL', 'Not recorded to track record — no verified price clearing target.');
+  }
 }
 
 // ── Strategy QUIET2H — "expect a quiet 2nd half" watch ───────────────────────
@@ -741,14 +765,21 @@ async function runStrategyQuiet2H(match, ctx) {
   quiet2hDedup.mark(dedupKey);
   flog(liveMin, label, 'QUIET2H', `ALERT: ${bet.k} p=${bet.p.toFixed(1)}% z=${bet.z.toFixed(2)} n=${bet.n} liveOdd=${liveOdd.fair_odd} equiv=${equivalent ? equivalent.label : '—'} tier=${tier}`);
 
-  recordAlert({
-    matchId, homeTeam: match.home_team, awayTeam: match.away_team,
-    league: match.league, tier,
-    fixtureId: null, betKey: bet.k, betLabel: bet.label,
-    favSide, favLine, tlLine: odds.tl_c,
-    priceAtAlert: null,
-    mo: bet.mo, mo_lo: bet.mo_lo,
-  });
+  // Only recorded if api-football found a real price for the equivalent
+  // market AND it clears the target fair odds — see verifiedGoodPrice.
+  const quiet2hPrice = apiFootballCheck?.supported ? apiFootballCheck.odds : null;
+  if (verifiedGoodPrice(quiet2hPrice, liveOdd.fair_odd)) {
+    recordAlert({
+      matchId, homeTeam: match.home_team, awayTeam: match.away_team,
+      league: match.league, tier,
+      fixtureId: null, betKey: bet.k, betLabel: bet.label,
+      favSide, favLine, tlLine: odds.tl_c,
+      priceAtAlert: quiet2hPrice,
+      mo: bet.mo, mo_lo: bet.mo_lo,
+    });
+  } else {
+    flogv(liveMin, label, 'QUIET2H', 'Not recorded to track record — no verified price clearing target.');
+  }
 }
 
 // ── Hash-failure alert (once per failed hash value) ──────────────────────────

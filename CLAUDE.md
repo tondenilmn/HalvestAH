@@ -53,10 +53,14 @@ telegram/
   apifootball.js          # Optional api-football.com Bet365 price verification — fetches the live
                           # price for whatever bet L123 is about to alert on, called once per alert
                           # (not a scanning gate) so the message can say "odds OK"/"odds lower"
-  track_record.js         # Logs every alert sent, settles it once the match finishes (via
-                          # api-football), and sends a daily Telegram scorecard (hit rate + ROI@price
-                          # shown at alert time) — closes the loop on whether live alerts actually
-                          # work, not just historical backtests. Persists to telegram/data/ (gitignored).
+  track_record.js         # Logs an alert only when notify.js verified a real live/api-football
+                          # price that clears the target fair odds (verifiedGoodPrice()) — an alert
+                          # that fires with no verifiable or sub-target price is still sent to
+                          # Telegram but deliberately excluded here. Settles logged alerts once the
+                          # match finishes (via api-football) and sends a daily Telegram scorecard
+                          # (hit rate + ROI@price shown at alert time) — closes the loop on whether
+                          # live, genuinely bettable alerts actually work, not just historical
+                          # backtests. Persists to telegram/data/ (gitignored).
   backtest.js, backtest_mkt.js, backtest_tlm1h.js, backtest_under15ht.js,
   backtest_baseline.js, backtest_config.js, backtest_crossbook.js,
   backtest_dogah_favsteam.js, backtest_favsteam.js, backtest_gsa.js,

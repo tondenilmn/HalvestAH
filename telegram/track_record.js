@@ -48,12 +48,17 @@ function saveState(state) {
   fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2));
 }
 
-// Called right after an alert is sent. `entry` carries everything needed to
-// settle it later: matchId, fixtureId (if known from the api-football check
-// at alert time), homeTeam, awayTeam, league, tier, betKey, betLabel,
-// favSide, favLine (fav's AH line, positive), tlLine (this match's actual
-// closing total line), priceAtAlert (the live price shown in the alert, if
-// any — liveOdds or the api-football odds), mo, mo_lo.
+// Called right after an alert is sent — but only when notify.js's
+// verifiedGoodPrice() confirmed a real, verified live/api-football price
+// that actually clears the target fair odds. An alert that fired but had no
+// verifiable price, or a price below target, is still sent to Telegram but
+// deliberately NOT logged here, so hit-rate/ROI only reflect genuinely
+// bettable picks. `entry` carries everything needed to settle it later:
+// matchId, fixtureId (if known from the api-football check at alert time),
+// homeTeam, awayTeam, league, tier, betKey, betLabel, favSide, favLine
+// (fav's AH line, positive), tlLine (this match's actual closing total
+// line), priceAtAlert (the verified price — never null by the time this is
+// called), mo, mo_lo.
 function recordAlert(entry) {
   const log = loadLog();
   log.push({ ...entry, timestamp: Date.now(), settled: false, result: null, finalScore: null, fraction: null });
