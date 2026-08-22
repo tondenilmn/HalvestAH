@@ -62,7 +62,7 @@ module.exports = {
   // positive), vs. the prior point-estimate gate which was negative/flat in
   // most of the same months. See telegram/tune_l123_scratch.js.
   // ════════════════════════════════════════════════════════════════════════════
-  L123_ENABLED:      process.env.L123_ENABLED !== 'false',   // enabled by default — the only active strategy
+  L123_ENABLED:      process.env.L123_ENABLED === 'true',   // disabled by default (2026-08-23) — set L123_ENABLED=true to re-enable
   L123_TIER:         process.env.L123_TIER    || process.env.LEAGUE_TIER || 'TOP+MAJOR',
   L123_MIN_N:        parseInt(process.env.L123_MIN_N          || '30',  10),  // min historical pool size per layer
   L123_MIN_Z:        parseFloat(process.env.L123_MIN_Z        || '1.8'),      // min z-score per layer
