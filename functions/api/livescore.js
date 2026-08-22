@@ -30,46 +30,92 @@
  *   { matches: [], note: "…" }  — when no live data found
  */
 
+// Bet365 is the PRIMARY (and effectively only) source now — Pinnacle is no
+// longer listed on asianbetsoccer's #book_filter dropdown at all (confirmed
+// 2026-08-22), so its hash can never be auto-discovered again; only
+// hardcoded/env-var overrides could ever work for it, and even those go
+// stale fast since it's delisted. Bet365's hash IS still listed and can
+// self-heal via fetchAllBookHashes below. This mirrors telegram/livescore.js,
+// which made the same switch already — see that file's own comment for the
+// full history. PINNACLE_HASH is kept only as a best-effort secondary
+// odds source (silently empty if it fails, same as SBOBET_HASH).
 let PINNACLE_HASH = '30e528c380c96b362ffacdc66b2808c8ad59ce9e'; // overridden at runtime from context.env
 let BET365_HASH   = '88cb51b3c128c9bde8e975e9dad5bc62625a8bd5'; // overridden at runtime from context.env
 let SBOBET_HASH   = '3232dc0679a9e90f92c895b626b67d7af6c5f661'; // overridden at runtime from context.env
 // gS candidates — 'Q' is the confirmed primary value; rest are fallbacks.
-// Auto-discovery (fetchPinnacleHash) is tried before the sweep when the primary hash fails.
+// Auto-discovery (fetchAllBookHashes) is tried before the sweep when the primary hash fails.
 // Worst-case subrequest budget: 1 (fast path) + 1 (page fetch) + 1 (Q+discovered) + 18 (sweep) = 21, well under 50.
 const GS_PRIMARY    = 'Q';
 const GS_CANDIDATES = ['Q', '1', '2', '3', 'AH', 'S', 'EU', 'A', 'ah', 's', '4', '5', '10', '6', '7', '8', 'B', 'F'];
 
+// asianbetsoccer.com's WAF blocks a full desktop-Chrome User-Agent string
+// (403) from some networks/hosts while accepting a bare "Mozilla/5.0" — try
+// the full header set first (looks like a real browser where it isn't
+// blocked), then fall back to the minimal UA that's known to get through.
+// This was the actual root cause of the Daily Dashboard returning zero
+// matches (2026-08-22): the fast-path Pinnacle hash 404'd (expected, they
+// rotate), and the old single-header-set discovery fetch got a silent 403,
+// so it never found a replacement hash at all — and Pinnacle wasn't even on
+// the dropdown any more regardless.
+const LIVESCORE_HEADER_SETS = [
+  {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+    Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+    'Accept-Language': 'it-IT,it;q=0.9,en-US;q=0.8,en;q=0.7',
+  },
+  { 'User-Agent': 'Mozilla/5.0' },
+];
+
+// Anchored exact-match — the page also lists a separate "Bet365 Live" option
+// whose hash serves a different feed (0 odds rows on the livegame endpoint);
+// a loose /bet\s*365/i match would collide with it and silently overwrite
+// the correct hash with a broken one since a naive loop takes the last match.
+const BOOK_PATTERNS = {
+  pinnacle: /^pinnacle$/i,
+  bet365:   /^bet\s*365$/i,
+  sbobet:   /^sbo\s*bet$/i,
+};
+
 /**
- * Fetch the asianbetsoccer livescore page and extract Pinnacle's current book hash
- * from the #book_filter <select> options (e.g. <option value="<40-hex>">Pinnacle</option>).
- * Falls back to scanning for botbot3.space URLs embedded in any inline scripts.
- * Returns the hash string, or null if not found.
+ * Fetch the asianbetsoccer livescore page once and extract all three book
+ * hashes from the #book_filter <select> options. Returns
+ * { pinnacle, bet365, sbobet } — any value may be null if not found/delisted.
  */
-async function fetchPinnacleHash() {
+async function fetchAllBookHashes() {
   try {
-    const resp = await fetch('https://www.asianbetsoccer.com/it/livescore.html', {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language': 'it-IT,it;q=0.9,en-US;q=0.8,en;q=0.7',
-      },
-    });
-    if (!resp.ok) return null;
+    let resp;
+    for (const headers of LIVESCORE_HEADER_SETS) {
+      resp = await fetch('https://www.asianbetsoccer.com/it/livescore.html', { headers });
+      if (resp.ok) break;
+    }
+    if (!resp.ok) return { pinnacle: null, bet365: null, sbobet: null };
     const html = await resp.text();
 
-    // Primary: #book_filter option with 40-char hex value near "Pinnacle" label
-    const m1 = html.match(/value="([a-f0-9]{40})"[^>]*>\s*Pinnacle/i);
-    if (m1) return m1[1];
+    const result = { pinnacle: null, bet365: null, sbobet: null };
+    const optRe = /value="([a-f0-9]{40})"[^>]*>\s*([^<]+)/gi;
+    let m;
+    while ((m = optRe.exec(html)) !== null) {
+      const [, hash, rawLabel] = m;
+      const label = rawLabel.trim();
+      if (!result.pinnacle && BOOK_PATTERNS.pinnacle.test(label)) result.pinnacle = hash;
+      else if (!result.bet365 && BOOK_PATTERNS.bet365.test(label)) result.bet365   = hash;
+      else if (!result.sbobet && BOOK_PATTERNS.sbobet.test(label)) result.sbobet   = hash;
+    }
 
-    // Fallback: any botbot3.space livegame URL embedded in the page
-    const m2 = html.match(/botbot3\.space\/tables\/v4\/[^/]+\/livegame\/([a-f0-9]{40})\.js/);
-    if (m2) return m2[1];
+    // Fallback for Pinnacle: botbot3.space livegame URL embedded in page scripts
+    if (!result.pinnacle) {
+      const m2 = html.match(/botbot3\.space\/tables\/v4\/[^/]+\/livegame\/([a-f0-9]{40})\.js/);
+      if (m2) result.pinnacle = m2[1];
+    }
 
-    return null;
+    return result;
   } catch {
-    return null;
+    return { pinnacle: null, bet365: null, sbobet: null };
   }
 }
+
+async function fetchPinnacleHash() { return (await fetchAllBookHashes()).pinnacle; }
+async function fetchBet365Hash()   { return (await fetchAllBookHashes()).bet365; }
 
 /**
  * Fetch live odds for a secondary bookmaker (Bet365, Sbobet) by hash.
@@ -133,11 +179,12 @@ export async function onRequest(context) {
     );
   }
 
-  // ?debug=1 — inspect the raw JS and show extraction results
+  // ?debug=1 — inspect the raw JS and show extraction results (Bet365 hash,
+  // since that's the primary source now — see constant comments above)
   if (isDebug) {
     const ts  = Date.now();
-    const url = `https://botbot3.space/tables/v4/Q/livegame/${PINNACLE_HASH}.js?date=${ts}&_=${ts + 1}`;
-    const r   = await fetch(url, { headers: makeBotbotHeaders('Q', PINNACLE_HASH) })
+    const url = `https://botbot3.space/tables/v4/Q/livegame/${BET365_HASH}.js?date=${ts}&_=${ts + 1}`;
+    const r   = await fetch(url, { headers: makeBotbotHeaders('Q', BET365_HASH) })
       .catch(e => ({ ok: false, status: 0, text: async () => e.message }));
     const body = await r.text();
 
@@ -250,15 +297,18 @@ export async function onRequest(context) {
     return mergeMatchData(oddsRows, metaRows);
   }
 
-  // ── Fast path: try stored hash. On 404, auto-discover from asianbetsoccer page and retry. ──
-  let liveResult = await tryComboData(PINNACLE_HASH, GS_PRIMARY);
+  // ── Fast path: try stored Bet365 hash. On 404, auto-discover and retry. ──
+  // Bet365 is primary (see the constant comments above for why) — it carries
+  // both the match list AND its own odds off one call, unlike the old
+  // Pinnacle-primary design which needed a separate secondary-odds fetch.
+  let liveResult = await tryComboData(BET365_HASH, GS_PRIMARY);
 
   if (!liveResult && lastError.includes('404')) {
-    const discovered = await fetchPinnacleHash();
-    if (discovered && discovered !== PINNACLE_HASH) {
-      PINNACLE_HASH = discovered;
+    const discovered = await fetchBet365Hash();
+    if (discovered && discovered !== BET365_HASH) {
+      BET365_HASH = discovered;
       lastError = '';
-      liveResult = await tryComboData(PINNACLE_HASH, GS_PRIMARY);
+      liveResult = await tryComboData(BET365_HASH, GS_PRIMARY);
     }
   }
 
@@ -266,24 +316,31 @@ export async function onRequest(context) {
     return new Response(
       JSON.stringify({
         matches: [],
-        note: `Hash ${PINNACLE_HASH.slice(0,8)}… failed. ${lastError}`,
+        note: `Hash ${BET365_HASH.slice(0,8)}… failed. ${lastError}`,
       }),
       { headers: cors }
     );
   }
 
-  // ── Fetch tablenext + secondary book odds in parallel ────────────────────
-  const [nextMatches, b365Map, sboMap] = await Promise.all([
-    tryNextComboData(PINNACLE_HASH, GS_PRIMARY).then(r => r ?? []),
-    fetchLiveOddsMap(BET365_HASH, timestamp),
+  // ── Fetch tablenext + secondary (reference) book odds in parallel ───────
+  // Pinnacle/Sbobet are best-effort only now — fetchLiveOddsMap silently
+  // returns an empty map on any failure, so a delisted/stale Pinnacle hash
+  // just means no reference odds for that book, not a broken response.
+  const [nextMatches, pinnacleMap, sboMap] = await Promise.all([
+    tryNextComboData(BET365_HASH, GS_PRIMARY).then(r => r ?? []),
+    fetchLiveOddsMap(PINNACLE_HASH, timestamp),
     fetchLiveOddsMap(SBOBET_HASH, timestamp),
   ]);
 
-  // Attach secondary odds to each Pinnacle match by shared matchId
+  // Attach reference odds to each Bet365 match by shared matchId
   for (const m of liveResult.matches) {
     if (!m.id) continue;
-    if (b365Map.has(m.id)) m.bet365_odds = b365Map.get(m.id);
-    if (sboMap.has(m.id))  m.sbobet_odds  = sboMap.get(m.id);
+    if (pinnacleMap.has(m.id)) m.pinnacle_odds = pinnacleMap.get(m.id);
+    if (sboMap.has(m.id))      m.sbobet_odds   = sboMap.get(m.id);
+    // Alias for consumers that expect this field name (e.g. telegram/
+    // notify.js's L123 reads match.bet365_odds from its own livescore.js —
+    // unrelated to this function, but kept consistent).
+    m.bet365_odds = m.odds;
   }
 
   return new Response(
@@ -291,8 +348,8 @@ export async function onRequest(context) {
       matches:      liveResult.matches,
       next_matches: nextMatches,
       gS:           GS_PRIMARY,
-      book:         PINNACLE_HASH,
-      bet365_book:  BET365_HASH,
+      book:         BET365_HASH,
+      pinnacle_book: PINNACLE_HASH,
       sbobet_book:  SBOBET_HASH,
       method:       liveResult.method,
     }),

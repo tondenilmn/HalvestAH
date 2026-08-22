@@ -225,12 +225,25 @@ async function fetchUpcomingFixtures(hoursAhead) {
   const res = await fetch('/api/livescore');
   if (!res.ok) throw new Error(`livescore fetch failed: HTTP ${res.status}`);
   const data = await res.json();
-  const matches = data.matches || [];
+  // data.matches is the LIVE endpoint's own array — it's dominated by
+  // currently-live matches, plus a narrow "about to start / just finished"
+  // band from getDatalast1 that goes stale within an hour or two of the
+  // scrape. The real forward-looking fixture list (rest of today/next day)
+  // is data.next_matches (the separate "tablenext" endpoint) — found via
+  // direct testing 2026-08-22 after the dashboard was returning zero
+  // matches even once the underlying hash/WAF issue was fixed. Merge both,
+  // deduped by id, so a match that happens to appear in both isn't double
+  // counted and nothing from either source is silently dropped.
+  const combined = [...(data.next_matches || []), ...(data.matches || [])];
+  const seen = new Set();
   const now = Date.now();
   const horizon = now + hoursAhead * 60 * 60 * 1000;
-  return matches.filter(m => {
+  return combined.filter(m => {
     if (m.minute != null) return false; // already live — out of scope for this dashboard
     if (!m.kickoff_time) return false;
+    const id = m.id || `${m.home_team}:${m.away_team}:${m.kickoff_time}`;
+    if (seen.has(id)) return false;
+    seen.add(id);
     const t = new Date(m.kickoff_time).getTime();
     return !isNaN(t) && t > now && t <= horizon;
   });
