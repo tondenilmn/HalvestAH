@@ -107,6 +107,14 @@ function dashboardLeagueGroup(name) {
   return matchLeagueGroup(name, TOP_LEAGUE_GROUPS) || matchLeagueGroup(name, MINOR_LEAGUE_GROUPS);
 }
 
+// Per-run memoization for the two full-database scans that would otherwise
+// repeat once per fixture (500+ fixtures in the 24h window is common) —
+// openingOddsSignal's fav_line/fav_side base pool and leagueCalibration's
+// league pool. Reset at the top of runDailyDashboard so a reloaded/refiltered
+// db (tier/recency toggle) doesn't serve stale cached rows.
+let _dashBaseCache = new Map();
+let _dashLeagueCache = new Map();
+
 const DASHBOARD_ODDS_BANDS = [
   [null, 1.60], [1.60, 1.75], [1.75, 1.90], [1.90, 2.05],
   [2.05, 2.30], [2.30, 2.70], [2.70, null],
@@ -155,7 +163,11 @@ function goalTimingCorroborates(leagueGroup, betKey) {
 function leagueCalibration(leagueGroup, betKey) {
   const def = BETS.find(b => b.k === betKey);
   if (!def || !def.marketOddsKey) return null;
-  const rows = getDb().filter(r => dashboardLeagueGroup(r.league) === leagueGroup);
+  let rows = _dashLeagueCache.get(leagueGroup);
+  if (!rows) {
+    rows = getDb().filter(r => dashboardLeagueGroup(r.league) === leagueGroup);
+    _dashLeagueCache.set(leagueGroup, rows);
+  }
   if (rows.length < 100) return null; // not enough league-specific sample to trust
   const p = pct(rows, betKey);
   const mkt = avgMarketImplied(rows, def.marketOddsKey);
@@ -166,13 +178,18 @@ function leagueCalibration(leagueGroup, betKey) {
 // Signal 1 — opening-odds-only historical bucket, mirrors telegram/notify.js's
 // layer1Live but reading from the already-loaded client-side database.
 function openingOddsSignal(favLine, favSide, favOo, tlO) {
-  const base = getDb().filter(r => r.fav_line === favLine && r.fav_side === favSide);
+  const baseKey = `${favLine}|${favSide}`;
+  let base = _dashBaseCache.get(baseKey);
+  if (!base) {
+    base = getDb().filter(r => r.fav_line === favLine && r.fav_side === favSide);
+    _dashBaseCache.set(baseKey, base);
+  }
   if (base.length < DEFAULT_MIN_N) return null;
   const oddsBand = DASHBOARD_ODDS_BANDS.find(b => inOddsBand(favOo, b));
   const tlBand = Object.values(TL_CLUSTERS).find(b => inOddsBand(tlO, b));
   const cfgRows = base.filter(r => inOddsBand(r.fav_oo, oddsBand) && (tlBand ? inOddsBand(r.tl_o, tlBand) : true));
   if (cfgRows.length < DEFAULT_MIN_N) return null;
-  const allBets = scoreBets(cfgRows, base, base, DEFAULT_MIN_N);
+  const allBets = scoreBets(cfgRows, base, base, DEFAULT_MIN_N, { includeMatches: false });
   if (!allBets.length) return null;
   const qualifying = allBets.filter(qualifiesBet);
   const best = qualifying[0] || allBets.find(b => b.edge > 0 && b.n >= DEFAULT_MIN_N) || null;
@@ -258,6 +275,8 @@ async function runDailyDashboard() {
   const right = document.getElementById('right-panel');
   right.innerHTML = `<div class="loader-msg">Loading today's fixtures…</div>`;
   if (!_goalTimingSummary) await loadGoalTimingSummary();
+  _dashBaseCache = new Map();
+  _dashLeagueCache = new Map();
 
   let fixtures;
   try {
@@ -1426,7 +1445,12 @@ function applyGameState(rows, gs) {
 // Used only for home/away-specific bets (those with favSideBaseline set) so
 // their reference rate isn't diluted by the opposite-side population.
 // If null (e.g. fav_side truly unknown), falls back to baselineRows.
-function scoreBets(stateRows, baselineRows, baselineSideRows, minN = DEFAULT_MIN_N) {
+// includeMatches:false skips building the per-row `matches` drill-down array
+// (an O(stateRows.length) allocation done for every one of the 32 bets) —
+// used by the Daily Dashboard, which only needs the aggregate stats (p/edge/
+// z/n/mo) to pick a top bet per fixture and calls this hundreds of times per
+// run, where building unused matches arrays was a real cost.
+function scoreBets(stateRows, baselineRows, baselineSideRows, minN = DEFAULT_MIN_N, { includeMatches = true } = {}) {
   if (!stateRows.length || !baselineRows.length) return [];
   const n = stateRows.length;
   if (n < minN) return [];
@@ -1438,7 +1462,7 @@ function scoreBets(stateRows, baselineRows, baselineSideRows, minN = DEFAULT_MIN
     const z    = zScore(stateRows, blRows, b.k);
     const edge = p - bl;
     const [lo, hi] = wilsonCI(p, n);
-    const matches = stateRows.map(r => ({
+    const matches = includeMatches ? stateRows.map(r => ({
       date:      r.date      || '',
       league:    r.league    || '',
       home_team: r.home_team || '',
@@ -1449,7 +1473,7 @@ function scoreBets(stateRows, baselineRows, baselineSideRows, minN = DEFAULT_MIN
       ht:        [r.fav_ht, r.dog_ht],
       ft:        [r.fav_ft, r.dog_ft],
       hit:       !!r[b.k],
-    }));
+    })) : [];
     const mo_mid = minOdds((p + lo) / 2);
     // Market-calibrated baseline: avg implied prob from closing odds in the
     // signal-filtered pool. Tells you whether the signal beat what Pinnacle
