@@ -114,6 +114,7 @@ function dashboardLeagueGroup(name) {
 // db (tier/recency toggle) doesn't serve stale cached rows.
 let _dashBaseCache = new Map();
 let _dashLeagueCache = new Map();
+let _dashBaselineStatsCache = new Map();
 
 const DASHBOARD_ODDS_BANDS = [
   [null, 1.60], [1.60, 1.75], [1.75, 1.90], [1.90, 2.05],
@@ -175,6 +176,61 @@ function leagueCalibration(leagueGroup, betKey) {
   return { n: rows.length, p, mkt, gap: p - mkt };
 }
 
+// Baseline hit-counts for every bet key over a (fav_line, fav_side) pool,
+// computed once and reused across every fixture that shares the pool.
+// scoreBets() re-filters the whole baseline array from scratch for each of
+// the 32 bets — fine when called once, but the dashboard calls it once per
+// fixture (500+ in a busy 24h window) against the SAME ~14 baseline pools,
+// so that redundant re-filtering was the dominant cost even after caching
+// the pool lookup itself. This turns O(fixtures × bets × |pool|) into
+// O(pools × bets × |pool|), done once per pool regardless of fixture count.
+function dashboardBaselineStats(baseKey, base) {
+  let stats = _dashBaselineStatsCache.get(baseKey);
+  if (stats) return stats;
+  stats = new Map();
+  for (const b of BETS) stats.set(b.k, base.filter(r => r[b.k]).length);
+  _dashBaselineStatsCache.set(baseKey, stats);
+  return stats;
+}
+
+// Lean stand-in for scoreBets() for the dashboard's fixed baseline==base
+// case: only filters the small, already band-narrowed cfgRows per bet — the
+// baseline side comes from the precomputed dashboardBaselineStats instead of
+// being re-filtered. Same p/bl/z/edge/CI formulas as scoreBets, minus the
+// per-match drill-down array (unused here) and market-calibration fields.
+function scoreBetsFast(cfgRows, baseKey, base) {
+  const n1 = cfgRows.length;
+  if (n1 < DEFAULT_MIN_N || base.length < DEFAULT_MIN_N) return [];
+  const n2 = base.length;
+  const blStats = dashboardBaselineStats(baseKey, base);
+  const results = [];
+  for (const b of BETS) {
+    const hits1 = cfgRows.filter(r => r[b.k]).length;
+    const hits2 = blStats.get(b.k);
+    const p  = hits1 / n1 * 100;
+    const bl = hits2 / n2 * 100;
+    let z = 0;
+    if (n1 >= 5 && n2 >= 5) {
+      const p1 = hits1 / n1, p2 = hits2 / n2;
+      const pp = (p1 * n1 + p2 * n2) / (n1 + n2);
+      if (pp > 0 && pp < 1) {
+        const se = Math.sqrt(pp * (1 - pp) * (1 / n1 + 1 / n2));
+        z = se > 0 ? (p1 - p2) / se : 0;
+      }
+    }
+    const edge = p - bl;
+    const [lo, hi] = wilsonCI(p, n1);
+    const mo_mid = minOdds((p + lo) / 2);
+    results.push({ ...b, n: n1, p, bl, z, edge, lo, hi, mo: minOdds(p), mo_lo: minOdds(lo), mo_mid });
+  }
+  results.sort((a, b) => {
+    const aPos = a.edge > 0, bPos = b.edge > 0;
+    if (aPos !== bPos) return aPos ? -1 : 1;
+    return (b.z * (b.lo / 100)) - (a.z * (a.lo / 100));
+  });
+  return results;
+}
+
 // Signal 1 — opening-odds-only historical bucket, mirrors telegram/notify.js's
 // layer1Live but reading from the already-loaded client-side database.
 function openingOddsSignal(favLine, favSide, favOo, tlO) {
@@ -189,7 +245,7 @@ function openingOddsSignal(favLine, favSide, favOo, tlO) {
   const tlBand = Object.values(TL_CLUSTERS).find(b => inOddsBand(tlO, b));
   const cfgRows = base.filter(r => inOddsBand(r.fav_oo, oddsBand) && (tlBand ? inOddsBand(r.tl_o, tlBand) : true));
   if (cfgRows.length < DEFAULT_MIN_N) return null;
-  const allBets = scoreBets(cfgRows, base, base, DEFAULT_MIN_N, { includeMatches: false });
+  const allBets = scoreBetsFast(cfgRows, baseKey, base);
   if (!allBets.length) return null;
   const qualifying = allBets.filter(qualifiesBet);
   const best = qualifying[0] || allBets.find(b => b.edge > 0 && b.n >= DEFAULT_MIN_N) || null;
@@ -266,36 +322,91 @@ async function fetchUpcomingFixtures(hoursAhead) {
   });
 }
 
-// Populated by runDailyDashboard — indexed by the row's position in
+// Populated by renderDashboardWindow — indexed by the row's position in
 // `results`, so per-row DOM ids/onclick handlers can reference a match
 // without needing to escape its raw id/team names.
 let _dashboardFixtures = [];
 
-async function runDailyDashboard() {
+// Raw fixtures (deduped, future kickoff, within the max 24h fetch horizon)
+// cached across window-selector clicks so switching the time window doesn't
+// re-hit /api/livescore — only an explicit "DAILY DASHBOARD" click refetches.
+let _dashboardAllFixtures = null;
+// Default window is intentionally small (not 24h): analyzing every fixture
+// in a full 24h span (500+ on a busy day) is real work even after caching
+// the DB scans, and almost none of that is actionable yet — the near-term
+// window is what's actually useful right now. 24h stays one click away.
+let _dashboardWindowHours = 2;
+const DASHBOARD_WINDOW_OPTIONS = [0.5, 1, 2, 4, 8, 24];
+
+function dashboardWindowLabel(hours) {
+  if (hours < 1) return `${Math.round(hours * 60)}m`;
+  return hours === 24 ? '24h' : `${hours}h`;
+}
+
+function dashboardWindowButtons() {
+  return `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">` +
+    DASHBOARD_WINDOW_OPTIONS.map(h => {
+      const active = h === _dashboardWindowHours;
+      return `<button class="run-btn run-btn-secondary" style="padding:4px 10px;font-size:11px;${active ? 'opacity:1;font-weight:700' : 'opacity:0.65'}" onclick="setDashboardWindow(${h})">${dashboardWindowLabel(h)}</button>`;
+    }).join('') +
+    `</div>`;
+}
+
+// Triggered by the window-selector buttons — re-filters the already-fetched
+// fixture list and re-analyzes just that (usually much smaller) subset, no
+// network round-trip.
+function setDashboardWindow(hours) {
+  _dashboardWindowHours = hours;
+  renderDashboardWindow();
+}
+
+async function runDailyDashboard(forceRefresh = true) {
   const right = document.getElementById('right-panel');
-  right.innerHTML = `<div class="loader-msg">Loading today's fixtures…</div>`;
-  if (!_goalTimingSummary) await loadGoalTimingSummary();
+
+  if (forceRefresh || !_dashboardAllFixtures) {
+    right.innerHTML = `<div class="loader-msg">Loading today's fixtures…</div>`;
+    if (!_goalTimingSummary) await loadGoalTimingSummary();
+    try {
+      _dashboardAllFixtures = await fetchUpcomingFixtures(24);
+    } catch (e) {
+      _dashboardAllFixtures = null;
+      right.innerHTML = `<div class="no-bets"><div class="warn-icon">⚠️</div><p>Could not load today's fixtures: ${e.message}</p></div>`;
+      return;
+    }
+  }
+
+  renderDashboardWindow();
+}
+
+// Filters the cached fixture list down to the selected window, analyzes just
+// that subset (analysis cost now scales with the window, not the full 24h
+// fetch), and renders.
+function renderDashboardWindow() {
+  const right = document.getElementById('right-panel');
+  if (!_dashboardAllFixtures) return;
+
+  if (!_dashboardAllFixtures.length) {
+    right.innerHTML = dashboardWindowButtons() +
+      `<div class="no-bets"><div class="warn-icon">⚠️</div><p>No upcoming fixtures found in the next 24h (or the live feed returned nothing).</p></div>`;
+    return;
+  }
+
+  const now = Date.now();
+  const horizon = now + _dashboardWindowHours * 60 * 60 * 1000;
+  const windowFixtures = _dashboardAllFixtures.filter(m => {
+    const t = new Date(m.kickoff_time).getTime();
+    return !isNaN(t) && t <= horizon;
+  });
+
   _dashBaseCache = new Map();
   _dashLeagueCache = new Map();
+  _dashBaselineStatsCache = new Map();
 
-  let fixtures;
-  try {
-    fixtures = await fetchUpcomingFixtures(24);
-  } catch (e) {
-    right.innerHTML = `<div class="no-bets"><div class="warn-icon">⚠️</div><p>Could not load today's fixtures: ${e.message}</p></div>`;
-    return;
-  }
-
-  if (!fixtures.length) {
-    right.innerHTML = `<div class="no-bets"><div class="warn-icon">⚠️</div><p>No upcoming fixtures found in the next 24h (or the live feed returned nothing).</p></div>`;
-    return;
-  }
-
-  const results = fixtures.map(analyzeFixtureForDashboard).filter(Boolean);
+  const results = windowFixtures.map(analyzeFixtureForDashboard).filter(Boolean);
   results.sort((a, b) => b.score - a.score || b.bet.z - a.bet.z);
   _dashboardFixtures = results;
 
-  right.innerHTML = renderDailyDashboard(results, fixtures.length);
+  right.innerHTML = renderDailyDashboard(results, windowFixtures.length);
 }
 
 // Builds a Match-Analysis-style cfg straight from a live-feed match's
@@ -490,10 +601,11 @@ function renderLiveCheckForm(idx) {
 function renderDailyDashboard(results, totalFixtures) {
   const best = results[0];
   let html = `<h2 class="results-title">DAILY DASHBOARD</h2>`;
-  html += `<p style="font-size:11px;color:var(--dim);margin-bottom:10px">${totalFixtures} fixtures in the next 24h · ${results.length} with an opening-odds signal · opening odds + league stats + goal timing only, no closing/movement data</p>`;
+  html += dashboardWindowButtons();
+  html += `<p style="font-size:11px;color:var(--dim);margin-bottom:10px">${totalFixtures} fixtures in the next ${dashboardWindowLabel(_dashboardWindowHours)} · ${results.length} with an opening-odds signal · opening odds + league stats + goal timing only, no closing/movement data</p>`;
 
   if (!results.length) {
-    html += `<div class="no-bets"><div class="warn-icon">⚠️</div><p>None of today's fixtures matched a historical opening-odds bucket with enough sample.</p></div>`;
+    html += `<div class="no-bets"><div class="warn-icon">⚠️</div><p>None of today's fixtures in this window matched a historical opening-odds bucket with enough sample. Try a wider window.</p></div>`;
     return html;
   }
 
