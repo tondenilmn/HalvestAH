@@ -344,20 +344,25 @@ function dashboardWindowLabel(hours) {
 }
 
 function dashboardWindowButtons() {
-  return `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">` +
+  return `<div class="min-n-row" style="margin-bottom:10px">` +
     DASHBOARD_WINDOW_OPTIONS.map(h => {
-      const active = h === _dashboardWindowHours;
-      return `<button class="run-btn run-btn-secondary" style="padding:4px 10px;font-size:11px;${active ? 'opacity:1;font-weight:700' : 'opacity:0.65'}" onclick="setDashboardWindow(${h})">${dashboardWindowLabel(h)}</button>`;
+      const active = h === _dashboardWindowHours ? ' active' : '';
+      return `<button class="min-n-preset dash-window-preset${active}" data-hours="${h}" onclick="setDashboardWindow(${h})">${dashboardWindowLabel(h)}</button>`;
     }).join('') +
     `</div>`;
 }
 
-// Triggered by the window-selector buttons — re-filters the already-fetched
-// fixture list and re-analyzes just that (usually much smaller) subset, no
-// network round-trip.
+// Shared by both the pre-run window picker (left panel, before fixtures are
+// even fetched) and the in-dashboard one (rendered inside the results) —
+// same state, same buttons kept in sync. Only re-renders the dashboard if
+// one is already showing; picking a window before the first run just
+// arms it for when "DAILY DASHBOARD" is clicked, no fetch needed yet.
 function setDashboardWindow(hours) {
   _dashboardWindowHours = hours;
-  renderDashboardWindow();
+  document.querySelectorAll('.dash-window-preset').forEach(btn => {
+    btn.classList.toggle('active', parseFloat(btn.dataset.hours) === hours);
+  });
+  if (_dashboardAllFixtures) renderDashboardWindow();
 }
 
 async function runDailyDashboard(forceRefresh = true) {
@@ -549,29 +554,35 @@ function tierBadgeClass(tier) {
 function renderDashboardRow(r, idx) {
   const kickoff = new Date(r.match.kickoff_time);
   const kickoffTxt = isNaN(kickoff.getTime()) ? '—' : kickoff.toLocaleString([], { weekday: 'short', hour: '2-digit', minute: '2-digit' });
-  const sig2Txt = r.sig2 != null ? `${r.sig2.gap >= 0 ? '+' : ''}${r.sig2.gap.toFixed(1)}pp vs mkt (n=${r.sig2.n})` : '—';
-  const sig3Txt = r.sig3 === true ? '✓ supports' : r.sig3 === false ? '✗ contradicts' : '—';
+  const sig2Txt = r.sig2 != null
+    ? `${r.sig2.gap >= 0 ? 'Beats' : 'Trails'} the market by ${Math.abs(r.sig2.gap).toFixed(1)}pp (${r.sig2.n} league matches)`
+    : 'Not enough league history to check';
+  const sig3Txt = r.sig3 === true ? 'Supports this bet'
+    : r.sig3 === false ? 'Works against this bet'
+    : 'No goal-timing read for this bet';
+  const tierHint = r.tier === 'HIGH' ? 'All 3 checks line up' : r.tier === 'MEDIUM' ? '2 of 3 checks line up' : 'Only the core historical signal qualifies';
   return `<div class="bet-col" style="margin-bottom:10px">
     <div class="col-hdr">
       <span class="col-title">${esc(r.match.home_team)} vs ${esc(r.match.away_team)}</span>
-      <span class="${tierBadgeClass(r.tier)}">${r.tier}</span>
+      <span class="${tierBadgeClass(r.tier)}" title="${esc(tierHint)}">${r.tier}</span>
     </div>
     <div class="col-sub">${esc(r.match.league || '—')} · Kickoff ${kickoffTxt}</div>
     <div class="col-bet-label">${esc(r.bet.label)}${r.qualifies ? ' ✓ qualifies' : ' (value-hunt tier)'}</div>
+    <div class="col-prob-label">Historical hit rate vs. baseline</div>
     <div class="col-prob">
       <span class="prob-pct">${r.bet.p.toFixed(1)}%</span>
-      <span class="prob-edge ${r.bet.edge >= 0 ? 'pos' : 'neg'}">${r.bet.edge >= 0 ? '+' : ''}${r.bet.edge.toFixed(1)}pp</span>
+      <span class="prob-edge ${r.bet.edge >= 0 ? 'pos' : 'neg'}">${r.bet.edge >= 0 ? '+' : ''}${r.bet.edge.toFixed(1)}pp vs ${r.bet.bl.toFixed(1)}% baseline</span>
     </div>
     <div class="col-stats">
-      <span>n=${r.bet.n}</span>
-      <span class="badge-z">z=${r.bet.z.toFixed(2)}</span>
+      <span>${r.bet.n} similar matches</span>
+      <span class="badge-z" title="Z-score — how far above baseline, in standard deviations">z ${r.bet.z.toFixed(2)}</span>
     </div>
-    <div class="bet-ci" style="margin-top:6px">League calibration: ${sig2Txt}</div>
-    <div class="bet-ci">Goal-timing: ${sig3Txt}</div>
+    <div class="bet-ci" style="margin-top:6px">📊 Market check: ${sig2Txt}</div>
+    <div class="bet-ci">⏱ Timing check: ${sig3Txt}</div>
     <div class="col-min-odds">
-      <span class="col-min-odds-label">BET ≥ (FAIR ODDS)</span>
+      <span class="col-min-odds-label">BET IF ODDS ≥</span>
       <span class="col-min-odds-value"><b>${r.bet.mo}</b></span>
-      <span class="col-min-odds-floor">CI range ${r.bet.mo} – ${r.bet.mo_mid}</span>
+      <span class="col-min-odds-floor">or ${r.bet.mo_mid}+ for a safer margin</span>
     </div>
     ${renderLiveCheckForm(idx)}
   </div>`;

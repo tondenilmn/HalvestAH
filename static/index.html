@@ -196,6 +196,15 @@
         <button class="run-btn" onclick="analyzeMatch()">ANALYZE →</button>
         <button class="run-btn run-btn-secondary" onclick="runDailyDashboard()">📅 DAILY DASHBOARD</button>
       </div>
+      <div class="min-n-row" style="margin-top:6px">
+        <span style="font-size:11px;color:var(--dim)">Window:</span>
+        <button class="min-n-preset dash-window-preset" data-hours="0.5" onclick="setDashboardWindow(0.5)">30m</button>
+        <button class="min-n-preset dash-window-preset" data-hours="1" onclick="setDashboardWindow(1)">1h</button>
+        <button class="min-n-preset dash-window-preset active" data-hours="2" onclick="setDashboardWindow(2)">2h</button>
+        <button class="min-n-preset dash-window-preset" data-hours="4" onclick="setDashboardWindow(4)">4h</button>
+        <button class="min-n-preset dash-window-preset" data-hours="8" onclick="setDashboardWindow(8)">8h</button>
+        <button class="min-n-preset dash-window-preset" data-hours="24" onclick="setDashboardWindow(24)">24h</button>
+      </div>
 
     </div><!-- /left-panel -->
 

@@ -372,6 +372,7 @@ select.gs-select {
   font-size: 11px; font-weight: bold; cursor: pointer; transition: all .15s;
 }
 .min-n-preset:hover { background: var(--green); color: #000; border-color: var(--green); }
+.dash-window-preset.active { background: var(--green); color: #000; border-color: var(--green); }
 .min-n-input {
   width: 64px; background: var(--bg2); border: 1px solid var(--border);
   color: var(--bright); text-align: center; padding: 5px;
@@ -507,7 +508,8 @@ select.gs-select {
 .col-min-odds-label { font-size: 10px; color: var(--dim); letter-spacing: .05em; }
 .col-min-odds-value { font-size: 20px; font-weight: bold; color: var(--yellow); letter-spacing: .02em; }
 .col-min-odds-floor { font-size: 10px; color: var(--dim); margin-left: auto; }
-.col-prob { display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px; }
+.col-prob-label { font-size: 10px; color: var(--dim); letter-spacing: .05em; margin-bottom: 2px; }
+.col-prob { display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px; flex-wrap: wrap; }
 .col-stats { display: flex; gap: 10px; font-size: 11px; margin: 4px 0; }
 .col-baseline { color: var(--dim); }
 
