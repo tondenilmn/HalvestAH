@@ -4,14 +4,17 @@
 // Uses built-in fetch (Node >= 18).
 
 // Hashes are bootstrapped at startup via refreshHashes(), which scrapes
-// asianbetsoccer.com directly (see fetchAllBookHashes below) — self-heals on
-// every call. The hardcoded values below are just the seed/fallback in case
-// that scrape fails on startup (e.g. asianbetsoccer's WAF blocking the host's
-// outbound IP — seen on Railway even when it works fine locally). If
+// asianbetsoccer.com directly (see fetchAllBookHashes below), falling back
+// to a relay through the deployed Cloudflare Pages Function
+// (fetchHashesViaRelay, needs HASH_RELAY_URL/DATA_URL set) if that comes
+// back empty — e.g. asianbetsoccer's WAF blocking Railway's outbound IP
+// specifically, seen intermittently even when it works fine locally and from
+// Cloudflare's edge. Self-heals on every call either way. The hardcoded
+// values below are just the seed in case BOTH paths fail on startup. If
 // BET365_HASH/PINNACLE_HASH/SBOBET_HASH env vars are set, they override the
 // seed — a manual stopgap you can set in the Railway dashboard without a
-// redeploy when auto-discovery is stuck (paste the fresh hash from a local
-// `node -e "require('./livescore').refreshHashes().then(console.log)"` run).
+// redeploy when both auto-discovery paths are stuck (paste the fresh hash
+// from a local `node -e "require('./livescore').refreshHashes().then(console.log)"` run).
 let PINNACLE_HASH = process.env.PINNACLE_HASH || '30e528c380c96b362ffacdc66b2808c8ad59ce9e';
 let BET365_HASH   = process.env.BET365_HASH   || 'a684e2d1d433e85c7070cb057ab6e3135d8ed162';
 let SBOBET_HASH   = process.env.SBOBET_HASH   || 'd52dd259629d3561be50b5cd7def478fbee5af6a';
@@ -246,7 +249,44 @@ const LIVESCORE_HEADER_SETS = [
   { 'User-Agent': 'Mozilla/5.0' },
 ];
 
-async function fetchAllBookHashes() {
+// Second, independent path to a fresh hash — asks the already-deployed
+// Cloudflare Pages Function (functions/api/livescore.js) what hash IT'S
+// currently using. That function does its own live auto-discovery against
+// asianbetsoccer.com on every request (not a stale hand-set value — see its
+// own header comment), from Cloudflare's edge network, which isn't subject
+// to the WAF rule that's been seen blocking Railway's outbound IP
+// specifically (works fine locally, fails intermittently on Railway — see
+// module header). Set HASH_RELAY_URL (or reuse DATA_URL, same origin already
+// configured for the historical dataset) to the deployed Cloudflare Pages
+// site to enable this. Only used as a fallback when the direct scrape below
+// returns nothing, so it adds no extra latency/dependency in the common case.
+const HASH_RELAY_URL = process.env.HASH_RELAY_URL || process.env.DATA_URL || null;
+
+async function fetchHashesViaRelay() {
+  if (!HASH_RELAY_URL) return { pinnacle: null, bet365: null, sbobet: null };
+  const url = `${HASH_RELAY_URL.replace(/\/$/, '')}/api/livescore`;
+  try {
+    const resp = await fetch(url);
+    if (!resp.ok) {
+      console.log(`  relay ${url} → HTTP ${resp.status}`);
+      return { pinnacle: null, bet365: null, sbobet: null };
+    }
+    const json = await resp.json();
+    const isHash = v => typeof v === 'string' && /^[a-f0-9]{40}$/i.test(v);
+    const result = {
+      bet365:   isHash(json.book)          ? json.book          : null,
+      pinnacle: isHash(json.pinnacle_book) ? json.pinnacle_book : null,
+      sbobet:   isHash(json.sbobet_book)   ? json.sbobet_book   : null,
+    };
+    console.log(`  relay → bet365=${result.bet365?.slice(0,8) ?? '—'}… pinnacle=${result.pinnacle?.slice(0,8) ?? '—'}… sbobet=${result.sbobet?.slice(0,8) ?? '—'}…`);
+    return result;
+  } catch (e) {
+    console.log(`  relay fetch threw: ${e.message}`);
+    return { pinnacle: null, bet365: null, sbobet: null };
+  }
+}
+
+async function fetchAllBookHashesDirect() {
   try {
     let resp;
     for (const headers of LIVESCORE_HEADER_SETS) {
@@ -287,13 +327,38 @@ async function fetchAllBookHashes() {
 }
 
 /**
- * Refresh all book hashes by scraping asianbetsoccer.com's #book_filter
- * dropdown directly (see fetchAllBookHashes). This is the only source now —
- * an earlier design also read a Cloudflare Pages Function endpoint
- * (?hashes=1) as a "dashboard" source of truth, but that endpoint's hashes
- * are only as fresh as whatever was last set in the Cloudflare env vars by
- * hand, which drifted stale and caused live matches to silently stop
- * resolving. Direct scraping self-heals on every call instead.
+ * Fetch all three book hashes — direct scrape of asianbetsoccer.com first
+ * (zero extra dependency, works fine in the common case), falling back to
+ * the Cloudflare Pages relay (fetchHashesViaRelay) only if the direct
+ * attempt comes back completely empty, which is the WAF-block failure mode
+ * this whole two-path setup exists for.
+ */
+async function fetchAllBookHashes() {
+  const direct = await fetchAllBookHashesDirect();
+  if (direct.pinnacle || direct.bet365 || direct.sbobet) return direct;
+  if (!HASH_RELAY_URL) {
+    console.log('  Direct scrape returned nothing and HASH_RELAY_URL/DATA_URL not set — no fallback available.');
+    return direct;
+  }
+  console.log('  Direct scrape returned nothing — trying Cloudflare relay…');
+  return fetchHashesViaRelay();
+}
+
+/**
+ * Refresh all book hashes — direct scrape of asianbetsoccer.com's
+ * #book_filter dropdown first, falling back to the Cloudflare Pages relay
+ * (see fetchAllBookHashes) when direct scraping returns nothing at all
+ * (e.g. asianbetsoccer's WAF blocking Railway's outbound IP specifically —
+ * seen intermittently, works fine locally). An earlier design read a
+ * Cloudflare Pages Function endpoint (?hashes=1) as the sole source of
+ * truth, but that endpoint just echoed whatever was last hand-set in the
+ * Cloudflare env vars with no discovery of its own, which drifted stale and
+ * caused live matches to silently stop resolving — 2026-08-24's fallback is
+ * different: it relays through the deployed functions/api/livescore.js's
+ * normal request path, which performs its OWN live auto-discovery against
+ * asianbetsoccer.com from Cloudflare's edge (a different network than
+ * Railway's) on every call, so it's a second live-discovery path, not a
+ * static snapshot.
  * Updates module-level variables. Logs what changed.
  * Called at startup, on a 404 mid-scan, and daily by the scheduler.
  */
