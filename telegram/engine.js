@@ -164,6 +164,7 @@ const _T2_KEYS = [
   'northern ireland premier league','northern ireland premiership',
   'slovenia 1.liga',
   'ceska fotbalova liga','gambrinus liga',
+  'bulgaria premier league',
 ];
 
 function classifyLeague(name) {
