@@ -828,6 +828,7 @@ const _T2_KEYS = [
   'slovenia 1.liga',
   'ceska fotbalova liga','gambrinus liga',
   'bulgaria premier league',
+  'bosnia and herzegovina premier league','bosnia erzegovina 1st league',
 ];
 
 function classifyLeague(name) {
