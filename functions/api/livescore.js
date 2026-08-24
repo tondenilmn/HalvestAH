@@ -81,26 +81,41 @@ const BOOK_PATTERNS = {
  * hashes from the #book_filter <select> options. Returns
  * { pinnacle, bet365, sbobet } — any value may be null if not found/delisted.
  */
-async function fetchAllBookHashes() {
+// `diag` (optional) is filled in with what actually happened, so a caller
+// (currently only the ?debug=1 handler) can tell "asianbetsoccer.com itself
+// rejected/blocked this request" apart from "fetch succeeded but nothing
+// matched the parser" — the two look identical from the plain
+// {pinnacle,bet365,sbobet} result alone, which made an earlier failure on
+// this exact path (Cloudflare edge unable to discover a fresh hash even
+// though the same code works from other networks) impossible to diagnose
+// without deploying extra logging each time.
+async function fetchAllBookHashes(diag = null) {
   try {
     let resp;
+    const attempts = [];
     for (const headers of LIVESCORE_HEADER_SETS) {
       resp = await fetch('https://www.asianbetsoccer.com/it/livescore.html', { headers });
+      attempts.push({ ua: headers['User-Agent'], status: resp.status, ok: resp.ok });
       if (resp.ok) break;
     }
+    if (diag) diag.attempts = attempts;
     if (!resp.ok) return { pinnacle: null, bet365: null, sbobet: null };
     const html = await resp.text();
+    if (diag) diag.htmlLength = html.length;
 
     const result = { pinnacle: null, bet365: null, sbobet: null };
     const optRe = /value="([a-f0-9]{40})"[^>]*>\s*([^<]+)/gi;
     let m;
+    const allOptions = [];
     while ((m = optRe.exec(html)) !== null) {
       const [, hash, rawLabel] = m;
       const label = rawLabel.trim();
+      allOptions.push({ hash: hash.slice(0, 8) + '…', label });
       if (!result.pinnacle && BOOK_PATTERNS.pinnacle.test(label)) result.pinnacle = hash;
       else if (!result.bet365 && BOOK_PATTERNS.bet365.test(label)) result.bet365   = hash;
       else if (!result.sbobet && BOOK_PATTERNS.sbobet.test(label)) result.sbobet   = hash;
     }
+    if (diag) diag.optionsFound = allOptions;
 
     // Fallback for Pinnacle: botbot3.space livegame URL embedded in page scripts
     if (!result.pinnacle) {
@@ -109,7 +124,8 @@ async function fetchAllBookHashes() {
     }
 
     return result;
-  } catch {
+  } catch (e) {
+    if (diag) diag.error = e.message;
     return { pinnacle: null, bet365: null, sbobet: null };
   }
 }
@@ -180,8 +196,15 @@ export async function onRequest(context) {
   }
 
   // ?debug=1 — inspect the raw JS and show extraction results (Bet365 hash,
-  // since that's the primary source now — see constant comments above)
+  // since that's the primary source now — see constant comments above).
+  // Also runs hash auto-discovery (fetchAllBookHashes) with diagnostics —
+  // unlike the production path, this reports WHY discovery failed (blocked
+  // fetch to asianbetsoccer.com vs. fetch OK but parser found nothing) so a
+  // Cloudflare-edge-specific failure can be told apart from a stale hash.
   if (isDebug) {
+    const hashDiag = {};
+    const discoveredHashes = await fetchAllBookHashes(hashDiag);
+
     const ts  = Date.now();
     const url = `https://botbot3.space/tables/v4/Q/livegame/${BET365_HASH}.js?date=${ts}&_=${ts + 1}`;
     const r   = await fetch(url, { headers: makeBotbotHeaders('Q', BET365_HASH) })
@@ -229,6 +252,11 @@ export async function onRequest(context) {
         matches_preview:  matches,
         getData1_parsed:  getData1Parsed,
         orphan_meta:      orphans,
+        hash_discovery: {
+          seeded_bet365_hash: BET365_HASH,
+          discovered:          discoveredHashes,
+          diag:                hashDiag,
+        },
       }),
       { headers: cors }
     );
