@@ -253,19 +253,19 @@ function layer3Live(favLine, favSide, favOc, tlC) {
 
 const l123Dedup = new Dedup(24 * 60 * 60 * 1000);
 
-const DIVIDER = '▫️▫️▫️▫️▫️▫️▫️▫️';
-
-// Plain, unambiguous verdict on a real live price vs. the target — used by
-// both strategies wherever we have (or tried to get) an actual bookmaker
-// price to check, instead of technical "ODDS OK"/CI jargon. `marketLabel`
-// names the market the price is actually FOR (which may differ from the
-// bet's own label — e.g. "Over 2.5 FT" standing in for "Over 0.5 2H").
+// Shows the two numbers needed to decide/size the bet as explicit, separate
+// figures — the minimum odds to check for (`minOdds`, the target/mo_lo or
+// fair-odds floor) and the actual live price found (`odds`) — rather than
+// folding them into one prose sentence. `marketLabel` names the market the
+// price is actually FOR (may differ from the bet's own label — e.g.
+// "Over 2.5 FT" standing in for "Over 0.5 2H").
 function realPriceVerdict(marketLabel, odds, minOdds) {
-  if (odds == null) return `ℹ️ Couldn't fetch a live ${marketLabel} price automatically — check Bet365 yourself.`;
-  if (minOdds == null || odds >= minOdds) {
-    return `✅ Bet365 ${marketLabel} is @${odds.toFixed(2)} right now — clears the target. Good to bet.`;
+  const targetStr = minOdds != null ? `@${minOdds.toFixed(2)}` : '—';
+  if (odds == null) {
+    return `🎯 Target: ${targetStr}  ·  📖 Bet365 ${marketLabel}: not found — check manually`;
   }
-  return `❌ Bet365 ${marketLabel} is only @${odds.toFixed(2)} (need ≥ @${minOdds.toFixed(2)}) — skip unless you find better elsewhere.`;
+  const clears = minOdds == null || odds >= minOdds;
+  return `${clears ? '✅' : '❌'} 🎯 Target: ${targetStr}  ·  📖 Bet365 ${marketLabel}: @${odds.toFixed(2)}${clears ? '' : ' (below target — skip)'}`;
 }
 
 // Track-record recording gate: only log an alert to track_record.js if we
@@ -287,11 +287,34 @@ function apiFootballVerdictLine(marketLabel, minOdds, apiFootballCheck) {
   return realPriceVerdict(marketLabel, apiFootballCheck.odds, minOdds);
 }
 
+// Kelly stake %, computed off the actual price found (not the target/mo_lo)
+// and the Wilson CI *lower-bound* probability (bet.lo), not the raw point
+// estimate (bet.p) — bet.p is winner's-curse-inflated (same reason mo_lo
+// uses the CI lower bound instead of bet.p for the "clears the target"
+// gate), so feeding it straight into Kelly would systematically overstake.
+// f* = p - (1-p)/b, where b = decimal odds - 1. Returns null if there's no
+// price to size against or the CI-lower-bound edge doesn't clear this price
+// (can happen even when the price "clears the target," since mo_lo is a
+// break-even floor, not the price Kelly needs to show a positive edge).
+function kellyLine(price, loPct) {
+  if (price == null || loPct == null) return null;
+  const b = price - 1;
+  if (b <= 0) return null;
+  const p = loPct / 100;
+  const f = p - (1 - p) / b;
+  if (f <= 0) {
+    return `💰 Kelly: no edge at this price on the conservative (CI-lower) ${loPct.toFixed(0)}% estimate — sizing not advised.`;
+  }
+  const full = f * 100;
+  return `💰 Kelly stake: ${full.toFixed(1)}% of bankroll (half-Kelly: ${(full / 2).toFixed(1)}%) — based on CI-lower ${loPct.toFixed(0)}% @ ${price.toFixed(2)}`;
+}
+
 function l123Format(match, agreeCount, bet, votes, toKickoff, liveOdds, apiFootballCheck, odds) {
-  const targetOdds = bet.mo_lo != null ? `@${bet.mo_lo}` : '—';
+  const actualPrice = liveOdds != null ? liveOdds : (apiFootballCheck?.supported ? apiFootballCheck.odds : null);
   const verdictLine = liveOdds != null
     ? realPriceVerdict(bet.label, liveOdds, bet.mo_lo)
-    : (apiFootballVerdictLine(bet.label, bet.mo_lo, apiFootballCheck) ?? `📌 Target: at least ${targetOdds} (no live price checked yet).`);
+    : apiFootballVerdictLine(bet.label, bet.mo_lo, apiFootballCheck) ?? realPriceVerdict(bet.label, null, bet.mo_lo);
+  const kellyLn = kellyLine(actualPrice, bet.lo);
   const kickoffLine = toKickoff != null
     ? `Kickoff in ${Math.max(0, Math.round(toKickoff))} min`
     : 'Kickoff imminent';
@@ -301,12 +324,11 @@ function l123Format(match, agreeCount, bet, votes, toKickoff, liveOdds, apiFootb
     match,
     kickoffLine,
     [
-      `👉 <b>${esc(bet.label)}</b>  —  bet at ${targetOdds} or better`,
+      `👉 <b>${esc(bet.label)}</b>`,
       verdictLine,
+      ...(kellyLn ? [kellyLn] : []),
       ...(moveLine ? [moveLine] : []),
-      ``,
-      DIVIDER,
-      `Why: hits ${bet.p.toFixed(0)}% of the time historically (vs. ${bet.bl.toFixed(0)}% baseline, ${bet.n} similar matches). Agreed by: ${votes.join(', ')}.`,
+      `📊 ${bet.p.toFixed(0)}% historically vs ${bet.bl.toFixed(0)}% baseline (n=${bet.n}) · agreed by ${votes.join(', ')}`,
     ],
   );
 }
@@ -485,36 +507,22 @@ function lateGoalQualifies(b) {
     && (b.lo - b.bl) >= cfg.LATEGOAL_MIN_EDGE && b.bl >= cfg.LATEGOAL_MIN_BASELINE;
 }
 
-// Every LATEGOAL bet type has a real, standard bookmaker market hiding
-// behind it once you condition on the current (unchanged-since-HT) score —
-// none of favScored2H/homeScored2H/awayScored2H/over05_2H are markets a
-// bookmaker actually lists, but the SAME event can always be re-expressed
-// as one that is:
-//   - favScored2H/homeScored2H/awayScored2H: if that side has 0 goals so
-//     far and the OPPONENT has >=1, "this side scores" = "BTTS Yes" (the
-//     opponent already satisfied BTTS's other half).
-//   - over05_2H ("any goal happens"): always equivalent to "Over
-//     (current total + 0.5) FT" — e.g. still 0-0 -> Over 0.5 FT; still 0-2,
-//     2-0, or 1-1 (3 goals so far either way) -> Over 2.5 FT; still 0-1 or
-//     1-0 -> Over 1.5 FT. One more goal, by either side, crosses that line
-//     by construction, since the current total is fixed until it happens.
-// Returns null if no equivalence applies (shouldn't happen for any bet in
-// LATEGOAL_BETS, but checked defensively), or { apiKey, avgTl, label } —
-// the args verifyBet365Price needs plus what to call the market in the
-// message.
-function equivalentRealMarket(betKey, htSnap, favSide) {
-  if (betKey === 'over05_2H') {
-    const line = htSnap.home + htSnap.away + 0.5;
-    return { apiKey: 'overTL', avgTl: line, label: `Over ${line} FT` };
-  }
-  if (betKey === 'favScored2H') {
-    const favHt = favSide === 'HOME' ? htSnap.home : htSnap.away;
-    const dogHt = favSide === 'HOME' ? htSnap.away : htSnap.home;
-    return (favHt === 0 && dogHt >= 1) ? { apiKey: 'btts', avgTl: null, label: 'BTTS Yes' } : null;
-  }
-  if (betKey === 'homeScored2H') return (htSnap.home === 0 && htSnap.away >= 1) ? { apiKey: 'btts', avgTl: null, label: 'BTTS Yes' } : null;
-  if (betKey === 'awayScored2H') return (htSnap.away === 0 && htSnap.home >= 1) ? { apiKey: 'btts', avgTl: null, label: 'BTTS Yes' } : null;
-  return null;
+// over05_2H ("any goal happens") isn't a market a bookmaker actually lists,
+// but once you condition on the current (unchanged-since-HT) score it's
+// always equivalent to a real, directly quotable one: "Over (current total +
+// 0.5) FT" — e.g. still 0-0 -> Over 0.5 FT; still 0-2, 2-0, or 1-1 (3 goals
+// so far either way) -> Over 2.5 FT; still 0-1 or 1-0 -> Over 1.5 FT. One
+// more goal, by either side, crosses that line by construction, since the
+// current total is fixed until it happens.
+// (LATEGOAL_BETS only ever contains over05_2H as of 2026-08-24 — the
+// favScored2H/homeScored2H/awayScored2H variants were dropped, see
+// config.js's LATEGOAL_BETS comment — so this only needs to handle that one
+// key. Returns { apiKey, avgTl, label } — the args verifyBet365Price needs
+// plus what to call the market in the message.)
+function equivalentRealMarket(betKey, htSnap) {
+  if (betKey !== 'over05_2H') return null;
+  const line = htSnap.home + htSnap.away + 0.5;
+  return { apiKey: 'overTL', avgTl: line, label: `Over ${line} FT` };
 }
 
 function tlPaceLine(odds, htSnap) {
@@ -525,14 +533,11 @@ function tlPaceLine(odds, htSnap) {
   return `⚽ Goals so far: ${goalsSoFar} vs. TL ${odds.tl_c} (${pace})`;
 }
 
-function lateGoalFormat(match, bet, liveMin, htSnap, liveOdd, equivalent, apiFootballCheck, odds, tlBandUsed) {
-  const targetOdds = liveOdd.fair_odd != null ? `@${liveOdd.fair_odd}` : '—';
+function lateGoalFormat(match, bet, liveMin, htSnap, liveOdd, liveOddLo, equivalent, apiFootballCheck, odds, tlBandUsed) {
   const marketLabel = equivalent ? equivalent.label : bet.label;
-  const verdictLine = apiFootballVerdictLine(marketLabel, liveOdd.fair_odd, apiFootballCheck)
-    ?? `📌 Target: at least ${targetOdds} (based on ${liveOdd.live_p}% live probability right now).`;
-  const equivNote = equivalent
-    ? [`♻️ Same as betting <b>${equivalent.label}</b> at this score — look for that market on Bet365.`]
-    : [];
+  const actualPrice = apiFootballCheck?.supported ? apiFootballCheck.odds : null;
+  const verdictLine = realPriceVerdict(marketLabel, actualPrice, liveOdd.fair_odd);
+  const kellyLn = kellyLine(actualPrice, liveOddLo.live_p);
   const moveLine = lineMovementLine(odds);
   const paceLine = tlPaceLine(odds, htSnap);
   return buildMessage(
@@ -542,12 +547,10 @@ function lateGoalFormat(match, bet, liveMin, htSnap, liveOdd, equivalent, apiFoo
     [
       `👉 <b>${esc(bet.label)}</b>`,
       verdictLine,
-      ...equivNote,
+      ...(kellyLn ? [kellyLn] : []),
       ...(paceLine ? [paceLine] : []),
       ...(moveLine ? [moveLine] : []),
-      ``,
-      DIVIDER,
-      `Why: in ${bet.n} similar matches reaching this exact HT score${tlBandUsed ? ' with a comparable Total Line' : ''}, this hit ${bet.p.toFixed(0)}% of the time (vs. ${bet.bl.toFixed(0)}% baseline). Validated: 65.9% claimed vs. 64.5% actual across 10 past months (pre-TL-split figure).`,
+      `📊 ${bet.p.toFixed(0)}% historically vs ${bet.bl.toFixed(0)}% baseline (n=${bet.n}, similar HT scores${tlBandUsed ? ' + Total Line' : ''})`,
     ],
   );
 }
@@ -614,8 +617,13 @@ async function runStrategyLateGoal(match, ctx) {
   // favG2h/dogG2h are always 0 here — that's the entire trigger condition
   // (no goal since HT yet).
   const liveOdd = computeLiveOdd(bet.p, bet.k, liveMin, favLine, 0, 0, favSide);
+  // Same time-decay applied to the Wilson CI *lower-bound* probability
+  // (bet.lo) instead of the raw point estimate (bet.p) — gives a
+  // conservative live probability to size Kelly stakes off, consistent with
+  // why mo_lo/target odds elsewhere use the CI lower bound, not bet.p.
+  const liveOddLo = computeLiveOdd(bet.lo, bet.k, liveMin, favLine, 0, 0, favSide);
 
-  const equivalent = equivalentRealMarket(bet.k, htSnap, favSide);
+  const equivalent = equivalentRealMarket(bet.k, htSnap);
   let apiFootballCheck = null;
   if (equivalent && cfg.APIFOOTBALL_KEY) {
     try {
@@ -628,7 +636,7 @@ async function runStrategyLateGoal(match, ctx) {
     }
   }
 
-  const msg = lateGoalFormat(match, bet, liveMin, htSnap, liveOdd, equivalent, apiFootballCheck, odds, base === tlBase);
+  const msg = lateGoalFormat(match, bet, liveMin, htSnap, liveOdd, liveOddLo, equivalent, apiFootballCheck, odds, base === tlBase);
   await sendTelegram(msg);
   lateGoalDedup.mark(dedupKey);
   flog(liveMin, label, 'LATEGOAL', `ALERT: ${bet.k} p=${bet.p.toFixed(1)}% z=${bet.z.toFixed(2)} n=${bet.n} liveOdd=${liveOdd.fair_odd} equiv=${equivalent ? equivalent.label : '—'} tier=${tier}`);
@@ -674,27 +682,22 @@ function equivalentRealMarketQuiet2h(betKey, htSnap) {
   return null;
 }
 
-function quiet2hFormat(match, bet, liveMin, htSnap, liveOdd, equivalent, apiFootballCheck, odds, tlBandUsed) {
-  const targetOdds = liveOdd.fair_odd != null ? `@${liveOdd.fair_odd}` : '—';
+function quiet2hFormat(match, bet, liveMin, htSnap, liveOdd, liveOddLo, equivalent, apiFootballCheck, odds, tlBandUsed) {
   const marketLabel = equivalent ? equivalent.label : bet.label;
-  const verdictLine = apiFootballVerdictLine(marketLabel, liveOdd.fair_odd, apiFootballCheck)
-    ?? `📌 Target: at least ${targetOdds} (based on ${liveOdd.live_p}% live probability right now).`;
-  const equivNote = equivalent
-    ? [`♻️ Same as betting <b>${equivalent.label}</b> at this score — look for that market on Bet365.`]
-    : [];
+  const actualPrice = apiFootballCheck?.supported ? apiFootballCheck.odds : null;
+  const verdictLine = realPriceVerdict(marketLabel, actualPrice, liveOdd.fair_odd);
+  const kellyLn = kellyLine(actualPrice, liveOddLo.live_p);
   const moveLine = lineMovementLine(odds);
   return buildMessage(
     `Quiet 2nd half expected`,
     match,
     `${liveMin}' · HT score ${htSnap.home}-${htSnap.away} · TL ${odds.tl_c ?? '—'}`,
     [
-      `👉 <b>${esc(bet.label)}</b>  —  bet at ${targetOdds} or better`,
+      `👉 <b>${esc(bet.label)}</b>`,
       verdictLine,
-      ...equivNote,
+      ...(kellyLn ? [kellyLn] : []),
       ...(moveLine ? [moveLine] : []),
-      ``,
-      DIVIDER,
-      `Why: in ${bet.n} similar matches (same fav line/side${tlBandUsed ? ', comparable Total Line' : ''}, same HT score), this hit ${bet.p.toFixed(0)}% of the time (vs. ${bet.bl.toFixed(0)}% baseline). Walk-forward validated: 1.5pp claimed-vs-actual gap across 79 historical cells, ~16.5k held-out test matches.`,
+      `📊 ${bet.p.toFixed(0)}% historically vs ${bet.bl.toFixed(0)}% baseline (n=${bet.n}, same HT score${tlBandUsed ? ' + Total Line' : ''})`,
     ],
   );
 }
@@ -746,6 +749,9 @@ async function runStrategyQuiet2H(match, ctx) {
   // favG2h/dogG2h are always 0 here — QUIET2H fires right as the 2nd half
   // starts, before any 2H goals could have happened yet.
   const liveOdd = computeLiveOdd(bet.p, bet.k, liveMin, favLine, 0, 0, favSide);
+  // Same time-decay applied to bet.lo (Wilson CI lower bound) instead of
+  // bet.p — conservative live probability to size Kelly stakes off.
+  const liveOddLo = computeLiveOdd(bet.lo, bet.k, liveMin, favLine, 0, 0, favSide);
 
   const equivalent = equivalentRealMarketQuiet2h(bet.k, htSnap);
   let apiFootballCheck = null;
@@ -760,7 +766,7 @@ async function runStrategyQuiet2H(match, ctx) {
     }
   }
 
-  const msg = quiet2hFormat(match, bet, liveMin, htSnap, liveOdd, equivalent, apiFootballCheck, odds, base === bandBase);
+  const msg = quiet2hFormat(match, bet, liveMin, htSnap, liveOdd, liveOddLo, equivalent, apiFootballCheck, odds, base === bandBase);
   await sendTelegram(msg);
   quiet2hDedup.mark(dedupKey);
   flog(liveMin, label, 'QUIET2H', `ALERT: ${bet.k} p=${bet.p.toFixed(1)}% z=${bet.z.toFixed(2)} n=${bet.n} liveOdd=${liveOdd.fair_odd} equiv=${equivalent ? equivalent.label : '—'} tier=${tier}`);

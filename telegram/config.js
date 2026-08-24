@@ -110,9 +110,16 @@ module.exports = {
     parseInt(process.env.LATEGOAL_TRIGGER_MIN || '68', 10),
     parseInt(process.env.LATEGOAL_TRIGGER_MAX || '72', 10),
   ],
-  // "a goal happens in 2H"-flavoured bets this strategy considers — any goal
-  // by either side, the favourite specifically, or one side specifically.
-  LATEGOAL_BETS:          (process.env.LATEGOAL_BETS || 'over05_2H,favScored2H,homeScored2H,awayScored2H').split(','),
+  // "a goal happens in 2H"-flavoured bets this strategy considers. Only the
+  // side-agnostic "any goal" bet — favScored2H/homeScored2H/awayScored2H were
+  // dropped 2026-08-24 after a leave-one-month-out walk-forward
+  // (telegram/backtest_lategoal_favvsany.js) showed that on the subset of
+  // instances where one of those three would have been the qualifying bet,
+  // over05_2H on the SAME matches was both more accurate (79.5% vs 59.9% hit
+  // rate) and more profitable (+8.0% vs +5.2% ROI@mo_lo) — awayScored2H in
+  // particular was net-negative out-of-sample (-3.3% ROI@mo_lo), a sign of
+  // overfitting to the training pool rather than a real edge.
+  LATEGOAL_BETS:          (process.env.LATEGOAL_BETS || 'over05_2H').split(','),
   LATEGOAL_MIN_N:         parseInt(process.env.LATEGOAL_MIN_N    || '30',  10),
   LATEGOAL_MIN_Z:         parseFloat(process.env.LATEGOAL_MIN_Z  || '1.8'),
   LATEGOAL_MIN_EDGE:      parseFloat(process.env.LATEGOAL_MIN_EDGE || '0'), // same Wilson-CI-lower-bound discipline as L123

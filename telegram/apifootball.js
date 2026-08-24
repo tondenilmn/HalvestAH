@@ -13,7 +13,15 @@
 // from notify.js). Call this ONLY once, right before sending an alert, never
 // on every scan cycle — see wireup in notify.js's runStrategyL123.
 //
-// Bet365 bookmaker id = 8.
+// Bet365 bookmaker id = 8 — used only as a filter IF the response ever comes
+// back bookmaker-attributed (pre-match `/odds` shape). Verified 2026-08-24
+// against a real live fixture: `/odds/live` on this account/plan returns NO
+// `bookmakers` breakdown at all — it's a single aggregated in-play feed with
+// a flat `odds` array, not attributable to Bet365 specifically. So despite
+// the naming throughout this file/the Telegram messages, the live number
+// checked here is api-football's own live odds, not a confirmed Bet365
+// price — treat it as "a live market check", not literally Bet365's price.
+// getBet365Bookie() falls back to that flat shape automatically.
 // Fixture IDs are cached per matchId to reduce requests.
 //
 // Market coverage: Asian Handicap, Match Winner (1X2), Goals Over/Under, and
@@ -89,26 +97,68 @@ async function getFixtureId(matchId, homeTeam, awayTeam, key) {
   return fixtureId;
 }
 
+// All three callers (L123, LATEGOAL, QUIET2H) invoke this only in-play — the
+// match has already kicked off (L123 fires in the pre-match window right up
+// to kickoff, LATEGOAL/QUIET2H fire well after) — so the live-odds endpoint
+// is always correct here, never the pre-match `/odds` endpoint. Using `/odds`
+// instead returns the *pre-match* Bet365 price, which is stale/wrong once
+// the match state has moved on (e.g. QUIET2H checking "Under 2.5 FT" off a
+// pre-match line when HT is already 1-0 with a live-adjusted market).
 async function getBet365Bookie(fixtureId, key) {
-  const data = await apiGet(`/odds?fixture=${fixtureId}&bookmaker=8`, key);
-  return (data.response?.[0]?.bookmakers || []).find(b => b.id === 8) || null;
+  const data = await apiGet(`/odds/live?fixture=${fixtureId}`, key);
+  const entry = (data.response || [])[0];
+  if (!entry) return null;
+  // Docs show live odds structured like pre-match (bookmakers[].bets[].values);
+  // some accounts/fixtures instead return a flat `odds` array with no
+  // bookmaker breakdown — handle both defensively.
+  if (Array.isArray(entry.bookmakers)) {
+    return entry.bookmakers.find(b => b.id === 8) || null;
+  }
+  if (Array.isArray(entry.odds)) {
+    return { bets: entry.odds };
+  }
+  return null;
 }
 
+// `/odds/live` lists 1st-half/2nd-half variants of nearly every market
+// alongside the full-match one (e.g. "Asian Handicap (1st Half)" AND "Asian
+// Handicap", "Both Teams To Score (1st Half)"/"(2nd Half)" AND "Both Teams
+// to Score") — and the half-specific variant often sorts EARLIER in the
+// array than the full-match one, so a plain regex .find() silently grabs the
+// wrong period. Always exclude half-qualified market names when we want the
+// full-match line.
+const HALF_MARKET = /half/i;
 function findMarket(bookie, nameRegex) {
-  return (bookie.bets || []).find(b => nameRegex.test(b.name)) || null;
+  return (bookie.bets || []).find(b => nameRegex.test(b.name) && !HALF_MARKET.test(b.name)) || null;
 }
 
-// "Home -1.25", "Away +0.75", "Home 0", "-1.25" (bare)
-function parseAHValue(str) {
-  let m = String(str).match(/^(Home|Away)\s+([+-]?\d+(?:[.,]\d+)?)$/i);
+// Pre-match `/odds` encodes each selection as a single combined string
+// ("Home -1.25", "Over 2.5"). Live `/odds/live` instead gives a bare side
+// ("Home"/"Away"/"Over"/"Under") in `value` with the line in a separate
+// `handicap` field. Handle both shapes — verifyBet365Price is called for
+// in-play matches only, so `/odds/live` is what actually reaches this in
+// production, but keep the combined-string path as a defensive fallback.
+function parseAHValue(v) {
+  if (v.handicap != null && v.handicap !== '') {
+    const side = String(v.value).toLowerCase();
+    if (side !== 'home' && side !== 'away') return null;
+    const hc = parseFloat(String(v.handicap).replace(',', '.'));
+    return isNaN(hc) ? null : { side, hc };
+  }
+  let m = String(v.value).match(/^(Home|Away)\s+([+-]?\d+(?:[.,]\d+)?)$/i);
   if (m) return { side: m[1].toLowerCase(), hc: parseFloat(m[2].replace(',', '.')) };
-  m = String(str).match(/^([+-]?\d+(?:[.,]\d+)?)$/);
+  m = String(v.value).match(/^([+-]?\d+(?:[.,]\d+)?)$/);
   if (m) return { side: null, hc: parseFloat(m[1].replace(',', '.')) };
   return null;
 }
-// "Over 2.5" / "Under 2.5"
-function parseOUValue(str) {
-  const m = String(str).match(/^(Over|Under)\s+(\d+(?:[.,]\d+)?)$/i);
+function parseOUValue(v) {
+  if (v.handicap != null && v.handicap !== '') {
+    const side = String(v.value).toLowerCase();
+    if (side !== 'over' && side !== 'under') return null;
+    const line = parseFloat(String(v.handicap).replace(',', '.'));
+    return isNaN(line) ? null : { side, line };
+  }
+  const m = String(v.value).match(/^(Over|Under)\s+(\d+(?:[.,]\d+)?)$/i);
   if (!m) return null;
   return { side: m[1].toLowerCase(), line: parseFloat(m[2].replace(',', '.')) };
 }
@@ -118,7 +168,7 @@ function extractAH(bookie, side, line) {
   const market = findMarket(bookie, /asian.?handicap/i);
   if (!market) return null;
   for (const v of (market.values || [])) {
-    const parsed = parseAHValue(v.value);
+    const parsed = parseAHValue(v);
     if (!parsed) continue;
     if (parsed.side && parsed.side !== side) continue;
     // side's own line is signed opposite to the fav's positive magnitude
@@ -134,10 +184,12 @@ function extractAH(bookie, side, line) {
 }
 
 function extractOU(bookie, side, line) {
-  const market = findMarket(bookie, /goals.*over.?under|over.?under.*goals|^over\/under$/i);
+  // Pre-match name is "Goals Over/Under"; live name is "Over/Under Line" —
+  // match both, still excluding half-specific variants via findMarket.
+  const market = findMarket(bookie, /goals.*over.?under|over.?under.*goals|^over\/under$|^over\/under line$/i);
   if (!market) return null;
   for (const v of (market.values || [])) {
-    const parsed = parseOUValue(v.value);
+    const parsed = parseOUValue(v);
     if (!parsed) continue;
     if (parsed.side !== side) continue;
     if (Math.abs(parsed.line - line) < 0.13) {
@@ -150,7 +202,8 @@ function extractOU(bookie, side, line) {
 
 function extractMatchWinner(bookie, outcome) {
   // outcome: 'Home' | 'Draw' | 'Away'
-  const market = findMarket(bookie, /match winner|^1x2$/i);
+  // Pre-match name is "Match Winner"; live name is "Fulltime Result".
+  const market = findMarket(bookie, /match winner|fulltime result|^1x2$/i);
   if (!market) return null;
   const v = (market.values || []).find(x => String(x.value).toLowerCase() === outcome.toLowerCase());
   if (!v) return null;
@@ -160,7 +213,10 @@ function extractMatchWinner(bookie, outcome) {
 
 function extractBtts(bookie, wanted) {
   // wanted: 'Yes' | 'No'
-  const market = findMarket(bookie, /both teams.*score/i);
+  // Anchored: live feed also lists "Result / Both Teams To Score" (a combo
+  // market with non-Yes/No values) ahead of the plain BTTS market in array
+  // order — an unanchored regex grabs that one first and silently misses.
+  const market = findMarket(bookie, /^both teams.*score$/i);
   if (!market) return null;
   const v = (market.values || []).find(x => String(x.value).toLowerCase() === wanted.toLowerCase());
   if (!v) return null;
