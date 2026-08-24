@@ -91,17 +91,21 @@ const BOOK_PATTERNS = {
 // without deploying extra logging each time.
 async function fetchAllBookHashes(diag = null) {
   try {
-    let resp;
+    let resp, html;
     const attempts = [];
     for (const headers of LIVESCORE_HEADER_SETS) {
       resp = await fetch('https://www.asianbetsoccer.com/it/livescore.html', { headers });
-      attempts.push({ ua: headers['User-Agent'], status: resp.status, ok: resp.ok });
-      if (resp.ok) break;
+      const bodyText = await resp.text();
+      attempts.push({ ua: headers['User-Agent'], status: resp.status, ok: resp.ok, bodyLength: bodyText.length, bodySample: diag ? bodyText.slice(0, 500) : undefined });
+      // A 2xx status with a near-empty body is a WAF/challenge interstitial,
+      // not the real page — don't stop early on that, keep trying header
+      // sets. Only accept a response that's actually the size of a real
+      // livescore.html page.
+      if (resp.ok && bodyText.length > 2000) { html = bodyText; break; }
     }
     if (diag) diag.attempts = attempts;
-    if (!resp.ok) return { pinnacle: null, bet365: null, sbobet: null };
-    const html = await resp.text();
-    if (diag) diag.htmlLength = html.length;
+    if (html == null) return { pinnacle: null, bet365: null, sbobet: null };
+    if (diag) { diag.htmlLength = html.length; diag.htmlSample = html.slice(0, 500); }
 
     const result = { pinnacle: null, bet365: null, sbobet: null };
     const optRe = /value="([a-f0-9]{40})"[^>]*>\s*([^<]+)/gi;
