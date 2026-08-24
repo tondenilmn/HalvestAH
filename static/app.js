@@ -823,6 +823,10 @@ const _T2_KEYS = [
   'australia a-league',
   'finland veikkausliga',
   'indonesia liga 1',
+  'egyptian premier league',
+  'northern ireland premier league','northern ireland premiership',
+  'slovenia 1.liga',
+  'ceska fotbalova liga','gambrinus liga',
 ];
 
 function classifyLeague(name) {
