@@ -141,12 +141,16 @@ Rows are tagged `TOP` / `MAJOR` / `OTHER` at load time via `_T1_RULES` / `_T2_KE
 
 Fetches all live/upcoming matches with embedded Pinnacle odds in a single request.
 
-**Pinnacle book hash** rotates periodically (sometimes multiple times per day). The code auto-discovers it:
-1. Fast path: try `GS_PRIMARY` (`Q`) + `PINNACLE_HASH` (1 subrequest)
-2. On 404: fetch `https://www.asianbetsoccer.com/it/livescore.html`, extract new hash from `#book_filter` option values (1 subrequest), retry
-3. Fall through: sweep all `GS_CANDIDATES` × hashes (max ~21 subrequests total, well under Cloudflare's 50 cap)
+**Bet365 book hash** (the primary/only live book now — see the constant comments in the file) rotates periodically. The code auto-discovers it:
+1. Fast path: try `GS_PRIMARY` (`Q`) + stored `BET365_HASH` (1 subrequest)
+2. On 404: try direct discovery — fetch `https://www.asianbetsoccer.com/it/livescore.html`, extract new hash from `#book_filter` option values, retry
+3. **If direct discovery comes back empty**, relay through Railway instead (`RAILWAY_RELAY_URL` env var + `GET /hashes`) — see below, this is the important path in practice.
 
-To manually update the hash: open DevTools → Network on the asianbetsoccer livescore page, find a request to `botbot3.space/tables/v4/*/livegame/*.js`, copy the 40-char hex filename.
+**Direct discovery from this Function is effectively always blocked** (confirmed 2026-08-24): asianbetsoccer.com's WAF returns an HTTP 202 bot-challenge (193-byte body) to every request from Cloudflare's edge network, regardless of header set. So step 2 above almost never succeeds on its own — step 3 (the Railway relay) is what actually keeps the hash fresh without manual intervention now.
+
+**Railway relay (`RAILWAY_RELAY_URL`):** `telegram/notify.js` runs an HTTP server (`startHashRelayServer()` in `notify.js`, needs Railway's public networking enabled so `process.env.PORT` is set) exposing `GET /hashes` — the hashes it last discovered via its own direct scrape of asianbetsoccer.com (Railway's outbound IP isn't subject to the Cloudflare-specific WAF block). Set `RAILWAY_RELAY_URL` in the Cloudflare Pages project's env vars to the Railway service's public URL to enable this fallback; `functions/api/livescore.js`'s `fetchHashesViaRailwayRelay()` calls it whenever direct discovery returns nothing. Without it, a stale hash requires a manual `BET365_HASH` env var update (see `?debug=1`'s `hash_discovery` block for diagnostics on which path is failing).
+
+To manually update the hash as a last resort: open DevTools → Network on the asianbetsoccer livescore page, find a request to `botbot3.space/tables/v4/*/livegame/*.js`, copy the 40-char hex filename, and set it as `BET365_HASH` in both the Cloudflare Pages and Railway dashboards.
 
 **Confirmed botbot3.space endpoint:**
 ```
@@ -295,6 +299,8 @@ Note this pre-match timing is a real shift from how L123 was originally walk-for
 **Sync requirement:** `telegram/engine.js` is a direct port of `static/app.js` constants + engine sections. When changing scoring logic, filter modes, the bet set, or league tier classification in `app.js`, mirror those changes in `telegram/engine.js`.
 
 **Railway deployment:** set `TELEGRAM_TOKEN`, `TELEGRAM_CHAT_ID`, `DATA_URL` as env vars in the Railway dashboard. Also supports `BET365_HASH`/`PINNACLE_HASH`/`SBOBET_HASH` overrides as a no-redeploy manual stopgap if hash auto-discovery breaks (e.g. asianbetsoccer.com's WAF blocking Railway's outbound IP — auto-discovery failures now log the real fetch error instead of swallowing it in a bare `catch{}`). The `railway.json` in `telegram/` defines the start command.
+
+**Enable Railway public networking** so `startHashRelayServer()` in `notify.js` can bind to the auto-assigned `PORT` and serve `GET /hashes` — this is what lets `functions/api/livescore.js` (the web UI, whose own hash discovery is blocked by asianbetsoccer's WAF from Cloudflare's edge — see "The Livescore Function" above) self-heal without a manual `BET365_HASH` paste. Then set `RAILWAY_RELAY_URL` in the Cloudflare Pages project's env vars to the Railway service's public URL.
 
 **Strategy LATEGOAL — "still no 2H goal" watch** (`notify.js` + `config.js`, added 2026-08-22): fires once per match within `LATEGOAL_TRIGGER_WINDOW` (default 68'-72', windowed rather than a single minute so a missed/delayed scan cycle can't fire it arbitrarily late) if the match's HT scoreline historically supports a 2nd-half goal (checked against a fav-line/side + exact-HT-state historical bucket, further split by the match's own closing **Total Line band** — see below) AND no goal has actually been scored since HT (an in-memory HT-score snapshot, captured for every live match crossing minute 44-50 regardless of strategy, is compared against the current score). Considers `over05_2H`/`favScored2H`/`homeScored2H`/`awayScored2H` (`LATEGOAL_BETS`).
 

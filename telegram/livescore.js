@@ -558,5 +558,12 @@ async function fetchNextMatchesAllDays(maxDays = 1) {
   return { matches: allMatches, pinnacleHashFailed: false, pinnacleHash: PINNACLE_HASH, bet365HashFailed, bet365Hash: BET365_HASH };
 }
 
+// Current in-memory hashes with no network call — used by notify.js's /hashes
+// HTTP endpoint so the Cloudflare Pages Function can relay through Railway
+// when its own direct discovery is blocked (see functions/api/livescore.js).
+function getCurrentHashes() {
+  return { pinnacle: PINNACLE_HASH, bet365: BET365_HASH, sbobet: SBOBET_HASH };
+}
+
 // module.exports = { fetchLiveMatches, fetchNextMatches, fetchNextMatchesAllDays, refreshHashes };
-module.exports = { fetchLiveMatches, fetchNextMatches, refreshHashes };
+module.exports = { fetchLiveMatches, fetchNextMatches, refreshHashes, getCurrentHashes };

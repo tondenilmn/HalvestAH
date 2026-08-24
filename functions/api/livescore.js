@@ -137,6 +137,34 @@ async function fetchAllBookHashes(diag = null) {
 async function fetchPinnacleHash() { return (await fetchAllBookHashes()).pinnacle; }
 async function fetchBet365Hash()   { return (await fetchAllBookHashes()).bet365; }
 
+// Second-line fallback when fetchAllBookHashes() above comes back empty —
+// confirmed 2026-08-24 that asianbetsoccer.com's WAF returns a 202
+// bot-challenge (193-byte body, both header sets) to every request
+// originating from Cloudflare's edge network, so direct discovery from this
+// Function can never succeed on its own. telegram/notify.js (running on
+// Railway, a different network not subject to that block) exposes its own
+// last-discovered hash via GET /hashes — relay through that instead. Set
+// RAILWAY_RELAY_URL to the Railway service's public URL to enable.
+async function fetchHashesViaRailwayRelay(railwayRelayUrl, diag = null) {
+  if (!railwayRelayUrl) return { pinnacle: null, bet365: null, sbobet: null };
+  const url = `${railwayRelayUrl.replace(/\/$/, '')}/hashes`;
+  try {
+    const resp = await fetch(url);
+    if (diag) diag.railwayRelay = { url, status: resp.status, ok: resp.ok };
+    if (!resp.ok) return { pinnacle: null, bet365: null, sbobet: null };
+    const json = await resp.json();
+    const isHash = v => typeof v === 'string' && /^[a-f0-9]{40}$/i.test(v);
+    return {
+      pinnacle: isHash(json.pinnacle_hash) ? json.pinnacle_hash : null,
+      bet365:   isHash(json.bet365_hash)   ? json.bet365_hash   : null,
+      sbobet:   isHash(json.sbobet_hash)   ? json.sbobet_hash   : null,
+    };
+  } catch (e) {
+    if (diag) diag.railwayRelay = { url, error: e.message };
+    return { pinnacle: null, bet365: null, sbobet: null };
+  }
+}
+
 /**
  * Fetch live odds for a secondary bookmaker (Bet365, Sbobet) by hash.
  * Returns Map<matchId, odds>. Non-fatal — empty map on any error.
@@ -176,6 +204,7 @@ export async function onRequest(context) {
   if (context.env?.PINNACLE_HASH) PINNACLE_HASH = context.env.PINNACLE_HASH;
   if (context.env?.BET365_HASH)   BET365_HASH   = context.env.BET365_HASH;
   if (context.env?.SBOBET_HASH)   SBOBET_HASH   = context.env.SBOBET_HASH;
+  const RAILWAY_RELAY_URL = context.env?.RAILWAY_RELAY_URL || null;
 
   const cors = {
     'Access-Control-Allow-Origin':  '*',
@@ -207,7 +236,10 @@ export async function onRequest(context) {
   // Cloudflare-edge-specific failure can be told apart from a stale hash.
   if (isDebug) {
     const hashDiag = {};
-    const discoveredHashes = await fetchAllBookHashes(hashDiag);
+    let discoveredHashes = await fetchAllBookHashes(hashDiag);
+    if (!discoveredHashes.pinnacle && !discoveredHashes.bet365 && !discoveredHashes.sbobet) {
+      discoveredHashes = await fetchHashesViaRailwayRelay(RAILWAY_RELAY_URL, hashDiag);
+    }
 
     const ts  = Date.now();
     const url = `https://botbot3.space/tables/v4/Q/livegame/${BET365_HASH}.js?date=${ts}&_=${ts + 1}`;
@@ -336,7 +368,12 @@ export async function onRequest(context) {
   let liveResult = await tryComboData(BET365_HASH, GS_PRIMARY);
 
   if (!liveResult && lastError.includes('404')) {
-    const discovered = await fetchBet365Hash();
+    // Direct discovery from Cloudflare's edge is blocked by asianbetsoccer's
+    // WAF (confirmed 2026-08-24 — 202 bot-challenge on every attempt), so
+    // fall back to relaying through Railway (telegram/notify.js's /hashes
+    // endpoint), a network that isn't subject to that block.
+    let discovered = await fetchBet365Hash();
+    if (!discovered) discovered = (await fetchHashesViaRailwayRelay(RAILWAY_RELAY_URL)).bet365;
     if (discovered && discovered !== BET365_HASH) {
       BET365_HASH = discovered;
       lastError = '';

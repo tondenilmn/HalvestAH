@@ -11,6 +11,7 @@
 //   node notify.js --verbose — verbose logging (skip reasons)
 
 const path = require('path');
+const http = require('http');
 const cron = require('node-cron');
 const cfg  = require('./config');
 const {
@@ -22,7 +23,7 @@ const {
   applyGameState,
   scoreBets,
 } = require('./engine');
-const { fetchLiveMatches, refreshHashes } = require('./livescore');
+const { fetchLiveMatches, refreshHashes, getCurrentHashes } = require('./livescore');
 const { verifyBet365Price } = require('./apifootball');
 const { recordAlert, settlePendingAlerts, buildDigestMessage, loadState, saveState } = require('./track_record');
 const { computeLiveOdd } = require('./live_odds');
@@ -875,11 +876,42 @@ async function maybeSendDailyDigest() {
   }
 }
 
+// ── Hash relay server ────────────────────────────────────────────────────────
+// asianbetsoccer.com's WAF blocks discovery requests from Cloudflare's edge
+// (confirmed 2026-08-24 — both header sets get a 202 bot-challenge from
+// functions/api/livescore.js), but Railway's outbound IP isn't subject to
+// that block, so this Node process is the reliable source of a fresh hash.
+// Exposes GET /hashes so the Cloudflare Function can relay through here
+// instead of hitting asianbetsoccer.com directly when its own discovery
+// fails — closes the loop that used to require pasting a fresh hash in by
+// hand. Only starts if Railway has assigned a PORT (public networking must
+// be enabled on the Railway service for this to be reachable externally).
+function startHashRelayServer() {
+  if (!process.env.PORT) {
+    console.log('Hash relay: PORT not set — skipping (enable Railway public networking to serve /hashes).');
+    return;
+  }
+  const server = http.createServer((req, res) => {
+    if (req.url === '/hashes') {
+      const { pinnacle, bet365, sbobet } = getCurrentHashes();
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ pinnacle_hash: pinnacle, bet365_hash: bet365, sbobet_hash: sbobet }));
+      return;
+    }
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end('ok');
+  });
+  server.listen(process.env.PORT, () => {
+    console.log(`Hash relay: listening on :${process.env.PORT} (GET /hashes)`);
+  });
+}
+
 // ── Entry point ──────────────────────────────────────────────────────────────
 async function main() {
   const once = process.argv.includes('--once');
 
   await loadDb();
+  startHashRelayServer();
 
   const on = s => s ? 'ON ' : 'OFF';
   console.log(`Strategy L123 [${on(cfg.L123_ENABLED)}][${cfg.L123_TIER}]: Layer 1(open)/2(move)/3(close) consensus  minAgree=${cfg.L123_MIN_AGREE}/3  fire=${PRE_MATCH_WINDOW_MIN}min pre-kickoff window  n≥${cfg.L123_MIN_N} z≥${cfg.L123_MIN_Z} edge≥${cfg.L123_MIN_EDGE}pp bl≥${cfg.L123_MIN_BASELINE}%`);
