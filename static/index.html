@@ -18,6 +18,13 @@
     <span class="header-sub">Enter odds or a match link → get the best bets vs the historical dataset</span>
   </header>
 
+  <!-- ── Tabs ──────────────────────────────────────────── -->
+  <div class="tabs top-tabs">
+    <button class="tab-btn active" id="tabbtn-dashboard" onclick="switchTab('dashboard')">📅 DASHBOARD</button>
+    <button class="tab-btn" id="tabbtn-live" onclick="switchTab('live')">🔴 LIVE GAMES</button>
+    <button class="tab-btn" id="tabbtn-manual" onclick="switchTab('manual')">✏️ MANUAL</button>
+  </div>
+
   <!-- ── Main split ────────────────────────────────────── -->
   <div class="main">
 
@@ -58,6 +65,45 @@
         </div>
         <div id="recency-note" class="tier-breakdown"></div>
       </div>
+
+      <!-- ── DASHBOARD tab controls ──────────────────────── -->
+      <div class="tab-pane active" id="tab-dashboard-controls">
+        <div class="run-btn-group">
+          <button class="run-btn" onclick="runDailyDashboard()">📅 DAILY DASHBOARD</button>
+        </div>
+        <div class="min-n-row" style="margin-top:6px">
+          <span style="font-size:11px;color:var(--dim)">Window:</span>
+          <button class="min-n-preset dash-window-preset" data-hours="0.5" onclick="setDashboardWindow(0.5)">30m</button>
+          <button class="min-n-preset dash-window-preset" data-hours="1" onclick="setDashboardWindow(1)">1h</button>
+          <button class="min-n-preset dash-window-preset active" data-hours="2" onclick="setDashboardWindow(2)">2h</button>
+          <button class="min-n-preset dash-window-preset" data-hours="4" onclick="setDashboardWindow(4)">4h</button>
+          <button class="min-n-preset dash-window-preset" data-hours="8" onclick="setDashboardWindow(8)">8h</button>
+          <button class="min-n-preset dash-window-preset" data-hours="24" onclick="setDashboardWindow(24)">24h</button>
+        </div>
+      </div><!-- /tab-dashboard-controls -->
+
+      <!-- ── LIVE GAMES tab controls ──────────────────────── -->
+      <div class="tab-pane" id="tab-live-controls">
+        <div class="card" style="margin-bottom:10px">
+          <div class="card-title">LIVE GAMES</div>
+          <p id="live-status-text" style="font-size:11px;color:var(--dim);margin-bottom:10px">Not started</p>
+          <div class="run-btn-group">
+            <button class="run-btn run-btn-secondary" onclick="pollLiveMatches()">🔄 Refresh now</button>
+          </div>
+          <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);margin-top:10px;cursor:pointer">
+            <input type="checkbox" id="live-auto-refresh" checked onchange="toggleLiveAutoRefresh(this.checked)">
+            Auto-refresh every minute
+          </label>
+          <p style="font-size:10px;color:var(--dim);font-style:italic;margin-top:8px;line-height:1.4">
+            HT score for live 2H odds is captured automatically the first time each match is seen
+            crossing halftime — no manual entry needed. Matches opened mid-2nd-half show
+            closing-odds signal only until a fresh HT is captured.
+          </p>
+        </div>
+      </div><!-- /tab-live-controls -->
+
+      <!-- ── MANUAL tab controls ──────────────────────────── -->
+      <div class="tab-pane" id="tab-manual-controls">
 
       <!-- Match Input card -->
       <div class="card">
@@ -194,27 +240,37 @@
       <!-- Run -->
       <div class="run-btn-group">
         <button class="run-btn" onclick="analyzeMatch()">ANALYZE →</button>
-        <button class="run-btn run-btn-secondary" onclick="runDailyDashboard()">📅 DAILY DASHBOARD</button>
       </div>
-      <div class="min-n-row" style="margin-top:6px">
-        <span style="font-size:11px;color:var(--dim)">Window:</span>
-        <button class="min-n-preset dash-window-preset" data-hours="0.5" onclick="setDashboardWindow(0.5)">30m</button>
-        <button class="min-n-preset dash-window-preset" data-hours="1" onclick="setDashboardWindow(1)">1h</button>
-        <button class="min-n-preset dash-window-preset active" data-hours="2" onclick="setDashboardWindow(2)">2h</button>
-        <button class="min-n-preset dash-window-preset" data-hours="4" onclick="setDashboardWindow(4)">4h</button>
-        <button class="min-n-preset dash-window-preset" data-hours="8" onclick="setDashboardWindow(8)">8h</button>
-        <button class="min-n-preset dash-window-preset" data-hours="24" onclick="setDashboardWindow(24)">24h</button>
-      </div>
+
+      </div><!-- /tab-manual-controls -->
 
     </div><!-- /left-panel -->
 
     <!-- ── RIGHT PANEL ──────────────────────────────────── -->
-    <div class="right-panel" id="right-panel">
-      <div class="placeholder">
-        <div class="icon">📊</div>
-        <p><strong style="color:var(--bright)">Enter match odds, then click</strong><br>
-        <span style="color:var(--green)">ANALYZE →</span><br>
-        Add the HT / current score any time to layer in live edge.</p>
+    <div class="right-panel">
+      <div class="tab-pane active" id="right-dashboard">
+        <div class="placeholder">
+          <div class="icon">📅</div>
+          <p><strong style="color:var(--bright)">Click</strong><br>
+          <span style="color:var(--green)">📅 DAILY DASHBOARD</span><br>
+          to scan today's fixtures for an opening-odds edge.</p>
+        </div>
+      </div>
+      <div class="tab-pane" id="right-live">
+        <div class="placeholder">
+          <div class="icon">🔴</div>
+          <p><strong style="color:var(--bright)">Live Games</strong><br>
+          Auto-scans in-play matches against the historical dataset.<br>
+          Switch to this tab to start.</p>
+        </div>
+      </div>
+      <div class="tab-pane" id="right-manual">
+        <div class="placeholder">
+          <div class="icon">📊</div>
+          <p><strong style="color:var(--bright)">Enter match odds, then click</strong><br>
+          <span style="color:var(--green)">ANALYZE →</span><br>
+          Add the HT / current score any time to layer in live edge.</p>
+        </div>
       </div>
     </div>
 

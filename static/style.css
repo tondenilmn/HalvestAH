@@ -159,6 +159,9 @@ header {
 .tab-pane { display: none; }
 .tab-pane.active { display: block; }
 
+/* Top-level page tabs (Dashboard / Live Games / Manual) — sits above .main */
+.tabs.top-tabs { margin: 10px 12px 0; }
+
 /* ── Workflow step bar ───────────────────────────────────── */
 .workflow-bar {
   display: flex; align-items: center; gap: 6px;
@@ -790,6 +793,40 @@ select.gs-select {
   .bet-body { grid-template-columns: 1fr; }
   .disc-card { grid-template-columns: 1fr; }
 
+  /* Bet cards (buildBetCol / renderMergedBetCard / renderValueHuntCard) are
+     the main per-bet component reused across Dashboard, Live Games, and
+     Manual, including inside the Live Games detail modal — their PRE-MATCH/
+     IN-PLAY two-column layout and the min-odds side panel were designed for
+     a wide desktop panel and turn unreadably cramped at phone widths.
+     Stack everything to a single column instead. */
+  .bet-scenarios { grid-template-columns: 1fr; }
+  .vh-body       { grid-template-columns: 1fr; }
+
+  /* Tier label + PRE/GS pass badges can outgrow the fixed-height stripe once
+     text wraps at narrow widths — let it grow instead of clipping. */
+  .bet-stripe { height: auto; min-height: 40px; flex-wrap: wrap; gap: 6px; }
+
+  /* Bet-col header (title/subtitle/MODEL/MKT/pass badges) — same wrap issue
+     as the stripe, now more likely to trigger since the column below it is
+     full card width instead of half. */
+  .col-hdr { flex-wrap: wrap; row-gap: 4px; }
+
+  /* Live Games compact match cards: team names + score/minute badge on one
+     row can collide once names run long. */
+  .scan-card-header { flex-wrap: wrap; gap: 6px; }
+  .scan-match-name   { min-width: 0; }
+
+  /* Top-level tabs (Dashboard / Live Games / Manual) — emoji + label at the
+     desktop font size wraps awkwardly in a 3-up flex row this narrow. */
+  .top-tabs .tab-btn { font-size: 11px; padding: 9px 4px; }
+
+  /* Live match detail modal — desktop's generous top margin/side padding
+     eats too much of a phone's viewport height. */
+  .modal-overlay { padding: 14px 8px; }
+  .modal-box     { max-height: calc(100vh - 28px); }
+  .modal-header  { padding: 12px 14px; }
+  .modal-body    { padding: 12px 14px; }
+
   /* Header: fixed 58px height + long instructional subtitle wraps and
      clips on narrow screens — drop the subtitle (redundant with the
      results panel's own empty-state prompt) and let the header size to
@@ -1283,3 +1320,32 @@ select.gs-select {
 .scan-tip-z-strong { background: #1a4a2a; color: var(--green); }
 .scan-tip-z-ok     { background: #2a2a1a; color: var(--yellow); }
 .scan-tip-z-weak   { color: var(--dim); }
+
+/* ── Live match detail modal ─────────────────────────────── */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(3,7,10,0.72);
+  display: flex; align-items: flex-start; justify-content: center;
+  padding: 30px 16px; overflow-y: auto; z-index: 1000;
+}
+.modal-box {
+  background: var(--bg1); border: 1px solid var(--border); border-radius: 12px;
+  width: 100%; max-width: 720px; max-height: calc(100vh - 60px);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.modal-header {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 12px; padding: 16px 18px; border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.modal-title { font-size: 15px; font-weight: bold; color: var(--bright); }
+.modal-sub   { font-size: 11px; color: var(--dim); margin-top: 4px; }
+.modal-close {
+  background: var(--bg3); border: none; color: var(--dim);
+  width: 26px; height: 26px; border-radius: 6px; cursor: pointer;
+  font-size: 13px; flex-shrink: 0; transition: color .15s, background .15s;
+}
+.modal-close:hover { background: var(--red); color: #fff; }
+.modal-body {
+  padding: 16px 18px; overflow-y: auto;
+  scrollbar-width: thin; scrollbar-color: var(--bg3) transparent;
+}

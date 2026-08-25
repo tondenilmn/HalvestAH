@@ -89,7 +89,7 @@ Everything in the Python desktop app (`constants.py`, `data.py`, `engine.py`, `s
 4. **Engine** — `applyConfig`, `applyGameState`, `scoreBets`, `traceConfig`, `discover`
 5. **Live odds** — `computeLiveOdd` (Poisson time-decay, 2H bets only)
 6. **App state & DB** — `state` object, `_db`, `_fileInfo`, `autoLoadData`
-7. **UI** — event handlers, `runMatch`, `runDisc`, render functions
+7. **UI** — event handlers, `switchTab`, `analyzeMatch` (Manual), `runDailyDashboard` (Dashboard), `pollLiveMatches`/`renderLiveGames`/`openLiveMatchDetail` (Live Games), render functions
 
 ## Key Constants (app.js)
 
@@ -190,23 +190,31 @@ Score is only extracted for live matches (those with a minute field); upcoming m
 ```json
 { matches: [{ id, url, home_team, away_team, league, minute, score, odds: {ah_hc, ah_ho, ho_c, ho_o, ao_c, ao_o, tl_c, tl_o, ov_c, ov_o, un_c, un_o} }] }
 ```
-`app.js` `runBatchScan()` uses embedded odds directly, skipping per-match `/api/scrape` calls. Scan cards display league (blue), live minute (yellow), and score (green).
+`app.js`'s Live Games tab (`pollLiveMatches()`) uses embedded odds directly, skipping per-match `/api/scrape` calls.
 
 **Debug endpoint:** `GET /api/livescore?debug=1` — returns `match_count`, `matches_preview` (all matches), `getData1_parsed` (every getDatalive1 call as a clean arg array) for diagnosing format changes.
 
-## Live Scan Behaviour (`runBatchScan` in `app.js`)
+## Web UI Tabs (`static/index.html` + `static/app.js`)
 
-- Fetches all live matches from `/api/livescore` (embedded odds, no per-match scrape needed).
-- Scores each match on **pre-match bets only** (no game state filter applied) — cleaner signal, consistent across all matches.
-- Scan cards show: league (blue), score (green, e.g. `1-0`), minute (yellow, e.g. `14'`), signal badges, top 3 bets.
-- Each bet row shows: label · z-score (green=above baseline, red=below) · hit% `vs` baseline% · min odds.
-- Results sorted by **match minute ascending** (earliest = most time left to act).
-- `_scanDataCache` stores `{ odds, match }` per match id for use when clicking "Use this match →".
-- `useScanMatch(id)` calls `fillFromScraped(entry.odds)` + `fillLiveMatchState(entry.match)`:
-  - `fillLiveMatchState` sets the live minute estimator field and pre-fills HT score fields from `match.score` (only when score is explicitly known — never defaults to 0-0 to avoid masking parse failures).
-  - If minute > 45 (2H), 2H in-play fields are reset to 0-0 (HT breakdown unknown without HT data).
+The UI is three tabs — Dashboard, Live Games, Manual — switched via `switchTab(name)`, which toggles `.active` on the matching tab button, left-panel control pane (`#tab-{name}-controls`), and right-panel content pane (`#right-{name}`). The DB loader card (`#db-card`) sits above the tab-specific controls and is shared by all three tabs. `_activeTab` tracks the current tab; entering `'live'` starts polling (`startLivePolling()`), leaving it stops it (`stopLivePolling()`).
 
-**Odds tolerance quick buttons (Basic mode):** EXACT · 0.02 · 0.05 · 0.07 · 0.10
+- **Dashboard** (`runDailyDashboard()` → `renderDailyDashboard()`, unchanged from before the tab split) — pre-match fixture scan on opening odds, see below.
+- **Manual** (`analyzeMatch()` → `renderMatchResults()`, unchanged) — manual odds entry / URL import, full pre-match + in-play analysis.
+- **Live Games** (new) — see below.
+
+`buildQualifyingList(preMap, gsMap, minN)` and `buildValueHuntList(preBets, minN)` factor out the "merge pre-match + in-play bets into a ranked qualifying/value-hunt list" logic shared by `renderMatchResults` (Manual) and the Live Games pipeline.
+
+## Live Games Tab (`static/app.js`)
+
+Auto-scans in-play matches from `/api/livescore` and scores each one against the historical dataset using **the match's own real closing-odds signal pattern** (`buildCfgFromLiveOdds` — same cfg-building function the old `checkLiveBets` used) — not a hypothetical signal sweep (`discover()` stays unwired/out of scope for this tab).
+
+- `fetchLiveMatches()` — hits `/api/livescore`, keeps only `data.matches` entries with `minute != null` (the live/in-play ones; `next_matches` and not-yet-started `matches` entries are excluded, unlike the Dashboard's `fetchUpcomingFixtures`).
+- **HT auto-snapshot**: `updateHtAnchor(match, minute)` captures `match.score` as the HT anchor the first time a match is seen with a minute in the 44–50 window (or the `'HT'` sentinel) — no manual entry needed. Anchors are kept in `_liveHtAnchors` (`Map<matchId, {home, away, ts}>`) and persisted to `localStorage['halvest_ht_anchors']` (this app's only localStorage usage), pruned of entries older than `HT_ANCHOR_MAX_AGE_MS` (6h) on load. A match first observed after minute 50 with no prior anchor is flagged `anchorStatus: 'unknown'` and only gets closing-odds/pre-match bets, never live 2H decay, until a fresh anchor is captured (impossible for that match instance).
+- `analyzeLiveMatch(match, minute)` — runs `applyConfig`/`applyBaselineConfig` + `scoreBets` for the pre-match pool (`preBets`, always computed if enough history), then, once an HT anchor is known, `applyGameState({trigger:'HT',...})` + `scoreBets` for the HT-conditioned pool (`htBets`), then — once `minute > 45` and a current score is available — `buildLiveAdjustedBet` per bet (goals-since-anchor derived from `match.score − anchor`, mapped to fav/dog via `cfg.fav_side`) for the minute-decayed live pool (`liveBets`). Whichever of `liveBets`/`htBets`/`preBets` is most specific becomes `gsBets`, consumed the same way Manual Analysis's `gsAllBets` is.
+- `pollLiveMatches()` — fetches, snapshots anchors, analyzes, ranks matches by their best bet's CI-adjusted score (`rankScore` = `z * lo/100`, same metric `scoreBets` itself sorts by), renders. Runs immediately on entering the tab and every `LIVE_POLL_MS` (60s) via `setInterval` while the tab stays active and auto-refresh is on (`toggleLiveAutoRefresh`) — the only recurring timer in this codebase.
+- `renderLiveGames()` — a "🏆 BEST LIVE BET" banner (reuses `renderMergedBetCard` directly, rank namespace `'live-top'`) followed by one compact `.scan-card` per match (`renderLiveMatchCard`), each clickable by array index (`openLiveMatchDetail(idx)` — index into `_liveMatches`, deliberately **not** a team-name-derived id, since team/league names come from the scraped feed and aren't safe to embed raw into an inline `onclick`).
+- `openLiveMatchDetail(idx)` opens `#live-match-modal` (new `.modal-overlay`/`.modal-box` CSS) showing the full per-match breakdown — reuses `renderMergedBetCard`/`renderTopValueBanner`/`renderValueHuntSection`/`buildTraceHtml`/`renderBetDashboard` unchanged, just fed this match's live-derived `cfg`/`gsForTrace` instead of manual input. Rank namespace `'live-detail-*'`.
+- **Kelly-widget rank namespacing**: `buildBetCol` keys `_lastBetsByWidget` by `${rank}-${colId}`, and this map is shared globally (reset only by `renderMatchResults`, i.e. Manual Analysis runs). Live Games' banner and modal use the `'live-top'`/`'live-detail-*'` rank prefixes specifically to avoid colliding with Manual Analysis's own `'top'`/numeric ranks when both are present in the DOM (the modal layers over whichever tab is active).
 
 ## Best Value Bet Banner & Top Pick (`static/app.js`)
 

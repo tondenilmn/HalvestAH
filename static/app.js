@@ -366,7 +366,7 @@ function setDashboardWindow(hours) {
 }
 
 async function runDailyDashboard(forceRefresh = true) {
-  const right = document.getElementById('right-panel');
+  const right = document.getElementById('right-dashboard');
 
   if (forceRefresh || !_dashboardAllFixtures) {
     right.innerHTML = `<div class="loader-msg">Loading today's fixtures…</div>`;
@@ -387,7 +387,7 @@ async function runDailyDashboard(forceRefresh = true) {
 // that subset (analysis cost now scales with the window, not the full 24h
 // fetch), and renders.
 function renderDashboardWindow() {
-  const right = document.getElementById('right-panel');
+  const right = document.getElementById('right-dashboard');
   if (!_dashboardAllFixtures) return;
 
   if (!_dashboardAllFixtures.length) {
@@ -2654,7 +2654,7 @@ function setBankroll(v) {
 
 function setUseFlatDecay(checked) {
   state.useFlatDecay = !!checked;
-  if (_db.length && document.getElementById('right-panel')?.querySelector('.results-title')) {
+  if (_db.length && document.getElementById('right-manual')?.querySelector('.results-title')) {
     analyzeMatch();
   }
 }
@@ -2928,12 +2928,12 @@ function analyzeMatch() {
    RENDER HELPERS
    ════════════════════════════════════════════════════════════ */
 function showLoader() {
-  document.getElementById('right-panel').innerHTML =
+  document.getElementById('right-manual').innerHTML =
     `<div class="loader visible"><div class="spinner"></div> Analysing…</div>`;
 }
 
 function showError(msg) {
-  document.getElementById('right-panel').innerHTML =
+  document.getElementById('right-manual').innerHTML =
     `<div class="no-bets"><div class="warn-icon">⚠️</div><p>${msg}</p></div>`;
 }
 
@@ -3252,20 +3252,12 @@ function toggleMatches(id) {
 /* ════════════════════════════════════════════════════════════
    RENDER MATCH RESULTS
    ════════════════════════════════════════════════════════════ */
-function renderMatchResults({ cfg_n, allBets, bets, gsAllBets, gsLabelText, ftrace, min_n, cfg }) {
-  const right = document.getElementById('right-panel');
-  _lastBetsByWidget = new Map();
-
-  const ahSide = cfg.fav_side === 'AWAY' ? 'Away' : 'Home';
-  const cfgSummary = `<div class="cfg-summary">${ahSide} AH −${cfg.fav_line} · ${cfg_n} matching records${gsLabelText ? ' · ' + gsLabelText : ''}</div>`;
-
-  const preMap = new Map(allBets.map(b => [b.k, b]));
-  const gsMap  = new Map((gsAllBets || []).map(b => [b.k, b]));
-
-  // Qualifying bets — full detail cards, merging pre-match + in-play.
-  // qualifiesBet() requires both z >= MIN_Z AND the Wilson CI lower bound to
-  // still clear baseline by MIN_EDGE — see qualifiesBet() for why raw z alone
-  // isn't enough.
+// Qualifying bets — full detail cards, merging pre-match + in-play.
+// qualifiesBet() requires both z >= MIN_Z AND the Wilson CI lower bound to
+// still clear baseline by MIN_EDGE — see qualifiesBet() for why raw z alone
+// isn't enough. Shared by Match Analysis and Live Games (same merge logic,
+// different source of preMap/gsMap).
+function buildQualifyingList(preMap, gsMap, minN) {
   const qualifying = [];
   for (const def of BETS) {
     const pre = preMap.get(def.k) || null;
@@ -3279,22 +3271,35 @@ function renderMatchResults({ cfg_n, allBets, bets, gsAllBets, gsLabelText, ftra
       // still favour a thinner-sample bet over a more robust one.
       const score = (b) => b ? b.z * (b.lo / 100) : -Infinity;
       const bestScore = Math.max(score(prePass ? pre : null), score(gsPass ? gs : null));
-      qualifying.push({ pre, gs, prePass, gsPass, bestZ, bestScore, minN: min_n });
+      qualifying.push({ pre, gs, prePass, gsPass, bestZ, bestScore, minN });
     }
   }
   qualifying.sort((a, b) => b.bestScore - a.bestScore);
+  return qualifying;
+}
 
-  // Value hunt — positive edge but not (yet) a qualifying bet (pre-match
-  // pool) — i.e. fails qualifiesBet() (raw z and/or the CI-lower-bound-vs-
-  // baseline check), but still shows a positive point-estimate edge with
-  // enough sample to be worth a fair-odds watch.
-  // Computed up front (not just before its full-list section further down)
-  // so the single best one can headline right after the Top Pick banner.
-  // allBets is already sorted by edge>0 first, then z*(lo/100) descending
-  // (see scoreBets) — filtering preserves that order, so vhBets[0] is
-  // already the highest CI-adjusted-value bet in the list, not just the
-  // first one found.
-  const vhBets = allBets.filter(b => !qualifiesBet(b) && b.edge > 0 && b.n >= min_n);
+// Value hunt — positive edge but not (yet) a qualifying bet — i.e. fails
+// qualifiesBet() (raw z and/or the CI-lower-bound-vs-baseline check), but
+// still shows a positive point-estimate edge with enough sample to be worth
+// a fair-odds watch. preBets is expected already sorted edge>0 first, then
+// z*(lo/100) descending (scoreBets' own sort) — filtering preserves that
+// order, so the first entry is already the highest CI-adjusted-value bet.
+function buildValueHuntList(preBets, minN) {
+  return preBets.filter(b => !qualifiesBet(b) && b.edge > 0 && b.n >= minN);
+}
+
+function renderMatchResults({ cfg_n, allBets, bets, gsAllBets, gsLabelText, ftrace, min_n, cfg }) {
+  const right = document.getElementById('right-manual');
+  _lastBetsByWidget = new Map();
+
+  const ahSide = cfg.fav_side === 'AWAY' ? 'Away' : 'Home';
+  const cfgSummary = `<div class="cfg-summary">${ahSide} AH −${cfg.fav_line} · ${cfg_n} matching records${gsLabelText ? ' · ' + gsLabelText : ''}</div>`;
+
+  const preMap = new Map(allBets.map(b => [b.k, b]));
+  const gsMap  = new Map((gsAllBets || []).map(b => [b.k, b]));
+
+  const qualifying = buildQualifyingList(preMap, gsMap, min_n);
+  const vhBets = buildValueHuntList(allBets, min_n);
 
   // Page order: (1) Qualifying Bets — headline Top Pick banner immediately
   // followed by the full ranked list, so the strongest, statistically-
@@ -3328,4 +3333,397 @@ function renderMatchResults({ cfg_n, allBets, bets, gsAllBets, gsLabelText, ftra
   html += renderBetDashboard(preMap, gsMap);
 
   right.innerHTML = html;
+}
+
+/* ════════════════════════════════════════════════════════════
+   TABS
+   ════════════════════════════════════════════════════════════ */
+const TABS = ['dashboard', 'live', 'manual'];
+let _activeTab = 'dashboard';
+
+function switchTab(name) {
+  if (!TABS.includes(name)) return;
+  _activeTab = name;
+  TABS.forEach(t => {
+    document.getElementById(`tabbtn-${t}`)?.classList.toggle('active', t === name);
+    document.getElementById(`tab-${t}-controls`)?.classList.toggle('active', t === name);
+    document.getElementById(`right-${t}`)?.classList.toggle('active', t === name);
+  });
+  if (name === 'live') startLivePolling();
+  else stopLivePolling();
+}
+
+/* ════════════════════════════════════════════════════════════
+   LIVE GAMES
+   ════════════════════════════════════════════════════════════ */
+const LIVE_POLL_MS = 60000;
+const HT_ANCHOR_STORAGE_KEY = 'halvest_ht_anchors';
+// Long enough to cover a match plus stoppage time, short enough that a
+// closed-and-reopened browser tab doesn't accumulate stale entries forever.
+const HT_ANCHOR_MAX_AGE_MS = 6 * 60 * 60 * 1000;
+
+let _liveMatches   = [];        // last analyzed batch of live matches (unsorted-by-key, ranked for display)
+let _liveHtAnchors = new Map(); // matchId -> {home, away, ts}
+let _livePollTimer = null;
+let _liveAutoRefresh = true;
+let _liveLastUpdated = null;
+
+function matchKey(m) {
+  return m.id || `${m.home_team}:${m.away_team}`;
+}
+
+// "23'" -> 23, "45+2'" -> 45, "HT" -> 45 (HT itself is treated as the
+// anchor-capture moment, same as the rest of 2H-start handling below).
+function parseLiveMinute(raw) {
+  if (raw == null) return null;
+  if (raw === 'HT') return 45;
+  const m = String(raw).match(/(\d+)/);
+  return m ? parseInt(m[1], 10) : null;
+}
+
+function loadHtAnchors() {
+  try {
+    const raw = localStorage.getItem(HT_ANCHOR_STORAGE_KEY);
+    if (!raw) { _liveHtAnchors = new Map(); return; }
+    const obj = JSON.parse(raw);
+    const now = Date.now();
+    _liveHtAnchors = new Map(
+      Object.entries(obj).filter(([, v]) => v && now - v.ts < HT_ANCHOR_MAX_AGE_MS)
+    );
+  } catch { _liveHtAnchors = new Map(); }
+}
+
+function saveHtAnchors() {
+  try {
+    localStorage.setItem(HT_ANCHOR_STORAGE_KEY, JSON.stringify(Object.fromEntries(_liveHtAnchors)));
+  } catch { /* localStorage unavailable — anchors stay in-memory only for this session */ }
+}
+
+// Snapshots the score the first time a match is observed crossing into 2H
+// (minute 44-50, or the "HT" sentinel) — this is what lets live 2H fair odds
+// compute automatically, with no manual HT entry.
+function updateHtAnchor(match, minute) {
+  const id = matchKey(match);
+  if (_liveHtAnchors.has(id)) return;
+  if (minute < 44 || minute > 50) return;
+  if (!match.score) return;
+  const [h, a] = match.score.split('-').map(Number);
+  if (isNaN(h) || isNaN(a)) return;
+  _liveHtAnchors.set(id, { home: h, away: a, ts: Date.now() });
+  saveHtAnchors();
+}
+
+async function fetchLiveMatches() {
+  const res = await fetch('/api/livescore');
+  if (!res.ok) throw new Error(`livescore fetch failed: HTTP ${res.status}`);
+  const data = await res.json();
+  const seen = new Set();
+  return (data.matches || []).filter(m => {
+    if (m.minute == null) return false; // not yet kicked off — Live Games only covers in-play matches
+    const id = matchKey(m);
+    if (seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
+}
+
+// Scores one live match against the historical dataset using the match's
+// own real closing-odds signal pattern (buildCfgFromLiveOdds — same as
+// checkLiveBets), then layers HT-conditioned and (once an HT anchor is
+// known) minute-decayed live 2H bets on top — same pipeline analyzeMatch()
+// uses, just driven by the live feed instead of manual input.
+function analyzeLiveMatch(match, minute) {
+  const cfg = buildCfgFromLiveOdds(match.odds || {});
+  if (!cfg) return { match, minute, cfg: null, status: 'no-odds' };
+
+  const db = getDb();
+  const cfgRows = applyConfig(db, cfg);
+  const baselineRows = applyBaselineConfig(db, cfg);
+  const blSide = baselineRows.filter(r => r.fav_side === cfg.fav_side);
+  const minN = getMinN();
+  if (!cfgRows.length || !baselineRows.length || cfgRows.length < minN) {
+    return { match, minute, cfg, status: 'no-history' };
+  }
+
+  const preBets = scoreBets(cfgRows, baselineRows, blSide, minN);
+
+  let gsBets = null, htBets = null, liveBets = null, gsForTrace = null;
+  let anchorStatus = minute < 44 ? '1h' : 'unknown';
+
+  const anchor = minute < 44 ? null : _liveHtAnchors.get(matchKey(match));
+  if (anchor) {
+    anchorStatus = 'known';
+    gsForTrace = { trigger: 'HT', home_goals: String(anchor.home), away_goals: String(anchor.away) };
+    const gsRows   = applyGameState(cfgRows,      gsForTrace);
+    const gsBlRows = applyGameState(baselineRows, gsForTrace);
+    const gsBlSide = applyGameState(blSide,        gsForTrace);
+    if (gsRows.length >= minN) {
+      htBets = scoreBets(gsRows, gsBlRows, gsBlSide, minN);
+      gsBets = htBets;
+
+      if (minute > 45 && match.score) {
+        const [curH, curA] = match.score.split('-').map(Number);
+        if (!isNaN(curH) && !isNaN(curA)) {
+          const favG2h = Math.max(0, (cfg.fav_side === 'HOME' ? curH : curA) - (cfg.fav_side === 'HOME' ? anchor.home : anchor.away));
+          const dogG2h = Math.max(0, (cfg.fav_side === 'HOME' ? curA : curH) - (cfg.fav_side === 'HOME' ? anchor.away : anchor.home));
+          liveBets = htBets.map(b => buildLiveAdjustedBet(b, minute, favG2h, dogG2h, cfg.fav_side, cfg.fav_line, state.useFlatDecay) || b);
+          gsBets = liveBets;
+        }
+      }
+    }
+  }
+
+  return { match, minute, cfg, status: 'ok', anchorStatus, cfg_n: cfgRows.length, preBets, htBets, liveBets, gsBets, gsForTrace };
+}
+
+function rankScore(b) {
+  return b ? b.z * (b.lo / 100) : -Infinity;
+}
+
+// The single best actionable bet for a match — a qualifying bet if one
+// exists (using whatever the most specific available bet set is: live > HT
+// > pre-match, already merged into gsBets/preBets by analyzeLiveMatch),
+// falling back to the best value-hunt bet otherwise.
+function topLiveBet(analysis) {
+  if (analysis.status !== 'ok') return null;
+  const preMap = new Map((analysis.preBets || []).map(b => [b.k, b]));
+  const gsMap  = new Map((analysis.gsBets  || []).map(b => [b.k, b]));
+  const minN = getMinN();
+  const qualifying = buildQualifyingList(preMap, gsMap, minN);
+  if (qualifying.length) {
+    const q = qualifying[0];
+    return q.gsPass && q.gs ? q.gs : q.pre;
+  }
+  const vh = buildValueHuntList(analysis.preBets || [], minN);
+  return vh[0] || null;
+}
+
+async function pollLiveMatches() {
+  if (!_db.length) {
+    const el = document.getElementById('right-live');
+    if (el) el.innerHTML = `<div class="no-bets"><div class="warn-icon">⚠️</div><p>Load a database first.</p></div>`;
+    return;
+  }
+  const statusEl = document.getElementById('live-status-text');
+  if (statusEl) statusEl.textContent = 'Refreshing…';
+
+  try {
+    const rawMatches = await fetchLiveMatches();
+    const analyzed = rawMatches.map(m => {
+      const minute = parseLiveMinute(m.minute);
+      if (minute == null) return null;
+      updateHtAnchor(m, minute);
+      return analyzeLiveMatch(m, minute);
+    }).filter(Boolean);
+
+    analyzed.sort((a, b) => rankScore(topLiveBet(b)) - rankScore(topLiveBet(a)));
+    _liveMatches = analyzed;
+    _liveLastUpdated = new Date();
+    renderLiveGames();
+  } catch (e) {
+    if (statusEl) statusEl.textContent = 'Refresh failed';
+    if (_activeTab === 'live') {
+      document.getElementById('right-live').innerHTML =
+        `<div class="no-bets"><div class="warn-icon">⚠️</div><p>Could not load live matches: ${esc(e.message)}</p></div>`;
+    }
+  }
+}
+
+function startLivePolling() {
+  loadHtAnchors();
+  pollLiveMatches();
+  if (_livePollTimer) { clearInterval(_livePollTimer); _livePollTimer = null; }
+  if (_liveAutoRefresh) _livePollTimer = setInterval(pollLiveMatches, LIVE_POLL_MS);
+}
+
+function stopLivePolling() {
+  if (_livePollTimer) { clearInterval(_livePollTimer); _livePollTimer = null; }
+}
+
+function toggleLiveAutoRefresh(checked) {
+  _liveAutoRefresh = !!checked;
+  if (_activeTab !== 'live') return;
+  if (_liveAutoRefresh) startLivePolling();
+  else stopLivePolling();
+}
+
+function anchorStatusNote(analysis) {
+  if (analysis.anchorStatus === '1h') return '1st half — 2H live odds after HT';
+  if (analysis.anchorStatus === 'unknown') return 'HT unknown (opened mid-2H) — closing-odds signal only';
+  return analysis.liveBets ? `LIVE @ ${analysis.minute}'` : 'HT-conditioned';
+}
+
+function renderLiveGames() {
+  const right = document.getElementById('right-live');
+  if (!right) return;
+
+  const updatedTxt = _liveLastUpdated
+    ? _liveLastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    : '—';
+  const statusEl = document.getElementById('live-status-text');
+  if (statusEl) statusEl.textContent = `${_liveMatches.length} live · updated ${updatedTxt}`;
+
+  let html = `<h2 class="results-title">LIVE GAMES</h2>`;
+  html += `<p style="font-size:11px;color:var(--dim);margin-bottom:10px">${_liveMatches.length} match${_liveMatches.length !== 1 ? 'es' : ''} in play · scored against each match's own real signal pattern · click a match for full detail</p>`;
+
+  if (!_liveMatches.length) {
+    html += `<div class="no-bets"><div class="warn-icon">⚽</div><p>No live matches right now — check back once matches kick off.</p></div>`;
+    right.innerHTML = html;
+    closeLiveMatchModal();
+    return;
+  }
+
+  const okMatches = _liveMatches.filter(m => m.status === 'ok');
+  let best = null;
+  for (const m of okMatches) {
+    const b = topLiveBet(m);
+    if (b && (!best || rankScore(b) > rankScore(best.bet))) best = { match: m, bet: b };
+  }
+  if (best) {
+    const preMap = new Map((best.match.preBets || []).map(b => [b.k, b]));
+    const gsMap  = new Map((best.match.gsBets  || []).map(b => [b.k, b]));
+    const minN = getMinN();
+    const qualifying = buildQualifyingList(preMap, gsMap, minN);
+    if (qualifying.length) {
+      const label = `🏆 BEST LIVE BET — ${esc(best.match.match.home_team)} vs ${esc(best.match.match.away_team)}`;
+      // rank='live-top' keeps this Kelly-widget namespace distinct from
+      // Manual Analysis's own 'top' rank — both write into the shared
+      // _lastBetsByWidget map and must not collide on the same widget id.
+      html += `<div class="top-pick-banner">${renderMergedBetCard(qualifying[0], 'live-top', anchorStatusNote(best.match), label, best.match.cfg)}</div>`;
+    }
+  }
+
+  html += `<div class="section-label" style="margin-top:18px">ALL LIVE MATCHES</div>`;
+  _liveMatches.forEach((m, i) => { html += renderLiveMatchCard(m, i); });
+
+  right.innerHTML = html;
+}
+
+// idx (position in _liveMatches, not team-name-derived) is used for the
+// click target — team/league names come from the scraped live-odds feed and
+// aren't safe to embed raw into an inline onclick string.
+function renderLiveMatchCard(analysis, idx) {
+  const { match } = analysis;
+
+  if (analysis.status !== 'ok') {
+    const msg = analysis.status === 'no-odds'
+      ? 'Closing odds not available yet'
+      : 'Not enough historical matches for this exact closing config';
+    return `<div class="scan-card" style="cursor:default">
+      <div class="scan-card-header">
+        <span class="scan-match-name">${esc(match.home_team)}<span class="scan-vs">vs</span>${esc(match.away_team)}</span>
+        <div class="scan-live-info">
+          <span class="scan-score">${esc(match.score || '—')}</span>
+          <span class="scan-minute">${esc(match.minute)}</span>
+        </div>
+      </div>
+      <div class="scan-meta">${esc(match.league || '—')}</div>
+      <p style="font-size:11px;color:var(--dim)">${msg}</p>
+    </div>`;
+  }
+
+  const preMap = new Map((analysis.preBets || []).map(b => [b.k, b]));
+  const gsMap  = new Map((analysis.gsBets  || []).map(b => [b.k, b]));
+  const minN = getMinN();
+  const qualifying = buildQualifyingList(preMap, gsMap, minN);
+  const vhBets = buildValueHuntList(analysis.preBets || [], minN);
+  const top = qualifying[0] ? (qualifying[0].gsPass && qualifying[0].gs ? qualifying[0].gs : qualifying[0].pre) : vhBets[0];
+  const topQualifies = !!qualifying[0];
+
+  const previewHtml = top
+    ? `<div class="col-bet-label">${esc(top.label)}${topQualifies ? ' ✓ qualifies' : ' (value-hunt tier)'}</div>
+       <div class="col-prob">
+         <span class="prob-pct">${top.p.toFixed(1)}%</span>
+         <span class="prob-edge ${top.edge >= 0 ? 'pos' : 'neg'}">${top.edge >= 0 ? '+' : ''}${top.edge.toFixed(1)}pp</span>
+       </div>`
+    : `<p style="font-size:11px;color:var(--dim)">No bet clears the bar for this match's signal pattern yet.</p>`;
+
+  return `<div class="scan-card" onclick="openLiveMatchDetail(${idx})">
+    <div class="scan-card-header">
+      <span class="scan-match-name">${esc(match.home_team)}<span class="scan-vs">vs</span>${esc(match.away_team)}</span>
+      <div class="scan-live-info">
+        <span class="scan-score">${esc(match.score || '—')}</span>
+        <span class="scan-minute">${esc(match.minute)}</span>
+      </div>
+    </div>
+    <div class="scan-meta">${esc(match.league || '—')} · ${esc(anchorStatusNote(analysis))}</div>
+    ${previewHtml}
+  </div>`;
+}
+
+function _liveModalEscHandler(e) {
+  if (e.key === 'Escape') closeLiveMatchModal();
+}
+
+function closeLiveMatchModal() {
+  document.getElementById('live-match-modal')?.remove();
+  document.removeEventListener('keydown', _liveModalEscHandler);
+}
+
+// Full-detail view for one live match — reuses the exact same rendering
+// pipeline as Match Analysis (renderTopPickBanner/renderMergedBetCard/
+// renderValueHuntSection/buildTraceHtml/renderBetDashboard) rather than a
+// bespoke layout, driven by this match's already-computed analysis.
+function openLiveMatchDetail(idx) {
+  const analysis = _liveMatches[idx];
+  if (!analysis) return;
+  closeLiveMatchModal();
+
+  const { match, minute, cfg } = analysis;
+  let bodyHtml;
+
+  if (analysis.status !== 'ok') {
+    bodyHtml = `<div class="no-bets"><div class="warn-icon">⚠️</div><p>${
+      analysis.status === 'no-odds'
+        ? 'Closing odds not available for this match yet.'
+        : 'Not enough historical matches for this exact closing configuration.'
+    }</p></div>`;
+  } else {
+    const preMap = new Map((analysis.preBets || []).map(b => [b.k, b]));
+    const gsMap  = new Map((analysis.gsBets  || []).map(b => [b.k, b]));
+    const minN = getMinN();
+    const qualifying = buildQualifyingList(preMap, gsMap, minN);
+    const vhBets = buildValueHuntList(analysis.preBets || [], minN);
+    const gsLabel = anchorStatusNote(analysis);
+
+    const ahSide = cfg.fav_side === 'AWAY' ? 'Away' : 'Home';
+    bodyHtml = `<div class="cfg-summary">${ahSide} AH −${cfg.fav_line} · line ${cfg.line_move} · fav odds ${cfg.fav_odds_move} · dog odds ${cfg.dog_odds_move} · TL ${cfg.tl_c ?? '—'} (${cfg.tl_move}) · over ${cfg.over_move} · under ${cfg.under_move} · ${analysis.cfg_n} matching records</div>`;
+
+    // rank namespace prefixed 'live-detail-' so this modal's Kelly widgets
+    // never collide with Manual Analysis's own numeric/'top' ranks in the
+    // shared _lastBetsByWidget map (both can be present in the DOM at once —
+    // the modal layers over whichever tab is active).
+    if (qualifying.length) {
+      bodyHtml += `<div class="top-pick-banner">${renderMergedBetCard(qualifying[0], 'live-detail-top', gsLabel, '🏆 TOP PICK', cfg)}</div>`;
+      bodyHtml += `<div class="section-label" style="margin-top:18px">QUALIFYING BETS</div>`;
+      bodyHtml += `<p style="font-size:11px;color:var(--dim);margin-bottom:10px">${qualifying.length} bet${qualifying.length !== 1 ? 's' : ''} · sorted by strength</p>`;
+      qualifying.forEach((m, i) => { bodyHtml += renderMergedBetCard(m, `live-detail-${i + 1}`, gsLabel, null, cfg); });
+    } else {
+      bodyHtml += `<div class="no-bets" style="margin-top:20px"><div class="warn-icon">⚠</div><p>No bets clear the statistical bar for this match's signal pattern yet.</p></div>`;
+    }
+
+    bodyHtml += renderTopValueBanner(vhBets[0]);
+    if (vhBets.length) bodyHtml += renderValueHuntSection(vhBets);
+
+    const ftrace = traceConfig(getDb(), cfg, analysis.gsForTrace);
+    bodyHtml += buildTraceHtml(ftrace, 'FILTER TRACE');
+    bodyHtml += renderBetDashboard(preMap, gsMap);
+  }
+
+  const modal = document.createElement('div');
+  modal.id = 'live-match-modal';
+  modal.className = 'modal-overlay';
+  modal.onclick = (e) => { if (e.target === modal) closeLiveMatchModal(); };
+  modal.innerHTML = `<div class="modal-box">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">${esc(match.home_team)} <span style="color:var(--dim)">vs</span> ${esc(match.away_team)}</div>
+        <div class="modal-sub">${esc(match.league || '—')} · ${esc(match.score || '—')} · ${esc(match.minute)}</div>
+      </div>
+      <button class="modal-close" onclick="closeLiveMatchModal()">✕</button>
+    </div>
+    <div class="modal-body">${bodyHtml}</div>
+  </div>`;
+  document.body.appendChild(modal);
+  document.addEventListener('keydown', _liveModalEscHandler);
 }
