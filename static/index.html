@@ -2,8 +2,12 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#070b0f">
   <title>HalvestAH — Betting Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./style.css">
 </head>
 <body>
@@ -50,8 +54,8 @@
         </div>
         <div class="section-label" style="margin-top:10px">LEAGUE TIER</div>
         <div class="gs-triggers">
-          <button class="gs-trigger-btn active" id="tier-btn-ALL"   onclick="setLeagueTier('ALL')">ALL</button>
-          <button class="gs-trigger-btn"        id="tier-btn-MAJOR" onclick="setLeagueTier('MAJOR')">MAJOR</button>
+          <button class="gs-trigger-btn"        id="tier-btn-ALL"   onclick="setLeagueTier('ALL')">ALL</button>
+          <button class="gs-trigger-btn active" id="tier-btn-MAJOR" onclick="setLeagueTier('MAJOR')">MAJOR</button>
           <button class="gs-trigger-btn"        id="tier-btn-TOP"   onclick="setLeagueTier('TOP')">TOP 5 + UCL</button>
         </div>
         <div id="tier-breakdown" class="tier-breakdown"></div>

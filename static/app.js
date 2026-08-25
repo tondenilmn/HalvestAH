@@ -558,6 +558,27 @@ function cfgMoveLabel(v) {
 // documented "status-left" signature pattern, not a one-off for this list.
 const _DASH_TIER_DOT_CLS = { HIGH: 'bd-strong', MEDIUM: 'bd-good', LOW: 'bd-weak' };
 
+// The bet name and its advised min odds together, on one row, so the two
+// things a user actually needs — what to bet, and the price it's worth
+// betting at — aren't separated by other numbers. Shared by every place a
+// single pick is surfaced in a scannable card: Dashboard fixture rows, Live
+// Games match cards, and the "ALL QUALIFYING BETS" list.
+function renderBetPickBlock(bet, qualifies) {
+  return `
+    <div class="pick-row">
+      <div class="pick-label">${esc(bet.label)}<span class="pick-flag">${qualifies ? '✓ qualifies' : '(value-hunt tier)'}</span></div>
+      <div class="pick-odds" title="Bet only if you can get at least this price">
+        <span class="pick-odds-value">${bet.mo}</span>
+        <span class="pick-odds-label">min odds</span>
+      </div>
+    </div>
+    <div class="col-prob">
+      <span class="prob-pct">${bet.p.toFixed(1)}%</span>
+      <span class="prob-edge ${bet.edge >= 0 ? 'pos' : 'neg'}">${bet.edge >= 0 ? '+' : ''}${bet.edge.toFixed(1)}pp vs ${bet.bl.toFixed(1)}% baseline</span>
+    </div>
+    <div class="pick-safer">or ${bet.mo_mid}+ for a safer margin</div>`;
+}
+
 // The scannable core of one fixture: team names + tier dot, bet + prob/edge,
 // and the one number to act on (min odds) — everything else (why this
 // qualifies, sample size, z-score) is supporting evidence and sits behind a
@@ -581,16 +602,7 @@ function renderDashboardRowInner(r) {
       <span class="${tierBadgeClass(r.tier)}" title="${esc(tierHint)}">${r.tier}</span>
     </div>
     <div class="scan-meta">${esc(r.match.league || '—')} · Kickoff ${kickoffTxt}</div>
-    <div class="col-bet-label">${esc(r.bet.label)}${r.qualifies ? ' ✓ qualifies' : ' (value-hunt tier)'}</div>
-    <div class="col-prob">
-      <span class="prob-pct">${r.bet.p.toFixed(1)}%</span>
-      <span class="prob-edge ${r.bet.edge >= 0 ? 'pos' : 'neg'}">${r.bet.edge >= 0 ? '+' : ''}${r.bet.edge.toFixed(1)}pp vs ${r.bet.bl.toFixed(1)}% baseline</span>
-    </div>
-    <div class="col-min-odds">
-      <span class="col-min-odds-label">BET IF ODDS ≥</span>
-      <span class="col-min-odds-value"><b>${r.bet.mo}</b></span>
-      <span class="col-min-odds-floor">or ${r.bet.mo_mid}+ for a safer margin</span>
-    </div>
+    ${renderBetPickBlock(r.bet, r.qualifies)}
     <details class="dash-why">
       <summary>Why this pick</summary>
       <div class="col-stats" style="margin-top:6px">
@@ -2224,7 +2236,7 @@ function computeLiveOdd(pHtPct,betKey,matchMinute,favLine=0.75,
 
   if(_UNDER_BETS[betKey]){
     const[,maxG]=_UNDER_BETS[betKey];
-    if(goalsScored>maxG)return{live_p:0,fair_odd:99,note:note+' ✗ Already busted'};
+    if(goalsScored>maxG)return{live_p:0,fair_odd:99,note:note+' ✗ Already busted',alreadyDecided:true};
     const allowed=maxG-goalsScored;
     let prob=0;
     for(let i=0;i<=allowed;i++)prob+=Math.exp(-remLam)*Math.pow(remLam,i)/_fac(i);
@@ -2237,7 +2249,7 @@ function computeLiveOdd(pHtPct,betKey,matchMinute,favLine=0.75,
     else if(betKey==='awayOver15_2H')need=Math.max(0,2-awayG2h);
     else need=Math.max(0,(_BET_GOAL_THRESHOLD[betKey]||1)-goalsScored);
 
-    if(need===0)return{live_p:100,fair_odd:1.01,note:note+' ✓ Already hit'};
+    if(need===0)return{live_p:100,fair_odd:1.01,note:note+' ✓ Already hit',alreadyDecided:true};
     liveP=_poissonAtLeast(remLam,need)*100;
   }
 
@@ -2298,7 +2310,7 @@ function computeLive1HOdd(pKickoffPct,betKey,matchMinute,favLine=0.75,
 
   if(_UNDER_BETS_1H[betKey]){
     const[,maxG]=_UNDER_BETS_1H[betKey];
-    if(goalsScored>maxG)return{live_p:0,fair_odd:99,note:note+' ✗ Already busted'};
+    if(goalsScored>maxG)return{live_p:0,fair_odd:99,note:note+' ✗ Already busted',alreadyDecided:true};
     const allowed=maxG-goalsScored;
     let prob=0;
     for(let i=0;i<=allowed;i++)prob+=Math.exp(-remLam)*Math.pow(remLam,i)/_fac(i);
@@ -2309,7 +2321,7 @@ function computeLive1HOdd(pKickoffPct,betKey,matchMinute,favLine=0.75,
     else if(betKey==='awayScored1H') need=Math.max(0,1-awayGoals1h);
     else need=Math.max(0,(_BET_GOAL_THRESHOLD_1H[betKey]||1)-goalsScored);
 
-    if(need===0)return{live_p:100,fair_odd:1.01,note:note+' ✓ Already hit'};
+    if(need===0)return{live_p:100,fair_odd:1.01,note:note+' ✓ Already hit',alreadyDecided:true};
     liveP=_poissonAtLeast(remLam,need)*100;
   }
 
@@ -2408,6 +2420,15 @@ function _2hResultField(betKey, favSide) {
 // pool match AND the Poisson time-decay. htBetsMap: Map of k -> HT-
 // conditioned bet from the same scoreBets() pass, needed only for the 2H
 // Result keys (to read the underdog's own "scores in 2H" anchor rate).
+//
+// Sentinel distinct from `null` — `null` means "no live-decay function
+// exists for this bet key, fall back to the plain anchor bet"; this means
+// "the condition is already fully decided (already happened, or already
+// impossible), so there is no live bet left to place at all — drop it from
+// the list entirely rather than show a bookmaker-can't-offer-this 100%/0%".
+// e.g. "Over 0.5 in 2H" once a goal has already gone in this half.
+const _ALREADY_DECIDED = Symbol('bet-already-decided');
+
 function buildLiveAdjustedBet(anchorBet, minute, favG2h, dogG2h, favSide, favLine, useFlatDecay, htBetsMap) {
   const favLineNum = parseFloat(favLine) || 0.75;
 
@@ -2441,6 +2462,7 @@ function buildLiveAdjustedBet(anchorBet, minute, favG2h, dogG2h, favSide, favLin
     const p  = computeLiveBtts2H(homeAnchor.p,  awayAnchor.p,  minute, favLineNum, favG2h, dogG2h, favSide, useFlatDecay);
     const loRaw = computeLiveBtts2H(homeAnchor.lo, awayAnchor.lo, minute, favLineNum, favG2h, dogG2h, favSide, useFlatDecay);
     if (p == null) return null;
+    if (p >= 100) return _ALREADY_DECIDED; // both sides have already scored
     const lo = Math.min(p, loRaw != null ? loRaw : p);
     return {
       ...anchorBet,
@@ -2458,6 +2480,7 @@ function buildLiveAdjustedBet(anchorBet, minute, favG2h, dogG2h, favSide, favLin
 
   const pointRes = computeLiveOdd(anchorBet.p,  anchorBet.k, minute, favLineNum, favG2h, dogG2h, favSide, useFlatDecay);
   if (pointRes.live_p == null) return null;
+  if (pointRes.alreadyDecided) return _ALREADY_DECIDED;
   const loRes = computeLiveOdd(anchorBet.lo, anchorBet.k, minute, favLineNum, favG2h, dogG2h, favSide, useFlatDecay);
 
   const p  = pointRes.live_p;
@@ -2577,6 +2600,7 @@ function buildLive1HAdjustedBet(anchorBet, minute, homeG1h, awayG1h, favSide, fa
     const p  = computeLiveBtts1H(homeAnchor.p,  awayAnchor.p,  minute, favLineNum, homeG1h, awayG1h, useFlatDecay);
     const loRaw = computeLiveBtts1H(homeAnchor.lo, awayAnchor.lo, minute, favLineNum, homeG1h, awayG1h, useFlatDecay);
     if (p == null) return null;
+    if (p >= 100) return _ALREADY_DECIDED; // both sides have already scored
     const lo = Math.min(p, loRaw != null ? loRaw : p);
     return {
       ...anchorBet,
@@ -2594,6 +2618,7 @@ function buildLive1HAdjustedBet(anchorBet, minute, homeG1h, awayG1h, favSide, fa
 
   const pointRes = computeLive1HOdd(anchorBet.p,  anchorBet.k, minute, favLineNum, homeG1h, awayG1h, useFlatDecay);
   if (pointRes.live_p == null) return null;
+  if (pointRes.alreadyDecided) return _ALREADY_DECIDED;
   const loRes = computeLive1HOdd(anchorBet.lo, anchorBet.k, minute, favLineNum, homeG1h, awayG1h, useFlatDecay);
 
   const p  = pointRes.live_p;
@@ -2623,7 +2648,7 @@ let _fileInfo = [];
 let _lastBetsByWidget = new Map();
 
 const state = {
-  leagueTier: 'ALL',
+  leagueTier: 'MAJOR',
   bankroll: null,       // session-only, plain number, no persistence
   recencyMonths: null,  // null = all time, else 3|6|12
   selectedLeague: '',   // for the league-coverage sample-relevance stat
@@ -3339,7 +3364,12 @@ function analyzeMatch() {
           const liveMap = new Map(gsAllBets.map(b => [b.k, b]));
           for (const anchor of htAnchorBets) {
             const live = buildLiveAdjustedBet(anchor, gs.minute, favG2h, dogG2h, cfg.fav_side, cfg.fav_line, state.useFlatDecay, htAnchorMap);
-            if (live) liveMap.set(anchor.k, live);
+            // Already-decided bets (e.g. "Over 0.5 in 2H" once a goal has
+            // already gone in) are dropped entirely — no bookmaker still
+            // offers this once it's already happened, so it's not a bet
+            // left to show, not even at its old pre-live number.
+            if (live === _ALREADY_DECIDED) liveMap.delete(anchor.k);
+            else if (live) liveMap.set(anchor.k, live);
           }
           gsAllBets = [...liveMap.values()];
         }
@@ -3515,6 +3545,11 @@ function buildBetCol(bet, passes, title, subtitle, rank, colId, minN) {
       ${lowN ? '<span class="col-badge-lown">⚠ low n</span>' : passes ? '<span class="col-badge-pass">✓</span>' : '<span class="col-badge-weak">z&lt;1.5</span>'}
     </div>
     <div class="col-bet-label">${betLabel}</div>
+    <div class="col-min-odds">
+      <span class="col-min-odds-label">${moLabel}</span>
+      <span class="col-min-odds-value">${moRange}</span>
+      <span class="col-min-odds-floor">${moFloor}</span>
+    </div>
     <div class="col-prob">
       <span class="prob-pct">${bet.p.toFixed(1)}%</span>
       <span class="prob-edge ${edgeCls}">${edgeSign}${bet.edge.toFixed(1)}pp</span>
@@ -3535,11 +3570,6 @@ function buildBetCol(bet, passes, title, subtitle, rank, colId, minN) {
         <span class="mkt-sub">mkt implied ${bet.mkt_bl.toFixed(1)}% · avg odds ${bet.mkt_avg_odds}</span>
       </div>`;
     })() : ''}
-    <div class="col-min-odds">
-      <span class="col-min-odds-label">${moLabel}</span>
-      <span class="col-min-odds-value">${moRange}</span>
-      <span class="col-min-odds-floor">${moFloor}</span>
-    </div>
     ${renderOddsKellyWidget(`${rank}-${colId}`)}
     ${matchesHtml}
   </div>`;
@@ -3964,8 +3994,16 @@ function analyzeLiveMatch(match, minute) {
     const [curH, curA] = match.score.split('-').map(Number);
     if (!isNaN(curH) && !isNaN(curA)) {
       const preBetsMap = new Map(preBetsAll.map(b => [b.k, b]));
-      liveBets = filterLiveScanBets(preBetsAll, false)
-        .map(b => buildLive1HAdjustedBet(b, minute, curH, curA, cfg.fav_side, cfg.fav_line, state.useFlatDecay, preBetsMap) || b);
+      // Already-decided bets (e.g. "Over 0.5 in 1H" once a goal has already
+      // gone in this half) are dropped entirely, not shown at a bogus
+      // 100%/0% — there's no bookmaker still offering that once it's
+      // already happened.
+      liveBets = [];
+      for (const b of filterLiveScanBets(preBetsAll, false)) {
+        const live = buildLive1HAdjustedBet(b, minute, curH, curA, cfg.fav_side, cfg.fav_line, state.useFlatDecay, preBetsMap);
+        if (live === _ALREADY_DECIDED) continue;
+        liveBets.push(live || b);
+      }
       gsBets = liveBets;
     }
   }
@@ -3994,7 +4032,16 @@ function analyzeLiveMatch(match, minute) {
           // 2H-result/BTTS-2H dispatch needs favScored2H as an anchor even though favWins2H/
           // favScored2H themselves are outside the Live Games display set.
           const htBetsMap = new Map(htBets.map(b => [b.k, b]));
-          liveBets = filterLiveScanBets(htBets, true).map(b => buildLiveAdjustedBet(b, minute, favG2h, dogG2h, cfg.fav_side, cfg.fav_line, state.useFlatDecay, htBetsMap) || b);
+          // Already-decided bets (e.g. "Over 0.5 in 2H" once a goal has
+          // already gone in this half) are dropped entirely, not shown at a
+          // bogus 100%/0% — there's no bookmaker still offering that once
+          // it's already happened.
+          liveBets = [];
+          for (const b of filterLiveScanBets(htBets, true)) {
+            const live = buildLiveAdjustedBet(b, minute, favG2h, dogG2h, cfg.fav_side, cfg.fav_line, state.useFlatDecay, htBetsMap);
+            if (live === _ALREADY_DECIDED) continue;
+            liveBets.push(live || b);
+          }
           gsBets = liveBets;
         }
       }
@@ -4158,10 +4205,57 @@ function renderLiveGames() {
     }
   }
 
+  // Every qualifying bet across every shown match, not just the single
+  // strongest one above — a match can have more than one bet clear the bar
+  // at once, and the "BEST LIVE BET" banner only ever surfaces one.
+  const allQualifying = collectAllQualifyingLiveBets(_liveMatches);
+  if (allQualifying.length) {
+    html += `<div class="section-label" style="margin-top:18px">ALL QUALIFYING BETS (${allQualifying.length})</div>`;
+    html += `<p style="font-size:11px;color:var(--dim);margin-bottom:10px">Every bet clearing the statistical bar right now, across all shown matches · sorted by strength · click a row for full match detail</p>`;
+    allQualifying.forEach(entry => { html += renderQualifyingLiveBetRow(entry); });
+  }
+
   html += `<div class="section-label" style="margin-top:18px">ALL LIVE MATCHES</div>`;
   _liveMatches.forEach((m, i) => { html += renderLiveMatchCard(m, i); });
 
   right.innerHTML = html;
+}
+
+// Collects every qualifying bet (buildQualifyingList — same statistical bar
+// as the top-pick banner and per-match cards) from every "ok" match in
+// `matches`, tagged with the match's own index so a row can jump straight to
+// openLiveMatchDetail(idx). One match can contribute more than one row.
+function collectAllQualifyingLiveBets(matches) {
+  const minN = getMinN();
+  const all = [];
+  matches.forEach((m, idx) => {
+    if (m.status !== 'ok') return;
+    const preMap = new Map((m.preBets || []).map(b => [b.k, b]));
+    const gsMap  = new Map((m.gsBets  || []).map(b => [b.k, b]));
+    const qualifying = buildQualifyingList(preMap, gsMap, minN);
+    for (const q of qualifying) {
+      const bet = q.gsPass && q.gs ? q.gs : q.pre;
+      all.push({ idx, analysis: m, bet });
+    }
+  });
+  all.sort((a, b) => rankScore(b.bet) - rankScore(a.bet));
+  return all;
+}
+
+// One row in the "ALL QUALIFYING BETS" list — team names, league, the bet,
+// its %/edge, and the odds range worth betting at, all together per the
+// same consolidated-label requirement the headline banners already follow.
+function renderQualifyingLiveBetRow(entry) {
+  const { idx, analysis, bet } = entry;
+  const m = analysis.match;
+  return `<div class="scan-card" onclick="openLiveMatchDetail(${idx})">
+    <div class="scan-card-header">
+      <span class="scan-match-name">${esc(m.home_team)}<span class="scan-vs">vs</span>${esc(m.away_team)}</span>
+      <span class="scan-live-info"><span class="scan-minute">${esc(m.minute)}'</span> ${anchorStatusBadge(analysis)}</span>
+    </div>
+    <div class="scan-meta">${esc(m.league || '—')}</div>
+    ${renderBetPickBlock(bet, true)}
+  </div>`;
 }
 
 // idx (position in _liveMatches, not team-name-derived) is used for the
@@ -4196,17 +4290,7 @@ function renderLiveMatchCard(analysis, idx) {
   const topQualifies = !!qualifying[0];
 
   const previewHtml = top
-    ? `<div class="col-bet-label">${esc(top.label)}${topQualifies ? ' ✓ qualifies' : ' (value-hunt tier)'}</div>
-       <div class="col-prob">
-         <span class="prob-pct">${top.p.toFixed(1)}%</span>
-         <span class="prob-edge ${top.edge >= 0 ? 'pos' : 'neg'}">${top.edge >= 0 ? '+' : ''}${top.edge.toFixed(1)}pp</span>
-       </div>
-       <div class="col-stats">${sampleBadge(top.n, minN)}</div>
-       <div class="col-min-odds">
-         <span class="col-min-odds-label">BET IF ODDS ≥</span>
-         <span class="col-min-odds-value"><b>${top.mo}</b></span>
-         <span class="col-min-odds-floor">or ${top.mo_mid}+ for a safer margin</span>
-       </div>`
+    ? renderBetPickBlock(top, topQualifies) + `<div class="col-stats" style="margin-top:6px">${sampleBadge(top.n, minN)}</div>`
     : `<p style="font-size:11px;color:var(--dim)">No bet clears the bar for this match's signal pattern yet.</p>`;
 
   return `<div class="scan-card" onclick="openLiveMatchDetail(${idx})">
