@@ -80,6 +80,17 @@
           <button class="min-n-preset dash-window-preset" data-hours="8" onclick="setDashboardWindow(8)">8h</button>
           <button class="min-n-preset dash-window-preset" data-hours="24" onclick="setDashboardWindow(24)">24h</button>
         </div>
+
+        <div class="section-label" style="margin-top:14px">FIXTURE LEAGUE TIER</div>
+        <div class="gs-triggers">
+          <button class="gs-trigger-btn active" id="dash-tier-btn-ALL"   onclick="setDashboardTierFilter('ALL')">ALL</button>
+          <button class="gs-trigger-btn"        id="dash-tier-btn-MAJOR" onclick="setDashboardTierFilter('MAJOR')">MAJOR+</button>
+          <button class="gs-trigger-btn"        id="dash-tier-btn-TOP"   onclick="setDashboardTierFilter('TOP')">TOP 5 + UCL</button>
+        </div>
+        <p style="font-size:10px;color:var(--dim);font-style:italic;margin-top:6px;line-height:1.4">
+          Restricts which of today's fixtures are scanned by their own league — obscure leagues have thinner
+          historical pools and underperformed out-of-sample in past backtesting. MAJOR+ recommended.
+        </p>
       </div><!-- /tab-dashboard-controls -->
 
       <!-- ── LIVE GAMES tab controls ──────────────────────── -->

@@ -383,9 +383,29 @@ async function runDailyDashboard(forceRefresh = true) {
   renderDashboardWindow();
 }
 
-// Filters the cached fixture list down to the selected window, analyzes just
-// that subset (analysis cost now scales with the window, not the full 24h
-// fetch), and renders.
+/* ── Dashboard fixture league-tier filter ────────────────────────────────
+   Restricts which of today's fixtures are scanned, by their OWN league (via
+   classifyLeague on match.league) — separate from state.leagueTier, which
+   restricts the historical baseline pool instead. Same rationale as Live
+   Games' liveTierFilter: obscure leagues have thinner historical pools and
+   underperformed out-of-sample in past backtesting (see CLAUDE.md). */
+function dashboardFixturePassesTier(match) {
+  const t = classifyLeague(match.league);
+  if (state.dashboardTierFilter === 'TOP')   return t === 'TOP';
+  if (state.dashboardTierFilter === 'MAJOR') return t === 'TOP' || t === 'MAJOR';
+  return true;
+}
+
+function setDashboardTierFilter(tier) {
+  state.dashboardTierFilter = tier;
+  ['ALL', 'MAJOR', 'TOP'].forEach(t =>
+    document.getElementById(`dash-tier-btn-${t}`)?.classList.toggle('active', t === tier));
+  if (_dashboardAllFixtures) renderDashboardWindow();
+}
+
+// Filters the cached fixture list down to the selected window and league
+// tier, analyzes just that subset (analysis cost now scales with the
+// window, not the full 24h fetch), and renders.
 function renderDashboardWindow() {
   const right = document.getElementById('right-dashboard');
   if (!_dashboardAllFixtures) return;
@@ -398,10 +418,18 @@ function renderDashboardWindow() {
 
   const now = Date.now();
   const horizon = now + _dashboardWindowHours * 60 * 60 * 1000;
-  const windowFixtures = _dashboardAllFixtures.filter(m => {
+  const timeWindowFixtures = _dashboardAllFixtures.filter(m => {
     const t = new Date(m.kickoff_time).getTime();
     return !isNaN(t) && t <= horizon;
   });
+  const windowFixtures = timeWindowFixtures.filter(dashboardFixturePassesTier);
+
+  if (!windowFixtures.length && timeWindowFixtures.length) {
+    right.innerHTML = dashboardWindowButtons() +
+      `<div class="no-bets"><div class="warn-icon">🏳️</div><p>${timeWindowFixtures.length} fixture${timeWindowFixtures.length !== 1 ? 's' : ''} in this window, but none in the "${state.dashboardTierFilter}" league tier filter — try ALL or MAJOR in the left panel.</p></div>`;
+    _dashboardFixtures = [];
+    return;
+  }
 
   _dashBaseCache = new Map();
   _dashLeagueCache = new Map();
@@ -2365,6 +2393,7 @@ const state = {
   lastImportedUrl: null, // last successfully imported match link, for Refresh
   useFlatDecay: false,   // live 2H odds: shaped (literature-sourced) vs flat time-decay
   liveTierFilter: 'ALL', // which live matches are shown, by their OWN league tier (Live Games only)
+  dashboardTierFilter: 'ALL', // which fixtures are shown, by their OWN league tier (Dashboard only)
 };
 
 // Bundled CSVs use ISO "YYYY-MM-DD" dates (confirmed across all 15 files in
