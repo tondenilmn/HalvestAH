@@ -551,6 +551,16 @@ function tierBadgeClass(tier) {
   return tier === 'HIGH' ? 'col-badge-pass' : tier === 'MEDIUM' ? 'col-badge-lown' : 'col-badge-weak';
 }
 
+// A live match's closing-odds feed sometimes only carries the AH/TL lines
+// and no bookmaker prices at all (the "getData2none" feed variant — see
+// functions/api/livescore.js) — oddsDir()/moveDir() correctly return
+// 'UNKNOWN' for that, but showing the raw enum reads like a parsing bug
+// rather than a data-availability gap. Only relabels the display string;
+// applyConfig/traceConfig still compare against the raw 'UNKNOWN' value.
+function cfgMoveLabel(v) {
+  return v === 'UNKNOWN' ? 'no price data' : v;
+}
+
 function renderDashboardRow(r, idx) {
   const kickoff = new Date(r.match.kickoff_time);
   const kickoffTxt = isNaN(kickoff.getTime()) ? '—' : kickoff.toLocaleString([], { weekday: 'short', hour: '2-digit', minute: '2-digit' });
@@ -574,7 +584,7 @@ function renderDashboardRow(r, idx) {
       <span class="prob-edge ${r.bet.edge >= 0 ? 'pos' : 'neg'}">${r.bet.edge >= 0 ? '+' : ''}${r.bet.edge.toFixed(1)}pp vs ${r.bet.bl.toFixed(1)}% baseline</span>
     </div>
     <div class="col-stats">
-      <span>${r.bet.n} similar matches</span>
+      <span class="n-stat n-stat-${sampleTier(r.bet.n, DEFAULT_MIN_N)}" title="${_SAMPLE_TIER_TITLE[sampleTier(r.bet.n, DEFAULT_MIN_N)]}">${r.bet.n} similar matches</span>
       <span class="badge-z" title="Z-score — how far above baseline, in standard deviations">z ${r.bet.z.toFixed(2)}</span>
     </div>
     <div class="bet-ci" style="margin-top:6px">📊 Market check: ${sig2Txt}</div>
@@ -2987,6 +2997,29 @@ function buildTraceHtml(ftrace, title) {
   return html;
 }
 
+// Sample-size reliability, three tiers instead of the old binary "n>=50 is
+// green, everything else is yellow" — that made a 45-match cell and a
+// 5-match cell look identically trustworthy. `minN` is the "MINIMUM
+// MATCHING RECORDS" bar (user-set for Manual/Live, DEFAULT_MIN_N for
+// Dashboard, which has no min-n control of its own) — below it a bet
+// wouldn't even have scored in the first place, so "low" here really means
+// "just barely cleared the bar, treat cautiously," not "invalid."
+function sampleTier(n, minN) {
+  const bar = minN != null ? minN : DEFAULT_MIN_N;
+  if (n < bar) return 'low';
+  if (n < 50)  return 'mid';
+  return 'high';
+}
+const _SAMPLE_TIER_TITLE = {
+  low:  'Small sample — close to the minimum-matching-records bar, treat with caution',
+  mid:  'Moderate sample',
+  high: 'Solid sample (n ≥ 50)',
+};
+function sampleBadge(n, minN, extraClass) {
+  const tier = sampleTier(n, minN);
+  return `<span class="n-stat n-stat-${tier}${extraClass ? ' ' + extraClass : ''}" title="${_SAMPLE_TIER_TITLE[tier]}">n=${n}</span>`;
+}
+
 function buildBetCol(bet, passes, title, subtitle, rank, colId, minN) {
   if (!bet) {
     return `<div class="bet-col bet-col-empty">
@@ -3004,7 +3037,6 @@ function buildBetCol(bet, passes, title, subtitle, rank, colId, minN) {
     : bet.label;
   const edgeSign = bet.edge >= 0 ? '+' : '';
   const edgeCls  = bet.edge >= 0 ? 'pos' : 'neg';
-  const nColor   = bet.n >= 50 ? 'var(--green)' : 'var(--yellow)';
   const fill     = Math.min(100, Math.max(0, bet.p));
   const bColor   = hasMkt ? barColor(bet.p, bet.mkt_bl) : barColor(bet.p, bet.bl);
   const passCls  = (passes && !lowN) ? '' : 'col-weak';
@@ -3060,7 +3092,7 @@ function buildBetCol(bet, passes, title, subtitle, rank, colId, minN) {
     </div>
     <div class="progress-bar"><div class="progress-fill" style="width:${fill}%;background:${bColor}"></div></div>
     <div class="col-stats">
-      <span style="color:${nColor}">n=${bet.n}</span>
+      ${sampleBadge(bet.n, minN)}
       <span class="badge-z">z=${bet.z.toFixed(2)}</span>
       <span class="col-baseline">bl ${bet.bl.toFixed(1)}%</span>
     </div>
@@ -3141,15 +3173,15 @@ function renderTopPickBanner(qualifying, gsLabelText, cfg) {
 // actionable answer alongside the Top Pick, surfaced without needing to
 // open the collapsed Value Hunting section further down. Reuses
 // renderValueHuntCard's markup (also used in the full list).
-function renderTopValueBanner(bet) {
+function renderTopValueBanner(bet, minN) {
   if (!bet) return '';
   return `<div class="top-value-banner">
     <div class="tv-label">💎 BEST VALUE BET  ·  no edge vs baseline yet — best fair-odds watch</div>
-    ${renderValueHuntCard(bet)}
+    ${renderValueHuntCard(bet, minN)}
   </div>`;
 }
 
-function renderBetDashboard(preMap, gsMap) {
+function renderBetDashboard(preMap, gsMap, minN) {
   const betDefMap = new Map(BETS.map(b => [b.k, b]));
 
   const fmtCol = (b) => {
@@ -3188,12 +3220,13 @@ function renderBetDashboard(preMap, gsMap) {
       else if (bestZ >= 0)   tierCls = 'bd-weak';
       else                   tierCls = 'bd-negative';
       const mo = (pre ?? gs) ? `${(pre ?? gs).mo}–${(pre ?? gs).mo_mid}` : '—';
-      const n  = pre?.n ?? gs?.n ?? '—';
+      const n  = pre?.n ?? gs?.n ?? null;
+      const nHtml = n != null ? sampleBadge(n, minN, 'bd-n') : '<span class="bd-n">n=—</span>';
       rowsHtml += `<div class="bd-row ${tierCls}">
         <span class="bd-dot"></span>
         <span class="bd-label">${def.label}</span>
         <span class="bd-scenarios"><span class="bd-pre">${fmtCol(pre)}</span><span class="bd-scen-sep">│</span><span class="bd-gs">${fmtCol(gs)}</span></span>
-        <span class="bd-n">n=${n}</span>
+        ${nHtml}
         <span class="bd-mo">${mo}</span>
       </div>`;
     }
@@ -3207,8 +3240,8 @@ function renderBetDashboard(preMap, gsMap) {
   return html;
 }
 
-function renderValueHuntSection(valueBets) {
-  const cards = valueBets.map(bet => renderValueHuntCard(bet)).join('');
+function renderValueHuntSection(valueBets, minN) {
+  const cards = valueBets.map(bet => renderValueHuntCard(bet, minN)).join('');
   return `<div class="value-hunt-section">
     <div class="value-hunt-hdr" onclick="
       const b = this.nextElementSibling;
@@ -3224,8 +3257,7 @@ function renderValueHuntSection(valueBets) {
   </div>`;
 }
 
-function renderValueHuntCard(bet) {
-  const nColor = bet.n >= 50 ? 'var(--green)' : 'var(--yellow)';
+function renderValueHuntCard(bet, minN) {
   return `<div class="vh-card">
     <div class="vh-body">
       <div class="vh-left">
@@ -3233,7 +3265,7 @@ function renderValueHuntCard(bet) {
         <div class="vh-market">${bet.market}</div>
         <div class="vh-info">
           <span class="vh-p">p=${bet.p.toFixed(1)}%</span>
-          <span style="color:${nColor}">  n=${bet.n}</span>
+          ${sampleBadge(bet.n, minN)}
           <span class="vh-ci">  CI [${bet.lo}%–${bet.hi}%]</span>
         </div>
       </div>
@@ -3324,8 +3356,8 @@ function renderMatchResults({ cfg_n, allBets, bets, gsAllBets, gsLabelText, ftra
       <p>No bets clear the statistical bar (z ≥ ${MIN_Z} AND the conservative CI-lower-bound hit rate still beats baseline) yet.<br>Try a different AH line, or add the HT / current score once available.</p></div>`;
   }
 
-  html += renderTopValueBanner(vhBets[0]);
-  if (vhBets.length) html += renderValueHuntSection(vhBets);
+  html += renderTopValueBanner(vhBets[0], min_n);
+  if (vhBets.length) html += renderValueHuntSection(vhBets, min_n);
 
   html += `<h2 class="results-title">BEST BETS</h2>`;
   html += `<div class="bankroll-row">
@@ -3336,7 +3368,7 @@ function renderMatchResults({ cfg_n, allBets, bets, gsAllBets, gsLabelText, ftra
   html += buildTraceHtml(ftrace, 'FILTER TRACE');
 
   // All bets dashboard — pre-match vs in-play, colour-coded
-  html += renderBetDashboard(preMap, gsMap);
+  html += renderBetDashboard(preMap, gsMap, min_n);
 
   right.innerHTML = html;
 }
@@ -3479,7 +3511,8 @@ function analyzeLiveMatch(match, minute) {
     }
   }
 
-  return { match, minute, cfg, status: 'ok', anchorStatus, cfg_n: cfgRows.length, preBets, htBets, liveBets, gsBets, gsForTrace };
+  const htScore = anchor ? { home: anchor.home, away: anchor.away } : null;
+  return { match, minute, cfg, status: 'ok', anchorStatus, cfg_n: cfgRows.length, preBets, htBets, liveBets, gsBets, gsForTrace, htScore };
 }
 
 function rankScore(b) {
@@ -3569,6 +3602,21 @@ function anchorStatusBadge(analysis) {
   return `<span class="col-badge-weak">${analysis.anchorStatus === '1h' ? '1H' : 'HT UNKNOWN'}</span>`;
 }
 
+// Explicit "HT x-y" + current score line — the auto-captured HT anchor is
+// the whole basis for live 2H decay, so it needs to be visible, not just
+// implied. `match.score` is always the live feed's current score; htScore
+// is the auto-snapshotted halftime score (analyzeLiveMatch), null until one
+// has been captured for this match.
+function formatHtScoreLine(analysis) {
+  const { match, htScore, anchorStatus } = analysis;
+  const cur = esc(match.score || '—');
+  if (htScore) {
+    return `HT <b>${htScore.home}-${htScore.away}</b>${match.score ? ` → now <b>${cur}</b>` : ''}`;
+  }
+  if (anchorStatus === '1h') return `HT not reached yet — currently <b>${cur}</b>`;
+  return `HT unknown (opened mid-2H) — currently <b>${cur}</b>`;
+}
+
 function renderLiveGames() {
   const right = document.getElementById('right-live');
   if (!right) return;
@@ -3651,7 +3699,8 @@ function renderLiveMatchCard(analysis, idx) {
        <div class="col-prob">
          <span class="prob-pct">${top.p.toFixed(1)}%</span>
          <span class="prob-edge ${top.edge >= 0 ? 'pos' : 'neg'}">${top.edge >= 0 ? '+' : ''}${top.edge.toFixed(1)}pp</span>
-       </div>`
+       </div>
+       <div class="col-stats">${sampleBadge(top.n, minN)}</div>`
     : `<p style="font-size:11px;color:var(--dim)">No bet clears the bar for this match's signal pattern yet.</p>`;
 
   return `<div class="scan-card" onclick="openLiveMatchDetail(${idx})">
@@ -3663,6 +3712,7 @@ function renderLiveMatchCard(analysis, idx) {
       </div>
     </div>
     <div class="scan-meta">${esc(match.league || '—')} · ${esc(anchorStatusNote(analysis))} ${anchorStatusBadge(analysis)}</div>
+    <div class="scan-score-detail">${formatHtScoreLine(analysis)}</div>
     ${previewHtml}
   </div>`;
 }
@@ -3703,7 +3753,8 @@ function openLiveMatchDetail(idx) {
     const gsLabel = anchorStatusNote(analysis);
 
     const ahSide = cfg.fav_side === 'AWAY' ? 'Away' : 'Home';
-    bodyHtml = `<div class="cfg-summary">${ahSide} AH −${cfg.fav_line} · line ${cfg.line_move} · fav odds ${cfg.fav_odds_move} · dog odds ${cfg.dog_odds_move} · TL ${cfg.tl_c ?? '—'} (${cfg.tl_move}) · over ${cfg.over_move} · under ${cfg.under_move} · ${analysis.cfg_n} matching records</div>`;
+    bodyHtml = `<div class="cfg-summary" style="color:var(--bright)">${formatHtScoreLine(analysis)}</div>`;
+    bodyHtml += `<div class="cfg-summary">${ahSide} AH −${cfg.fav_line} · line ${cfgMoveLabel(cfg.line_move)} · fav odds ${cfgMoveLabel(cfg.fav_odds_move)} · dog odds ${cfgMoveLabel(cfg.dog_odds_move)} · TL ${cfg.tl_c ?? '—'} (${cfgMoveLabel(cfg.tl_move)}) · over ${cfgMoveLabel(cfg.over_move)} · under ${cfgMoveLabel(cfg.under_move)} · ${analysis.cfg_n} matching records</div>`;
 
     // rank namespace prefixed 'live-detail-' so this modal's Kelly widgets
     // never collide with Manual Analysis's own numeric/'top' ranks in the
@@ -3718,12 +3769,12 @@ function openLiveMatchDetail(idx) {
       bodyHtml += `<div class="no-bets" style="margin-top:20px"><div class="warn-icon">⚠</div><p>No bets clear the statistical bar for this match's signal pattern yet.</p></div>`;
     }
 
-    bodyHtml += renderTopValueBanner(vhBets[0]);
-    if (vhBets.length) bodyHtml += renderValueHuntSection(vhBets);
+    bodyHtml += renderTopValueBanner(vhBets[0], minN);
+    if (vhBets.length) bodyHtml += renderValueHuntSection(vhBets, minN);
 
     const ftrace = traceConfig(getDb(), cfg, analysis.gsForTrace);
     bodyHtml += buildTraceHtml(ftrace, 'FILTER TRACE');
-    bodyHtml += renderBetDashboard(preMap, gsMap);
+    bodyHtml += renderBetDashboard(preMap, gsMap, minN);
   }
 
   const modal = document.createElement('div');
