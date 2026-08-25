@@ -231,6 +231,18 @@ function scoreBetsFast(cfgRows, baseKey, base) {
   return results;
 }
 
+// The Daily Dashboard only ever picks from these 13 FT/pre-match markets —
+// straight 1X2, FT totals, BTTS, and FT team totals. Everything else BETS
+// scores (AH cover, all 1H/2H markets) needs either in-play state or a
+// bookmaker line this dashboard doesn't have pre-match, so surfacing them
+// here would recommend a bet the fixture list can't actually back up yet.
+const _DASHBOARD_BET_KEYS = new Set([
+  'homeWinsFT', 'drawFT', 'awayWinsFT',
+  'over15FT', 'over25FT', 'under15FT', 'under25FT',
+  'btts', 'noBtts',
+  'homeOver05FT', 'homeOver15FT', 'awayOver05FT', 'awayOver15FT',
+]);
+
 // Signal 1 — opening-odds-only historical bucket, mirrors telegram/notify.js's
 // layer1Live but reading from the already-loaded client-side database.
 function openingOddsSignal(favLine, favSide, favOo, tlO) {
@@ -245,7 +257,7 @@ function openingOddsSignal(favLine, favSide, favOo, tlO) {
   const tlBand = Object.values(TL_CLUSTERS).find(b => inOddsBand(tlO, b));
   const cfgRows = base.filter(r => inOddsBand(r.fav_oo, oddsBand) && (tlBand ? inOddsBand(r.tl_o, tlBand) : true));
   if (cfgRows.length < DEFAULT_MIN_N) return null;
-  const allBets = scoreBetsFast(cfgRows, baseKey, base);
+  const allBets = scoreBetsFast(cfgRows, baseKey, base).filter(b => _DASHBOARD_BET_KEYS.has(b.k));
   if (!allBets.length) return null;
   const qualifying = allBets.filter(qualifiesBet);
   const best = qualifying[0] || allBets.find(b => b.edge > 0 && b.n >= DEFAULT_MIN_N) || null;
@@ -756,6 +768,7 @@ const BETS = [
   { k: 'over15_2H',     label: 'Over 1.5 goals in 2H',    market: 'Over/Under 1.5 — 2nd Half' },
   { k: 'under05_2H',    label: 'Under 0.5 goals in 2H',   market: 'Over/Under 0.5 — 2nd Half' },
   { k: 'under15_2H',    label: 'Under 1.5 goals in 2H',   market: 'Over/Under 1.5 — 2nd Half' },
+  { k: 'btts2H',        label: 'BTTS 2nd half',           market: 'Both Teams to Score — 2H' },
   // 1H results — fav-normalised
   { k: 'favWins1H',     label: 'Fav wins 1st half',        market: '1H Result — Favourite Win' },
   { k: 'draw1H',        label: 'Draw 1st half',            market: '1H Result — Draw' },
@@ -763,6 +776,8 @@ const BETS = [
   // 1H results — home/away
   { k: 'homeWins1H',    label: 'Home wins 1st half',       market: '1H Result — Home Win',   favSideBaseline: 'HOME' },
   { k: 'awayWins1H',    label: 'Away wins 1st half',       market: '1H Result — Away Win',   favSideBaseline: 'AWAY' },
+  { k: 'homeScored1H',  label: 'Home scores in 1H',        market: 'Team to Score — Home 1st Half', favSideBaseline: 'HOME' },
+  { k: 'awayScored1H',  label: 'Away scores in 1H',        market: 'Team to Score — Away 1st Half', favSideBaseline: 'AWAY' },
   // 1H totals
   { k: 'over05_1H',     label: 'Over 0.5 goals in 1H',    market: 'Over/Under 0.5 — 1st Half' },
   { k: 'over15_1H',     label: 'Over 1.5 goals in 1H',    market: 'Over/Under 1.5 — 1st Half' },
@@ -774,38 +789,54 @@ const BETS = [
   { k: 'awayWinsFT',    label: 'Away wins full time',      market: 'Match Result — Away Win',           favSideBaseline: 'AWAY', marketOddsKey: 'x2_away_c' },
   { k: 'drawFT',        label: 'Draw full time',           market: 'Match Result — Draw',               marketOddsKey: 'x2_draw_c' },
   { k: 'btts',          label: 'BTTS full time',           market: 'Both Teams to Score — FT' },
+  { k: 'noBtts',        label: 'BTTS No full time',        market: 'Both Teams to Score — FT' },
   // FT totals — ov_c/un_c price the TL line (typically 2.5), so over25FT/under25FT are direct matches.
   // over15FT and over35FT have no direct proxy (ov_c is calibrated to the TL, not 1.5 or 3.5).
   { k: 'over15FT',      label: 'Over 1.5 goals FT',       market: 'Over/Under 1.5 — Full Time' },
   { k: 'over25FT',      label: 'Over 2.5 goals FT',       market: 'Over/Under 2.5 — Full Time' },
   { k: 'over35FT',      label: 'Over 3.5 goals FT',       market: 'Over/Under 3.5 — Full Time' },
+  { k: 'under15FT',     label: 'Under 1.5 goals FT',      market: 'Over/Under 1.5 — Full Time' },
   { k: 'under25FT',     label: 'Under 2.5 goals FT',      market: 'Over/Under 2.5 — Full Time' },
+  // FT team totals — home/away goals, independent of who's favourite.
+  { k: 'homeOver05FT',  label: 'Home Over 0.5 goals FT',  market: 'Team Total — Home Over 0.5 FT', favSideBaseline: 'HOME' },
+  { k: 'homeOver15FT',  label: 'Home Over 1.5 goals FT',  market: 'Team Total — Home Over 1.5 FT', favSideBaseline: 'HOME' },
+  { k: 'awayOver05FT',  label: 'Away Over 0.5 goals FT',  market: 'Team Total — Away Over 0.5 FT', favSideBaseline: 'AWAY' },
+  { k: 'awayOver15FT',  label: 'Away Over 1.5 goals FT',  market: 'Team Total — Away Over 1.5 FT', favSideBaseline: 'AWAY' },
 ];
 
 // Fixed bet groups for the always-visible dashboard (order defines display order)
 const BET_GROUPS = [
-  { label: 'FT RESULT',  keys: ['ahCover', 'homeWinsFT', 'drawFT', 'awayWinsFT', 'btts'] },
-  { label: 'FT TOTALS',  keys: ['over15FT', 'over25FT', 'over35FT', 'under25FT'] },
-  { label: '2H',         keys: ['favWins2H', 'draw2H', 'homeWins2H', 'awayWins2H', 'favScored2H', 'homeScored2H', 'awayScored2H', 'homeOver15_2H', 'awayOver15_2H', 'over05_2H', 'over15_2H', 'under05_2H', 'under15_2H'] },
-  { label: '1H',         keys: ['favWins1H', 'draw1H', 'favScored1H', 'homeWins1H', 'awayWins1H', 'over05_1H', 'over15_1H', 'under05_1H', 'under15_1H', 'btts1H'] },
+  { label: 'FT RESULT',  keys: ['ahCover', 'homeWinsFT', 'drawFT', 'awayWinsFT', 'btts', 'noBtts'] },
+  { label: 'FT TOTALS',  keys: ['over15FT', 'over25FT', 'over35FT', 'under15FT', 'under25FT', 'homeOver05FT', 'homeOver15FT', 'awayOver05FT', 'awayOver15FT'] },
+  { label: '2H',         keys: ['favWins2H', 'draw2H', 'homeWins2H', 'awayWins2H', 'favScored2H', 'homeScored2H', 'awayScored2H', 'homeOver15_2H', 'awayOver15_2H', 'over05_2H', 'over15_2H', 'under05_2H', 'under15_2H', 'btts2H'] },
+  { label: '1H',         keys: ['favWins1H', 'draw1H', 'favScored1H', 'homeWins1H', 'awayWins1H', 'homeScored1H', 'awayScored1H', 'over05_1H', 'over15_1H', 'under05_1H', 'under15_1H', 'btts1H'] },
 ];
 
-// Once a match has reached HT, its 1H markets have already resolved — no
-// bookmaker still takes bets on them, so Live Games strips them out entirely
-// rather than show a "qualifying" bet on an outcome that's already decided.
-const _1H_BET_KEYS = new Set(BET_GROUPS.find(g => g.label === '1H').keys);
-function strip1HBets(bets) {
-  return bets ? bets.filter(b => !_1H_BET_KEYS.has(b.k)) : bets;
-}
-
-// Bet keys settleable from the final score alone (deriveOutcomes doesn't
-// touch fav_ht/dog_ht/home_2h/away_2h for these) — everything else needs an
-// HT anchor to settle. Used by the Live Games track record (see below).
-const _ANCHOR_INDEPENDENT_BET_KEYS = new Set([
-  'homeWinsFT', 'awayWinsFT', 'drawFT', 'btts',
-  'over15FT', 'over25FT', 'over35FT', 'under25FT',
-  'overTL', 'underTL',
+// Live Games only ever surfaces the 10 home/away/total 2H markets, or (while
+// the match is still in 1H) their 10 1H equivalents — never both at once, and
+// never the fav-relative/FT/AH bets the full engine also scores. Applied only
+// to what's actually displayed/ranked (preBets/gsBets/liveBets) — the
+// unfiltered htBets is kept internally so buildLiveAdjustedBet's
+// _2H_RESULT_KEYS/btts2H dispatch (which needs favScored2H as an anchor)
+// still has it available. The 1H set has no HT-score filter/live-decay of its
+// own — it's pre-match/closing-odds signal only, same as preBets always was,
+// since there's no "anchor" concept partway through the 1st half.
+const _LIVE_SCAN_1H_KEYS = new Set([
+  'over05_1H', 'over15_1H', 'under05_1H', 'under15_1H',
+  'homeScored1H', 'awayScored1H',
+  'homeWins1H', 'awayWins1H', 'draw1H',
+  'btts1H',
 ]);
+const _LIVE_SCAN_2H_KEYS = new Set([
+  'over05_2H', 'over15_2H', 'under05_2H', 'under15_2H',
+  'homeScored2H', 'awayScored2H',
+  'homeWins2H', 'awayWins2H', 'draw2H',
+  'btts2H',
+]);
+function filterLiveScanBets(bets, past1H) {
+  const keys = past1H ? _LIVE_SCAN_2H_KEYS : _LIVE_SCAN_1H_KEYS;
+  return bets ? bets.filter(b => keys.has(b.k)) : bets;
+}
 
 // ── GSA Probe outcomes ────────────────────────────────────────────────────────
 // Absolute probability targets for GSA-style value betting at HT.
@@ -1067,9 +1098,7 @@ function processRow(row, fileLabel) {
 
 // Derives every FT/HT/2H-goal-based outcome flag (fav-relative fields +
 // every BETS[].k boolean) from a favourite-relative scoreline — the single
-// source of truth for both CSV row processing (processRow, above) and live
-// match bet settlement (Live Games track record), so historical stats and
-// settled live results can never disagree on what counts as a win.
+// source of truth for CSV row processing (processRow, above).
 function deriveOutcomes(favSide, favLine, htH, htA, ftH, ftA, tlC) {
   const favHt = favSide === 'HOME' ? htH : htA;
   const dogHt = favSide === 'HOME' ? htA : htH;
@@ -1120,6 +1149,7 @@ function deriveOutcomes(favSide, favLine, htH, htA, ftH, ftA, tlC) {
     dnbAway:       ftA > ftH,
     homeScored2H:  home2h >= 1,
     awayScored2H:  away2h >= 1,
+    btts2H:        home2h >= 1 && away2h >= 1,
     homeOver15_2H: home2h >= 2,
     awayOver15_2H: away2h >= 2,
     under05_2H:    (home2h + away2h) === 0,
@@ -1127,15 +1157,23 @@ function deriveOutcomes(favSide, favLine, htH, htA, ftH, ftA, tlC) {
     over25FT:      ftH + ftA >= 3,
     over15FT:      ftH + ftA >= 2,
     over35FT:      ftH + ftA >= 4,
+    under15FT:     ftH + ftA <= 1,
     under25FT:     ftH + ftA <= 2,
     drawFT:        ftH === ftA,
     btts:          ftH >= 1 && ftA >= 1,
+    noBtts:        !(ftH >= 1 && ftA >= 1),
+    homeOver05FT:  ftH >= 1,
+    homeOver15FT:  ftH >= 2,
+    awayOver05FT:  ftA >= 1,
+    awayOver15FT:  ftA >= 2,
     // 1H results
     favWins1H:     favHt > dogHt,
     draw1H:        favHt === dogHt,
     homeWins1H:    htH > htA,
     awayWins1H:    htA > htH,
     favScored1H:   favHt >= 1,
+    homeScored1H:  htH >= 1,
+    awayScored1H:  htA >= 1,
     btts1H:        htH >= 1 && htA >= 1,
     over05_1H:     htH + htA >= 1,
     over15_1H:     htH + htA >= 2,
@@ -2309,6 +2347,21 @@ function computeLiveResult2H(favAnchorP, dogAnchorP, matchMinute, favLine, favGo
     : { fav_win_p: 0, draw_p: 0, dog_win_p: 0 };
 }
 
+// BTTS 2H ("both home and away score in the 2nd half") also can't go
+// through computeLiveOdd's single-threshold path — it's a joint condition on
+// two sides, not a single goal count. Modeled as the product of each side's
+// own live "scores in 2H" probability (homeScored2H/awayScored2H, which
+// already resolve to 100% the instant that side has scored) — an
+// independence assumption, same simplifying spirit as the rest of this
+// engine's live-decay math (no joint home/away goal-timing data exists to
+// calibrate a true correlation against).
+function computeLiveBtts2H(homeAnchorP, awayAnchorP, minute, favLine, favG2h, dogG2h, favSide, useFlatDecay) {
+  const homeRes = computeLiveOdd(homeAnchorP, 'homeScored2H', minute, favLine, favG2h, dogG2h, favSide, useFlatDecay);
+  const awayRes = computeLiveOdd(awayAnchorP, 'awayScored2H', minute, favLine, favG2h, dogG2h, favSide, useFlatDecay);
+  if (homeRes.live_p == null || awayRes.live_p == null) return null;
+  return Math.round(homeRes.live_p * awayRes.live_p) / 100;
+}
+
 // Which computeLiveResult2H output field each of the 4 "2H Result" keys
 // reads, given which side is the favourite.
 function _2hResultField(betKey, favSide) {
@@ -2341,6 +2394,27 @@ function buildLiveAdjustedBet(anchorBet, minute, favG2h, dogG2h, favSide, favLin
     const loRes = computeLiveResult2H(favAnchor.lo, dogAnchor.lo, minute, favLineNum, favG2h, dogG2h, useFlatDecay);
     const p  = point[field];
     const lo = Math.min(p, loRes[field]);
+    return {
+      ...anchorBet,
+      p, lo,
+      edge: p - anchorBet.bl,
+      mo: minOdds(p),
+      mo_mid: minOdds((p + lo) / 2),
+      matches: [],
+      _liveDecayed: true,
+      _liveLabel: `LIVE @ ${minute}'`,
+    };
+  }
+
+  if (anchorBet.k === 'btts2H') {
+    if (!htBetsMap) return null;
+    const homeAnchor = htBetsMap.get('homeScored2H');
+    const awayAnchor = htBetsMap.get('awayScored2H');
+    if (!homeAnchor || !awayAnchor) return null;
+    const p  = computeLiveBtts2H(homeAnchor.p,  awayAnchor.p,  minute, favLineNum, favG2h, dogG2h, favSide, useFlatDecay);
+    const loRaw = computeLiveBtts2H(homeAnchor.lo, awayAnchor.lo, minute, favLineNum, favG2h, dogG2h, favSide, useFlatDecay);
+    if (p == null) return null;
+    const lo = Math.min(p, loRaw != null ? loRaw : p);
     return {
       ...anchorBet,
       p, lo,
@@ -3618,8 +3692,6 @@ let _liveHtAnchors = new Map(); // matchId -> {home, away, ts}
 let _livePollTimer = null;
 let _liveAutoRefresh = true;
 let _liveLastUpdated = null;
-let _liveScoreCache  = new Map(); // matchId -> {home, away, minute, ts} — last score seen while still live, for track-record settlement
-let _livePrevMatchIds = new Set(); // matchIds seen live on the previous poll, to detect when a match finishes (drops off the feed)
 
 function matchKey(m) {
   return m.id || `${m.home_team}:${m.away_team}`;
@@ -3666,19 +3738,6 @@ function updateHtAnchor(match, minute) {
   saveHtAnchors();
 }
 
-// Remembers the last score seen for a still-live match. When a match then
-// disappears from the feed (finished), this cached score is treated as the
-// final score for track-record settlement — the live feed itself gives no
-// other "match finished" signal. In-memory only: a session that never sees
-// a match go from live to gone (tab closed mid-match, etc.) just leaves
-// that pick pending forever rather than guessing.
-function updateLiveScoreCache(match, minute) {
-  if (!match.score) return;
-  const [h, a] = match.score.split('-').map(Number);
-  if (isNaN(h) || isNaN(a)) return;
-  _liveScoreCache.set(matchKey(match), { home: h, away: a, minute, ts: Date.now() });
-}
-
 async function fetchLiveMatches() {
   const res = await fetch('/api/livescore');
   if (!res.ok) throw new Error(`livescore fetch failed: HTTP ${res.status}`);
@@ -3716,12 +3775,12 @@ function analyzeLiveMatch(match, minute) {
     return { match, minute, cfg, status: 'no-history', leagueTier };
   }
 
-  // 1H bets are meaningless once the half they describe is already over —
-  // strip them for any match at or past HT rather than show a "qualifying"
-  // pick on an outcome that's already been decided and can't be bet anymore.
+  // 1H bets are meaningless once the half they describe is already over — a
+  // match still in 1H only ever shows 1H markets, a match at HT/in 2H only
+  // ever shows 2H markets (never both at once, never mid-transition).
   const past1H = minute >= 45;
   let preBets = scoreBets(cfgRows, baselineRows, blSide, minN);
-  if (past1H) preBets = strip1HBets(preBets);
+  preBets = filterLiveScanBets(preBets, past1H);
 
   let gsBets = null, htBets = null, liveBets = null, gsForTrace = null;
   let anchorStatus = minute < 44 ? '1h' : 'unknown';
@@ -3734,17 +3793,24 @@ function analyzeLiveMatch(match, minute) {
     const gsBlRows = applyGameState(baselineRows, gsForTrace);
     const gsBlSide = applyGameState(blSide,        gsForTrace);
     if (gsRows.length >= minN) {
+      // An HT anchor exists, so this branch is inherently 2H-conditioned
+      // regardless of the exact current minute (always true by the time an
+      // anchor exists, but pass true explicitly rather than past1H — an
+      // anchor captured right at minute 44 would otherwise wrongly select
+      // the 1H key set here).
       htBets = scoreBets(gsRows, gsBlRows, gsBlSide, minN);
-      if (past1H) htBets = strip1HBets(htBets);
-      gsBets = htBets;
+      gsBets = filterLiveScanBets(htBets, true);
 
       if (minute > 45 && match.score) {
         const [curH, curA] = match.score.split('-').map(Number);
         if (!isNaN(curH) && !isNaN(curA)) {
           const favG2h = Math.max(0, (cfg.fav_side === 'HOME' ? curH : curA) - (cfg.fav_side === 'HOME' ? anchor.home : anchor.away));
           const dogG2h = Math.max(0, (cfg.fav_side === 'HOME' ? curA : curH) - (cfg.fav_side === 'HOME' ? anchor.away : anchor.home));
+          // htBetsMap is built from the FULL (unfiltered) htBets — buildLiveAdjustedBet's
+          // 2H-result/BTTS-2H dispatch needs favScored2H as an anchor even though favWins2H/
+          // favScored2H themselves are outside the Live Games display set.
           const htBetsMap = new Map(htBets.map(b => [b.k, b]));
-          liveBets = htBets.map(b => buildLiveAdjustedBet(b, minute, favG2h, dogG2h, cfg.fav_side, cfg.fav_line, state.useFlatDecay, htBetsMap) || b);
+          liveBets = filterLiveScanBets(htBets, true).map(b => buildLiveAdjustedBet(b, minute, favG2h, dogG2h, cfg.fav_side, cfg.fav_line, state.useFlatDecay, htBetsMap) || b);
           gsBets = liveBets;
         }
       }
@@ -3788,24 +3854,13 @@ async function pollLiveMatches() {
 
   try {
     const rawMatches = await fetchLiveMatches();
-    const currentIds = new Set(rawMatches.map(matchKey));
 
     const analyzed = rawMatches.map(m => {
       const minute = parseLiveMinute(m.minute);
       if (minute == null) return null;
       updateHtAnchor(m, minute);
-      updateLiveScoreCache(m, minute);
       return analyzeLiveMatch(m, minute);
     }).filter(Boolean);
-
-    logQualifyingPicks(analyzed);
-
-    // Any matchId that was live last poll but isn't anymore has finished (or
-    // dropped out of the feed) — settle whatever track-record picks are
-    // still pending for it using the last score this session observed.
-    const vanished = [..._livePrevMatchIds].filter(id => !currentIds.has(id));
-    if (vanished.length) settleVanishedMatches(vanished);
-    _livePrevMatchIds = currentIds;
 
     // List order is by match minute descending (longest-running match first)
     // — the "BEST LIVE BET" banner picks its own headline match independently
@@ -3826,7 +3881,6 @@ async function pollLiveMatches() {
 
 function startLivePolling() {
   loadHtAnchors();
-  loadTrackRecord();
   pollLiveMatches();
   if (_livePollTimer) { clearInterval(_livePollTimer); _livePollTimer = null; }
   if (_liveAutoRefresh) _livePollTimer = setInterval(pollLiveMatches, LIVE_POLL_MS);
@@ -3888,8 +3942,6 @@ function renderLiveGames() {
       ? `${_liveMatches.length} shown (${hiddenCount} hidden by tier filter) · updated ${updatedTxt}`
       : `${_liveMatches.length} live · updated ${updatedTxt}`;
   }
-  updateTrackRecordSummary();
-
   let html = `<h2 class="results-title">LIVE GAMES</h2>`;
   html += `<p style="font-size:11px;color:var(--dim);margin-bottom:10px">${_liveMatches.length} match${_liveMatches.length !== 1 ? 'es' : ''} in play · scored against each match's own real signal pattern · click a match for full detail</p>`;
 
@@ -3914,7 +3966,7 @@ function renderLiveGames() {
     const minN = getMinN();
     const qualifying = buildQualifyingList(preMap, gsMap, minN);
     if (qualifying.length) {
-      const label = `🏆 BEST LIVE BET — ${esc(best.match.match.home_team)} vs ${esc(best.match.match.away_team)}`;
+      const label = `🏆 BEST LIVE BET — ${esc(best.match.match.home_team)} vs ${esc(best.match.match.away_team)} (${esc(best.match.match.league || '—')})`;
       // rank='live-top' keeps this Kelly-widget namespace distinct from
       // Manual Analysis's own 'top' rank — both write into the shared
       // _lastBetsByWidget map and must not collide on the same widget id.
@@ -4031,7 +4083,8 @@ function openLiveMatchDetail(idx) {
     // shared _lastBetsByWidget map (both can be present in the DOM at once —
     // the modal layers over whichever tab is active).
     if (qualifying.length) {
-      bodyHtml += `<div class="top-pick-banner">${renderMergedBetCard(qualifying[0], 'live-detail-top', gsLabel, '🏆 TOP PICK', cfg)}</div>`;
+      const topPickLabel = `🏆 TOP PICK — ${esc(match.home_team)} vs ${esc(match.away_team)} (${esc(match.league || '—')})`;
+      bodyHtml += `<div class="top-pick-banner">${renderMergedBetCard(qualifying[0], 'live-detail-top', gsLabel, topPickLabel, cfg)}</div>`;
       bodyHtml += `<div class="section-label" style="margin-top:18px">QUALIFYING BETS</div>`;
       bodyHtml += `<p style="font-size:11px;color:var(--dim);margin-bottom:10px">${qualifying.length} bet${qualifying.length !== 1 ? 's' : ''} · sorted by strength</p>`;
       qualifying.forEach((m, i) => { bodyHtml += renderMergedBetCard(m, `live-detail-${i + 1}`, gsLabel, null, cfg); });
@@ -4091,201 +4144,3 @@ function setLiveTierFilter(tier) {
   renderLiveGames();
 }
 
-/* ════════════════════════════════════════════════════════════
-   LIVE GAMES TRACK RECORD
-   Client-side, localStorage-only log of every bet Live Games has flagged as
-   qualifying, settled against the live feed's own scores once each match
-   finishes — so "does this dashboard's picks actually win" has a real
-   answer instead of just a plausible-looking historical stat. Settlement
-   reuses deriveOutcomes(), the exact same win/loss formula processRow()
-   uses for the historical CSV rows, so a settled live result and a
-   historical hit-rate can never silently disagree on what counts as a win.
-   ════════════════════════════════════════════════════════════ */
-const TRACK_RECORD_STORAGE_KEY = 'halvest_track_record';
-const TRACK_RECORD_MAX_AGE_MS  = 30 * 24 * 60 * 60 * 1000; // prune anything older than 30 days
-const TRACK_RECORD_MAX_ENTRIES = 300;                       // cap localStorage growth
-
-let _trackRecord = []; // newest first
-
-function loadTrackRecord() {
-  try {
-    const raw = localStorage.getItem(TRACK_RECORD_STORAGE_KEY);
-    const parsed = raw ? JSON.parse(raw) : [];
-    const cutoff = Date.now() - TRACK_RECORD_MAX_AGE_MS;
-    _trackRecord = Array.isArray(parsed) ? parsed.filter(p => p && p.loggedAt > cutoff) : [];
-  } catch { _trackRecord = []; }
-}
-
-function saveTrackRecord() {
-  try {
-    localStorage.setItem(TRACK_RECORD_STORAGE_KEY, JSON.stringify(_trackRecord.slice(0, TRACK_RECORD_MAX_ENTRIES)));
-  } catch { /* localStorage unavailable — track record stays in-memory only for this session */ }
-}
-
-// Logs the current top qualifying pick for every "ok" live match, once per
-// (match, bet key) pair — deliberately only genuinely qualifying bets
-// (buildQualifyingList), not value-hunt-tier ones, to keep the track record
-// answering "does this dashboard's actionable advice work" rather than
-// diluting it with bets that never claimed to clear the statistical bar.
-function logQualifyingPicks(analyzed) {
-  const minN = getMinN();
-  let changed = false;
-  for (const a of analyzed) {
-    if (a.status !== 'ok' || !a.cfg) continue;
-    const preMap = new Map((a.preBets || []).map(b => [b.k, b]));
-    const gsMap  = new Map((a.gsBets  || []).map(b => [b.k, b]));
-    const qualifying = buildQualifyingList(preMap, gsMap, minN);
-    if (!qualifying.length) continue;
-    const top = qualifying[0].gsPass && qualifying[0].gs ? qualifying[0].gs : qualifying[0].pre;
-
-    const matchId = matchKey(a.match);
-    const dedupeKey = `${matchId}|${top.k}`;
-    if (_trackRecord.some(p => p.dedupeKey === dedupeKey)) continue;
-
-    _trackRecord.unshift({
-      dedupeKey, matchId,
-      home: a.match.home_team, away: a.match.away_team, league: a.match.league,
-      betKey: top.k, betLabel: top.label,
-      favSide: a.cfg.fav_side,
-      favLine: parseFloat(a.cfg.fav_line),
-      tlC: a.cfg.tl_c != null ? parseFloat(a.cfg.tl_c) : null,
-      p: top.p, edge: top.edge, mo: top.mo, n: top.n, z: top.z,
-      stage: a.anchorStatus, // '1h' | 'unknown' | 'known' — how specific the pick was when flagged
-      loggedAt: Date.now(),
-      status: 'pending',
-      settledAt: null,
-      ftScore: null,
-    });
-    changed = true;
-  }
-  if (changed) saveTrackRecord();
-}
-
-// Settles every still-pending pick for matches that just dropped off the
-// live feed, using the last score this session observed for that match
-// (updateLiveScoreCache) plus its HT anchor if one was captured. Bets that
-// need an HT split (_ANCHOR_INDEPENDENT_BET_KEYS excluded) but never got an
-// anchor, or matches with no cached score at all, settle as 'void' —
-// insufficient data to grade, not a loss.
-function settleVanishedMatches(matchIds) {
-  let changed = false;
-  for (const id of matchIds) {
-    const pending = _trackRecord.filter(p => p.matchId === id && p.status === 'pending');
-    if (!pending.length) continue;
-
-    const finalScore = _liveScoreCache.get(id);
-    const anchor = _liveHtAnchors.get(id);
-    for (const pick of pending) {
-      if (!finalScore) { pick.status = 'void'; pick.settledAt = Date.now(); changed = true; continue; }
-      const needsAnchor = !_ANCHOR_INDEPENDENT_BET_KEYS.has(pick.betKey);
-      if (needsAnchor && !anchor) { pick.status = 'void'; pick.settledAt = Date.now(); changed = true; continue; }
-
-      const htH = anchor ? anchor.home : 0, htA = anchor ? anchor.away : 0;
-      const outcomes = deriveOutcomes(pick.favSide, pick.favLine, htH, htA, finalScore.home, finalScore.away, pick.tlC);
-      pick.status = outcomes[pick.betKey] ? 'won' : 'lost';
-      pick.settledAt = Date.now();
-      pick.ftScore = { home: finalScore.home, away: finalScore.away };
-      changed = true;
-    }
-    _liveScoreCache.delete(id);
-  }
-  if (changed) saveTrackRecord();
-}
-
-function computeTrackRecordStats() {
-  const settled = _trackRecord.filter(p => p.status === 'won' || p.status === 'lost');
-  const won = settled.filter(p => p.status === 'won').length;
-  return {
-    total: _trackRecord.length,
-    settledCount: settled.length,
-    won,
-    hitRate: settled.length ? (won / settled.length * 100) : null,
-    pending: _trackRecord.filter(p => p.status === 'pending').length,
-    voided: _trackRecord.filter(p => p.status === 'void').length,
-  };
-}
-
-function updateTrackRecordSummary() {
-  const el = document.getElementById('track-record-summary');
-  if (!el) return;
-  const s = computeTrackRecordStats();
-  if (!s.total) {
-    el.innerHTML = `No picks logged yet — a qualifying live pick is logged automatically as soon as one appears.`;
-    return;
-  }
-  const rateTxt = s.hitRate != null ? `<b>${s.hitRate.toFixed(1)}%</b> hit rate` : 'no settled picks yet';
-  el.innerHTML = `${rateTxt} on <b>${s.settledCount}</b> settled (<b>${s.won}</b>W/<b>${s.settledCount - s.won}</b>L) · <b>${s.pending}</b> pending · <b>${s.voided}</b> void`;
-}
-
-function trStatusBadge(status) {
-  const cls = { won: 'tr-status-won', lost: 'tr-status-lost', pending: 'tr-status-pending', void: 'tr-status-void' }[status] || 'tr-status-pending';
-  return `<span class="tr-status ${cls}">${esc(status)}</span>`;
-}
-
-function _trackRecordEscHandler(e) {
-  if (e.key === 'Escape') closeTrackRecordModal();
-}
-
-function closeTrackRecordModal() {
-  document.getElementById('track-record-modal')?.remove();
-  document.removeEventListener('keydown', _trackRecordEscHandler);
-}
-
-function clearTrackRecord() {
-  if (!confirm('Clear the entire Live Games track record? This cannot be undone.')) return;
-  _trackRecord = [];
-  saveTrackRecord();
-  updateTrackRecordSummary();
-  openTrackRecordModal();
-}
-
-function openTrackRecordModal() {
-  closeTrackRecordModal();
-  const s = computeTrackRecordStats();
-
-  let rowsHtml;
-  if (!_trackRecord.length) {
-    rowsHtml = `<div class="no-bets"><div class="warn-icon">📊</div><p>No picks logged yet — a qualifying live pick is logged automatically the moment one appears on the Live Games tab.</p></div>`;
-  } else {
-    rowsHtml = _trackRecord.map(p => {
-      const when = new Date(p.loggedAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-      const resultTxt = p.ftScore ? ` · FT ${p.ftScore.home}-${p.ftScore.away}` : '';
-      return `<div class="tr-row">
-        <div class="tr-main">
-          <div class="tr-match">${esc(p.home)} vs ${esc(p.away)}</div>
-          <div class="tr-meta">${esc(p.league || '—')} · ${esc(p.betLabel)} · ${p.p.toFixed(1)}% model / min odds ${p.mo}${resultTxt}</div>
-          <div class="tr-meta">${when}</div>
-        </div>
-        ${trStatusBadge(p.status)}
-      </div>`;
-    }).join('');
-  }
-
-  const rateTxt = s.hitRate != null ? `${s.hitRate.toFixed(1)}% hit rate` : 'no settled picks yet';
-  const modal = document.createElement('div');
-  modal.id = 'track-record-modal';
-  modal.className = 'modal-overlay';
-  modal.onclick = (e) => { if (e.target === modal) closeTrackRecordModal(); };
-  modal.innerHTML = `<div class="modal-box">
-    <div class="modal-header">
-      <div>
-        <div class="modal-title">Live Games Track Record</div>
-        <div class="modal-sub">${rateTxt} on ${s.settledCount} settled · ${s.won}W/${s.settledCount - s.won}L · ${s.pending} pending · ${s.voided} void</div>
-      </div>
-      <button class="modal-close" onclick="closeTrackRecordModal()">✕</button>
-    </div>
-    <div class="modal-body">
-      <p style="font-size:10px;color:var(--dim);font-style:italic;margin-bottom:12px;line-height:1.4">
-        Logged automatically whenever a live match shows a qualifying bet (not value-hunt tier). Settled once
-        that match drops off the live feed, using the last score seen and the auto-captured HT anchor — bets
-        needing an HT split with no anchor captured settle as VOID (insufficient data), not a loss.
-      </p>
-      <div class="run-btn-group" style="margin-bottom:12px">
-        <button class="run-btn run-btn-secondary" style="background:var(--red) !important" onclick="clearTrackRecord()">🗑 Clear track record</button>
-      </div>
-      ${rowsHtml}
-    </div>
-  </div>`;
-  document.body.appendChild(modal);
-  document.addEventListener('keydown', _trackRecordEscHandler);
-}

@@ -537,26 +537,6 @@ select.gs-select {
 .col-badge-lown { font-size: 10px; color: var(--yellow); margin-left: auto; }
 .col-badge-fail { font-size: 10px; color: var(--red); margin-left: auto; }
 
-/* ── Track record ────────────────────────────────────────────────────── */
-.track-record-summary { font-size: 11px; color: var(--dim); line-height: 1.6; }
-.track-record-summary b { color: var(--bright); }
-.tr-row {
-  display: flex; align-items: center; gap: 8px; padding: 8px 0;
-  border-bottom: 1px solid var(--bg3); font-size: 11px;
-}
-.tr-row:last-child { border-bottom: none; }
-.tr-main { flex: 1; min-width: 0; }
-.tr-match { color: var(--bright); font-weight: bold; }
-.tr-meta  { color: var(--dim); font-size: 10px; margin-top: 2px; }
-.tr-status {
-  font-size: 10px; font-weight: bold; padding: 3px 8px; border-radius: 10px;
-  white-space: nowrap; text-transform: uppercase;
-}
-.tr-status-won     { background: rgba(0,229,170,.15); color: var(--green); }
-.tr-status-lost    { background: rgba(255,77,94,.15);  color: var(--red); }
-.tr-status-pending { background: rgba(96,125,150,.2);  color: var(--dim); }
-.tr-status-void    { background: rgba(245,166,35,.15); color: var(--yellow); }
-
 .col-min-odds {
   display: flex; align-items: baseline; gap: 6px;
   margin-top: 8px; padding-top: 7px; border-top: 1px solid var(--border);
