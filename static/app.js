@@ -3009,6 +3009,11 @@ function buildBetCol(bet, passes, title, subtitle, rank, colId, minN) {
   const bColor   = hasMkt ? barColor(bet.p, bet.mkt_bl) : barColor(bet.p, bet.bl);
   const passCls  = (passes && !lowN) ? '' : 'col-weak';
   const mktCls   = hasMkt ? ' bet-col-market' : '';
+  // colId is 'pre' for the PRE-MATCH column, 'gs' for IN-PLAY — used (not the
+  // title text, which varies) so live/HT-conditioned columns get a distinct
+  // look from the static PRE-MATCH column across every card that reuses this
+  // function (Dashboard, Manual, Live Games banner + detail modal).
+  const liveCls  = bet._liveDecayed ? ' bet-col-live' : (colId === 'gs' ? ' bet-col-inplay' : '');
 
   const moRange  = `<b>${bet.mo}</b>`;
   const moLabel  = 'BET ≥ (FAIR ODDS)';
@@ -3039,11 +3044,12 @@ function buildBetCol(bet, passes, title, subtitle, rank, colId, minN) {
       <div class="matches-box" id="${uid}">${rows}</div>`;
   }
 
-  return `<div class="bet-col ${passCls}${mktCls}">
+  return `<div class="bet-col ${passCls}${mktCls}${liveCls}">
     <div class="col-hdr">
       <span class="col-title">${title}</span>
       <span class="col-sub">${subtitle}</span>
-      ${bet._liveDecayed ? '<span class="col-badge-mkt" title="Poisson time-decay model, not a historical bucket match">MODEL</span>' : ''}
+      ${bet._liveDecayed ? '<span class="col-badge-live" title="Poisson time-decay model at the current live minute, not a historical bucket match">🔴 LIVE</span>' : ''}
+      ${!bet._liveDecayed && colId === 'gs' ? '<span class="col-badge-ht">HT</span>' : ''}
       ${hasMkt ? '<span class="col-badge-mkt">MKT</span>' : ''}
       ${lowN ? '<span class="col-badge-lown">⚠ low n</span>' : passes ? '<span class="col-badge-pass">✓</span>' : '<span class="col-badge-weak">z&lt;1.5</span>'}
     </div>
@@ -3553,6 +3559,16 @@ function anchorStatusNote(analysis) {
   return analysis.liveBets ? `LIVE @ ${analysis.minute}'` : 'HT-conditioned';
 }
 
+// Small colored badge mirroring anchorStatusNote's text, for the compact
+// Live Games card and modal header — same red/blue/grey language buildBetCol
+// uses for its own LIVE/HT badges, so the status reads at a glance without
+// having to parse the note sentence.
+function anchorStatusBadge(analysis) {
+  if (analysis.anchorStatus === 'known' && analysis.liveBets) return '<span class="col-badge-live">🔴 LIVE</span>';
+  if (analysis.anchorStatus === 'known') return '<span class="col-badge-ht">HT</span>';
+  return `<span class="col-badge-weak">${analysis.anchorStatus === '1h' ? '1H' : 'HT UNKNOWN'}</span>`;
+}
+
 function renderLiveGames() {
   const right = document.getElementById('right-live');
   if (!right) return;
@@ -3646,7 +3662,7 @@ function renderLiveMatchCard(analysis, idx) {
         <span class="scan-minute">${esc(match.minute)}</span>
       </div>
     </div>
-    <div class="scan-meta">${esc(match.league || '—')} · ${esc(anchorStatusNote(analysis))}</div>
+    <div class="scan-meta">${esc(match.league || '—')} · ${esc(anchorStatusNote(analysis))} ${anchorStatusBadge(analysis)}</div>
     ${previewHtml}
   </div>`;
 }
@@ -3718,7 +3734,7 @@ function openLiveMatchDetail(idx) {
     <div class="modal-header">
       <div>
         <div class="modal-title">${esc(match.home_team)} <span style="color:var(--dim)">vs</span> ${esc(match.away_team)}</div>
-        <div class="modal-sub">${esc(match.league || '—')} · ${esc(match.score || '—')} · ${esc(match.minute)}</div>
+        <div class="modal-sub">${esc(match.league || '—')} · ${esc(match.score || '—')} · ${esc(match.minute)} ${analysis.status === 'ok' ? anchorStatusBadge(analysis) : ''}</div>
       </div>
       <button class="modal-close" onclick="closeLiveMatchModal()">✕</button>
     </div>

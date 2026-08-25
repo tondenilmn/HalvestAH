@@ -496,6 +496,38 @@ select.gs-select {
   border-radius: 3px; padding: 0 4px; margin-left: 4px;
 }
 
+/* Live (minute-decayed) vs HT-conditioned (in-play, not yet decayed) vs
+   plain PRE-MATCH bet columns — same buildBetCol() markup renders all three
+   states, distinguished here so a live number is never mistaken for a
+   static historical bucket match. Uses an inset top edge (not left border)
+   so it never collides visually with .bet-col-market's own left border —
+   a bet (e.g. ahCover) can be both market-calibrated AND live-decayed. */
+.bet-col-inplay {
+  background: rgba(26,159,255,0.045);
+}
+.bet-col-live {
+  background: linear-gradient(180deg, rgba(255,77,94,0.10), rgba(255,77,94,0.02) 55%);
+  box-shadow: inset 0 2px 0 0 var(--red);
+}
+.col-badge-live {
+  font-size: 9px; font-weight: bold; letter-spacing: .06em;
+  color: #fff; background: var(--red);
+  border-radius: 3px; padding: 0 5px; margin-left: 4px;
+  animation: live-badge-pulse 1.8s ease-in-out infinite;
+}
+.col-badge-ht {
+  font-size: 9px; font-weight: bold; letter-spacing: .06em;
+  color: var(--blue); border: 1px solid var(--blue);
+  border-radius: 3px; padding: 0 4px; margin-left: 4px;
+}
+@keyframes live-badge-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.5; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .col-badge-live { animation: none; }
+}
+
 .col-bet-label { font-size: 11px; color: var(--bright); font-weight: bold; margin-bottom: 6px; }
 .col-hdr { display: flex; align-items: center; gap: 4px; margin-bottom: 6px; }
 .col-title { font-size: 10px; font-weight: bold; letter-spacing: .06em; color: var(--bright); text-transform: uppercase; }
