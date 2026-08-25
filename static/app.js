@@ -3575,7 +3575,10 @@ async function pollLiveMatches() {
       return analyzeLiveMatch(m, minute);
     }).filter(Boolean);
 
-    analyzed.sort((a, b) => rankScore(topLiveBet(b)) - rankScore(topLiveBet(a)));
+    // List order is by match minute descending (longest-running match first)
+    // — the "BEST LIVE BET" banner picks its own headline match independently
+    // by score (see renderLiveGames), so this only affects the full list.
+    analyzed.sort((a, b) => b.minute - a.minute);
     _liveMatches = analyzed;
     _liveLastUpdated = new Date();
     renderLiveGames();
