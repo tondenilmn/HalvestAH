@@ -564,9 +564,12 @@ const _DASH_TIER_DOT_CLS = { HIGH: 'bd-strong', MEDIUM: 'bd-good', LOW: 'bd-weak
 // single pick is surfaced in a scannable card: Dashboard fixture rows, Live
 // Games match cards, and the "ALL QUALIFYING BETS" list.
 function renderBetPickBlock(bet, qualifies) {
+  const flag = qualifies
+    ? '<span class="pick-flag pick-flag-pass">✓ QUALIFIES</span>'
+    : '<span class="pick-flag pick-flag-value">◆ VALUE HUNT</span>';
   return `
     <div class="pick-row">
-      <div class="pick-label">${esc(bet.label)}<span class="pick-flag">${qualifies ? '✓ qualifies' : '(value-hunt tier)'}</span></div>
+      <div class="pick-label">${esc(bet.label)}${flag}</div>
       <div class="pick-odds" title="Bet only if you can get at least this price">
         <span class="pick-odds-value">${bet.mo}</span>
         <span class="pick-odds-label">min odds</span>
@@ -615,7 +618,8 @@ function renderDashboardRowInner(r) {
 }
 
 function renderDashboardRow(r) {
-  return `<div class="scan-card" style="cursor:default">${renderDashboardRowInner(r)}</div>`;
+  const tierCls = r.qualifies ? 'scan-card-qualifies' : 'scan-card-value';
+  return `<div class="scan-card ${tierCls}" style="cursor:default">${renderDashboardRowInner(r)}</div>`;
 }
 
 function renderDailyDashboard(results, totalFixtures) {
@@ -4248,7 +4252,7 @@ function collectAllQualifyingLiveBets(matches) {
 function renderQualifyingLiveBetRow(entry) {
   const { idx, analysis, bet } = entry;
   const m = analysis.match;
-  return `<div class="scan-card" onclick="openLiveMatchDetail(${idx})">
+  return `<div class="scan-card scan-card-qualifies" onclick="openLiveMatchDetail(${idx})">
     <div class="scan-card-header">
       <span class="scan-match-name">${esc(m.home_team)}<span class="scan-vs">vs</span>${esc(m.away_team)}</span>
       <span class="scan-live-info"><span class="scan-minute">${esc(m.minute)}'</span> ${anchorStatusBadge(analysis)}</span>
@@ -4292,8 +4296,9 @@ function renderLiveMatchCard(analysis, idx) {
   const previewHtml = top
     ? renderBetPickBlock(top, topQualifies) + `<div class="col-stats" style="margin-top:6px">${sampleBadge(top.n, minN)}</div>`
     : `<p style="font-size:11px;color:var(--dim)">No bet clears the bar for this match's signal pattern yet.</p>`;
+  const tierCls = top ? (topQualifies ? 'scan-card-qualifies' : 'scan-card-value') : '';
 
-  return `<div class="scan-card" onclick="openLiveMatchDetail(${idx})">
+  return `<div class="scan-card ${tierCls}" onclick="openLiveMatchDetail(${idx})">
     <div class="scan-card-header">
       <span class="scan-match-name">${esc(match.home_team)}<span class="scan-vs">vs</span>${esc(match.away_team)}</span>
       <div class="scan-live-info">

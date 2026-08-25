@@ -600,9 +600,14 @@ select.gs-select {
   min-width: 0; flex-shrink: 1;
 }
 .pick-flag {
-  display: block; font-size: 11px; font-weight: 600; color: var(--dim);
-  margin-top: 2px;
+  display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: .04em;
+  margin-top: 4px; padding: 2px 7px; border-radius: var(--radius-sm);
 }
+/* Qualifying (clears the z-score + CI-edge statistical bar) vs value-hunt
+   (a positive edge that hasn't cleared the bar yet) — visually distinct so
+   the two are never mistaken for the same tier of confidence at a glance. */
+.pick-flag-pass  { background: rgba(0,229,170,.15); color: var(--green); border: 1px solid rgba(0,229,170,.4); }
+.pick-flag-value { background: rgba(245,166,35,.12); color: var(--yellow); border: 1px solid rgba(245,166,35,.35); }
 .pick-odds {
   flex-shrink: 0; text-align: center;
   background: var(--bg2); border: 1px solid var(--border);
@@ -1085,6 +1090,15 @@ select.gs-select {
 }
 .scan-card:hover  { border-color: var(--green); background: var(--bg2); box-shadow: var(--shadow-raised); }
 .scan-card:active { transform: scale(0.995); }
+
+/* Whether the card's headline pick is a qualifying bet (clears the
+   statistical bar) or only a value-hunt one (positive edge, not qualifying
+   yet) — a colored left edge so the two tiers read apart at a glance,
+   without opening the card. */
+.scan-card-qualifies { border-left: 3px solid var(--green); padding-left: 12px; }
+.scan-card-value     { border-left: 3px solid var(--yellow); padding-left: 12px; }
+.scan-card-qualifies:hover { border-left-color: var(--green); }
+.scan-card-value:hover     { border-left-color: var(--yellow); }
 
 .scan-card-header { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:5px; gap: 8px; }
 .scan-match-name  { font-size:14px; font-weight:700; color:var(--bright); }
