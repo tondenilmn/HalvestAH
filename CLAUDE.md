@@ -298,6 +298,8 @@ Note this pre-match timing is a real shift from how L123 was originally walk-for
 
 **Live price gate:** before alerting, the recommended bet's Bet365 live price is checked against the conservative min odds (`bet.mo_lo`, derived from the Wilson CI) — the alert only fires if the live price is at or above it.
 
+**Model probability line (`modelProbLine()`, `notify.js`):** every alert (L123, LATEGOAL, QUIET2H) always prints a standalone `🎲 Model probability (for manual Kelly): X%` line, independent of whether a verified price was found (unlike `kellyLine()`, which only prints once `actualPrice` is known) — so there's always a number to plug into a manual Kelly calculation (e.g. against a different bookmaker's price than the one auto-checked). It's the same CI-lower-bound probability `kellyLine()` itself sizes against — `bet.lo` for L123, the CI-lower live-decayed rate (`liveOddLo.live_p`) for LATEGOAL/QUIET2H — never the raw point-estimate historical rate shown in the "📊 x% historically" line, which is winner's-curse-inflated and would overstake if fed into Kelly directly.
+
 **Data source:** the historical pool is `static/data/Bet365/*.csv` (Bet365-priced, matching the live `match.bet365_odds` it's compared against) — see `DATA_URL`/`DATA_DIR` in `config.js`.
 
 **Architecture:** `notify.js` orchestrates — it calls `engine.js` (port of `app.js` analysis logic) and `livescore.js` (live match + odds fetcher, Bet365 is the primary book — see below). Config lives entirely in `telegram/config.js`.

@@ -310,6 +310,20 @@ function kellyLine(price, loPct) {
   return `💰 Kelly stake: ${full.toFixed(1)}% of bankroll (half-Kelly: ${(full / 2).toFixed(1)}%) — based on CI-lower ${loPct.toFixed(0)}% @ ${price.toFixed(2)}`;
 }
 
+// Standalone probability line, always shown (unlike kellyLine, which only
+// prints once a real price has been found) — so there's always a number to
+// manually plug into a Kelly calculator/tracker even when no verified price
+// was available for this alert, or the user wants to size against a
+// different bookmaker's price than the one checked. Prints the same
+// CI-lower-bound probability kellyLine() itself sizes off (bet.lo for L123,
+// the CI-lower live-decayed rate for LATEGOAL/QUIET2H) — not the raw
+// point-estimate historical rate in the "📊 x% historically" line, which is
+// winner's-curse-inflated and would overstake if used directly for Kelly.
+function modelProbLine(pct) {
+  if (pct == null) return null;
+  return `🎲 Model probability (for manual Kelly): ${pct.toFixed(1)}%`;
+}
+
 function l123Format(match, agreeCount, bet, votes, toKickoff, liveOdds, apiFootballCheck, odds) {
   const actualPrice = liveOdds != null ? liveOdds : (apiFootballCheck?.supported ? apiFootballCheck.odds : null);
   const verdictLine = liveOdds != null
@@ -327,6 +341,7 @@ function l123Format(match, agreeCount, bet, votes, toKickoff, liveOdds, apiFootb
     [
       `👉 <b>${esc(bet.label)}</b>`,
       verdictLine,
+      ...(bet.lo != null ? [modelProbLine(bet.lo)] : []),
       ...(kellyLn ? [kellyLn] : []),
       ...(moveLine ? [moveLine] : []),
       `📊 ${bet.p.toFixed(0)}% historically vs ${bet.bl.toFixed(0)}% baseline (n=${bet.n}) · agreed by ${votes.join(', ')}`,
@@ -548,6 +563,7 @@ function lateGoalFormat(match, bet, liveMin, htSnap, liveOdd, liveOddLo, equival
     [
       `👉 <b>${esc(bet.label)}</b>`,
       verdictLine,
+      ...(liveOddLo.live_p != null ? [modelProbLine(liveOddLo.live_p)] : []),
       ...(kellyLn ? [kellyLn] : []),
       ...(paceLine ? [paceLine] : []),
       ...(moveLine ? [moveLine] : []),
@@ -696,6 +712,7 @@ function quiet2hFormat(match, bet, liveMin, htSnap, liveOdd, liveOddLo, equivale
     [
       `👉 <b>${esc(bet.label)}</b>`,
       verdictLine,
+      ...(liveOddLo.live_p != null ? [modelProbLine(liveOddLo.live_p)] : []),
       ...(kellyLn ? [kellyLn] : []),
       ...(moveLine ? [moveLine] : []),
       `📊 ${bet.p.toFixed(0)}% historically vs ${bet.bl.toFixed(0)}% baseline (n=${bet.n}, same HT score${tlBandUsed ? ' + Total Line' : ''})`,
