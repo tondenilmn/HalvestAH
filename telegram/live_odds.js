@@ -11,7 +11,10 @@
 const _1H_INTENSITY = [[0,15,0.907],[15,30,0.937],[30,45,1.156]];
 const _2H_INTENSITY = [[0,15,0.879],[15,30,0.874],[30,45,1.247]];
 const _FLAT_INTENSITY = [[0,45,1.000]];
-const _IT_2H = 4;
+// Calibrated from goals_time2 (2026-08-26) — see static/app.js's matching
+// constant for the full methodology/sample size; mirrored here per the
+// sync-requirement note above.
+const _IT_2H = 5.07;
 
 const _LINE_STRENGTH_MOD = {0.25:0.92,0.50:0.96,0.75:1.00,1.00:1.06,1.25:1.12,1.50:1.18};
 // The 2H "who wins the half" 3-way market (favWins2H/draw2H/homeWins2H/

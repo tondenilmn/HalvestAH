@@ -673,6 +673,20 @@ select.gs-select {
 .match-score { color: var(--bright); min-width: 80px; }
 .match-meta  { color: var(--dim); }
 
+/* Dashboard "Why this pick" disclosure — supporting evidence (sample size,
+   z-score, market/timing checks) collapsed by default so a list of many
+   fixtures stays scannable; one click reveals it per row. */
+.dash-why { margin-top: 8px; }
+.dash-why summary {
+  list-style: none; cursor: pointer; color: var(--dim);
+  font-size: 10px; font-weight: bold; letter-spacing: .04em;
+  padding: 2px 0;
+}
+.dash-why summary:hover { color: var(--bright); }
+.dash-why summary::-webkit-details-marker { display: none; }
+.dash-why summary::before { content: "▶ "; font-size: 9px; }
+.dash-why[open] summary::before { content: "▼ "; }
+
 /* ── FT Context ──────────────────────────────────────────── */
 .ft-context  { margin-bottom: 14px; }
 .ftc-hdr {

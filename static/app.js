@@ -530,84 +530,6 @@ function buildCfgFromLiveOdds(odds) {
   return cfg2;
 }
 
-// Triggered by the per-row "Check 2H bets →" button. Runs the same
-// HT-as-signal pipeline as Match Analysis's GSA tab (applyGameState +
-// scoreBets), driven by the live-feed match's own closing odds instead of
-// manually re-typing everything, and — if a current minute + live 2H score
-// are also given — layers computeLiveOdd's time-decay on top via
-// buildLiveAdjustedBet for the bets that support it.
-function checkLiveBets(idx) {
-  const r = _dashboardFixtures[idx === 'top' ? 0 : idx];
-  const resultsEl = document.getElementById(`live-bets-${idx}`);
-  if (!r || !resultsEl) return;
-
-  const htHome = parseInt(document.getElementById(`ht-home-${idx}`)?.value, 10);
-  const htAway = parseInt(document.getElementById(`ht-away-${idx}`)?.value, 10);
-  if (isNaN(htHome) || isNaN(htAway)) {
-    resultsEl.innerHTML = `<p style="color:var(--yellow);font-size:11px;margin-top:6px">Enter both HT scores.</p>`;
-    return;
-  }
-
-  const cfg = buildCfgFromLiveOdds(r.match.odds || {});
-  if (!cfg) {
-    resultsEl.innerHTML = `<p style="color:var(--yellow);font-size:11px;margin-top:6px">Missing closing odds for this match — can't run live analysis yet.</p>`;
-    return;
-  }
-
-  const db = getDb();
-  const cfgRows = applyConfig(db, cfg);
-  const baselineRows = applyBaselineConfig(db, cfg);
-  const blSide = baselineRows.filter(row => row.fav_side === cfg.fav_side);
-  if (!cfgRows.length || !baselineRows.length) {
-    resultsEl.innerHTML = `<p style="color:var(--yellow);font-size:11px;margin-top:6px">Not enough historical matches for this exact closing config.</p>`;
-    return;
-  }
-
-  const gs = { trigger: 'HT', home_goals: String(htHome), away_goals: String(htAway) };
-  const gsRows = applyGameState(cfgRows, gs);
-  const gsBlRows = applyGameState(baselineRows, gs);
-  const gsBlSide = applyGameState(blSide, gs);
-  if (gsRows.length < DEFAULT_MIN_N) {
-    resultsEl.innerHTML = `<p style="color:var(--dim);font-size:11px;margin-top:6px">Only ${gsRows.length} historical matches reached HT ${htHome}-${htAway} in this exact config — too few to score.</p>`;
-    return;
-  }
-  const gsAllBets = scoreBets(gsRows, gsBlRows, gsBlSide, DEFAULT_MIN_N);
-
-  // Optional: current minute + live 2H score so far — layers the Poisson
-  // time-decay estimate on top of the HT-conditioned anchor rate for
-  // whichever bets support it. Left blank = "just entered 2H, nothing new
-  // has happened yet" (minute 46, 0-0 since HT), a sensible default.
-  const minuteRaw = parseInt(document.getElementById(`live-minute-${idx}`)?.value, 10);
-  const curHomeRaw = parseInt(document.getElementById(`live-home-${idx}`)?.value, 10);
-  const curAwayRaw = parseInt(document.getElementById(`live-away-${idx}`)?.value, 10);
-  const minute = isNaN(minuteRaw) ? 46 : minuteRaw;
-  const favG2h = isNaN(curHomeRaw) || isNaN(curAwayRaw) ? 0
-    : Math.max(0, (cfg.fav_side === 'HOME' ? curHomeRaw : curAwayRaw) - (cfg.fav_side === 'HOME' ? htHome : htAway));
-  const dogG2h = isNaN(curHomeRaw) || isNaN(curAwayRaw) ? 0
-    : Math.max(0, (cfg.fav_side === 'HOME' ? curAwayRaw : curHomeRaw) - (cfg.fav_side === 'HOME' ? htAway : htHome));
-
-  const gsAllBetsMap = new Map(gsAllBets.map(b => [b.k, b]));
-  const qualifying = gsAllBets.filter(qualifiesBet);
-  const valueBets = gsAllBets.filter(b => !qualifiesBet(b) && b.edge > 0 && b.n >= DEFAULT_MIN_N);
-  const picks = [...qualifying, ...valueBets].slice(0, 6).map(b => {
-    const live = buildLiveAdjustedBet(b, minute, favG2h, dogG2h, cfg.fav_side, cfg.fav_line, state.useFlatDecay, gsAllBetsMap);
-    return live || b;
-  });
-
-  if (!picks.length) {
-    resultsEl.innerHTML = `<p style="color:var(--dim);font-size:11px;margin-top:6px">No 2H bets clear the bar for HT ${htHome}-${htAway} (n=${gsRows.length}).</p>`;
-    return;
-  }
-
-  resultsEl.innerHTML = `<div style="margin-top:8px;border-top:1px solid var(--border);padding-top:8px">` +
-    picks.map(b => `
-      <div class="bet-ci" style="margin-top:4px">
-        ${qualifiesBet(b) ? '✓' : '·'} <b>${esc(b.label)}</b>${b._liveDecayed ? ' <span style="color:var(--dim)">(live @' + minute + "')" + '</span>' : ''}
-        — ${b.p.toFixed(1)}% (${b.edge >= 0 ? '+' : ''}${b.edge.toFixed(1)}pp) z=${b.z.toFixed(2)} n=${b.n} · fair odds ${b.mo}
-      </div>`).join('') +
-    `</div>`;
-}
-
 // Team/league names here come from the scraped live-odds feed (external,
 // less trusted than the static CSV dataset) — escape before inserting into
 // innerHTML.
@@ -629,7 +551,19 @@ function cfgMoveLabel(v) {
   return v === 'UNKNOWN' ? 'no price data' : v;
 }
 
-function renderDashboardRow(r, idx) {
+// Tier -> the same strong/good/weak dot color the Bet Dashboard's own
+// left-dot column uses (bd-strong/bd-good/bd-weak in style.css), reused here
+// so a HIGH/MEDIUM/LOW dashboard fixture reads with the same "status dot"
+// language as every other tiered list in the app — the system's own
+// documented "status-left" signature pattern, not a one-off for this list.
+const _DASH_TIER_DOT_CLS = { HIGH: 'bd-strong', MEDIUM: 'bd-good', LOW: 'bd-weak' };
+
+// The scannable core of one fixture: team names + tier dot, bet + prob/edge,
+// and the one number to act on (min odds) — everything else (why this
+// qualifies, sample size, z-score) is supporting evidence and sits behind a
+// native <details> disclosure so it costs nothing to skip while scanning a
+// list of many fixtures, but is one click away when it's actually needed.
+function renderDashboardRowInner(r) {
   const kickoff = new Date(r.match.kickoff_time);
   const kickoffTxt = isNaN(kickoff.getTime()) ? '—' : kickoff.toLocaleString([], { weekday: 'short', hour: '2-digit', minute: '2-digit' });
   const sig2Txt = r.sig2 != null
@@ -639,52 +573,37 @@ function renderDashboardRow(r, idx) {
     : r.sig3 === false ? 'Works against this bet'
     : 'No goal-timing read for this bet';
   const tierHint = r.tier === 'HIGH' ? 'All 3 checks line up' : r.tier === 'MEDIUM' ? '2 of 3 checks line up' : 'Only the core historical signal qualifies';
-  return `<div class="bet-col" style="margin-bottom:10px">
-    <div class="col-hdr">
-      <span class="col-title">${esc(r.match.home_team)} vs ${esc(r.match.away_team)}</span>
+  return `
+    <div class="scan-card-header">
+      <span class="scan-match-name">
+        <span class="bd-dot ${_DASH_TIER_DOT_CLS[r.tier] || 'bd-weak'}" style="display:inline-block;vertical-align:middle;margin-right:7px"></span>${esc(r.match.home_team)}<span class="scan-vs">vs</span>${esc(r.match.away_team)}
+      </span>
       <span class="${tierBadgeClass(r.tier)}" title="${esc(tierHint)}">${r.tier}</span>
     </div>
-    <div class="col-sub">${esc(r.match.league || '—')} · Kickoff ${kickoffTxt}</div>
+    <div class="scan-meta">${esc(r.match.league || '—')} · Kickoff ${kickoffTxt}</div>
     <div class="col-bet-label">${esc(r.bet.label)}${r.qualifies ? ' ✓ qualifies' : ' (value-hunt tier)'}</div>
-    <div class="col-prob-label">Historical hit rate vs. baseline</div>
     <div class="col-prob">
       <span class="prob-pct">${r.bet.p.toFixed(1)}%</span>
       <span class="prob-edge ${r.bet.edge >= 0 ? 'pos' : 'neg'}">${r.bet.edge >= 0 ? '+' : ''}${r.bet.edge.toFixed(1)}pp vs ${r.bet.bl.toFixed(1)}% baseline</span>
     </div>
-    <div class="col-stats">
-      <span class="n-stat n-stat-${sampleTier(r.bet.n, DEFAULT_MIN_N)}" title="${_SAMPLE_TIER_TITLE[sampleTier(r.bet.n, DEFAULT_MIN_N)]}">${r.bet.n} similar matches</span>
-      <span class="badge-z" title="Z-score — how far above baseline, in standard deviations">z ${r.bet.z.toFixed(2)}</span>
-    </div>
-    <div class="bet-ci" style="margin-top:6px">📊 Market check: ${sig2Txt}</div>
-    <div class="bet-ci">⏱ Timing check: ${sig3Txt}</div>
     <div class="col-min-odds">
       <span class="col-min-odds-label">BET IF ODDS ≥</span>
       <span class="col-min-odds-value"><b>${r.bet.mo}</b></span>
       <span class="col-min-odds-floor">or ${r.bet.mo_mid}+ for a safer margin</span>
     </div>
-    ${renderLiveCheckForm(idx)}
-  </div>`;
+    <details class="dash-why">
+      <summary>Why this pick</summary>
+      <div class="col-stats" style="margin-top:6px">
+        <span class="n-stat n-stat-${sampleTier(r.bet.n, DEFAULT_MIN_N)}" title="${_SAMPLE_TIER_TITLE[sampleTier(r.bet.n, DEFAULT_MIN_N)]}">${r.bet.n} similar matches</span>
+        <span class="badge-z" title="Z-score — how far above baseline, in standard deviations">z ${r.bet.z.toFixed(2)}</span>
+      </div>
+      <div class="bet-ci" style="margin-top:6px">📊 Market check: ${sig2Txt}</div>
+      <div class="bet-ci">⏱ Timing check: ${sig3Txt}</div>
+    </details>`;
 }
 
-// Compact "once this match is live, check 2H bets" form — HT score is the
-// only required input (mirrors the GSA tab's own minimum requirement);
-// minute + current live 2H score are optional extras that layer
-// computeLiveOdd's Poisson time-decay on top once filled in.
-function renderLiveCheckForm(idx) {
-  return `<div class="col-your-odds" style="flex-direction:column;align-items:stretch;gap:6px">
-    <span class="col-min-odds-label">HT SCORE → CHECK 2H BETS</span>
-    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-      <input type="text" class="your-odds-input" style="width:50px" placeholder="H" id="ht-home-${idx}">
-      <span>–</span>
-      <input type="text" class="your-odds-input" style="width:50px" placeholder="A" id="ht-away-${idx}">
-      <span style="color:var(--dim);font-size:10px">live now (optional):</span>
-      <input type="text" class="your-odds-input" style="width:45px" placeholder="min" id="live-minute-${idx}">
-      <input type="text" class="your-odds-input" style="width:40px" placeholder="H" id="live-home-${idx}">
-      <input type="text" class="your-odds-input" style="width:40px" placeholder="A" id="live-away-${idx}">
-      <button class="run-btn run-btn-secondary" style="padding:4px 10px;font-size:11px" onclick="checkLiveBets('${idx}')">Check 2H bets →</button>
-    </div>
-    <div id="live-bets-${idx}"></div>
-  </div>`;
+function renderDashboardRow(r) {
+  return `<div class="scan-card" style="cursor:default">${renderDashboardRowInner(r)}</div>`;
 }
 
 function renderDailyDashboard(results, totalFixtures) {
@@ -700,11 +619,11 @@ function renderDailyDashboard(results, totalFixtures) {
 
   html += `<div class="top-pick-banner"><div class="bet-card tier-strong">
     <div class="bet-stripe"><span class="tier-label">🏆 BET OF THE DAY — ${best.tier} reliability</span></div>
-    ${renderDashboardRow(best, 'top')}
+    ${renderDashboardRowInner(best)}
   </div></div>`;
 
   html += `<div class="section-label" style="margin-top:18px">ALL FIXTURES WITH A SIGNAL</div>`;
-  results.forEach((r, i) => { html += renderDashboardRow(r, i); });
+  results.forEach(r => { html += renderDashboardRow(r); });
   return html;
 }
 
@@ -2071,7 +1990,23 @@ function discover(db, favLine, favSide, inLineMove, inTlMove, gs, minN = DEFAULT
 const _1H_INTENSITY = [[0,15,0.907],[15,30,0.937],[30,45,1.156]];
 const _2H_INTENSITY = [[0,15,0.879],[15,30,0.874],[30,45,1.247]];
 const _FLAT_INTENSITY = [[0,45,1.000]];
-const _IT_2H = 4;
+// _IT_1H/_IT_2H (2026-08-26): calibrated from goals_time2 (12 leagues, last 3
+// seasons through 2024-2025) rather than assumed. Each represents "how many
+// extra minutes of goal-intensity mass the stoppage-time window adds" in this
+// model's own rate-integral terms — solved so that mass's share of the whole
+// half matches the real share of goals recorded during that half's actual
+// stoppage time ("45+N'"/"90+N'" incident minutes):
+//   stoppageShare = stoppageGoals / totalHalfGoals
+//   IT = [stoppageShare/(1-stoppageShare) * integral(0..45, half's curve)] / itRate
+// 1H: n=12,261 first-half goals, 5.81% in recorded 1H stoppage (avg 2.65 added
+// min when it happens) -> IT_1H = 2.40 (previously assumed 2, "roughly half
+// of _IT_2H"). 2H: n=15,060 second-half goals, 12.32% in recorded 2H stoppage
+// (avg 3.72 added min) -> IT_2H = 5.07 (previously assumed 4, uncalibrated).
+// 2H stoppage share running ~2x 1H's matches the general refereeing pattern
+// (more subs/treatment/VAR stoppages accumulate by full time) — a sanity
+// check the calibration passes, not something it was tuned to hit.
+const _IT_2H = 5.07;
+const _IT_1H = 2.40;
 
 // Validated against this app's own ~165k-match dataset (AH line vs. average
 // 2H goals) — observed ratios landed within ~1-2% of these values, so kept
@@ -2107,6 +2042,21 @@ const _BET_GOAL_THRESHOLD = {
   'favScored2H':1,'ahCover':1,
   'homeScored2H':1,'awayScored2H':1,
   'homeOver15_2H':2,'awayOver15_2H':2,
+};
+
+// 1H mirror of the 2H sets above. "Result" (favWins1H/draw1H/homeWins1H/
+// awayWins1H) and btts1H route through their own bivariate/product dispatch
+// in buildLive1HAdjustedBet, same reasoning as the 2H versions — see
+// _2H_RESULT_KEYS's comment.
+const _1H_RESULT_KEYS = new Set(['favWins1H', 'draw1H', 'homeWins1H', 'awayWins1H']);
+const _1H_BETS_SET = new Set([
+  'over05_1H', 'over15_1H', 'homeScored1H', 'awayScored1H',
+  'under05_1H', 'under15_1H',
+]);
+const _UNDER_BETS_1H = {'under05_1H':[1,0],'under15_1H':[2,1]};
+const _BET_GOAL_THRESHOLD_1H = {
+  'over05_1H':1,'over15_1H':2,
+  'homeScored1H':1,'awayScored1H':1,
 };
 
 // Score-state modifiers. FAV/DOG tables: calibrated from this app's own
@@ -2195,6 +2145,11 @@ function _baseInt2h(curve){
   return _integrateInt(0,45,2,c)+c[c.length-1][2]*_IT_2H;
 }
 
+function _baseInt1h(curve){
+  const c = curve || _1H_INTENSITY;
+  return _integrateInt(0,45,1,c)+c[c.length-1][2]*_IT_1H;
+}
+
 function _solveLam(p,k,lo=0,hi=50,iters=60){
   for(let i=0;i<iters;i++){
     const mid=(lo+hi)/2;
@@ -2281,6 +2236,78 @@ function computeLiveOdd(pHtPct,betKey,matchMinute,favLine=0.75,
     else if(betKey==='homeOver15_2H')need=Math.max(0,2-homeG2h);
     else if(betKey==='awayOver15_2H')need=Math.max(0,2-awayG2h);
     else need=Math.max(0,(_BET_GOAL_THRESHOLD[betKey]||1)-goalsScored);
+
+    if(need===0)return{live_p:100,fair_odd:1.01,note:note+' ✓ Already hit'};
+    liveP=_poissonAtLeast(remLam,need)*100;
+  }
+
+  return{
+    live_p:Math.round(liveP*10)/10,
+    fair_odd:Math.round(1/Math.max(liveP/100,0.001)*100)/100,
+    note,
+  };
+}
+
+// 1H mirror of computeLiveOdd. Anchored at kickoff instead of HT — kickoff is
+// always 0-0, so unlike the 2H version there's no anchor-goal snapshot to
+// subtract; homeG1h/awayG1h are just the match's current score directly.
+// Deliberately has NO score-state modifier (_pickScoreMod equivalent): the 2H
+// tables are calibrated from HT-margin -> rest-of-2H scoring, a different
+// question ("does trailing/leading at the *half break* change the next
+// half's pace") than "does the score-so-far *within* the same half change
+// the rest of that half" — applying the 2H tables here would misrepresent a
+// relationship that was never measured. The goal-distribution model (Poisson
+// anchored on the historical rate) and the calibrated _1H_INTENSITY timing
+// curve are the two things this shares with the 2H version; the margin
+// multiplier is intentionally left at 1.0 pending real 1H-specific data.
+function computeLive1HOdd(pKickoffPct,betKey,matchMinute,favLine=0.75,
+                          homeGoals1h=0,awayGoals1h=0,useFlatDecay=false){
+  if(!_1H_BETS_SET.has(betKey))
+    return{live_p:null,fair_odd:null,note:'—'};
+
+  const curve=useFlatDecay?_FLAT_INTENSITY:_1H_INTENSITY;
+  const p=Math.max(0.001,Math.min(0.999,pKickoffPct/100));
+
+  let lam;
+  if(_UNDER_BETS_1H[betKey]){
+    const[kl]=_UNDER_BETS_1H[betKey];
+    const po=Math.max(0.001,Math.min(0.999,1-p));
+    lam=kl===1?-Math.log(1-po):_solveLam(po,kl);
+  }else{
+    const k=_BET_GOAL_THRESHOLD_1H[betKey]||1;
+    lam=k===1?-Math.log(1-p):_solveLam(p,k);
+  }
+
+  const lineKeys=Object.keys(_LINE_STRENGTH_MOD).map(Number);
+  const closest=lineKeys.reduce((a,b)=>Math.abs(b-favLine)<Math.abs(a-favLine)?b:a);
+  lam*=_LINE_STRENGTH_MOD[closest];
+
+  const baseInt=_baseInt1h(curve);
+  const elapsed1h=Math.min(45,Math.max(0,matchMinute));
+  const remaining1h=Math.max(0,45-elapsed1h);
+  const note=`Min ${matchMinute} — ${Math.round(remaining1h)} min left in 1H`;
+
+  const itRate=curve[curve.length-1][2];
+  const remInt=_integrateInt(elapsed1h,45,1,curve)+itRate*_IT_1H;
+  const intFrac=remInt/baseInt;
+  const bayMod=1-(elapsed1h/45)*0.05;
+  let remLam=lam*intFrac*bayMod;
+
+  const goalsScored=homeGoals1h+awayGoals1h;
+  let liveP;
+
+  if(_UNDER_BETS_1H[betKey]){
+    const[,maxG]=_UNDER_BETS_1H[betKey];
+    if(goalsScored>maxG)return{live_p:0,fair_odd:99,note:note+' ✗ Already busted'};
+    const allowed=maxG-goalsScored;
+    let prob=0;
+    for(let i=0;i<=allowed;i++)prob+=Math.exp(-remLam)*Math.pow(remLam,i)/_fac(i);
+    liveP=prob*100;
+  }else{
+    let need;
+    if(betKey==='homeScored1H')      need=Math.max(0,1-homeGoals1h);
+    else if(betKey==='awayScored1H') need=Math.max(0,1-awayGoals1h);
+    else need=Math.max(0,(_BET_GOAL_THRESHOLD_1H[betKey]||1)-goalsScored);
 
     if(need===0)return{live_p:100,fair_odd:1.01,note:note+' ✓ Already hit'};
     liveP=_poissonAtLeast(remLam,need)*100;
@@ -2448,6 +2475,142 @@ function buildLiveAdjustedBet(anchorBet, minute, favG2h, dogG2h, favSide, favLin
   };
 }
 
+// 1H mirror of computeLiveResult2H — bivariate live decay for the 1H "who
+// wins the half" 3-way market (favWins1H/draw1H/homeWins1H/awayWins1H).
+// Anchored at kickoff: favGoals1h/dogGoals1h are the current score directly
+// (no HT-style anchor subtraction), and there is no score-state margin
+// modifier (see computeLive1HOdd's comment for why).
+function computeLiveResult1H(favAnchorP, dogAnchorP, matchMinute, favLine, favGoals1h, dogGoals1h, useFlatDecay) {
+  const curve = useFlatDecay ? _FLAT_INTENSITY : _1H_INTENSITY;
+  const toLam = p => -Math.log(1 - Math.max(0.001, Math.min(0.999, p / 100)));
+  let lamFav = toLam(favAnchorP), lamDog = toLam(dogAnchorP);
+
+  const lineKeys = Object.keys(_LINE_STRENGTH_MOD).map(Number);
+  const closest = lineKeys.reduce((a, b) => Math.abs(b - favLine) < Math.abs(a - favLine) ? b : a);
+  lamFav *= _LINE_STRENGTH_MOD[closest];
+
+  const baseInt = _baseInt1h(curve);
+  const elapsed1h = Math.min(45, Math.max(0, matchMinute));
+  const itRate = curve[curve.length - 1][2];
+  const remInt = _integrateInt(elapsed1h, 45, 1, curve) + itRate * _IT_1H;
+  const intFrac = remInt / baseInt;
+  const bayMod = 1 - (elapsed1h / 45) * 0.05;
+
+  const remLamFav = lamFav * intFrac * bayMod;
+  const remLamDog = lamDog * intFrac * bayMod;
+
+  const CAP = 10;
+  let favWinP = 0, drawP = 0, dogWinP = 0;
+  for (let i = 0; i <= CAP; i++) {
+    const pi = Math.exp(-remLamFav) * Math.pow(remLamFav, i) / _fac(i);
+    for (let j = 0; j <= CAP; j++) {
+      const pj = Math.exp(-remLamDog) * Math.pow(remLamDog, j) / _fac(j);
+      const p = pi * pj;
+      const finalMargin = (favGoals1h + i) - (dogGoals1h + j);
+      if (finalMargin > 0) favWinP += p;
+      else if (finalMargin === 0) drawP += p;
+      else dogWinP += p;
+    }
+  }
+  const total = favWinP + drawP + dogWinP;
+  return total > 0
+    ? { fav_win_p: favWinP / total * 100, draw_p: drawP / total * 100, dog_win_p: dogWinP / total * 100 }
+    : { fav_win_p: 0, draw_p: 0, dog_win_p: 0 };
+}
+
+// 1H mirror of computeLiveBtts2H — product of each side's own live "scores
+// in 1H" probability.
+function computeLiveBtts1H(homeAnchorP, awayAnchorP, minute, favLine, homeG1h, awayG1h, useFlatDecay) {
+  const homeRes = computeLive1HOdd(homeAnchorP, 'homeScored1H', minute, favLine, homeG1h, awayG1h, useFlatDecay);
+  const awayRes = computeLive1HOdd(awayAnchorP, 'awayScored1H', minute, favLine, homeG1h, awayG1h, useFlatDecay);
+  if (homeRes.live_p == null || awayRes.live_p == null) return null;
+  return Math.round(homeRes.live_p * awayRes.live_p) / 100;
+}
+
+// Which computeLiveResult1H output field each of the 4 "1H Result" keys reads.
+function _1hResultField(betKey, favSide) {
+  if (betKey === 'draw1H') return 'draw_p';
+  if (betKey === 'favWins1H') return 'fav_win_p';
+  const isHomeKey = betKey === 'homeWins1H';
+  const homeIsFav = favSide === 'HOME';
+  return (isHomeKey === homeIsFav) ? 'fav_win_p' : 'dog_win_p';
+}
+
+// 1H mirror of buildLiveAdjustedBet. anchorBet must be the pre-match
+// (closing-odds) historical bet — the same preBets scoreBets() pass Live
+// Games already computes, since there's no HT-style conditioning step for
+// 1H. anchorBetsMap: Map of k -> that same pre-match bet, needed for the 1H
+// Result keys (favScored1H) and btts1H (homeScored1H/awayScored1H), neither
+// of which is itself in Live Games' displayed 1H set.
+function buildLive1HAdjustedBet(anchorBet, minute, homeG1h, awayG1h, favSide, favLine, useFlatDecay, anchorBetsMap) {
+  const favLineNum = parseFloat(favLine) || 0.75;
+  const favG1h = favSide === 'HOME' ? homeG1h : awayG1h;
+  const dogG1h = favSide === 'HOME' ? awayG1h : homeG1h;
+
+  if (_1H_RESULT_KEYS.has(anchorBet.k)) {
+    if (!anchorBetsMap) return null;
+    const favAnchor = anchorBetsMap.get('favScored1H');
+    const dogAnchor = anchorBetsMap.get(favSide === 'HOME' ? 'awayScored1H' : 'homeScored1H');
+    if (!favAnchor || !dogAnchor) return null;
+    const field = _1hResultField(anchorBet.k, favSide);
+    const point = computeLiveResult1H(favAnchor.p,  dogAnchor.p,  minute, favLineNum, favG1h, dogG1h, useFlatDecay);
+    const loRes = computeLiveResult1H(favAnchor.lo, dogAnchor.lo, minute, favLineNum, favG1h, dogG1h, useFlatDecay);
+    const p  = point[field];
+    const lo = Math.min(p, loRes[field]);
+    return {
+      ...anchorBet,
+      p, lo,
+      edge: p - anchorBet.bl,
+      mo: minOdds(p),
+      mo_mid: minOdds((p + lo) / 2),
+      matches: [],
+      _liveDecayed: true,
+      _liveLabel: `LIVE @ ${minute}'`,
+    };
+  }
+
+  if (anchorBet.k === 'btts1H') {
+    if (!anchorBetsMap) return null;
+    const homeAnchor = anchorBetsMap.get('homeScored1H');
+    const awayAnchor = anchorBetsMap.get('awayScored1H');
+    if (!homeAnchor || !awayAnchor) return null;
+    const p  = computeLiveBtts1H(homeAnchor.p,  awayAnchor.p,  minute, favLineNum, homeG1h, awayG1h, useFlatDecay);
+    const loRaw = computeLiveBtts1H(homeAnchor.lo, awayAnchor.lo, minute, favLineNum, homeG1h, awayG1h, useFlatDecay);
+    if (p == null) return null;
+    const lo = Math.min(p, loRaw != null ? loRaw : p);
+    return {
+      ...anchorBet,
+      p, lo,
+      edge: p - anchorBet.bl,
+      mo: minOdds(p),
+      mo_mid: minOdds((p + lo) / 2),
+      matches: [],
+      _liveDecayed: true,
+      _liveLabel: `LIVE @ ${minute}'`,
+    };
+  }
+
+  if (!_1H_BETS_SET.has(anchorBet.k)) return null;
+
+  const pointRes = computeLive1HOdd(anchorBet.p,  anchorBet.k, minute, favLineNum, homeG1h, awayG1h, useFlatDecay);
+  if (pointRes.live_p == null) return null;
+  const loRes = computeLive1HOdd(anchorBet.lo, anchorBet.k, minute, favLineNum, homeG1h, awayG1h, useFlatDecay);
+
+  const p  = pointRes.live_p;
+  const lo = Math.min(p, loRes.live_p != null ? loRes.live_p : p);
+
+  return {
+    ...anchorBet,
+    p, lo,
+    edge: p - anchorBet.bl,
+    mo: minOdds(p),
+    mo_mid: minOdds((p + lo) / 2),
+    matches: [],
+    _liveDecayed: true,
+    _liveLabel: `LIVE @ ${minute}'`,
+  };
+}
+
 /* ════════════════════════════════════════════════════════════
    APP STATE & DB
    ════════════════════════════════════════════════════════════ */
@@ -2466,8 +2629,8 @@ const state = {
   selectedLeague: '',   // for the league-coverage sample-relevance stat
   lastImportedUrl: null, // last successfully imported match link, for Refresh
   useFlatDecay: false,   // live 2H odds: shaped (literature-sourced) vs flat time-decay
-  liveTierFilter: 'ALL', // which live matches are shown, by their OWN league tier (Live Games only)
-  dashboardTierFilter: 'ALL', // which fixtures are shown, by their OWN league tier (Dashboard only)
+  liveTierFilter: 'MAJOR', // which live matches are shown, by their OWN league tier (Live Games only)
+  dashboardTierFilter: 'MAJOR', // which fixtures are shown, by their OWN league tier (Dashboard only)
 };
 
 // Bundled CSVs use ISO "YYYY-MM-DD" dates (confirmed across all 15 files in
@@ -3753,10 +3916,10 @@ async function fetchLiveMatches() {
 }
 
 // Scores one live match against the historical dataset using the match's
-// own real closing-odds signal pattern (buildCfgFromLiveOdds — same as
-// checkLiveBets), then layers HT-conditioned and (once an HT anchor is
-// known) minute-decayed live 2H bets on top — same pipeline analyzeMatch()
-// uses, just driven by the live feed instead of manual input.
+// own real closing-odds signal pattern (buildCfgFromLiveOdds), then layers
+// HT-conditioned and (once an HT anchor is known) minute-decayed live 2H
+// bets on top — same pipeline analyzeMatch() uses, just driven by the live
+// feed instead of manual input.
 function analyzeLiveMatch(match, minute) {
   // The live match's OWN league tier — independent of state.leagueTier,
   // which restricts the historical baseline pool instead. This is what
@@ -3779,13 +3942,34 @@ function analyzeLiveMatch(match, minute) {
   // match still in 1H only ever shows 1H markets, a match at HT/in 2H only
   // ever shows 2H markets (never both at once, never mid-transition).
   const past1H = minute >= 45;
-  let preBets = scoreBets(cfgRows, baselineRows, blSide, minN);
-  preBets = filterLiveScanBets(preBets, past1H);
+  const preBetsAll = scoreBets(cfgRows, baselineRows, blSide, minN);
+  let preBets = filterLiveScanBets(preBetsAll, past1H);
 
   let gsBets = null, htBets = null, liveBets = null, gsForTrace = null;
   let anchorStatus = minute < 44 ? '1h' : 'unknown';
 
+  // Resolved once, up front, so the two branches below are mutually
+  // exclusive: a match that already has an HT anchor always takes the
+  // 2H-conditioned path, even at the exact minute (44) where an anchor can
+  // just have been captured on this same poll while past1H is still false.
   const anchor = minute < 44 ? null : _liveHtAnchors.get(matchKey(match));
+
+  // Still in 1H with no HT anchor yet — live-decay the 1H bets straight from
+  // kickoff (always 0-0 at minute 0, so there's no anchor snapshot to wait
+  // for, unlike 2H's HT anchor). preBets stays the plain closing-odds rate
+  // ("PRE-MATCH", no time info); the live-decayed numbers go in
+  // gsBets/liveBets ("IN-PLAY"), same pre/gs split the HT-anchored 2H branch
+  // below uses.
+  if (!anchor && match.score) {
+    const [curH, curA] = match.score.split('-').map(Number);
+    if (!isNaN(curH) && !isNaN(curA)) {
+      const preBetsMap = new Map(preBetsAll.map(b => [b.k, b]));
+      liveBets = filterLiveScanBets(preBetsAll, false)
+        .map(b => buildLive1HAdjustedBet(b, minute, curH, curA, cfg.fav_side, cfg.fav_line, state.useFlatDecay, preBetsMap) || b);
+      gsBets = liveBets;
+    }
+  }
+
   if (anchor) {
     anchorStatus = 'known';
     gsForTrace = { trigger: 'HT', home_goals: String(anchor.home), away_goals: String(anchor.away) };
@@ -3898,7 +4082,7 @@ function toggleLiveAutoRefresh(checked) {
 }
 
 function anchorStatusNote(analysis) {
-  if (analysis.anchorStatus === '1h') return '1st half — 2H live odds after HT';
+  if (analysis.anchorStatus === '1h') return analysis.liveBets ? `LIVE @ ${analysis.minute}' (1H)` : '1st half kickoff — pre-match signal only';
   if (analysis.anchorStatus === 'unknown') return 'HT unknown (opened mid-2H) — closing-odds signal only';
   return analysis.liveBets ? `LIVE @ ${analysis.minute}'` : 'HT-conditioned';
 }
@@ -3908,7 +4092,7 @@ function anchorStatusNote(analysis) {
 // uses for its own LIVE/HT badges, so the status reads at a glance without
 // having to parse the note sentence.
 function anchorStatusBadge(analysis) {
-  if (analysis.anchorStatus === 'known' && analysis.liveBets) return '<span class="col-badge-live">🔴 LIVE</span>';
+  if (analysis.liveBets && (analysis.anchorStatus === 'known' || analysis.anchorStatus === '1h')) return '<span class="col-badge-live">🔴 LIVE</span>';
   if (analysis.anchorStatus === 'known') return '<span class="col-badge-ht">HT</span>';
   return `<span class="col-badge-weak">${analysis.anchorStatus === '1h' ? '1H' : 'HT UNKNOWN'}</span>`;
 }
