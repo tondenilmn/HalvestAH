@@ -734,6 +734,14 @@ const BET_GROUPS = [
   { label: '1H',         keys: ['favWins1H', 'draw1H', 'favScored1H', 'homeWins1H', 'awayWins1H', 'over05_1H', 'over15_1H', 'under05_1H', 'under15_1H', 'btts1H'] },
 ];
 
+// Once a match has reached HT, its 1H markets have already resolved — no
+// bookmaker still takes bets on them, so Live Games strips them out entirely
+// rather than show a "qualifying" bet on an outcome that's already decided.
+const _1H_BET_KEYS = new Set(BET_GROUPS.find(g => g.label === '1H').keys);
+function strip1HBets(bets) {
+  return bets ? bets.filter(b => !_1H_BET_KEYS.has(b.k)) : bets;
+}
+
 // ── GSA Probe outcomes ────────────────────────────────────────────────────────
 // Absolute probability targets for GSA-style value betting at HT.
 // For each outcome: compare P(signal+state) vs P(state only) to quantify
@@ -3503,7 +3511,12 @@ function analyzeLiveMatch(match, minute) {
     return { match, minute, cfg, status: 'no-history' };
   }
 
-  const preBets = scoreBets(cfgRows, baselineRows, blSide, minN);
+  // 1H bets are meaningless once the half they describe is already over —
+  // strip them for any match at or past HT rather than show a "qualifying"
+  // pick on an outcome that's already been decided and can't be bet anymore.
+  const past1H = minute >= 45;
+  let preBets = scoreBets(cfgRows, baselineRows, blSide, minN);
+  if (past1H) preBets = strip1HBets(preBets);
 
   let gsBets = null, htBets = null, liveBets = null, gsForTrace = null;
   let anchorStatus = minute < 44 ? '1h' : 'unknown';
@@ -3517,6 +3530,7 @@ function analyzeLiveMatch(match, minute) {
     const gsBlSide = applyGameState(blSide,        gsForTrace);
     if (gsRows.length >= minN) {
       htBets = scoreBets(gsRows, gsBlRows, gsBlSide, minN);
+      if (past1H) htBets = strip1HBets(htBets);
       gsBets = htBets;
 
       if (minute > 45 && match.score) {
