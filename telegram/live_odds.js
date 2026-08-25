@@ -14,10 +14,20 @@ const _FLAT_INTENSITY = [[0,45,1.000]];
 const _IT_2H = 4;
 
 const _LINE_STRENGTH_MOD = {0.25:0.92,0.50:0.96,0.75:1.00,1.00:1.06,1.25:1.12,1.50:1.18};
+// The 2H "who wins the half" 3-way market (favWins2H/draw2H/homeWins2H/
+// awayWins2H) is deliberately excluded — see static/app.js's matching
+// comment: "who wins/draws the 2nd half" depends on the joint evolution of
+// BOTH sides' goal counts, not a single threshold. Falling through to the
+// generic "at least 1 goal" default flipped draw2H to a bogus 100% the
+// moment any 2H goal was scored, and homeWins2H/awayWins2H to a bogus 100%
+// the instant that side took any 2H lead. app.js fixed this with a proper
+// bivariate model (computeLiveResult2H) — not ported here since no current
+// Telegram strategy's bet list includes any of these four keys; port it
+// verbatim from app.js if one ever does, same as everything else in this file.
 const _2H_BETS_SET = new Set([
-  'over05_2H','over15_2H','over25_2H','favScored2H','favWins2H','ahCover',
-  'homeWins2H','awayWins2H','homeScored2H','awayScored2H',
-  'homeOver15_2H','awayOver15_2H','under05_2H','under15_2H','draw2H',
+  'over05_2H','over15_2H','over25_2H','favScored2H','ahCover',
+  'homeScored2H','awayScored2H',
+  'homeOver15_2H','awayOver15_2H','under05_2H','under15_2H',
 ]);
 const _FT_BETS_SET = new Set([
   'noDrawFT','favWinsFT','homeWinsFT','awayWinsFT',
@@ -28,9 +38,8 @@ const _FT_BETS_SET = new Set([
 const _UNDER_BETS = {'under05_2H':[1,0],'under15_2H':[2,1]};
 const _BET_GOAL_THRESHOLD = {
   'over05_2H':1,'over15_2H':2,'over25_2H':3,
-  'favScored2H':1,'favWins2H':1,'ahCover':1,
+  'favScored2H':1,'ahCover':1,
   'homeScored2H':1,'awayScored2H':1,
-  'homeWins2H':1,'awayWins2H':1,
   'homeOver15_2H':2,'awayOver15_2H':2,
 };
 
@@ -38,11 +47,11 @@ const _FAV_SCORE_MOD   = {'-2':1.08, '-1':1.08, '0':1.00, '1':1.09, '2':1.45};
 const _DOG_SCORE_MOD   = {'-2':1.32, '-1':1.09, '0':1.00, '1':1.06, '2':1.04};
 const _TOTAL_SCORE_MOD = {'-2':1.035, '-1':1.023, '0':1.00, '1':1.023, '2':1.035};
 const _BET_SCORE_MOD_CLASS = {
-  favScored2H:'fav', favWins2H:'fav', ahCover:'fav',
-  homeScored2H:'side', awayScored2H:'side', homeWins2H:'side', awayWins2H:'side',
+  favScored2H:'fav', ahCover:'fav',
+  homeScored2H:'side', awayScored2H:'side',
   homeOver15_2H:'side', awayOver15_2H:'side',
   over05_2H:'total', over15_2H:'total', over25_2H:'total',
-  under05_2H:'total', under15_2H:'total', draw2H:'total',
+  under05_2H:'total', under15_2H:'total',
 };
 
 function _marginBucket(d){
@@ -56,8 +65,8 @@ function _pickScoreMod(betKey, fav2h, dog2h, favSide){
   if(cls === 'fav')   return _FAV_SCORE_MOD[bucket];
   if(cls === 'total') return _TOTAL_SCORE_MOD[bucket];
   if(cls === 'side'){
-    const isFavBet = (favSide === 'HOME' && (betKey === 'homeScored2H' || betKey === 'homeWins2H' || betKey === 'homeOver15_2H'))
-                   || (favSide === 'AWAY' && (betKey === 'awayScored2H' || betKey === 'awayWins2H' || betKey === 'awayOver15_2H'));
+    const isFavBet = (favSide === 'HOME' && (betKey === 'homeScored2H' || betKey === 'homeOver15_2H'))
+                   || (favSide === 'AWAY' && (betKey === 'awayScored2H' || betKey === 'awayOver15_2H'));
     return isFavBet ? _FAV_SCORE_MOD[bucket] : _DOG_SCORE_MOD[bucket];
   }
   return 1.0;
@@ -162,8 +171,6 @@ function computeLiveOdd(pHtPct,betKey,matchMinute,favLine=0.75,
     else if(betKey==='awayScored2H') need=Math.max(0,1-awayG2h);
     else if(betKey==='homeOver15_2H')need=Math.max(0,2-homeG2h);
     else if(betKey==='awayOver15_2H')need=Math.max(0,2-awayG2h);
-    else if(betKey==='homeWins2H'){const l=homeG2h-awayG2h;need=l>0?0:1;}
-    else if(betKey==='awayWins2H'){const l=awayG2h-homeG2h;need=l>0?0:1;}
     else need=Math.max(0,(_BET_GOAL_THRESHOLD[betKey]||1)-goalsScored);
 
     if(need===0)return{live_p:100,fair_odd:1.01,note:note+' ✓ Already hit'};

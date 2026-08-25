@@ -519,10 +519,11 @@ function checkLiveBets(idx) {
   const dogG2h = isNaN(curHomeRaw) || isNaN(curAwayRaw) ? 0
     : Math.max(0, (cfg.fav_side === 'HOME' ? curAwayRaw : curHomeRaw) - (cfg.fav_side === 'HOME' ? htAway : htHome));
 
+  const gsAllBetsMap = new Map(gsAllBets.map(b => [b.k, b]));
   const qualifying = gsAllBets.filter(qualifiesBet);
   const valueBets = gsAllBets.filter(b => !qualifiesBet(b) && b.edge > 0 && b.n >= DEFAULT_MIN_N);
   const picks = [...qualifying, ...valueBets].slice(0, 6).map(b => {
-    const live = buildLiveAdjustedBet(b, minute, favG2h, dogG2h, cfg.fav_side, cfg.fav_line, state.useFlatDecay);
+    const live = buildLiveAdjustedBet(b, minute, favG2h, dogG2h, cfg.fav_side, cfg.fav_line, state.useFlatDecay, gsAllBetsMap);
     return live || b;
   });
 
@@ -1958,10 +1959,23 @@ const _IT_2H = 4;
 // 2H goals) — observed ratios landed within ~1-2% of these values, so kept
 // unchanged rather than "corrected".
 const _LINE_STRENGTH_MOD = {0.25:0.92,0.50:0.96,0.75:1.00,1.00:1.06,1.25:1.12,1.50:1.18};
+// The 2H "who wins the half" 3-way market (favWins2H/draw2H/homeWins2H/
+// awayWins2H) is deliberately excluded from the generic single-threshold
+// path below — unlike every other key here, "who wins/draws the 2nd half"
+// depends on the joint evolution of BOTH sides' goal counts, not a single
+// count crossing a threshold. Before this exclusion these all silently fell
+// through to the generic "at least 1 goal" default, which — for draw2H —
+// flipped it to a bogus "✓ Already hit" 100% the moment ANY 2H goal was
+// scored by either side (the opposite of what keeps a match level), and for
+// homeWins2H/awayWins2H, declared the leading side an already-100%-certain
+// winner the instant it took ANY 2H lead, no matter how much time remained.
+// These four route through computeLiveResult2H instead (a proper bivariate
+// model, see below) via buildLiveAdjustedBet's own dispatch.
+const _2H_RESULT_KEYS = new Set(['favWins2H', 'draw2H', 'homeWins2H', 'awayWins2H']);
 const _2H_BETS_SET = new Set([
-  'over05_2H','over15_2H','over25_2H','favScored2H','favWins2H','ahCover',
-  'homeWins2H','awayWins2H','homeScored2H','awayScored2H',
-  'homeOver15_2H','awayOver15_2H','under05_2H','under15_2H','draw2H',
+  'over05_2H','over15_2H','over25_2H','favScored2H','ahCover',
+  'homeScored2H','awayScored2H',
+  'homeOver15_2H','awayOver15_2H','under05_2H','under15_2H',
 ]);
 const _FT_BETS_SET = new Set([
   'noDrawFT','favWinsFT','homeWinsFT','awayWinsFT',
@@ -1972,9 +1986,8 @@ const _FT_BETS_SET = new Set([
 const _UNDER_BETS = {'under05_2H':[1,0],'under15_2H':[2,1]};
 const _BET_GOAL_THRESHOLD = {
   'over05_2H':1,'over15_2H':2,'over25_2H':3,
-  'favScored2H':1,'favWins2H':1,'ahCover':1,
+  'favScored2H':1,'ahCover':1,
   'homeScored2H':1,'awayScored2H':1,
-  'homeWins2H':1,'awayWins2H':1,
   'homeOver15_2H':2,'awayOver15_2H':2,
 };
 
@@ -2014,11 +2027,11 @@ const _DOG_SCORE_MOD   = {'-2':1.32, '-1':1.09, '0':1.00, '1':1.06, '2':1.04};
 // inflated boost, and Under 2H bets a correspondingly understated one.
 const _TOTAL_SCORE_MOD = {'-2':1.035, '-1':1.023, '0':1.00, '1':1.023, '2':1.035};
 const _BET_SCORE_MOD_CLASS = {
-  favScored2H:'fav', favWins2H:'fav', ahCover:'fav',
-  homeScored2H:'side', awayScored2H:'side', homeWins2H:'side', awayWins2H:'side',
+  favScored2H:'fav', ahCover:'fav',
+  homeScored2H:'side', awayScored2H:'side',
   homeOver15_2H:'side', awayOver15_2H:'side',
   over05_2H:'total', over15_2H:'total', over25_2H:'total',
-  under05_2H:'total', under15_2H:'total', draw2H:'total',
+  under05_2H:'total', under15_2H:'total',
 };
 
 function _marginBucket(d){
@@ -2149,8 +2162,6 @@ function computeLiveOdd(pHtPct,betKey,matchMinute,favLine=0.75,
     else if(betKey==='awayScored2H') need=Math.max(0,1-awayG2h);
     else if(betKey==='homeOver15_2H')need=Math.max(0,2-homeG2h);
     else if(betKey==='awayOver15_2H')need=Math.max(0,2-awayG2h);
-    else if(betKey==='homeWins2H'){const l=homeG2h-awayG2h;need=l>0?0:1;}
-    else if(betKey==='awayWins2H'){const l=awayG2h-homeG2h;need=l>0?0:1;}
     else need=Math.max(0,(_BET_GOAL_THRESHOLD[betKey]||1)-goalsScored);
 
     if(need===0)return{live_p:100,fair_odd:1.01,note:note+' ✓ Already hit'};
@@ -2164,15 +2175,105 @@ function computeLiveOdd(pHtPct,betKey,matchMinute,favLine=0.75,
   };
 }
 
-// Wraps computeLiveOdd's output back into a scoreBets()-shaped bet object so
+// Bivariate live decay for the 2H "who wins the half" 3-way market
+// (favWins2H/draw2H/homeWins2H/awayWins2H — see _2H_RESULT_KEYS above for
+// why these can't go through computeLiveOdd's single-threshold path). Models
+// each side's remaining-2H goals as independent Poisson processes — rates
+// derived the same way computeLiveOdd converts any "at least 1 goal"
+// anchor rate to a Poisson lambda, decayed by the same time-remaining
+// curve/line-strength/score-state machinery — then enumerates the joint
+// outcome space directly (a manual convolution; numerically equivalent to
+// a closed-form Skellam PMF for the goal difference, without needing a
+// Bessel function) and buckets by final margin: >0 fav win, =0 draw, <0 dog
+// win. favAnchorP/dogAnchorP are each side's own HT-conditioned "scores in
+// 2H" anchor rate (favScored2H, and whichever of homeScored2H/awayScored2H
+// is the underdog).
+function computeLiveResult2H(favAnchorP, dogAnchorP, matchMinute, favLine, favGoals2h, dogGoals2h, useFlatDecay) {
+  const curve = useFlatDecay ? _FLAT_INTENSITY : _2H_INTENSITY;
+  const toLam = p => -Math.log(1 - Math.max(0.001, Math.min(0.999, p / 100)));
+  let lamFav = toLam(favAnchorP), lamDog = toLam(dogAnchorP);
+
+  const lineKeys = Object.keys(_LINE_STRENGTH_MOD).map(Number);
+  const closest = lineKeys.reduce((a, b) => Math.abs(b - favLine) < Math.abs(a - favLine) ? b : a);
+  lamFav *= _LINE_STRENGTH_MOD[closest];
+
+  const baseInt = _baseInt2h(curve);
+  let elapsed2h, fg2h = favGoals2h, dg2h = dogGoals2h;
+  if (matchMinute <= 45) { elapsed2h = 0; fg2h = 0; dg2h = 0; }
+  else { elapsed2h = Math.min(45, matchMinute - 45); }
+  const itRate = curve[curve.length - 1][2];
+  const remInt = _integrateInt(elapsed2h, 45, 2, curve) + itRate * _IT_2H;
+  const intFrac = remInt / baseInt;
+  const bayMod = 1 - (elapsed2h / 45) * 0.05;
+
+  const bucket = _marginBucket(fg2h - dg2h);
+  const remLamFav = lamFav * intFrac * bayMod * _FAV_SCORE_MOD[bucket];
+  const remLamDog = lamDog * intFrac * bayMod * _DOG_SCORE_MOD[bucket];
+
+  const CAP = 10; // 2H goal counts beyond this are negligible at any realistic lambda
+  let favWinP = 0, drawP = 0, dogWinP = 0;
+  for (let i = 0; i <= CAP; i++) {
+    const pi = Math.exp(-remLamFav) * Math.pow(remLamFav, i) / _fac(i);
+    for (let j = 0; j <= CAP; j++) {
+      const pj = Math.exp(-remLamDog) * Math.pow(remLamDog, j) / _fac(j);
+      const p = pi * pj;
+      const finalMargin = (fg2h + i) - (dg2h + j);
+      if (finalMargin > 0) favWinP += p;
+      else if (finalMargin === 0) drawP += p;
+      else dogWinP += p;
+    }
+  }
+  const total = favWinP + drawP + dogWinP; // ~1 minus CAP truncation — renormalize
+  return total > 0
+    ? { fav_win_p: favWinP / total * 100, draw_p: drawP / total * 100, dog_win_p: dogWinP / total * 100 }
+    : { fav_win_p: 0, draw_p: 0, dog_win_p: 0 };
+}
+
+// Which computeLiveResult2H output field each of the 4 "2H Result" keys
+// reads, given which side is the favourite.
+function _2hResultField(betKey, favSide) {
+  if (betKey === 'draw2H') return 'draw_p';
+  if (betKey === 'favWins2H') return 'fav_win_p';
+  const isHomeKey = betKey === 'homeWins2H';
+  const homeIsFav = favSide === 'HOME';
+  return (isHomeKey === homeIsFav) ? 'fav_win_p' : 'dog_win_p';
+}
+
+// Wraps computeLiveOdd's (or, for the 2H Result 3-way market,
+// computeLiveResult2H's) output back into a scoreBets()-shaped bet object so
 // it drops straight into the existing buildBetCol/renderOddsKellyWidget/
 // calcKellyStake pipeline unchanged. anchorBet must be the HT-conditioned
 // (minute-agnostic) historical bet — never the coarse INPLAY_2H-bucket one,
 // to avoid double-counting "goals scored since HT" in both the historical
-// pool match AND the Poisson time-decay.
-function buildLiveAdjustedBet(anchorBet, minute, favG2h, dogG2h, favSide, favLine, useFlatDecay) {
-  if (!_BET_SCORE_MOD_CLASS.hasOwnProperty(anchorBet.k)) return null;
+// pool match AND the Poisson time-decay. htBetsMap: Map of k -> HT-
+// conditioned bet from the same scoreBets() pass, needed only for the 2H
+// Result keys (to read the underdog's own "scores in 2H" anchor rate).
+function buildLiveAdjustedBet(anchorBet, minute, favG2h, dogG2h, favSide, favLine, useFlatDecay, htBetsMap) {
   const favLineNum = parseFloat(favLine) || 0.75;
+
+  if (_2H_RESULT_KEYS.has(anchorBet.k)) {
+    if (!htBetsMap) return null;
+    const favAnchor = htBetsMap.get('favScored2H');
+    const dogAnchor = htBetsMap.get(favSide === 'HOME' ? 'awayScored2H' : 'homeScored2H');
+    if (!favAnchor || !dogAnchor) return null;
+    const field = _2hResultField(anchorBet.k, favSide);
+    const point = computeLiveResult2H(favAnchor.p,  dogAnchor.p,  minute, favLineNum, favG2h, dogG2h, useFlatDecay);
+    const loRes = computeLiveResult2H(favAnchor.lo, dogAnchor.lo, minute, favLineNum, favG2h, dogG2h, useFlatDecay);
+    const p  = point[field];
+    const lo = Math.min(p, loRes[field]);
+    return {
+      ...anchorBet,
+      p, lo,
+      edge: p - anchorBet.bl,
+      mo: minOdds(p),
+      mo_mid: minOdds((p + lo) / 2),
+      matches: [],
+      _liveDecayed: true,
+      _liveLabel: `LIVE @ ${minute}'`,
+    };
+  }
+
+  if (!_BET_SCORE_MOD_CLASS.hasOwnProperty(anchorBet.k)) return null;
 
   const pointRes = computeLiveOdd(anchorBet.p,  anchorBet.k, minute, favLineNum, favG2h, dogG2h, favSide, useFlatDecay);
   if (pointRes.live_p == null) return null;
@@ -2911,13 +3012,14 @@ function analyzeMatch() {
           const htBlRows = applyGameState(baselineRows, htGs);
           const htBlSide = applyGameState(blSide,        htGs);
           const htAnchorBets = scoreBets(htRows, htBlRows, htBlSide, minN);
+          const htAnchorMap  = new Map(htAnchorBets.map(b => [b.k, b]));
 
           const favG2h = cfg.fav_side === 'HOME' ? (gs.cur_home_2h || 0) : (gs.cur_away_2h || 0);
           const dogG2h = cfg.fav_side === 'HOME' ? (gs.cur_away_2h || 0) : (gs.cur_home_2h || 0);
 
           const liveMap = new Map(gsAllBets.map(b => [b.k, b]));
           for (const anchor of htAnchorBets) {
-            const live = buildLiveAdjustedBet(anchor, gs.minute, favG2h, dogG2h, cfg.fav_side, cfg.fav_line, state.useFlatDecay);
+            const live = buildLiveAdjustedBet(anchor, gs.minute, favG2h, dogG2h, cfg.fav_side, cfg.fav_line, state.useFlatDecay, htAnchorMap);
             if (live) liveMap.set(anchor.k, live);
           }
           gsAllBets = [...liveMap.values()];
@@ -3538,7 +3640,8 @@ function analyzeLiveMatch(match, minute) {
         if (!isNaN(curH) && !isNaN(curA)) {
           const favG2h = Math.max(0, (cfg.fav_side === 'HOME' ? curH : curA) - (cfg.fav_side === 'HOME' ? anchor.home : anchor.away));
           const dogG2h = Math.max(0, (cfg.fav_side === 'HOME' ? curA : curH) - (cfg.fav_side === 'HOME' ? anchor.away : anchor.home));
-          liveBets = htBets.map(b => buildLiveAdjustedBet(b, minute, favG2h, dogG2h, cfg.fav_side, cfg.fav_line, state.useFlatDecay) || b);
+          const htBetsMap = new Map(htBets.map(b => [b.k, b]));
+          liveBets = htBets.map(b => buildLiveAdjustedBet(b, minute, favG2h, dogG2h, cfg.fav_side, cfg.fav_line, state.useFlatDecay, htBetsMap) || b);
           gsBets = liveBets;
         }
       }
