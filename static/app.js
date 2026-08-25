@@ -3316,14 +3316,34 @@ function buildQualifyingList(preMap, gsMap, minN) {
   return qualifying;
 }
 
-// Value hunt — positive edge but not (yet) a qualifying bet — i.e. fails
-// qualifiesBet() (raw z and/or the CI-lower-bound-vs-baseline check), but
-// still shows a positive point-estimate edge with enough sample to be worth
-// a fair-odds watch. preBets is expected already sorted edge>0 first, then
-// z*(lo/100) descending (scoreBets' own sort) — filtering preserves that
-// order, so the first entry is already the highest CI-adjusted-value bet.
-function buildValueHuntList(preBets, minN) {
-  return preBets.filter(b => !qualifiesBet(b) && b.edge > 0 && b.n >= minN);
+// Value hunt — positive edge but not (yet) a qualifying bet in either the
+// pre-match or in-play/live tier — i.e. fails qualifiesBet() (raw z and/or
+// the CI-lower-bound-vs-baseline check) on both, but still shows a positive
+// point-estimate edge with enough sample to be worth a fair-odds watch.
+// Mirrors buildQualifyingList's pre/gs merge, and for the same reason: a
+// live match's value-hunt bet should reflect the minute-decayed live number
+// once one exists, not silently fall back to a stale pre-match figure just
+// because pre-match happened to be checked first (which is what a plain
+// preBets-only filter did previously — over05_2H-style bets in particular
+// could sit at a pre-match fair price for an entire match even once live
+// decay data was available).
+function buildValueHuntList(preMap, gsMap, minN) {
+  const usable = (b) => b && b.edge > 0 && b.n >= minN;
+  const score  = (b) => b ? b.z * (b.lo / 100) : -Infinity;
+  const vh = [];
+  for (const def of BETS) {
+    const pre = preMap.get(def.k) || null;
+    const gs  = gsMap.get(def.k)  || null;
+    if (qualifiesBet(pre) || qualifiesBet(gs)) continue; // already surfaced as a qualifying bet
+    const preOk = usable(pre);
+    const gsOk  = usable(gs);
+    if (!preOk && !gsOk) continue;
+    // Prefer the in-play/live figure when it clears the same bar — more
+    // current once a match is in 2H — falling back to pre-match otherwise.
+    vh.push(gsOk ? gs : pre);
+  }
+  vh.sort((a, b) => score(b) - score(a));
+  return vh;
 }
 
 function renderMatchResults({ cfg_n, allBets, bets, gsAllBets, gsLabelText, ftrace, min_n, cfg }) {
@@ -3337,7 +3357,7 @@ function renderMatchResults({ cfg_n, allBets, bets, gsAllBets, gsLabelText, ftra
   const gsMap  = new Map((gsAllBets || []).map(b => [b.k, b]));
 
   const qualifying = buildQualifyingList(preMap, gsMap, min_n);
-  const vhBets = buildValueHuntList(allBets, min_n);
+  const vhBets = buildValueHuntList(preMap, gsMap, min_n);
 
   // Page order: (1) Qualifying Bets — headline Top Pick banner immediately
   // followed by the full ranked list, so the strongest, statistically-
@@ -3533,7 +3553,7 @@ function topLiveBet(analysis) {
     const q = qualifying[0];
     return q.gsPass && q.gs ? q.gs : q.pre;
   }
-  const vh = buildValueHuntList(analysis.preBets || [], minN);
+  const vh = buildValueHuntList(preMap, gsMap, minN);
   return vh[0] || null;
 }
 
@@ -3690,7 +3710,7 @@ function renderLiveMatchCard(analysis, idx) {
   const gsMap  = new Map((analysis.gsBets  || []).map(b => [b.k, b]));
   const minN = getMinN();
   const qualifying = buildQualifyingList(preMap, gsMap, minN);
-  const vhBets = buildValueHuntList(analysis.preBets || [], minN);
+  const vhBets = buildValueHuntList(preMap, gsMap, minN);
   const top = qualifying[0] ? (qualifying[0].gsPass && qualifying[0].gs ? qualifying[0].gs : qualifying[0].pre) : vhBets[0];
   const topQualifies = !!qualifying[0];
 
@@ -3754,7 +3774,7 @@ function openLiveMatchDetail(idx) {
     const gsMap  = new Map((analysis.gsBets  || []).map(b => [b.k, b]));
     const minN = getMinN();
     const qualifying = buildQualifyingList(preMap, gsMap, minN);
-    const vhBets = buildValueHuntList(analysis.preBets || [], minN);
+    const vhBets = buildValueHuntList(preMap, gsMap, minN);
     const gsLabel = anchorStatusNote(analysis);
 
     const ahSide = cfg.fav_side === 'AWAY' ? 'Away' : 'Home';
