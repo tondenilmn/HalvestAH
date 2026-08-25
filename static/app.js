@@ -3700,7 +3700,12 @@ function renderLiveMatchCard(analysis, idx) {
          <span class="prob-pct">${top.p.toFixed(1)}%</span>
          <span class="prob-edge ${top.edge >= 0 ? 'pos' : 'neg'}">${top.edge >= 0 ? '+' : ''}${top.edge.toFixed(1)}pp</span>
        </div>
-       <div class="col-stats">${sampleBadge(top.n, minN)}</div>`
+       <div class="col-stats">${sampleBadge(top.n, minN)}</div>
+       <div class="col-min-odds">
+         <span class="col-min-odds-label">BET IF ODDS ≥</span>
+         <span class="col-min-odds-value"><b>${top.mo}</b></span>
+         <span class="col-min-odds-floor">or ${top.mo_mid}+ for a safer margin</span>
+       </div>`
     : `<p style="font-size:11px;color:var(--dim)">No bet clears the bar for this match's signal pattern yet.</p>`;
 
   return `<div class="scan-card" onclick="openLiveMatchDetail(${idx})">
