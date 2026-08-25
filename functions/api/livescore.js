@@ -386,6 +386,14 @@ export async function onRequest(context) {
       JSON.stringify({
         matches: [],
         note: `Hash ${BET365_HASH.slice(0,8)}… failed. ${lastError}`,
+        // Still report whatever hashes are currently held, even though the
+        // live fetch itself failed — otherwise a relay caller (Railway's
+        // livescore.js falling back to this endpoint) sees a response with
+        // no hash fields at all and can't tell this apart from "nothing
+        // known", even when one of the three books is still valid.
+        book:          BET365_HASH,
+        pinnacle_book: PINNACLE_HASH,
+        sbobet_book:   SBOBET_HASH,
       }),
       { headers: cors }
     );
