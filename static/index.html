@@ -99,6 +99,25 @@
             crossing halftime — no manual entry needed. Matches opened mid-2nd-half show
             closing-odds signal only until a fresh HT is captured.
           </p>
+
+          <div class="section-label" style="margin-top:14px">LIVE MATCH LEAGUE TIER</div>
+          <div class="gs-triggers">
+            <button class="gs-trigger-btn active" id="live-tier-btn-ALL"   onclick="setLiveTierFilter('ALL')">ALL</button>
+            <button class="gs-trigger-btn"        id="live-tier-btn-MAJOR" onclick="setLiveTierFilter('MAJOR')">MAJOR+</button>
+            <button class="gs-trigger-btn"        id="live-tier-btn-TOP"   onclick="setLiveTierFilter('TOP')">TOP 5 + UCL</button>
+          </div>
+          <p style="font-size:10px;color:var(--dim);font-style:italic;margin-top:6px;line-height:1.4">
+            Restricts which live matches are shown by their own league — obscure leagues have thinner
+            historical pools and underperformed out-of-sample in past backtesting. MAJOR+ recommended.
+          </p>
+        </div>
+
+        <div class="card">
+          <div class="card-title">TRACK RECORD</div>
+          <p id="track-record-summary" class="track-record-summary">No picks logged yet.</p>
+          <div class="run-btn-group" style="margin-top:10px">
+            <button class="run-btn run-btn-secondary" onclick="openTrackRecordModal()">📊 View track record</button>
+          </div>
         </div>
       </div><!-- /tab-live-controls -->
 
