@@ -25,6 +25,7 @@ const {
   scoreBets,
   mergeCrossFit,
   BETS,
+  VALID_LINES,
 } = require('./engine');
 const { fetchLiveMatches, refreshHashes, getCurrentHashes } = require('./livescore');
 const { verifyBet365Price } = require('./apifootball');
@@ -123,7 +124,8 @@ function matchContext(match) {
     tier:       classifyLeague(match.league || ''),
     liveMin,
     toKickoff,
-    isL123Fire: liveMin == null && toKickoff != null && toKickoff >= 0 && toKickoff <= PRE_MATCH_WINDOW_MIN,
+    isL123Fire:      liveMin == null && toKickoff != null && toKickoff >= 0 && toKickoff <= PRE_MATCH_WINDOW_MIN,
+    isDashboardFire: liveMin == null && toKickoff != null && toKickoff >= 0 && toKickoff <= cfg.DASHBOARD_WINDOW_MIN,
   };
 }
 
@@ -485,6 +487,161 @@ async function runStrategyL123(match, ctx) {
     });
   } else {
     flogv(liveMin, label, 'L123', 'Not recorded to track record — no verified price clearing target.');
+  }
+}
+
+// ── Strategy DASHBOARD — cross-fit opening-odds pick ─────────────────────────
+// Mirrors the Web UI's Daily Dashboard pick (static/app.js's
+// openingOddsSignal) — see config.js's DASHBOARD_* block for the full design
+// rationale and backtest numbers.
+const dashboardDedup = new Dedup(24 * 60 * 60 * 1000);
+
+// Same 13 FT/pre-match markets the Dashboard restricts itself to — everything
+// else (AH cover, any 1H/2H market) needs either in-play state or a
+// bookmaker line this signal doesn't have pre-match.
+const _DASHBOARD_BET_KEYS = new Set([
+  'homeWinsFT', 'drawFT', 'awayWinsFT',
+  'over15FT', 'over25FT', 'under15FT', 'under25FT',
+  'btts', 'noBtts',
+  'homeOver05FT', 'homeOver15FT', 'awayOver05FT', 'awayOver15FT',
+]);
+const _DASHBOARD_BET_DEFS = BETS.filter(b => _DASHBOARD_BET_KEYS.has(b.k));
+
+function dashboardQualifies(b) {
+  return !!b && b.n >= cfg.DASHBOARD_MIN_N && b.z >= cfg.DASHBOARD_MIN_Z && (b.lo - b.bl) >= cfg.DASHBOARD_MIN_EDGE;
+}
+
+// pool -> the 13-key scored bet list for the opening-odds band + opening TL
+// cluster this match falls into. Shared by the full pool and each fold.
+function dashboardPickFromPool(pool, oddsBand, tlBand) {
+  const cfgRows = pool.filter(r => inBand(r.fav_oo, oddsBand) && (tlBand ? inBand(r.tl_o, tlBand) : true));
+  if (cfgRows.length < cfg.DASHBOARD_MIN_N) return [];
+  return scoreBets(cfgRows, pool, pool, cfg.DASHBOARD_MIN_N).filter(b => _DASHBOARD_BET_KEYS.has(b.k));
+}
+
+function dashboardFormat(match, bet, toKickoff, apiFootballCheck, equivalent) {
+  const marketLabel = equivalent ? equivalent.label : bet.label;
+  const verdictLine = apiFootballVerdictLine(marketLabel, bet.mo_lo, apiFootballCheck) ?? realPriceVerdict(marketLabel, null, bet.mo_lo);
+  const actualPrice = apiFootballCheck?.supported ? apiFootballCheck.odds : null;
+  const kellyLn = kellyLine(actualPrice, bet.lo);
+  const kickoffLine = toKickoff != null ? `Kickoff in ${Math.max(0, Math.round(toKickoff))} min` : 'Kickoff imminent';
+  return buildMessage(
+    `Dashboard — opening-odds pick`,
+    match,
+    kickoffLine,
+    [
+      `👉 <b>${esc(bet.label)}</b>`,
+      verdictLine,
+      ...(bet.lo != null ? [modelProbLine(bet.lo)] : []),
+      ...(kellyLn ? [kellyLn] : []),
+      `📊 ${bet.p.toFixed(0)}% historically vs ${bet.bl.toFixed(0)}% baseline (n=${bet.n})${bet._pricedFold ? ` · cross-fit priced by fold ${bet._pricedFold}` : ''}`,
+    ],
+  );
+}
+
+// homeWinsFT/awayWinsFT/drawFT/btts are directly in api-football's SUPPORTED
+// set (verifyBet365Price) — no substitution needed. over15FT/over25FT and
+// under15FT/under25FT re-express as Over/Under (fixed line) FT, which
+// verifyBet365Price already knows how to look up via overTL/underTL.
+// noBtts and the FT team-total markets (homeOver05FT etc.) have no
+// equivalence — left unsupported, same fallback as LATEGOAL/QUIET2H/HTPICK.
+function equivalentRealMarketDashboard(betKey) {
+  if (betKey === 'homeWinsFT' || betKey === 'awayWinsFT' || betKey === 'drawFT' || betKey === 'btts') {
+    const def = BETS.find(b => b.k === betKey);
+    return { apiKey: betKey, avgTl: null, label: def ? def.label : betKey };
+  }
+  if (betKey === 'over15FT')  return { apiKey: 'overTL',  avgTl: 1.5, label: 'Over 1.5 FT' };
+  if (betKey === 'over25FT')  return { apiKey: 'overTL',  avgTl: 2.5, label: 'Over 2.5 FT' };
+  if (betKey === 'under15FT') return { apiKey: 'underTL', avgTl: 1.5, label: 'Under 1.5 FT' };
+  if (betKey === 'under25FT') return { apiKey: 'underTL', avgTl: 2.5, label: 'Under 2.5 FT' };
+  return null;
+}
+
+async function runStrategyDashboard(match, ctx) {
+  const { matchId, label, tier, toKickoff } = ctx;
+
+  if (!cfg.DASHBOARD_ENABLED) return;
+  if (!tierAllowed(tier, cfg.DASHBOARD_TIER)) { flogv(null, label, 'DASHBOARD', `SKIP: tier=${tier} not in ${cfg.DASHBOARD_TIER}`); return; }
+  if (!_dbAll || !_dbAll.length) return;
+
+  const dedupKey = `${matchId}:dashboard`;
+  if (dashboardDedup.has(dedupKey)) return;
+
+  const odds = match.bet365_odds;
+  if (!odds) { flogv(null, label, 'DASHBOARD', 'SKIP: no Bet365 odds'); return; }
+  if (odds.ah_ho == null) { flogv(null, label, 'DASHBOARD', 'SKIP: no opening AH line'); return; }
+
+  // Opening-odds-only context — deliberately ignores current/closing fields,
+  // even though the feed has them (see static/app.js's deriveOpeningContext,
+  // this mirrors it), since the whole point is a pick knowable well before
+  // near-kickoff price movement.
+  const favLc = Math.abs(odds.ah_ho);
+  const favLine = VALID_LINES.find(v => Math.abs(favLc - v) < 0.13);
+  if (favLine === undefined) { flogv(null, label, 'DASHBOARD', 'SKIP: opening line not a valid AH value'); return; }
+  const favSide = odds.ah_ho < -0.01 ? 'HOME' : odds.ah_ho > 0.01 ? 'AWAY'
+    : (odds.ho_o != null && odds.ao_o != null && odds.ho_o <= odds.ao_o) ? 'HOME' : 'AWAY';
+  const favOo = favSide === 'HOME' ? odds.ho_o : odds.ao_o;
+  if (favOo == null) { flogv(null, label, 'DASHBOARD', 'SKIP: no opening odds for favourite'); return; }
+
+  const base = _dbAll.filter(r => r.fav_line === favLine && r.fav_side === favSide);
+  if (base.length < cfg.DASHBOARD_MIN_N) { flogv(null, label, 'DASHBOARD', 'SKIP: base pool too small'); return; }
+
+  const oddsBand = ODDS_BANDS.find(b => inBand(favOo, b));
+  const tlBand = Object.values(TL_BANDS).find(b => inBand(odds.tl_o, b));
+
+  const allBets = dashboardPickFromPool(base, oddsBand, tlBand);
+  if (!allBets.length) { flogv(null, label, 'DASHBOARD', 'SKIP: no historical bets for this band'); return; }
+
+  const foldBets = (fold) => {
+    const fBase = base.filter(r => r.fold === fold);
+    if (fBase.length < cfg.DASHBOARD_MIN_N) return [];
+    return dashboardPickFromPool(fBase, oddsBand, tlBand);
+  };
+  const betsA = foldBets('A');
+  const betsB = foldBets('B');
+  const crossFit = (betsA.length && betsB.length) ? mergeCrossFit(betsA, betsB, _DASHBOARD_BET_DEFS, dashboardQualifies) : [];
+
+  // Falls back to a plain single-pool qualifying check if either fold is too
+  // thin (same discipline as static/app.js's openingOddsSignal) — but NEVER
+  // to a non-qualifying "best guess" the way the Web UI dashboard does for
+  // display purposes. A Telegram alert only ever fires on a real qualifying
+  // bet.
+  const qualifying = crossFit.length
+    ? crossFit.sort((a, b) => (b.z * (b.lo / 100)) - (a.z * (a.lo / 100)))
+    : allBets.filter(dashboardQualifies);
+  if (!qualifying.length) { flogv(null, label, 'DASHBOARD', 'SKIP: no cross-fit qualifying bet'); return; }
+  const bet = qualifying[0];
+
+  const equivalent = equivalentRealMarketDashboard(bet.k);
+  let apiFootballCheck = null;
+  if (equivalent && cfg.APIFOOTBALL_KEY) {
+    try {
+      apiFootballCheck = await verifyBet365Price(equivalent.apiKey, {
+        matchId, homeTeam: match.home_team, awayTeam: match.away_team,
+        favSide, favLine, avgTl: equivalent.avgTl,
+      }, cfg.APIFOOTBALL_KEY);
+    } catch (e) {
+      flogv(null, label, 'DASHBOARD', `api-football check failed: ${e.message}`);
+    }
+  }
+
+  const msg = dashboardFormat(match, bet, toKickoff, apiFootballCheck, equivalent);
+  await sendTelegram(msg);
+  dashboardDedup.mark(dedupKey);
+  flog(null, label, 'DASHBOARD', `ALERT: ${bet.k} p=${bet.p.toFixed(1)}% z=${bet.z.toFixed(2)} n=${bet.n} pricedFold=${bet._pricedFold ?? '—'} kickoffIn=${Math.round(toKickoff)}m tier=${tier}`);
+
+  const dashboardPrice = apiFootballCheck?.supported ? apiFootballCheck.odds : null;
+  if (verifiedGoodPrice(dashboardPrice, bet.mo_lo)) {
+    recordAlert({
+      matchId, homeTeam: match.home_team, awayTeam: match.away_team,
+      league: match.league, tier,
+      fixtureId: apiFootballCheck?.fixtureId ?? null, betKey: bet.k, betLabel: bet.label,
+      favSide, favLine, tlLine: odds.tl_o,
+      priceAtAlert: dashboardPrice,
+      mo: bet.mo, mo_lo: bet.mo_lo,
+    });
+  } else {
+    flogv(null, label, 'DASHBOARD', 'Not recorded to track record — no verified price clearing target.');
   }
 }
 
@@ -1033,7 +1190,7 @@ async function runScan() {
 
   for (const match of matches) {
     const ctx = matchContext(match);
-    const { matchId, label, tier, liveMin, toKickoff, isL123Fire } = ctx;
+    const { matchId, label, tier, liveMin, toKickoff, isL123Fire, isDashboardFire } = ctx;
 
     // HT snapshot capture happens for every live match regardless of which
     // strategy (if any) fires — LateGoal needs it much later (at 70'+), so
@@ -1041,10 +1198,16 @@ async function runScan() {
     // when a strategy happens to be checking that match right now.
     if (liveMin != null) captureHtSnapshot(matchId, liveMin, match.score);
 
-    if (isL123Fire) {
+    // isL123Fire (10min window) and isDashboardFire (15min window) are
+    // independent, not mutually exclusive — a match 12 minutes from kickoff
+    // is in the Dashboard window but not L123's, and both can be true at
+    // once inside 10 minutes. Each strategy has its own dedup key, so
+    // running both here is safe.
+    if (isL123Fire || isDashboardFire) {
       inWindowCount++;
       flogv(liveMin, `${label} [${tier}]`, 'ALL', `pre-match, kickoff in ${Math.round(toKickoff)}m  bet365_odds=${match.bet365_odds ? 'ok' : 'MISSING'}`);
-      await runStrategyL123(match, ctx);
+      if (isL123Fire) await runStrategyL123(match, ctx);
+      if (isDashboardFire) await runStrategyDashboard(match, ctx);
     } else if (liveMin != null) {
       flogv(liveMin, `${label} [${tier}]`, 'ALL', `live ${liveMin}'  score=${match.score || '—'}`);
       await runStrategyQuiet2H(match, ctx);
@@ -1123,6 +1286,7 @@ async function main() {
   const on = s => s ? 'ON ' : 'OFF';
   console.log(`Strategy L123 [${on(cfg.L123_ENABLED)}][${cfg.L123_TIER}]: Layer 1(open)/2(move)/3(close) consensus  minAgree=${cfg.L123_MIN_AGREE}/3  fire=${PRE_MATCH_WINDOW_MIN}min pre-kickoff window  n≥${cfg.L123_MIN_N} z≥${cfg.L123_MIN_Z} edge≥${cfg.L123_MIN_EDGE}pp bl≥${cfg.L123_MIN_BASELINE}%`);
   console.log(`Strategy HTPICK [${on(cfg.HTPICK_ENABLED)}][${cfg.HTPICK_TIER}]: cross-fit HT pick  fire=HT window ${HT_SNAPSHOT_WINDOW[0]}'-${HT_SNAPSHOT_WINDOW[1]}'  n≥${cfg.HTPICK_MIN_N} z≥${cfg.HTPICK_MIN_Z} edge≥${cfg.HTPICK_MIN_EDGE}pp`);
+  console.log(`Strategy DASHBOARD [${on(cfg.DASHBOARD_ENABLED)}][${cfg.DASHBOARD_TIER}]: cross-fit opening-odds pick  fire=${cfg.DASHBOARD_WINDOW_MIN}min pre-kickoff window  n≥${cfg.DASHBOARD_MIN_N} z≥${cfg.DASHBOARD_MIN_Z} edge≥${cfg.DASHBOARD_MIN_EDGE}pp`);
   console.log(`Global tier default: ${cfg.LEAGUE_TIER}`);
 
   // Refresh all book hashes at startup

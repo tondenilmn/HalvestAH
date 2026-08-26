@@ -188,4 +188,34 @@ module.exports = {
   HTPICK_MIN_N:     parseInt(process.env.HTPICK_MIN_N    || '15',  10), // DEFAULT_MIN_N, matches the backtested config
   HTPICK_MIN_Z:     parseFloat(process.env.HTPICK_MIN_Z  || '1.5'), // MIN_Z, matches the backtested config
   HTPICK_MIN_EDGE:  parseFloat(process.env.HTPICK_MIN_EDGE || '0'),
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // STRATEGY DASHBOARD — cross-fit opening-odds pick (mirrors the Web UI's
+  // Daily Dashboard "Signal 1" pick, static/app.js's openingOddsSignal).
+  // Single-layer: opening AH-odds band + opening Total-Line cluster only, no
+  // movement/closing-odds info — deliberately simpler than L123's 3-layer
+  // consensus. Restricted to the same 13 FT/pre-match bet keys the Dashboard
+  // itself picks from (straight 1X2, FT totals, BTTS, FT team totals) — see
+  // notify.js's _DASHBOARD_BET_KEYS. Cross-fit selected (row.fold split, see
+  // engine.js's mergeCrossFit()) — same fix as HTPICK, applied here because
+  // this is the identical argmax-over-many-candidates shape.
+  //
+  // ONLY fires for a bet that actually clears DASHBOARD_MIN_N/Z/EDGE — unlike
+  // the Web UI dashboard (which falls back to showing a non-qualifying
+  // "best guess" bet when nothing clears the bar, purely for display), a
+  // Telegram alert must never fire on that fallback.
+  //
+  // Fires in the window from kickoff down to DASHBOARD_WINDOW_MIN minutes
+  // before it (default 15 — a bit earlier than L123's 10, since this signal
+  // doesn't depend on near-kickoff price movement the way L123's Layer 2/3
+  // do). Walk-forward backtested (telegram/backtest_dashboard_split_sample.js,
+  // 3 held-out months, TOP+MAJOR): naive single-pool select+price -1.7% to
+  // -5.4% ROI@mo -> cross-fit +0.2% to +3.5%, positive in all 3 months.
+  // ════════════════════════════════════════════════════════════════════════════
+  DASHBOARD_ENABLED:    process.env.DASHBOARD_ENABLED !== 'false',
+  DASHBOARD_TIER:       process.env.DASHBOARD_TIER          || 'TOP+MAJOR',
+  DASHBOARD_WINDOW_MIN: parseInt(process.env.DASHBOARD_WINDOW_MIN || '15', 10),
+  DASHBOARD_MIN_N:      parseInt(process.env.DASHBOARD_MIN_N    || '15',  10), // DEFAULT_MIN_N, matches the backtested config
+  DASHBOARD_MIN_Z:      parseFloat(process.env.DASHBOARD_MIN_Z  || '1.5'), // MIN_Z, matches the backtested config
+  DASHBOARD_MIN_EDGE:   parseFloat(process.env.DASHBOARD_MIN_EDGE || '0'),
 };
