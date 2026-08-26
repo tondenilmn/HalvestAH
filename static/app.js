@@ -22,6 +22,13 @@ const MIN_EDGE       = 0;
 // l123Qualifies. Used to gate Top Pick, the PRE/GS ✓ badges, and what counts
 // as "not yet qualifying" for Value Hunting.
 function qualifiesBet(b) {
+  // Cross-fit bets (see crossFitBets()/mergeCrossFit(), added lower down)
+  // are tagged _pricedFold — their qualification was already decided by the
+  // OTHER (selecting) fold, not by this object's own z/lo, so re-checking
+  // the raw bar against the pricing fold's own numbers here would be both
+  // redundant and sometimes wrongly negative (the pricing fold's own z can
+  // legitimately sit under the bar even though the selecting fold's did not).
+  if (b && b._pricedFold) return true;
   return !!b && b.z >= MIN_Z && (b.lo - b.bl) >= MIN_EDGE;
 }
 
@@ -932,6 +939,21 @@ function moveDir(c, o, thresh) {
   return 'STABLE';
 }
 
+// Deterministic 50/50 split of the historical dataset into two disjoint
+// folds ('A'/'B'), assigned once per row from a stable identity key (date +
+// teams + league) so the same match always lands in the same fold across
+// reloads/sessions — NOT random per session, which would make cross-fit
+// picks/prices flicker between visits to the same fixture. Backing for
+// crossFitBets() below: see its header comment for why the split exists.
+function _foldHash(str) {
+  let h = 5381;
+  for (let i = 0; i < str.length; i++) h = ((h * 33) ^ str.charCodeAt(i)) >>> 0;
+  return h;
+}
+function foldOf(date, homeTeam, awayTeam, league) {
+  return (_foldHash(`${date}|${homeTeam}|${awayTeam}|${league}`) % 2 === 0) ? 'A' : 'B';
+}
+
 function processRow(row, fileLabel) {
   const nr = normaliseRow(row);
   const [htH, htA] = parseScore(nr['HT Result'] || '');
@@ -998,6 +1020,7 @@ function processRow(row, fileLabel) {
   return {
     file_label:    fileLabel,
     league_tier:   classifyLeague(league),
+    fold:          foldOf(date, homeTeam, awayTeam, league),
     date, league,
     home_team:     homeTeam,
     away_team:     awayTeam,
@@ -1694,6 +1717,74 @@ function scoreBets(stateRows, baselineRows, baselineSideRows, minN = DEFAULT_MIN
     return (b.z * (b.lo / 100)) - (a.z * (a.lo / 100));
   });
   return results;
+}
+
+/* ════════════════════════════════════════════════════════════
+   CROSS-FIT BET SELECTION (winner's-curse fix)
+   ════════════════════════════════════════════════════════════ */
+// buildQualifyingList picks the single best-scoring bet out of up to ~32
+// candidates (or ~10 for Live Games' 2H set) computed from the SAME
+// historical pool — the pool that makes a candidate look best is the same
+// one being asked "how good is it", which systematically inflates whichever
+// candidate wins (classic winner's-curse / multiple-comparison bias).
+//
+// Fix, backtested walk-forward on Live Games' HT pick across 3 held-out
+// months (telegram/backtest_live_ui_split_sample.js): split the dataset
+// into two disjoint folds (row.fold, assigned once per row at load time by
+// foldOf() above — stable across sessions, not re-randomized) and require a
+// candidate to be PRICED using the fold that did NOT select it. Hit rate on
+// the resulting picks barely moved (the picks themselves were already
+// fine), but ROI at the displayed price flipped from consistently negative
+// (-22% to -29%) to consistently positive (+4% to +22%) across every test
+// month checked.
+//
+// mergeCrossFit takes two independently fold-computed scoreBets() arrays
+// (one per fold, same cfg/game-state applied to each fold's own rows) and
+// keeps a bet key only if it qualifies in at least one fold — pricing it
+// with the OTHER fold's numbers. Tags the survivor with _pricedFold so
+// callers needing an internal same-key anchor lookup (buildLiveAdjustedBet's
+// favScored2H/homeScored2H dependencies, etc.) know which fold's full
+// (unfiltered) bet map to use for consistency.
+function mergeCrossFit(betsA, betsB) {
+  const mapA = new Map(betsA.map(b => [b.k, b]));
+  const mapB = new Map(betsB.map(b => [b.k, b]));
+  const merged = [];
+  for (const def of BETS) {
+    const a = mapA.get(def.k) || null;
+    const b = mapB.get(def.k) || null;
+    const candidates = [];
+    if (qualifiesBet(a) && b && b.mo != null) candidates.push({ bet: b, pricedFold: 'B' });
+    if (qualifiesBet(b) && a && a.mo != null) candidates.push({ bet: a, pricedFold: 'A' });
+    if (!candidates.length) continue;
+    // If both folds independently qualify the same key, prefer whichever
+    // cross-priced estimate has the larger (more robust) sample.
+    const best = candidates.reduce((x, y) => (y.bet.n > x.bet.n ? y : x));
+    merged.push({ ...best.bet, _pricedFold: best.pricedFold });
+  }
+  return merged;
+}
+
+// Runs scoreBets independently on each fold's subset of db. filterRows(pool)
+// must return { stateRows, baselineRows, baselineSideRows } for that fold's
+// rows — i.e. the same applyConfig/applyBaselineConfig/applyGameState chain
+// a caller would normally run once on the full db, run once per fold instead.
+function computeFoldPair(db, filterRows, minN, scoreOpts) {
+  const dbA = db.filter(r => r.fold === 'A');
+  const dbB = db.filter(r => r.fold === 'B');
+  const runFold = (pool) => {
+    const { stateRows, baselineRows, baselineSideRows } = filterRows(pool);
+    return scoreBets(stateRows, baselineRows, baselineSideRows, minN, scoreOpts);
+  };
+  return { betsA: runFold(dbA), betsB: runFold(dbB) };
+}
+
+// Convenience wrapper for callers that only need the merged, displayable
+// list (Manual Analysis) — Live Games keeps betsA/betsB around too, since it
+// separately needs each fold's own full (unfiltered) bet map as the anchor
+// source for live time-decay (see analyzeLiveMatch).
+function crossFitBets(db, filterRows, minN, scoreOpts) {
+  const { betsA, betsB } = computeFoldPair(db, filterRows, minN, scoreOpts);
+  return mergeCrossFit(betsA, betsB);
 }
 
 function traceConfig(db, cfg, gs) {
@@ -3338,16 +3429,39 @@ function analyzeMatch() {
       const baselineRows = applyBaselineConfig(activeDb, cfg);
       const blSide        = baselineRows.filter(r => r.fav_side === cfg.fav_side);
 
-      const allBets = scoreBets(cfgRows, baselineRows, blSide, minN);
-      const bets    = allBets.filter(b => Math.abs(b.z) >= MIN_Z);
+      // allBets/gsAllBets — the FULL, un-gated single-pool numbers, kept for
+      // Value Hunting and the All Bets dashboard (every key, whether or not
+      // it clears the qualifying bar — cross-fit only matters once you start
+      // picking a "best" bet out of many, which those two views deliberately
+      // don't do). allBetsQual/gsAllBetsQual — the cross-fit, winner's-curse-
+      // corrected numbers used for Qualifying Bets/Top Pick — see
+      // crossFitBets()'s header comment for why this split exists.
+      const preFilterFn = (pool) => {
+        const stateRows = applyConfig(pool, cfg);
+        const baseRows  = applyBaselineConfig(pool, cfg);
+        return { stateRows, baselineRows: baseRows, baselineSideRows: baseRows.filter(r => r.fav_side === cfg.fav_side) };
+      };
+      const allBets     = scoreBets(cfgRows, baselineRows, blSide, minN);
+      const allBetsQual = crossFitBets(activeDb, preFilterFn, minN);
+      const bets        = allBets.filter(b => Math.abs(b.z) >= MIN_Z);
 
       const gs = readGameState();
-      let gsAllBets = [];
+      let gsAllBets = [], gsAllBetsQual = [];
       if (gs) {
         const gsSigRows = applyGameState(cfgRows,      gs);
         const gsBlRows  = applyGameState(baselineRows, gs);
         const gsBlSide  = applyGameState(blSide,        gs);
         gsAllBets = scoreBets(gsSigRows, gsBlRows, gsBlSide, minN);
+
+        const gsFilterFn = (pool) => {
+          const { stateRows, baselineRows: baseRows, baselineSideRows: baseSide } = preFilterFn(pool);
+          return {
+            stateRows:         applyGameState(stateRows, gs),
+            baselineRows:      applyGameState(baseRows,  gs),
+            baselineSideRows:  applyGameState(baseSide,  gs),
+          };
+        };
+        gsAllBetsQual = crossFitBets(activeDb, gsFilterFn, minN);
 
         // Live time-decay for 2H-eligible bets once the match is into the
         // 2nd half: replaces the coarse bucket-matched numbers above, for
@@ -3376,6 +3490,31 @@ function analyzeMatch() {
             else if (live) liveMap.set(anchor.k, live);
           }
           gsAllBets = [...liveMap.values()];
+
+          // Cross-fit version of the same live-decay pass: decay each
+          // fold's own HT anchor independently, then apply the same
+          // select-in-one-fold/price-with-the-other rule as crossFitBets.
+          const htFilterFn = (pool) => {
+            const { stateRows, baselineRows: baseRows, baselineSideRows: baseSide } = preFilterFn(pool);
+            return {
+              stateRows:        applyGameState(stateRows, htGs),
+              baselineRows:     applyGameState(baseRows,  htGs),
+              baselineSideRows: applyGameState(baseSide,  htGs),
+            };
+          };
+          const { betsA: htA, betsB: htB } = computeFoldPair(activeDb, htFilterFn, minN);
+          const htMapA = new Map(htA.map(b => [b.k, b]));
+          const htMapB = new Map(htB.map(b => [b.k, b]));
+          const htAnchorCF = mergeCrossFit(htA, htB);
+
+          const liveMapQual = new Map(gsAllBetsQual.map(b => [b.k, b]));
+          for (const anchor of htAnchorCF) {
+            const anchorMap = anchor._pricedFold === 'A' ? htMapA : htMapB;
+            const live = buildLiveAdjustedBet(anchor, gs.minute, favG2h, dogG2h, cfg.fav_side, cfg.fav_line, state.useFlatDecay, anchorMap);
+            if (live === _ALREADY_DECIDED) liveMapQual.delete(anchor.k);
+            else if (live) liveMapQual.set(anchor.k, { ...live, _pricedFold: anchor._pricedFold });
+          }
+          gsAllBetsQual = [...liveMapQual.values()];
         }
       }
 
@@ -3384,8 +3523,10 @@ function analyzeMatch() {
       renderMatchResults({
         cfg_n:    cfgRows.length,
         allBets,
+        allBetsQual,
         bets,
         gsAllBets,
+        gsAllBetsQual,
         gsLabelText: gs ? gs.label : null,
         ftrace,
         min_n:    minN,
@@ -3809,17 +3950,25 @@ function buildValueHuntList(preMap, gsMap, minN) {
   return vh;
 }
 
-function renderMatchResults({ cfg_n, allBets, bets, gsAllBets, gsLabelText, ftrace, min_n, cfg }) {
+function renderMatchResults({ cfg_n, allBets, allBetsQual, bets, gsAllBets, gsAllBetsQual, gsLabelText, ftrace, min_n, cfg }) {
   const right = document.getElementById('right-manual');
   _lastBetsByWidget = new Map();
 
   const ahSide = cfg.fav_side === 'AWAY' ? 'Away' : 'Home';
   const cfgSummary = `<div class="cfg-summary">${ahSide} AH −${cfg.fav_line} · ${cfg_n} matching records${gsLabelText ? ' · ' + gsLabelText : ''}</div>`;
 
+  // Full, un-gated numbers — Value Hunting and the All Bets dashboard show
+  // every key regardless of whether it clears the qualifying bar, so the
+  // cross-fit re-pricing (which only matters once you're picking a "best"
+  // bet out of many) doesn't apply here.
   const preMap = new Map(allBets.map(b => [b.k, b]));
   const gsMap  = new Map((gsAllBets || []).map(b => [b.k, b]));
+  // Cross-fit, winner's-curse-corrected numbers — Qualifying Bets/Top Pick
+  // only. See crossFitBets()'s header comment.
+  const preMapQual = new Map((allBetsQual || allBets).map(b => [b.k, b]));
+  const gsMapQual  = new Map((gsAllBetsQual || gsAllBets || []).map(b => [b.k, b]));
 
-  const qualifying = buildQualifyingList(preMap, gsMap, min_n);
+  const qualifying = buildQualifyingList(preMapQual, gsMapQual, min_n);
   const vhBets = buildValueHuntList(preMap, gsMap, min_n);
 
   // Page order: (1) Qualifying Bets — headline Top Pick banner immediately
@@ -3979,7 +4128,20 @@ function analyzeLiveMatch(match, minute) {
   const preBetsAll = scoreBets(cfgRows, baselineRows, blSide, minN);
   let preBets = filterLiveScanBets(preBetsAll, past1H);
 
+  // Cross-fit (winner's-curse-corrected) counterpart of preBets/gsBets below
+  // — same filters, computed independently per fold (row.fold) and priced
+  // by the fold that did NOT select it. Used for Qualifying Bets/Top Pick
+  // only; preBets/gsBets stay the full, un-gated numbers for Value Hunting
+  // and the All Bets dashboard. See crossFitBets()'s header comment.
+  const cfFilterFn = (pool) => {
+    const sRows = applyConfig(pool, cfg);
+    const bRows = applyBaselineConfig(pool, cfg);
+    return { stateRows: sRows, baselineRows: bRows, baselineSideRows: bRows.filter(r => r.fav_side === cfg.fav_side) };
+  };
+  let preBetsQual = filterLiveScanBets(crossFitBets(db, cfFilterFn, minN), past1H);
+
   let gsBets = null, htBets = null, liveBets = null, gsForTrace = null;
+  let gsBetsQual = null;
   let anchorStatus = minute < 44 ? '1h' : 'unknown';
 
   // Resolved once, up front, so the two branches below are mutually
@@ -4009,6 +4171,21 @@ function analyzeLiveMatch(match, minute) {
         liveBets.push(live || b);
       }
       gsBets = liveBets;
+
+      // Cross-fit counterpart: decay each fold's own anchor independently,
+      // then apply the same select-in-one-fold/price-with-the-other rule.
+      const { betsA, betsB } = computeFoldPair(db, cfFilterFn, minN);
+      const mapA = new Map(betsA.map(b => [b.k, b]));
+      const mapB = new Map(betsB.map(b => [b.k, b]));
+      const anchorsCF = mergeCrossFit(betsA, betsB);
+      const liveBetsQual = [];
+      for (const b of filterLiveScanBets(anchorsCF, false)) {
+        const anchorMap = b._pricedFold === 'A' ? mapA : mapB;
+        const live = buildLive1HAdjustedBet(b, minute, curH, curA, cfg.fav_side, cfg.fav_line, state.useFlatDecay, anchorMap);
+        if (live === _ALREADY_DECIDED) continue;
+        liveBetsQual.push(live ? { ...live, _pricedFold: b._pricedFold } : b);
+      }
+      gsBetsQual = liveBetsQual;
     }
   }
 
@@ -4026,6 +4203,20 @@ function analyzeLiveMatch(match, minute) {
       // the 1H key set here).
       htBets = scoreBets(gsRows, gsBlRows, gsBlSide, minN);
       gsBets = filterLiveScanBets(htBets, true);
+
+      const htFilterFn = (pool) => {
+        const { stateRows, baselineRows: bRows, baselineSideRows: bSide } = cfFilterFn(pool);
+        return {
+          stateRows:        applyGameState(stateRows, gsForTrace),
+          baselineRows:     applyGameState(bRows,      gsForTrace),
+          baselineSideRows: applyGameState(bSide,      gsForTrace),
+        };
+      };
+      const { betsA: htA, betsB: htB } = computeFoldPair(db, htFilterFn, minN);
+      const htMapA = new Map(htA.map(b => [b.k, b]));
+      const htMapB = new Map(htB.map(b => [b.k, b]));
+      const htAnchorsCF = mergeCrossFit(htA, htB);
+      gsBetsQual = filterLiveScanBets(htAnchorsCF, true);
 
       if (minute > 45 && match.score) {
         const [curH, curA] = match.score.split('-').map(Number);
@@ -4047,13 +4238,25 @@ function analyzeLiveMatch(match, minute) {
             liveBets.push(live || b);
           }
           gsBets = liveBets;
+
+          const liveBetsQual = [];
+          for (const b of filterLiveScanBets(htAnchorsCF, true)) {
+            const anchorMap = b._pricedFold === 'A' ? htMapA : htMapB;
+            const live = buildLiveAdjustedBet(b, minute, favG2h, dogG2h, cfg.fav_side, cfg.fav_line, state.useFlatDecay, anchorMap);
+            if (live === _ALREADY_DECIDED) continue;
+            liveBetsQual.push(live ? { ...live, _pricedFold: b._pricedFold } : b);
+          }
+          gsBetsQual = liveBetsQual;
         }
       }
     }
   }
 
   const htScore = anchor ? { home: anchor.home, away: anchor.away } : null;
-  return { match, minute, cfg, status: 'ok', anchorStatus, leagueTier, cfg_n: cfgRows.length, preBets, htBets, liveBets, gsBets, gsForTrace, htScore };
+  return {
+    match, minute, cfg, status: 'ok', anchorStatus, leagueTier, cfg_n: cfgRows.length,
+    preBets, preBetsQual, htBets, liveBets, gsBets, gsBetsQual, gsForTrace, htScore,
+  };
 }
 
 function rankScore(b) {
@@ -4066,14 +4269,16 @@ function rankScore(b) {
 // falling back to the best value-hunt bet otherwise.
 function topLiveBet(analysis) {
   if (analysis.status !== 'ok') return null;
-  const preMap = new Map((analysis.preBets || []).map(b => [b.k, b]));
-  const gsMap  = new Map((analysis.gsBets  || []).map(b => [b.k, b]));
+  const preMapQual = new Map((analysis.preBetsQual || []).map(b => [b.k, b]));
+  const gsMapQual  = new Map((analysis.gsBetsQual  || []).map(b => [b.k, b]));
   const minN = getMinN();
-  const qualifying = buildQualifyingList(preMap, gsMap, minN);
+  const qualifying = buildQualifyingList(preMapQual, gsMapQual, minN);
   if (qualifying.length) {
     const q = qualifying[0];
     return q.gsPass && q.gs ? q.gs : q.pre;
   }
+  const preMap = new Map((analysis.preBets || []).map(b => [b.k, b]));
+  const gsMap  = new Map((analysis.gsBets  || []).map(b => [b.k, b]));
   const vh = buildValueHuntList(preMap, gsMap, minN);
   return vh[0] || null;
 }
@@ -4196,8 +4401,8 @@ function renderLiveGames() {
     if (b && (!best || rankScore(b) > rankScore(best.bet))) best = { match: m, bet: b };
   }
   if (best) {
-    const preMap = new Map((best.match.preBets || []).map(b => [b.k, b]));
-    const gsMap  = new Map((best.match.gsBets  || []).map(b => [b.k, b]));
+    const preMap = new Map((best.match.preBetsQual || []).map(b => [b.k, b]));
+    const gsMap  = new Map((best.match.gsBetsQual  || []).map(b => [b.k, b]));
     const minN = getMinN();
     const qualifying = buildQualifyingList(preMap, gsMap, minN);
     if (qualifying.length) {
@@ -4234,8 +4439,8 @@ function collectAllQualifyingLiveBets(matches) {
   const all = [];
   matches.forEach((m, idx) => {
     if (m.status !== 'ok') return;
-    const preMap = new Map((m.preBets || []).map(b => [b.k, b]));
-    const gsMap  = new Map((m.gsBets  || []).map(b => [b.k, b]));
+    const preMap = new Map((m.preBetsQual || []).map(b => [b.k, b]));
+    const gsMap  = new Map((m.gsBetsQual  || []).map(b => [b.k, b]));
     const qualifying = buildQualifyingList(preMap, gsMap, minN);
     for (const q of qualifying) {
       const bet = q.gsPass && q.gs ? q.gs : q.pre;
@@ -4285,10 +4490,12 @@ function renderLiveMatchCard(analysis, idx) {
     </div>`;
   }
 
+  const preMapQual = new Map((analysis.preBetsQual || []).map(b => [b.k, b]));
+  const gsMapQual  = new Map((analysis.gsBetsQual  || []).map(b => [b.k, b]));
   const preMap = new Map((analysis.preBets || []).map(b => [b.k, b]));
   const gsMap  = new Map((analysis.gsBets  || []).map(b => [b.k, b]));
   const minN = getMinN();
-  const qualifying = buildQualifyingList(preMap, gsMap, minN);
+  const qualifying = buildQualifyingList(preMapQual, gsMapQual, minN);
   const vhBets = buildValueHuntList(preMap, gsMap, minN);
   const top = qualifying[0] ? (qualifying[0].gsPass && qualifying[0].gs ? qualifying[0].gs : qualifying[0].pre) : vhBets[0];
   const topQualifies = !!qualifying[0];
@@ -4340,10 +4547,12 @@ function openLiveMatchDetail(idx) {
         : 'Not enough historical matches for this exact closing configuration.'
     }</p></div>`;
   } else {
+    const preMapQual = new Map((analysis.preBetsQual || []).map(b => [b.k, b]));
+    const gsMapQual  = new Map((analysis.gsBetsQual  || []).map(b => [b.k, b]));
     const preMap = new Map((analysis.preBets || []).map(b => [b.k, b]));
     const gsMap  = new Map((analysis.gsBets  || []).map(b => [b.k, b]));
     const minN = getMinN();
-    const qualifying = buildQualifyingList(preMap, gsMap, minN);
+    const qualifying = buildQualifyingList(preMapQual, gsMapQual, minN);
     const vhBets = buildValueHuntList(preMap, gsMap, minN);
     const gsLabel = anchorStatusNote(analysis);
 

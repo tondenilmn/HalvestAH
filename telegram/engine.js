@@ -220,6 +220,21 @@ function sf(v) {
   return isNaN(f) ? null : f;
 }
 
+// Deterministic 50/50 fold split — mirrors static/app.js's foldOf()/
+// _foldHash(), kept in sync per this file's own sync-requirement note.
+// Not yet consumed by any Telegram strategy (L123/LATEGOAL/QUIET2H use a
+// differently-shaped selection path than the web UI's buildQualifyingList —
+// porting the cross-fit fix there is a separate follow-up), but the field is
+// added here now so the two datasets don't drift.
+function _foldHash(str) {
+  let h = 5381;
+  for (let i = 0; i < str.length; i++) h = ((h * 33) ^ str.charCodeAt(i)) >>> 0;
+  return h;
+}
+function foldOf(date, homeTeam, awayTeam, league) {
+  return (_foldHash(`${date}|${homeTeam}|${awayTeam}|${league}`) % 2 === 0) ? 'A' : 'B';
+}
+
 function normaliseRow(row) {
   const out = {};
   for (const [k, v] of Object.entries(row)) {
@@ -329,6 +344,7 @@ function processRow(row, fileLabel) {
   return {
     file_label: fileLabel,
     league_tier: classifyLeague(league),
+    fold: foldOf(date, homeTeam, awayTeam, league),
     date, league, home_team: homeTeam, away_team: awayTeam,
     fav_side: favSide, fav_line: favLine, fav_lc: favLc, fav_lo: favLo,
     fav_oc: favOc, fav_oo: favOo, dog_oc: dogOc, dog_oo: dogOo,
