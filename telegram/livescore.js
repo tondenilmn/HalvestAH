@@ -16,8 +16,8 @@
 // redeploy when both auto-discovery paths are stuck (paste the fresh hash
 // from a local `node -e "require('./livescore').refreshHashes().then(console.log)"` run).
 let PINNACLE_HASH = process.env.PINNACLE_HASH || '30e528c380c96b362ffacdc66b2808c8ad59ce9e';
-let BET365_HASH   = process.env.BET365_HASH   || '5f7ad012769eade1e8f06cdc1b50aad38247e5c1';
-let SBOBET_HASH   = process.env.SBOBET_HASH   || 'd52dd259629d3561be50b5cd7def478fbee5af6a';
+let BET365_HASH   = process.env.BET365_HASH   || '93d95c5e8742f7c98f6f1c8342cfbe7fa003a525';
+let SBOBET_HASH   = process.env.SBOBET_HASH   || 'f1bd8f485d42c4e9700599b0db02cd537a78801f';
 const GS_PRIMARY    = 'Q';
 const GS_CANDIDATES = ['Q', '1', '2', '3', 'AH', 'S', 'EU', 'A', 'ah', 's', '4', '5', '10', '6', '7', '8', 'B', 'F'];
 
@@ -286,6 +286,28 @@ async function fetchHashesViaRelay() {
   }
 }
 
+// Shared between the plain-fetch path and the headless-browser path below —
+// both end up with the same rendered/raw HTML, just fetched a different way.
+function parseBookHashesFromHtml(html) {
+  const result = { pinnacle: null, bet365: null, sbobet: null };
+  const optRe = /value="([a-f0-9]{40})"[^>]*>\s*([^<]+)/gi;
+  let m;
+  while ((m = optRe.exec(html)) !== null) {
+    const [, hash, rawLabel] = m;
+    const label = rawLabel.trim();
+    if (!result.pinnacle && BOOK_PATTERNS.pinnacle.test(label)) result.pinnacle = hash;
+    else if (!result.bet365 && BOOK_PATTERNS.bet365.test(label)) result.bet365   = hash;
+    else if (!result.sbobet && BOOK_PATTERNS.sbobet.test(label)) result.sbobet   = hash;
+  }
+
+  // Fallback for Pinnacle: botbot3.space livegame URL embedded in page scripts
+  if (!result.pinnacle) {
+    const m2 = html.match(/botbot3\.space\/tables\/v4\/[^/]+\/livegame\/([a-f0-9]{40})\.js/);
+    if (m2) result.pinnacle = m2[1];
+  }
+  return result;
+}
+
 async function fetchAllBookHashesDirect() {
   try {
     let resp;
@@ -296,24 +318,7 @@ async function fetchAllBookHashesDirect() {
     }
     if (!resp.ok) return { pinnacle: null, bet365: null, sbobet: null };
     const html = await resp.text();
-
-    // Extract all <option value="40hex">Label</option> entries from the page
-    const result = { pinnacle: null, bet365: null, sbobet: null };
-    const optRe = /value="([a-f0-9]{40})"[^>]*>\s*([^<]+)/gi;
-    let m;
-    while ((m = optRe.exec(html)) !== null) {
-      const [, hash, rawLabel] = m;
-      const label = rawLabel.trim();
-      if (!result.pinnacle && BOOK_PATTERNS.pinnacle.test(label)) result.pinnacle = hash;
-      else if (!result.bet365 && BOOK_PATTERNS.bet365.test(label)) result.bet365   = hash;
-      else if (!result.sbobet && BOOK_PATTERNS.sbobet.test(label)) result.sbobet   = hash;
-    }
-
-    // Fallback for Pinnacle: botbot3.space livegame URL embedded in page scripts
-    if (!result.pinnacle) {
-      const m2 = html.match(/botbot3\.space\/tables\/v4\/[^/]+\/livegame\/([a-f0-9]{40})\.js/);
-      if (m2) result.pinnacle = m2[1];
-    }
+    const result = parseBookHashesFromHtml(html);
 
     return result;
   } catch (e) {
@@ -326,18 +331,71 @@ async function fetchAllBookHashesDirect() {
   }
 }
 
+// Headless-browser fallback (added 2026-08-26) — asianbetsoccer.com's WAF
+// started flat-out blocking plain HTTP clients entirely (both Cloudflare's
+// edge AND Railway's own outbound fetch now get a 202 JS-challenge/403, where
+// previously only the Cloudflare edge was blocked). Both those layers used to
+// cover for each other, but once neither side can get a *real* fresh hash the
+// relay just bounces the same stale value back and forth forever. A real
+// Chromium instance (Playwright) runs the page's own JS the way a normal
+// visitor's browser would, which the plain-fetch path can never do — so this
+// is tried as a genuine third source, not just another disguise for fetch().
+// Lazily required so a deploy without the `playwright` package (e.g. running
+// notify.js locally without it installed) doesn't crash — this path just
+// silently unavailable in that case, same as HASH_RELAY_URL being unset.
+async function fetchAllBookHashesViaBrowser() {
+  let chromium;
+  try {
+    ({ chromium } = require('playwright'));
+  } catch {
+    console.log('  Browser fallback: `playwright` not installed — skipping.');
+    return { pinnacle: null, bet365: null, sbobet: null };
+  }
+
+  let browser;
+  try {
+    browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
+    const page = await browser.newPage({
+      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+      locale: 'it-IT',
+    });
+    await page.goto('https://www.asianbetsoccer.com/it/livescore.html', {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000,
+    });
+    // Give any JS challenge/redirect a moment to resolve and the odds table's
+    // script to populate #book_filter before reading the DOM.
+    await page.waitForTimeout(3000);
+    const html = await page.content();
+    const result = parseBookHashesFromHtml(html);
+    console.log(`  Browser fallback → bet365=${result.bet365?.slice(0,8) ?? '—'}… pinnacle=${result.pinnacle?.slice(0,8) ?? '—'}… sbobet=${result.sbobet?.slice(0,8) ?? '—'}…`);
+    return result;
+  } catch (e) {
+    console.log(`  Browser fallback threw: ${e.message}`);
+    return { pinnacle: null, bet365: null, sbobet: null };
+  } finally {
+    if (browser) await browser.close().catch(() => {});
+  }
+}
+
 /**
  * Fetch all three book hashes — direct scrape of asianbetsoccer.com first
- * (zero extra dependency, works fine in the common case), falling back to
- * the Cloudflare Pages relay (fetchHashesViaRelay) only if the direct
- * attempt comes back completely empty, which is the WAF-block failure mode
- * this whole two-path setup exists for.
+ * (zero extra dependency, works fine in the common case), then a real
+ * headless-browser visit (fetchAllBookHashesViaBrowser) if that comes back
+ * empty, then the Cloudflare Pages relay as a last resort — see that
+ * function's header comment for why the plain-fetch path alone stopped being
+ * enough.
  */
 async function fetchAllBookHashes() {
   const direct = await fetchAllBookHashesDirect();
   if (direct.pinnacle || direct.bet365 || direct.sbobet) return direct;
+
+  console.log('  Direct scrape returned nothing — trying headless browser…');
+  const viaBrowser = await fetchAllBookHashesViaBrowser();
+  if (viaBrowser.pinnacle || viaBrowser.bet365 || viaBrowser.sbobet) return viaBrowser;
+
   if (!HASH_RELAY_URL) {
-    console.log('  Direct scrape returned nothing and HASH_RELAY_URL/DATA_URL not set — no fallback available.');
+    console.log('  Browser fallback returned nothing and HASH_RELAY_URL/DATA_URL not set — no fallback available.');
     return direct;
   }
   console.log('  Direct scrape returned nothing — trying Cloudflare relay…');
