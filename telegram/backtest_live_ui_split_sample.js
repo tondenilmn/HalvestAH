@@ -26,8 +26,9 @@
 // ROI@price should be visibly better for split (AB+BA pooled) than for
 // control (A+B pooled), at the same total sample size.
 //
-// Usage: node backtest_live_ui_split_sample.js [testFileLabel]
-//   e.g. node backtest_live_ui_split_sample.js Bet365_04_26
+// Usage: node backtest_live_ui_split_sample.js [testFileLabel] [tier]
+//   tier: TOP+MAJOR (default) | OTHER | ALL
+//   e.g. node backtest_live_ui_split_sample.js Bet365_04_26 OTHER
 
 const fs = require('fs');
 const path = require('path');
@@ -37,6 +38,7 @@ const {
 
 const BET365_DIR = process.env.BET365_DIR || path.resolve(__dirname, '../static/data/Bet365');
 const TEST_LABEL = process.argv[2] || 'Bet365_04_26';
+const TIER = (process.argv[3] || 'TOP+MAJOR').toUpperCase();
 
 const MIN_N = 15;   // DEFAULT_MIN_N in app.js
 const MIN_Z = 1.5;
@@ -55,6 +57,8 @@ function qualifiesBet(b) {
 function baseScore(b) { return b ? b.z * (b.lo / 100) : -Infinity; }
 
 function applyTier(rows) {
+  if (TIER === 'ALL') return rows;
+  if (TIER === 'OTHER') return rows.filter(r => r.league_tier === 'OTHER');
   return rows.filter(r => r.league_tier === 'TOP' || r.league_tier === 'MAJOR');
 }
 
@@ -143,7 +147,7 @@ function main() {
 
   const raw = loadDatasetDir(BET365_DIR);
   const full = applyTier(raw);
-  console.log(`Loaded ${raw.length} rows total, TOP+MAJOR: ${full.length} rows`);
+  console.log(`Loaded ${raw.length} rows total, tier=${TIER}: ${full.length} rows`);
   console.log(`Test month: ${TEST_LABEL}  (walk-forward — excluded from the historical pool)\n`);
 
   const histDb = full.filter(r => r.file_label !== TEST_LABEL);

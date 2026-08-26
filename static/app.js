@@ -120,6 +120,9 @@ function dashboardLeagueGroup(name) {
 // league pool. Reset at the top of runDailyDashboard so a reloaded/refiltered
 // db (tier/recency toggle) doesn't serve stale cached rows.
 let _dashBaseCache = new Map();
+// Fold-scoped variant of _dashBaseCache — keyed `${baseKey}|${fold}` —
+// backing openingOddsSignal's cross-fit pick (see its header comment).
+let _dashBaseCacheFold = new Map();
 let _dashLeagueCache = new Map();
 let _dashBaselineStatsCache = new Map();
 
@@ -252,6 +255,20 @@ const _DASHBOARD_BET_KEYS = new Set([
 
 // Signal 1 — opening-odds-only historical bucket, mirrors telegram/notify.js's
 // layer1Live but reading from the already-loaded client-side database.
+//
+// Cross-fit (winner's-curse-corrected) pick, added 2026-08-26: this is the
+// same argmax-over-many-candidates shape as Manual Analysis/Live Games'
+// buildQualifyingList (here, argmax over the 13 _DASHBOARD_BET_KEYS instead
+// of all 32) — same fix applies. Walk-forward backtested
+// (telegram/backtest_dashboard_split_sample.js, 3 held-out months): control
+// (select+price from the same pool) loses -0.8% to -5.4% ROI@mo; splitting
+// by row.fold and pricing with the OTHER fold turns it positive for
+// TOP+MAJOR (+0.2% to +3.5%, all 3 months) — a smaller effect than Live
+// Games/Manual (fewer candidates = less winner's-curse to correct), and for
+// OTHER-tier leagues specifically it narrows the loss but doesn't reliably
+// flip it positive (2 of 3 months stayed net negative), suggesting OTHER-
+// tier Dashboard picks may lack real edge beyond the pricing bias. Applied
+// anyway since it's strictly an improvement everywhere tested.
 function openingOddsSignal(favLine, favSide, favOo, tlO) {
   const baseKey = `${favLine}|${favSide}`;
   let base = _dashBaseCache.get(baseKey);
@@ -266,7 +283,28 @@ function openingOddsSignal(favLine, favSide, favOo, tlO) {
   if (cfgRows.length < DEFAULT_MIN_N) return null;
   const allBets = scoreBetsFast(cfgRows, baseKey, base).filter(b => _DASHBOARD_BET_KEYS.has(b.k));
   if (!allBets.length) return null;
-  const qualifying = allBets.filter(qualifiesBet);
+
+  const foldBets = (fold) => {
+    const fBaseKey = `${baseKey}|${fold}`;
+    let fBase = _dashBaseCacheFold.get(fBaseKey);
+    if (!fBase) {
+      fBase = base.filter(r => r.fold === fold);
+      _dashBaseCacheFold.set(fBaseKey, fBase);
+    }
+    if (fBase.length < DEFAULT_MIN_N) return [];
+    const fCfgRows = fBase.filter(r => inOddsBand(r.fav_oo, oddsBand) && (tlBand ? inOddsBand(r.tl_o, tlBand) : true));
+    return scoreBetsFast(fCfgRows, fBaseKey, fBase).filter(b => _DASHBOARD_BET_KEYS.has(b.k));
+  };
+  const betsA = foldBets('A');
+  const betsB = foldBets('B');
+  const crossFit = (betsA.length && betsB.length) ? mergeCrossFit(betsA, betsB) : [];
+
+  // Falls back to the full-pool numbers if either fold is too thin to
+  // compute (a band this narrow can easily drop under DEFAULT_MIN_N once
+  // halved) — same fallback discipline as the fix everywhere else.
+  const qualifying = crossFit.length
+    ? crossFit.sort((a, b) => (b.z * (b.lo / 100)) - (a.z * (a.lo / 100)))
+    : allBets.filter(qualifiesBet);
   const best = qualifying[0] || allBets.find(b => b.edge > 0 && b.n >= DEFAULT_MIN_N) || null;
   return best ? { bet: best, qualifies: qualifying.length > 0 } : null;
 }
@@ -451,6 +489,7 @@ function renderDashboardWindow() {
   }
 
   _dashBaseCache = new Map();
+  _dashBaseCacheFold = new Map();
   _dashLeagueCache = new Map();
   _dashBaselineStatsCache = new Map();
 
