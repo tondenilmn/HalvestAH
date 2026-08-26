@@ -624,8 +624,7 @@ function renderBetPickBlock(bet, qualifies) {
     <div class="col-prob">
       <span class="prob-pct">${bet.p.toFixed(1)}%</span>
       <span class="prob-edge ${bet.edge >= 0 ? 'pos' : 'neg'}">${bet.edge >= 0 ? '+' : ''}${bet.edge.toFixed(1)}pp vs ${bet.bl.toFixed(1)}% baseline</span>
-    </div>
-    <div class="pick-safer">or ${bet.mo_mid}+ for a safer margin</div>`;
+    </div>`;
 }
 
 // The scannable core of one fixture: team names + tier dot, bet + prob/edge,
