@@ -158,4 +158,34 @@ module.exports = {
   QUIET2H_MIN_N:        parseInt(process.env.QUIET2H_MIN_N    || '40',  10),
   QUIET2H_MIN_Z:        parseFloat(process.env.QUIET2H_MIN_Z  || '1.8'),
   QUIET2H_MIN_EDGE:     parseFloat(process.env.QUIET2H_MIN_EDGE || '0'),
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // STRATEGY HTPICK — cross-fit "HT pick" (winner's-curse-corrected)
+  // Fires once per match at half-time (same HT_SNAPSHOT_WINDOW QUIET2H uses),
+  // picking the best-scoring bet across the full Live Games 2H bet set
+  // (over05_2H/over15_2H/under05_2H/under15_2H/homeScored2H/awayScored2H/
+  // homeWins2H/awayWins2H/draw2H/btts2H — same set backtested), choosing per
+  // key between the pre-match and HT-conditioned pool. UNLIKE LATEGOAL/
+  // QUIET2H (which score a single historical pool directly), this is
+  // cross-fit selected: the historical DB is split into two disjoint folds
+  // (row.fold, stamped once at load time) and a candidate only qualifies if
+  // it clears the bar in at least one fold, always PRICED using the OTHER
+  // fold's numbers — see engine.js's mergeCrossFit().
+  //
+  // Why this matters here specifically: walk-forward backtested (leave-3-
+  // months-out, telegram/backtest_live_ui_split_sample.js) — naive single-
+  // pool select+price on this exact bet set lost -22% to -29% ROI@price
+  // despite a reasonable ~40-50% hit rate (classic winner's-curse: the pool
+  // that makes a candidate look best is the same one being asked how good it
+  // is). Cross-fit selection flipped that to +4% to +22% ROI@price,
+  // consistently positive across every test month, with hit rate barely
+  // moved. Do NOT relax this to a single-pool pick without re-running that
+  // backtest — the naive version is a real money-loser despite looking fine
+  // on hit rate alone.
+  // ════════════════════════════════════════════════════════════════════════════
+  HTPICK_ENABLED:   process.env.HTPICK_ENABLED !== 'false',
+  HTPICK_TIER:      process.env.HTPICK_TIER          || 'TOP+MAJOR',
+  HTPICK_MIN_N:     parseInt(process.env.HTPICK_MIN_N    || '15',  10), // DEFAULT_MIN_N, matches the backtested config
+  HTPICK_MIN_Z:     parseFloat(process.env.HTPICK_MIN_Z  || '1.5'), // MIN_Z, matches the backtested config
+  HTPICK_MIN_EDGE:  parseFloat(process.env.HTPICK_MIN_EDGE || '0'),
 };

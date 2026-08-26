@@ -20,8 +20,11 @@ const {
   loadDatabaseFromUrl,
   buildCfgFromMatch,
   applyConfig,
+  applyBaselineConfig,
   applyGameState,
   scoreBets,
+  mergeCrossFit,
+  BETS,
 } = require('./engine');
 const { fetchLiveMatches, refreshHashes, getCurrentHashes } = require('./livescore');
 const { verifyBet365Price } = require('./apifootball');
@@ -806,6 +809,192 @@ async function runStrategyQuiet2H(match, ctx) {
   }
 }
 
+// ── Strategy HTPICK — cross-fit "HT pick" (winner's-curse-corrected) ─────────
+// Fires once per match at half-time, same trigger window QUIET2H uses. Unlike
+// LATEGOAL/QUIET2H (score a single historical pool directly, then gate on its
+// own z/CI-lower-bound), this picks across the SAME 2H bet set the Live Games
+// UI's HT pick uses, cross-fit selected — see config.js's HTPICK_* comment
+// and CLAUDE.md's "Cross-Fit Bet Selection" section for why this correction
+// exists and the walk-forward numbers behind it (naive single-pool pick on
+// this exact bet set: -22% to -29% ROI@price; cross-fit: +4% to +22%).
+const htPickDedup = new Dedup(24 * 60 * 60 * 1000);
+
+const _HTPICK_KEYS = new Set([
+  'over05_2H', 'over15_2H', 'under05_2H', 'under15_2H',
+  'homeScored2H', 'awayScored2H',
+  'homeWins2H', 'awayWins2H', 'draw2H',
+  'btts2H',
+]);
+const _HTPICK_BET_DEFS = BETS.filter(b => _HTPICK_KEYS.has(b.k));
+
+function htPickQualifies(b) {
+  return !!b && b.n >= cfg.HTPICK_MIN_N && b.z >= cfg.HTPICK_MIN_Z && (b.lo - b.bl) >= cfg.HTPICK_MIN_EDGE;
+}
+function htPickBaseScore(b) { return b ? b.z * (b.lo / 100) : -Infinity; }
+
+// Runs applyConfig/applyBaselineConfig (pre-match pool) and, on top of that,
+// applyGameState for the real HT state (HT-conditioned pool) against ONE
+// fold's rows, then per bet key keeps whichever of the two pools scores
+// higher — mirrors static/app.js's buildQualifyingList pre-vs-gs merge and
+// the exact selectFrom() logic backtest_live_ui_split_sample.js validated.
+// Returns one bet object per key (not yet cross-fit qualified/priced — that
+// happens next, across this fold's result and the other fold's).
+function htPickSelectFold(pool, matchCfg, gs) {
+  const cfgRows = applyConfig(pool, matchCfg);
+  const baselineRows = applyBaselineConfig(pool, matchCfg);
+  const blSide = baselineRows.filter(r => r.fav_side === matchCfg.fav_side);
+
+  let preMap = new Map();
+  if (cfgRows.length >= cfg.HTPICK_MIN_N && baselineRows.length) {
+    preMap = new Map(scoreBets(cfgRows, baselineRows, blSide, cfg.HTPICK_MIN_N)
+      .filter(b => _HTPICK_KEYS.has(b.k)).map(b => [b.k, b]));
+  }
+
+  let gsMap = new Map();
+  const gsRows = applyGameState(cfgRows, gs);
+  if (gsRows.length >= cfg.HTPICK_MIN_N) {
+    const gsBlRows = applyGameState(baselineRows, gs);
+    const gsBlSide = applyGameState(blSide, gs);
+    gsMap = new Map(scoreBets(gsRows, gsBlRows, gsBlSide, cfg.HTPICK_MIN_N)
+      .filter(b => _HTPICK_KEYS.has(b.k)).map(b => [b.k, b]));
+  }
+
+  const out = [];
+  for (const k of _HTPICK_KEYS) {
+    const pre = preMap.get(k) || null;
+    const gsB = gsMap.get(k) || null;
+    if (!pre && !gsB) continue;
+    out.push(htPickBaseScore(gsB) > htPickBaseScore(pre) ? gsB : pre);
+  }
+  return out;
+}
+
+// Same equivalence-to-a-real-market trick LATEGOAL/QUIET2H use, extended to
+// cover this strategy's wider bet set. over05_2H/over15_2H and
+// under05_2H/under15_2H re-express as Over/Under (current total + line) FT
+// exactly as in equivalentRealMarket()/equivalentRealMarketQuiet2h() (score
+// is frozen at the HT snapshot the moment this fires, same as QUIET2H).
+// homeScored2H/awayScored2H re-express as BTTS Yes ONLY when that side is
+// still scoreless and the opponent already has a goal — the documented
+// LATEGOAL equivalence (see CLAUDE.md's "No bookmaker lists any of the 4
+// LATEGOAL bet types directly" section), included here since this strategy's
+// backtest covers the full key set, unlike LATEGOAL_BETS which dropped these
+// three for its OWN selection-quality reasons (not because the equivalence
+// itself doesn't hold). homeWins2H/awayWins2H/draw2H/btts2H have no clean FT
+// equivalence — left unsupported (message falls back to the internal target
+// only, same as LATEGOAL/QUIET2H's own fallback when equivalent is null).
+function equivalentRealMarketHtPick(betKey, htSnap) {
+  const total = htSnap.home + htSnap.away;
+  if (betKey === 'over05_2H')  return { apiKey: 'overTL',  avgTl: total + 0.5, label: `Over ${total + 0.5} FT` };
+  if (betKey === 'over15_2H')  return { apiKey: 'overTL',  avgTl: total + 1.5, label: `Over ${total + 1.5} FT` };
+  if (betKey === 'under05_2H') return { apiKey: 'underTL', avgTl: total + 0.5, label: `Under ${total + 0.5} FT` };
+  if (betKey === 'under15_2H') return { apiKey: 'underTL', avgTl: total + 1.5, label: `Under ${total + 1.5} FT` };
+  if (betKey === 'homeScored2H' && htSnap.home === 0 && htSnap.away >= 1) return { apiKey: 'btts', avgTl: null, label: 'BTTS Yes' };
+  if (betKey === 'awayScored2H' && htSnap.away === 0 && htSnap.home >= 1) return { apiKey: 'btts', avgTl: null, label: 'BTTS Yes' };
+  return null;
+}
+
+function htPickFormat(match, bet, liveMin, htSnap, liveOdd, liveOddLo, equivalent, apiFootballCheck, odds) {
+  const marketLabel = equivalent ? equivalent.label : bet.label;
+  const actualPrice = apiFootballCheck?.supported ? apiFootballCheck.odds : null;
+  const verdictLine = realPriceVerdict(marketLabel, actualPrice, liveOdd.fair_odd);
+  const kellyLn = kellyLine(actualPrice, liveOddLo.live_p);
+  const moveLine = lineMovementLine(odds);
+  return buildMessage(
+    `HT pick — cross-fit qualifying bet`,
+    match,
+    `${liveMin}' · HT score ${htSnap.home}-${htSnap.away}${odds.tl_c != null ? ` · TL ${odds.tl_c}` : ''}`,
+    [
+      `👉 <b>${esc(bet.label)}</b>`,
+      verdictLine,
+      ...(liveOddLo.live_p != null ? [modelProbLine(liveOddLo.live_p)] : []),
+      ...(kellyLn ? [kellyLn] : []),
+      ...(moveLine ? [moveLine] : []),
+      `📊 ${bet.p.toFixed(0)}% historically vs ${bet.bl.toFixed(0)}% baseline (n=${bet.n}, cross-fit priced by fold ${bet._pricedFold})`,
+    ],
+  );
+}
+
+async function runStrategyHtPick(match, ctx) {
+  const { matchId, label, tier, liveMin } = ctx;
+
+  if (!cfg.HTPICK_ENABLED) return;
+  if (liveMin == null || liveMin < HT_SNAPSHOT_WINDOW[0] || liveMin > HT_SNAPSHOT_WINDOW[1]) return;
+  if (!tierAllowed(tier, cfg.HTPICK_TIER)) { flogv(liveMin, label, 'HTPICK', `SKIP: tier=${tier} not in ${cfg.HTPICK_TIER}`); return; }
+  if (!_dbAll || !_dbAll.length) return;
+
+  const dedupKey = `${matchId}:htpick`;
+  if (htPickDedup.has(dedupKey)) return;
+
+  const htSnap = _htSnapshots.get(matchId);
+  if (!htSnap) { flogv(liveMin, label, 'HTPICK', 'SKIP: no HT snapshot captured for this match'); return; }
+
+  const odds = match.bet365_odds;
+  if (!odds) { flogv(liveMin, label, 'HTPICK', 'SKIP: no Bet365 odds'); return; }
+  const matchCfg = buildCfgFromMatch(odds, { LINE_MOVE_ON: true, FAV_ODDS_ON: true, DOG_ODDS_ON: true, TL_MOVE_ON: true });
+  if (!matchCfg) { flogv(liveMin, label, 'HTPICK', 'SKIP: odds incomplete'); return; }
+
+  const favLine = matchCfg.signals.favLine;
+  const favSide = matchCfg.signals.favSide;
+  const gs = { trigger: 'HT', home_goals: String(htSnap.home), away_goals: String(htSnap.away) };
+
+  // Tier-filter the historical pool itself (not just the alerting match's own
+  // tier, which tierAllowed already gated above) before the fold split — this
+  // matches backtest_live_ui_split_sample.js's applyTier(), which is what was
+  // actually walk-forward validated. L123/LATEGOAL/QUIET2H don't do this (see
+  // CLAUDE.md/git history), so this is a deliberate divergence for HTPICK
+  // specifically, to keep the live implementation faithful to its own backtest.
+  const tierPool = _dbAll.filter(r => tierAllowed(r.league_tier, cfg.HTPICK_TIER));
+  const dbA = tierPool.filter(r => r.fold === 'A');
+  const dbB = tierPool.filter(r => r.fold === 'B');
+  const selA = htPickSelectFold(dbA, matchCfg, gs);
+  const selB = htPickSelectFold(dbB, matchCfg, gs);
+  const merged = mergeCrossFit(selA, selB, _HTPICK_BET_DEFS, htPickQualifies);
+  if (!merged.length) { flogv(liveMin, label, 'HTPICK', 'SKIP: no cross-fit qualifying bet'); return; }
+
+  merged.sort((a, b) => (b.z * b.lo / 100) - (a.z * a.lo / 100));
+  const bet = merged[0];
+
+  // favG2h/dogG2h are always 0 here — HTPICK fires right at HT, before any
+  // 2H goals could have happened yet (same as QUIET2H).
+  const liveOdd = computeLiveOdd(bet.p, bet.k, liveMin, favLine, 0, 0, favSide);
+  const liveOddLo = computeLiveOdd(bet.lo, bet.k, liveMin, favLine, 0, 0, favSide);
+
+  const equivalent = equivalentRealMarketHtPick(bet.k, htSnap);
+  let apiFootballCheck = null;
+  if (equivalent && cfg.APIFOOTBALL_KEY) {
+    try {
+      apiFootballCheck = await verifyBet365Price(equivalent.apiKey, {
+        matchId, homeTeam: match.home_team, awayTeam: match.away_team,
+        favSide, favLine, avgTl: equivalent.avgTl,
+      }, cfg.APIFOOTBALL_KEY);
+    } catch (e) {
+      flogv(liveMin, label, 'HTPICK', `api-football check failed: ${e.message}`);
+    }
+  }
+
+  const msg = htPickFormat(match, bet, liveMin, htSnap, liveOdd, liveOddLo, equivalent, apiFootballCheck, odds);
+  await sendTelegram(msg);
+  htPickDedup.mark(dedupKey);
+  flog(liveMin, label, 'HTPICK', `ALERT: ${bet.k} p=${bet.p.toFixed(1)}% z=${bet.z.toFixed(2)} n=${bet.n} pricedFold=${bet._pricedFold} liveOdd=${liveOdd.fair_odd} equiv=${equivalent ? equivalent.label : '—'} tier=${tier}`);
+
+  // Only recorded if api-football found a real price for the equivalent
+  // market AND it clears the target fair odds — see verifiedGoodPrice.
+  const htPickPrice = apiFootballCheck?.supported ? apiFootballCheck.odds : null;
+  if (verifiedGoodPrice(htPickPrice, liveOdd.fair_odd)) {
+    recordAlert({
+      matchId, homeTeam: match.home_team, awayTeam: match.away_team,
+      league: match.league, tier,
+      fixtureId: apiFootballCheck?.fixtureId ?? null, betKey: bet.k, betLabel: bet.label,
+      favSide, favLine, tlLine: odds.tl_c,
+      priceAtAlert: htPickPrice,
+      mo: bet.mo, mo_lo: bet.mo_lo,
+    });
+  } else {
+    flogv(liveMin, label, 'HTPICK', 'Not recorded to track record — no verified price clearing target.');
+  }
+}
+
 // ── Hash-failure alert (once per failed hash value) ──────────────────────────
 const _hashAlerted = new Set();
 async function notifyHashFailed(bookmaker, shortHash) {
@@ -860,6 +1049,7 @@ async function runScan() {
       flogv(liveMin, `${label} [${tier}]`, 'ALL', `live ${liveMin}'  score=${match.score || '—'}`);
       await runStrategyQuiet2H(match, ctx);
       await runStrategyLateGoal(match, ctx);
+      await runStrategyHtPick(match, ctx);
     } else {
       flogv(liveMin, `${label} [${tier}]`, 'ALL', `not in pre-match window (liveMin=— toKickoff=${toKickoff != null ? Math.round(toKickoff) + 'm' : '—'})`);
     }
@@ -932,6 +1122,7 @@ async function main() {
 
   const on = s => s ? 'ON ' : 'OFF';
   console.log(`Strategy L123 [${on(cfg.L123_ENABLED)}][${cfg.L123_TIER}]: Layer 1(open)/2(move)/3(close) consensus  minAgree=${cfg.L123_MIN_AGREE}/3  fire=${PRE_MATCH_WINDOW_MIN}min pre-kickoff window  n≥${cfg.L123_MIN_N} z≥${cfg.L123_MIN_Z} edge≥${cfg.L123_MIN_EDGE}pp bl≥${cfg.L123_MIN_BASELINE}%`);
+  console.log(`Strategy HTPICK [${on(cfg.HTPICK_ENABLED)}][${cfg.HTPICK_TIER}]: cross-fit HT pick  fire=HT window ${HT_SNAPSHOT_WINDOW[0]}'-${HT_SNAPSHOT_WINDOW[1]}'  n≥${cfg.HTPICK_MIN_N} z≥${cfg.HTPICK_MIN_Z} edge≥${cfg.HTPICK_MIN_EDGE}pp`);
   console.log(`Global tier default: ${cfg.LEAGUE_TIER}`);
 
   // Refresh all book hashes at startup

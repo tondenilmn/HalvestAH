@@ -501,6 +501,44 @@ function scoreBets(cfgRows, blRows, blSideRows, minN = DEFAULT_MIN_N) {
   return results;
 }
 
+// ── Cross-fit bet selection (winner's-curse fix) ──────────────────────────────
+// Port of static/app.js's mergeCrossFit() — see its header comment there and
+// CLAUDE.md's "Cross-Fit Bet Selection" section for the full rationale and
+// walk-forward backtest numbers. Unlike app.js's version (which hardcodes its
+// own qualifiesBet()/MIN_Z/MIN_EDGE), this takes the qualifying predicate as
+// an argument so each Telegram strategy (HTPICK, and any future one) can gate
+// on its own config.js thresholds — mirroring how L123Qualifies/
+// lateGoalQualifies/quiet2hQualifies are each strategy-specific in notify.js.
+//
+// betsA/betsB: two independently fold-computed candidate arrays (one bet
+// object per key, e.g. the winner of a pre-vs-HT-conditioned selection
+// already resolved per fold by the caller) — NOT necessarily the raw output
+// of scoreBets(), just anything keyed by `.k` with the same shape scoreBets()
+// produces (n/z/lo/bl/mo/p). betDefs: the BETS-shaped list of keys to merge
+// over. qualifies(bet): returns true if `bet`'s own numbers clear the bar.
+//
+// Keeps a bet key only if it qualifies in at least one fold, always pricing
+// it with the OTHER fold's numbers — the fold that didn't select it can't
+// have inflated its own estimate of how good it is.
+function mergeCrossFit(betsA, betsB, betDefs, qualifies) {
+  const mapA = new Map(betsA.map(b => [b.k, b]));
+  const mapB = new Map(betsB.map(b => [b.k, b]));
+  const merged = [];
+  for (const def of betDefs) {
+    const a = mapA.get(def.k) || null;
+    const b = mapB.get(def.k) || null;
+    const candidates = [];
+    if (qualifies(a) && b && b.mo != null) candidates.push({ bet: b, pricedFold: 'B' });
+    if (qualifies(b) && a && a.mo != null) candidates.push({ bet: a, pricedFold: 'A' });
+    if (!candidates.length) continue;
+    // If both folds independently qualify the same key, prefer whichever
+    // cross-priced estimate has the larger (more robust) sample.
+    const best = candidates.reduce((x, y) => (y.bet.n > x.bet.n ? y : x));
+    merged.push({ ...best.bet, _pricedFold: best.pricedFold });
+  }
+  return merged;
+}
+
 // ── Build cfg from live match odds ────────────────────────────────────────────
 function buildCfgFromMatch(odds, cfg_flags) {
   const hc = odds.ah_hc;
@@ -686,6 +724,7 @@ module.exports = {
   applyBaselineConfig,
   applyGameState,
   scoreBets,
+  mergeCrossFit,
   classifyLeague,
   topLeagueGroup,
   TOP_LEAGUE_GROUPS,
