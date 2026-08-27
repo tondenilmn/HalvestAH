@@ -27,7 +27,7 @@ const {
   BETS,
   VALID_LINES,
 } = require('./engine');
-const { fetchLiveMatches, refreshHashes, getCurrentHashes } = require('./livescore');
+const { fetchLiveMatches, fetchNextMatches, refreshHashes, getCurrentHashes } = require('./livescore');
 const { verifyBet365Price } = require('./apifootball');
 const { recordAlert, settlePendingAlerts, buildDigestMessage, loadState, saveState } = require('./track_record');
 const { computeLiveOdd, computeLiveResult2H, computeLiveBtts2H, _2hResultField, _2H_RESULT_KEYS } = require('./live_odds');
@@ -1199,16 +1199,35 @@ async function notifyHashFailed(bookmaker, shortHash) {
   await sendTelegram(msg);
 }
 
-// ── Match fetcher (live matches only — L123 fires early live, not pre-match) ─
-// Always goes straight to Bet365 via livescore.js's own hash discovery — NOT
-// through the Cloudflare Pages Function (functions/api/livescore.js), which
-// is still Pinnacle-oriented and wasn't updated for the Bet365 migration.
-// DATA_URL only controls where the historical CSV dataset is loaded from
-// (see loadDb()) — it's unrelated to live match fetching.
+// ── Match fetcher ─────────────────────────────────────────────────────────────
+// Always goes straight to Bet365/Pinnacle via livescore.js's own hash
+// discovery — NOT through the Cloudflare Pages Function
+// (functions/api/livescore.js). DATA_URL only controls where the historical
+// CSV dataset is loaded from (see loadDb()) — it's unrelated to live match
+// fetching.
+//
+// Merges TWO distinct botbot3 endpoints, not just one — this was a real gap
+// (found 2026-08-27) that silently starved every pre-match strategy (L123,
+// DASHBOARD) of candidates since they were added: fetchLiveMatches() hits
+// the `livegame` table, which only lists matches once they're already live
+// (or immediately about to be) — a match sitting 5-15 minutes before kickoff
+// simply never appears there, so isL123Fire/isDashboardFire's pre-kickoff
+// window logic had nothing to ever fire on in practice (confirmed empirically
+// against 3 real matches today: none appeared in the live feed pre-kickoff,
+// all only appeared once already live). fetchNextMatches() hits the separate
+// `tablenext` table, which DOES list genuinely upcoming fixtures with a real
+// kickoff_time — this is what the pre-match window logic actually needs.
+// Merged by id, live-match data preferred on overlap (it's more current/
+// complete — has minute/score, not just kickoff_time).
 async function fetchMatches() {
-  const liveResult = await fetchLiveMatches();
+  const [liveResult, nextResult] = await Promise.all([fetchLiveMatches(), fetchNextMatches()]);
   if (liveResult.bet365HashFailed) await notifyHashFailed('Bet365', (liveResult.bet365Hash || '????????').slice(0, 8));
-  return liveResult.matches;
+  if (nextResult.pinnacleHashFailed) await notifyHashFailed('Pinnacle', (nextResult.pinnacleHash || '????????').slice(0, 8));
+
+  const merged = new Map();
+  for (const m of nextResult.matches) if (m.id) merged.set(m.id, m);
+  for (const m of liveResult.matches) merged.set(m.id || `${m.home_team}:${m.away_team}`, m);
+  return [...merged.values()];
 }
 
 // ── Scan loop ─────────────────────────────────────────────────────────────────
