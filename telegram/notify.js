@@ -30,7 +30,7 @@ const {
 const { fetchLiveMatches, refreshHashes, getCurrentHashes } = require('./livescore');
 const { verifyBet365Price } = require('./apifootball');
 const { recordAlert, settlePendingAlerts, buildDigestMessage, loadState, saveState } = require('./track_record');
-const { computeLiveOdd } = require('./live_odds');
+const { computeLiveOdd, computeLiveResult2H, computeLiveBtts2H, _2hResultField, _2H_RESULT_KEYS } = require('./live_odds');
 
 const VERBOSE = process.argv.includes('--verbose') || process.env.VERBOSE === 'true';
 const verbose = VERBOSE ? (...a) => console.log(...a) : () => {};
@@ -994,8 +994,14 @@ function htPickBaseScore(b) { return b ? b.z * (b.lo / 100) : -Infinity; }
 // fold's rows, then per bet key keeps whichever of the two pools scores
 // higher — mirrors static/app.js's buildQualifyingList pre-vs-gs merge and
 // the exact selectFrom() logic backtest_live_ui_split_sample.js validated.
-// Returns one bet object per key (not yet cross-fit qualified/priced — that
-// happens next, across this fold's result and the other fold's).
+// Returns { candidates, gsMap }: candidates is one bet object per HTPICK key
+// (not yet cross-fit qualified/priced — that happens next, across this
+// fold's result and the other fold's); gsMap is the FULL (unfiltered by
+// _HTPICK_KEYS) HT-conditioned scoreBets() map for this fold — mirrors
+// app.js's htMapA/htMapB, needed as the anchor source (favScored2H/
+// homeScored2H/awayScored2H) for the bivariate homeWins2H/awayWins2H/
+// draw2H/btts2H live-decay dispatch, since those anchor keys aren't
+// themselves in _HTPICK_KEYS.
 function htPickSelectFold(pool, matchCfg, gs) {
   const cfgRows = applyConfig(pool, matchCfg);
   const baselineRows = applyBaselineConfig(pool, matchCfg);
@@ -1003,8 +1009,7 @@ function htPickSelectFold(pool, matchCfg, gs) {
 
   let preMap = new Map();
   if (cfgRows.length >= cfg.HTPICK_MIN_N && baselineRows.length) {
-    preMap = new Map(scoreBets(cfgRows, baselineRows, blSide, cfg.HTPICK_MIN_N)
-      .filter(b => _HTPICK_KEYS.has(b.k)).map(b => [b.k, b]));
+    preMap = new Map(scoreBets(cfgRows, baselineRows, blSide, cfg.HTPICK_MIN_N).map(b => [b.k, b]));
   }
 
   let gsMap = new Map();
@@ -1012,18 +1017,17 @@ function htPickSelectFold(pool, matchCfg, gs) {
   if (gsRows.length >= cfg.HTPICK_MIN_N) {
     const gsBlRows = applyGameState(baselineRows, gs);
     const gsBlSide = applyGameState(blSide, gs);
-    gsMap = new Map(scoreBets(gsRows, gsBlRows, gsBlSide, cfg.HTPICK_MIN_N)
-      .filter(b => _HTPICK_KEYS.has(b.k)).map(b => [b.k, b]));
+    gsMap = new Map(scoreBets(gsRows, gsBlRows, gsBlSide, cfg.HTPICK_MIN_N).map(b => [b.k, b]));
   }
 
-  const out = [];
+  const candidates = [];
   for (const k of _HTPICK_KEYS) {
     const pre = preMap.get(k) || null;
     const gsB = gsMap.get(k) || null;
     if (!pre && !gsB) continue;
-    out.push(htPickBaseScore(gsB) > htPickBaseScore(pre) ? gsB : pre);
+    candidates.push(htPickBaseScore(gsB) > htPickBaseScore(pre) ? gsB : pre);
   }
-  return out;
+  return { candidates, gsMap };
 }
 
 // Same equivalence-to-a-real-market trick LATEGOAL/QUIET2H use, extended to
@@ -1106,16 +1110,48 @@ async function runStrategyHtPick(match, ctx) {
   const dbB = tierPool.filter(r => r.fold === 'B');
   const selA = htPickSelectFold(dbA, matchCfg, gs);
   const selB = htPickSelectFold(dbB, matchCfg, gs);
-  const merged = mergeCrossFit(selA, selB, _HTPICK_BET_DEFS, htPickQualifies);
+  const merged = mergeCrossFit(selA.candidates, selB.candidates, _HTPICK_BET_DEFS, htPickQualifies);
   if (!merged.length) { flogv(liveMin, label, 'HTPICK', 'SKIP: no cross-fit qualifying bet'); return; }
 
   merged.sort((a, b) => (b.z * b.lo / 100) - (a.z * a.lo / 100));
   const bet = merged[0];
 
   // favG2h/dogG2h are always 0 here — HTPICK fires right at HT, before any
-  // 2H goals could have happened yet (same as QUIET2H).
-  const liveOdd = computeLiveOdd(bet.p, bet.k, liveMin, favLine, 0, 0, favSide);
-  const liveOddLo = computeLiveOdd(bet.lo, bet.k, liveMin, favLine, 0, 0, favSide);
+  // 2H goals could have happened yet (same as QUIET2H). homeWins2H/awayWins2H/
+  // draw2H/btts2H can't go through computeLiveOdd's single-threshold path
+  // (see live_odds.js's computeLiveResult2H/computeLiveBtts2H comments) — they
+  // need the SAME fold's favScored2H/homeScored2H/awayScored2H anchor rates
+  // that priced `bet` itself, mirroring app.js's buildLiveAdjustedBet dispatch.
+  const anchorMap = bet._pricedFold === 'A' ? selA.gsMap : selB.gsMap;
+  let liveOdd, liveOddLo;
+  if (_2H_RESULT_KEYS.has(bet.k)) {
+    const favAnchor = anchorMap.get('favScored2H');
+    const dogAnchor = anchorMap.get(favSide === 'HOME' ? 'awayScored2H' : 'homeScored2H');
+    if (favAnchor && dogAnchor) {
+      const field = _2hResultField(bet.k, favSide);
+      const point = computeLiveResult2H(favAnchor.p,  dogAnchor.p,  liveMin, favLine, 0, 0, false);
+      const loRes = computeLiveResult2H(favAnchor.lo, dogAnchor.lo, liveMin, favLine, 0, 0, false);
+      const p = point[field], lo = Math.min(p, loRes[field]);
+      liveOdd    = { live_p: Math.round(p  * 10) / 10, fair_odd: Math.round(1 / Math.max(p  / 100, 0.001) * 100) / 100 };
+      liveOddLo  = { live_p: Math.round(lo * 10) / 10, fair_odd: Math.round(1 / Math.max(lo / 100, 0.001) * 100) / 100 };
+    } else {
+      liveOdd = liveOddLo = { live_p: null, fair_odd: null };
+    }
+  } else if (bet.k === 'btts2H') {
+    const homeAnchor = anchorMap.get('homeScored2H');
+    const awayAnchor = anchorMap.get('awayScored2H');
+    if (homeAnchor && awayAnchor) {
+      const p  = computeLiveBtts2H(homeAnchor.p,  awayAnchor.p,  liveMin, favLine, 0, 0, favSide, false);
+      const lo = computeLiveBtts2H(homeAnchor.lo, awayAnchor.lo, liveMin, favLine, 0, 0, favSide, false);
+      liveOdd    = { live_p: p,  fair_odd: p  != null ? Math.round(1 / Math.max(p  / 100, 0.001) * 100) / 100 : null };
+      liveOddLo  = { live_p: lo, fair_odd: lo != null ? Math.round(1 / Math.max(lo / 100, 0.001) * 100) / 100 : null };
+    } else {
+      liveOdd = liveOddLo = { live_p: null, fair_odd: null };
+    }
+  } else {
+    liveOdd = computeLiveOdd(bet.p, bet.k, liveMin, favLine, 0, 0, favSide);
+    liveOddLo = computeLiveOdd(bet.lo, bet.k, liveMin, favLine, 0, 0, favSide);
+  }
 
   const equivalent = equivalentRealMarketHtPick(bet.k, htSnap);
   let apiFootballCheck = null;

@@ -187,4 +187,78 @@ function computeLiveOdd(pHtPct,betKey,matchMinute,favLine=0.75,
   };
 }
 
-module.exports = { computeLiveOdd, _2H_BETS_SET, _BET_SCORE_MOD_CLASS };
+// Bivariate live decay for the 2H "who wins the half" 3-way market
+// (favWins2H/draw2H/homeWins2H/awayWins2H) — verbatim port of static/app.js's
+// computeLiveResult2H (see its comment there for the full rationale: these
+// can't go through computeLiveOdd's single-threshold path since the outcome
+// depends on the joint evolution of BOTH sides' goal counts, not one count
+// crossing a threshold). Ported 2026-08-27 for Strategy HTPICK, which is the
+// first Telegram strategy whose bet list includes these four keys.
+const _2H_RESULT_KEYS = new Set(['favWins2H', 'draw2H', 'homeWins2H', 'awayWins2H']);
+
+function computeLiveResult2H(favAnchorP, dogAnchorP, matchMinute, favLine, favGoals2h, dogGoals2h, useFlatDecay) {
+  const curve = useFlatDecay ? _FLAT_INTENSITY : _2H_INTENSITY;
+  const toLam = p => -Math.log(1 - Math.max(0.001, Math.min(0.999, p / 100)));
+  let lamFav = toLam(favAnchorP), lamDog = toLam(dogAnchorP);
+
+  const lineKeys = Object.keys(_LINE_STRENGTH_MOD).map(Number);
+  const closest = lineKeys.reduce((a, b) => Math.abs(b - favLine) < Math.abs(a - favLine) ? b : a);
+  lamFav *= _LINE_STRENGTH_MOD[closest];
+
+  const baseInt = _baseInt2h(curve);
+  let elapsed2h, fg2h = favGoals2h, dg2h = dogGoals2h;
+  if (matchMinute <= 45) { elapsed2h = 0; fg2h = 0; dg2h = 0; }
+  else { elapsed2h = Math.min(45, matchMinute - 45); }
+  const itRate = curve[curve.length - 1][2];
+  const remInt = _integrateInt(elapsed2h, 45, 2, curve) + itRate * _IT_2H;
+  const intFrac = remInt / baseInt;
+  const bayMod = 1 - (elapsed2h / 45) * 0.05;
+
+  const bucket = _marginBucket(fg2h - dg2h);
+  const remLamFav = lamFav * intFrac * bayMod * _FAV_SCORE_MOD[bucket];
+  const remLamDog = lamDog * intFrac * bayMod * _DOG_SCORE_MOD[bucket];
+
+  const CAP = 10; // 2H goal counts beyond this are negligible at any realistic lambda
+  let favWinP = 0, drawP = 0, dogWinP = 0;
+  for (let i = 0; i <= CAP; i++) {
+    const pi = Math.exp(-remLamFav) * Math.pow(remLamFav, i) / _fac(i);
+    for (let j = 0; j <= CAP; j++) {
+      const pj = Math.exp(-remLamDog) * Math.pow(remLamDog, j) / _fac(j);
+      const p = pi * pj;
+      const finalMargin = (fg2h + i) - (dg2h + j);
+      if (finalMargin > 0) favWinP += p;
+      else if (finalMargin === 0) drawP += p;
+      else dogWinP += p;
+    }
+  }
+  const total = favWinP + drawP + dogWinP; // ~1 minus CAP truncation — renormalize
+  return total > 0
+    ? { fav_win_p: favWinP / total * 100, draw_p: drawP / total * 100, dog_win_p: dogWinP / total * 100 }
+    : { fav_win_p: 0, draw_p: 0, dog_win_p: 0 };
+}
+
+// BTTS 2H — verbatim port of static/app.js's computeLiveBtts2H. Modeled as
+// the product of each side's own live "scores in 2H" probability, same
+// independence assumption as the app.js original.
+function computeLiveBtts2H(homeAnchorP, awayAnchorP, minute, favLine, favG2h, dogG2h, favSide, useFlatDecay) {
+  const homeRes = computeLiveOdd(homeAnchorP, 'homeScored2H', minute, favLine, favG2h, dogG2h, favSide, useFlatDecay);
+  const awayRes = computeLiveOdd(awayAnchorP, 'awayScored2H', minute, favLine, favG2h, dogG2h, favSide, useFlatDecay);
+  if (homeRes.live_p == null || awayRes.live_p == null) return null;
+  return Math.round(homeRes.live_p * awayRes.live_p) / 100;
+}
+
+// Which computeLiveResult2H output field each of the 4 "2H Result" keys
+// reads, given which side is the favourite — verbatim port of app.js's
+// _2hResultField.
+function _2hResultField(betKey, favSide) {
+  if (betKey === 'draw2H') return 'draw_p';
+  if (betKey === 'favWins2H') return 'fav_win_p';
+  const isHomeKey = betKey === 'homeWins2H';
+  const homeIsFav = favSide === 'HOME';
+  return (isHomeKey === homeIsFav) ? 'fav_win_p' : 'dog_win_p';
+}
+
+module.exports = {
+  computeLiveOdd, _2H_BETS_SET, _BET_SCORE_MOD_CLASS,
+  computeLiveResult2H, computeLiveBtts2H, _2hResultField, _2H_RESULT_KEYS,
+};
