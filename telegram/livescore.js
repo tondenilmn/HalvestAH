@@ -507,47 +507,47 @@ async function fetchBet365OddsMap(timestamp, day = 0) {
   return { map, hashFailed: false };
 }
 
+// Bet365-keyed, same reasoning as fetchLiveMatches: Pinnacle hash discovery
+// is dead (delisted from asianbetsoccer's #book_filter dropdown — see
+// fetchLiveMatches's comment), and this app is Bet365-priced end to end
+// (historical dataset, live odds, everything) anyway — Pinnacle was never
+// the right book to key upcoming-fixture discovery on. Originally written
+// (2026-08-26) against PINNACLE_HASH for the match list + a separate
+// fetchBet365OddsMap() call to enrich odds; rewritten 2026-08-27 to just
+// hit the same tablenext/{BET365_HASH}.js file for both, once, the way
+// tryCombo already does for live matches — same file format, same parsers,
+// just a different table (tablenext instead of livegame).
 async function fetchNextMatches() {
   const timestamp = Date.now();
-  console.log(`NextGame: trying hash=${PINNACLE_HASH.slice(0,8)}…`);
-  let { matches, hashInvalid: pinHashInvalid } = await tryNextCombo(PINNACLE_HASH, GS_PRIMARY, timestamp);
+  console.log(`NextGame: trying Bet365 hash=${BET365_HASH.slice(0,8)}…`);
+  let { matches, hashInvalid } = await tryNextCombo(BET365_HASH, GS_PRIMARY, timestamp);
 
-  // Auto-discovery: if hash is stale (404), use the hash already discovered by fetchLiveMatches
-  // or fetch it fresh from the page (PINNACLE_HASH may have been updated in-process already).
-  if (!matches && pinHashInvalid) {
-    console.log('NextGame: hash invalid — auto-discovering new Pinnacle hash…');
-    const discovered = await fetchPinnacleHash();
-    if (discovered && discovered !== PINNACLE_HASH) {
+  // Auto-discovery: if hash is stale (404), reuse fetchLiveMatches's own
+  // Bet365 hash discovery (BET365_HASH may already have been updated
+  // in-process by a live-match scan this same cycle).
+  if (!matches && hashInvalid) {
+    console.log('NextGame: hash invalid — auto-discovering new Bet365 hash…');
+    const discovered = await fetchBet365Hash();
+    if (discovered && discovered !== BET365_HASH) {
       console.log(`NextGame: discovered new hash=${discovered.slice(0,8)}… — retrying`);
-      PINNACLE_HASH = discovered;
-    }
-    if (discovered) {
-      ({ matches, hashInvalid: pinHashInvalid } = await tryNextCombo(PINNACLE_HASH, GS_PRIMARY, timestamp));
-    } else {
-      console.log('NextGame: auto-discovery failed — update PINNACLE_HASH manually');
+      BET365_HASH = discovered;
+      ({ matches, hashInvalid } = await tryNextCombo(BET365_HASH, GS_PRIMARY, timestamp));
+    } else if (!discovered) {
+      console.log('NextGame: auto-discovery failed — update BET365_HASH manually');
     }
   }
 
   if (!matches) {
-    if (pinHashInvalid) console.log('NextGame: Pinnacle hash invalid (404) — update PINNACLE_HASH in livescore.js');
-    else console.log('NextGame: hash failed — update PINNACLE_HASH in livescore.js');
-    return { matches: [], pinnacleHashFailed: pinHashInvalid, pinnacleHash: PINNACLE_HASH, bet365HashFailed: false, bet365Hash: BET365_HASH };
+    if (hashInvalid) console.log('NextGame: Bet365 hash invalid (404) — update BET365_HASH in livescore.js');
+    else             console.log('NextGame: no upcoming matches right now (hash OK)');
+    return { matches: [], bet365HashFailed: hashInvalid, bet365Hash: BET365_HASH };
   }
 
-  // Attach Bet365 AH odds to each match (non-fatal if unavailable)
-  const { map: b365Map, hashFailed: b365HashFailed } = await fetchBet365OddsMap(timestamp);
-  if (b365Map.size > 0) {
-    let attached = 0;
-    for (const m of matches) {
-      if (m.id && b365Map.has(m.id)) {
-        m.bet365_odds = b365Map.get(m.id);
-        attached++;
-      }
-    }
-    console.log(`  bet365: attached to ${attached}/${matches.length} next matches`);
-  }
+  // Alias odds onto match.bet365_odds — same field name fetchLiveMatches
+  // uses and notify.js's strategies read.
+  for (const m of matches) m.bet365_odds = m.odds;
 
-  return { matches, pinnacleHashFailed: false, pinnacleHash: PINNACLE_HASH, bet365HashFailed: b365HashFailed, bet365Hash: BET365_HASH };
+  return { matches, bet365HashFailed: false, bet365Hash: BET365_HASH };
 }
 
 async function fetchNextMatchesAllDays(maxDays = 1) {

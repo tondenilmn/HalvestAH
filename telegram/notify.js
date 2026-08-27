@@ -1200,11 +1200,10 @@ async function notifyHashFailed(bookmaker, shortHash) {
 }
 
 // ── Match fetcher ─────────────────────────────────────────────────────────────
-// Always goes straight to Bet365/Pinnacle via livescore.js's own hash
-// discovery — NOT through the Cloudflare Pages Function
-// (functions/api/livescore.js). DATA_URL only controls where the historical
-// CSV dataset is loaded from (see loadDb()) — it's unrelated to live match
-// fetching.
+// Always goes straight to Bet365 via livescore.js's own hash discovery — NOT
+// through the Cloudflare Pages Function (functions/api/livescore.js).
+// DATA_URL only controls where the historical CSV dataset is loaded from
+// (see loadDb()) — it's unrelated to live match fetching.
 //
 // Merges TWO distinct botbot3 endpoints, not just one — this was a real gap
 // (found 2026-08-27) that silently starved every pre-match strategy (L123,
@@ -1215,14 +1214,15 @@ async function notifyHashFailed(bookmaker, shortHash) {
 // window logic had nothing to ever fire on in practice (confirmed empirically
 // against 3 real matches today: none appeared in the live feed pre-kickoff,
 // all only appeared once already live). fetchNextMatches() hits the separate
-// `tablenext` table, which DOES list genuinely upcoming fixtures with a real
-// kickoff_time — this is what the pre-match window logic actually needs.
-// Merged by id, live-match data preferred on overlap (it's more current/
-// complete — has minute/score, not just kickoff_time).
+// `tablenext` table (same BET365_HASH, no Pinnacle involved — this app is
+// Bet365-priced end to end), which DOES list genuinely upcoming fixtures
+// with a real kickoff_time — this is what the pre-match window logic
+// actually needs. Merged by id, live-match data preferred on overlap (it's
+// more current/complete — has minute/score, not just kickoff_time).
 async function fetchMatches() {
   const [liveResult, nextResult] = await Promise.all([fetchLiveMatches(), fetchNextMatches()]);
   if (liveResult.bet365HashFailed) await notifyHashFailed('Bet365', (liveResult.bet365Hash || '????????').slice(0, 8));
-  if (nextResult.pinnacleHashFailed) await notifyHashFailed('Pinnacle', (nextResult.pinnacleHash || '????????').slice(0, 8));
+  else if (nextResult.bet365HashFailed) await notifyHashFailed('Bet365', (nextResult.bet365Hash || '????????').slice(0, 8));
 
   const merged = new Map();
   for (const m of nextResult.matches) if (m.id) merged.set(m.id, m);
