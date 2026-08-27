@@ -469,7 +469,7 @@ async function fetchLiveMatches() {
 
   if (!matches) {
     if (hashInvalid) console.log('Livescore: Bet365 hash invalid (404) — update BET365_HASH in livescore.js');
-    else             console.log('Livescore: hash failed — update BET365_HASH in livescore.js');
+    else             console.log('Livescore: no live matches right now (hash OK)');
     return { matches: [], bet365HashFailed: hashInvalid, bet365Hash: BET365_HASH };
   }
 
