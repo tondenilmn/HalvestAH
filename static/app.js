@@ -329,6 +329,90 @@ function deriveOpeningContext(odds) {
   return { favSide, favLine, favOo, tlO };
 }
 
+// Near-kickoff window in which the Dashboard also runs L123-style movement
+// (Layer 2) and closing/current-odds (Layer 3) signals on top of Layer 1
+// (openingOddsSignal), mirroring telegram/notify.js's Strategy L123. Kept
+// narrow deliberately: L123's closing-odds layer is only actually validated
+// against the true closing line taken within PRE_MATCH_WINDOW_MIN (10 min)
+// of kickoff — at the Dashboard's wider windows (1h/4h/24h) the "current"
+// odds field is just an early snapshot that can still move a lot before
+// kickoff, so treating it as Layer 3 there would misrepresent a signal that
+// was never validated at that horizon. 30 min (this dashboard's own
+// narrowest window option) is a conservative compromise, not the 10 min
+// notify.js itself fires on.
+const NEAR_KICKOFF_MIN = 30;
+
+function minutesToKickoff(match) {
+  const t = new Date(match.kickoff_time).getTime();
+  if (isNaN(t)) return null;
+  return (t - Date.now()) / 60000;
+}
+
+// Layer 3 — closing/current odds only (fav odds band + TL band off the
+// live-feed's current line), mirrors telegram/notify.js's layer3Live.
+function closingOddsSignal(favLine, favSide, favOc, tlC) {
+  if (favOc == null) return null;
+  const base = getDb().filter(r => r.fav_line === favLine && r.fav_side === favSide);
+  if (base.length < DEFAULT_MIN_N) return null;
+  const oddsBand = DASHBOARD_ODDS_BANDS.find(b => inOddsBand(favOc, b));
+  const tlBand = Object.values(TL_CLUSTERS).find(b => inOddsBand(tlC, b));
+  const cfgRows = base.filter(r => inOddsBand(r.fav_oc, oddsBand) && (tlBand ? inOddsBand(r.tl_c, tlBand) : true));
+  if (cfgRows.length < DEFAULT_MIN_N) return null;
+  const qualifying = scoreBets(cfgRows, base, base, DEFAULT_MIN_N, { includeMatches: false })
+    .filter(b => _DASHBOARD_BET_KEYS.has(b.k))
+    .filter(qualifiesBet);
+  return qualifying[0] || null;
+}
+
+// Layer 2 — movement only (line/TL move + fav/dog odds move), mirrors
+// telegram/notify.js's layer2Live. moveCfg comes from buildCfgFromLiveOdds,
+// which already restricts fav/dog odds move + over/under move to only the
+// dimension whose Tier-1 counterpart (line/TL) is STABLE.
+function movementSignal(moveCfg) {
+  const cfgRows = applyConfig(getDb(), moveCfg);
+  if (cfgRows.length < DEFAULT_MIN_N) return null;
+  const fl = parseFloat(moveCfg.fav_line);
+  const base = getDb().filter(r => Math.abs(r.fav_line - fl) < 0.13 && r.fav_side === moveCfg.fav_side);
+  if (base.length < DEFAULT_MIN_N) return null;
+  const qualifying = scoreBets(cfgRows, base, base, DEFAULT_MIN_N, { includeMatches: false })
+    .filter(b => _DASHBOARD_BET_KEYS.has(b.k))
+    .filter(qualifiesBet);
+  return qualifying[0] || null;
+}
+
+// Combines Layer 1 (sig1, already computed via openingOddsSignal), Layer 2
+// and Layer 3 the same way telegram/notify.js's runStrategyL123 does: each
+// layer independently proposes a bet from only its own slice of information,
+// and the fixture only gets an L123-style consensus if at least 2 of the
+// layers that managed to produce a rec land on the SAME bet key. Returns
+// null if fewer than 2 layers agree (including when fewer than 2 layers
+// produced a rec at all).
+function l123ConsensusSignal(sig1, odds, favLine, favSide) {
+  const moveCfg = buildCfgFromLiveOdds(odds);
+  if (!moveCfg) return null;
+  const favOc = moveCfg.fav_oc;
+  const tlC = sf(odds.tl_c);
+
+  const r1 = (sig1 && sig1.qualifies) ? sig1.bet : null;
+  const r2 = movementSignal(moveCfg);
+  const r3 = closingOddsSignal(favLine, favSide, favOc, tlC);
+
+  const recs = [
+    r1 && { rec: r1, name: 'L1(open)' },
+    r2 && { rec: r2, name: 'L2(move)' },
+    r3 && { rec: r3, name: 'L3(close)' },
+  ].filter(Boolean);
+  if (recs.length < 2) return null;
+
+  const counts = {};
+  for (const { rec } of recs) counts[rec.k] = (counts[rec.k] || 0) + 1;
+  const [topKey, topCount] = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+  if (topCount < 2) return null;
+
+  const agreeing = recs.filter(x => x.rec.k === topKey);
+  return { bet: agreeing[0].rec, agreeCount: topCount, votes: agreeing.map(x => x.name) };
+}
+
 // Full per-fixture composite score. Returns null if there's nothing to show
 // (no opening odds, or no signal at all found for this fixture).
 function analyzeFixtureForDashboard(match) {
@@ -342,13 +426,27 @@ function analyzeFixtureForDashboard(match) {
   const sig2 = leagueGroup ? leagueCalibration(leagueGroup, sig1.bet.k) : null;
   const sig3 = leagueGroup ? goalTimingCorroborates(leagueGroup, sig1.bet.k) : null;
 
-  let score = sig1.qualifies ? 2 : 1;
+  // Only within NEAR_KICKOFF_MIN of kickoff — see l123ConsensusSignal's
+  // header comment for why this isn't run for the wider dashboard windows.
+  const toKickoff = minutesToKickoff(match);
+  const l123 = (toKickoff != null && toKickoff >= 0 && toKickoff <= NEAR_KICKOFF_MIN)
+    ? l123ConsensusSignal(sig1, match.odds || {}, ctx.favLine, ctx.favSide)
+    : null;
+
+  const bet = l123 ? l123.bet : sig1.bet;
+  const qualifies = l123 ? true : sig1.qualifies;
+
+  let score = qualifies ? 2 : 1;
   if (sig2 != null && sig2.gap >= 0) score += 1;
   if (sig3 === true) score += 1;
 
-  const tier = score >= 4 ? 'HIGH' : score >= 3 ? 'MEDIUM' : 'LOW';
+  // L123 agreement is the same convergence signal notify.js's own
+  // walk-forward validated (2/3 or 3/3 layers landing on the same bet) — a
+  // stronger, independently-corroborated read than sig2/sig3 above, so a
+  // fixture with it fires is treated as at least HIGH regardless of score.
+  const tier = l123 ? 'HIGH' : (score >= 4 ? 'HIGH' : score >= 3 ? 'MEDIUM' : 'LOW');
 
-  return { match, leagueGroup, bet: sig1.bet, qualifies: sig1.qualifies, sig2, sig3, score, tier };
+  return { match, leagueGroup, bet, qualifies, sig2, sig3, l123, score, tier };
 }
 
 async function fetchUpcomingFixtures(hoursAhead) {
@@ -641,7 +739,12 @@ function renderDashboardRowInner(r) {
   const sig3Txt = r.sig3 === true ? 'Supports this bet'
     : r.sig3 === false ? 'Works against this bet'
     : 'No goal-timing read for this bet';
-  const tierHint = r.tier === 'HIGH' ? 'All 3 checks line up' : r.tier === 'MEDIUM' ? '2 of 3 checks line up' : 'Only the core historical signal qualifies';
+  const tierHint = r.l123
+    ? `L123 consensus: ${r.l123.agreeCount}/3 signals agree (${r.l123.votes.join(', ')})`
+    : r.tier === 'HIGH' ? 'All 3 checks line up' : r.tier === 'MEDIUM' ? '2 of 3 checks line up' : 'Only the core historical signal qualifies';
+  const l123Html = r.l123
+    ? `<div class="bet-ci" style="margin-top:6px">🎯 L123 — ${r.l123.agreeCount}/3 signals agree (${esc(r.l123.votes.join(', '))})</div>`
+    : '';
   return `
     <div class="scan-card-header">
       <span class="scan-match-name">
@@ -651,6 +754,7 @@ function renderDashboardRowInner(r) {
     </div>
     <div class="scan-meta">${esc(r.match.league || '—')} · Kickoff ${kickoffTxt}</div>
     ${renderBetPickBlock(r.bet, r.qualifies)}
+    ${l123Html}
     <details class="dash-why">
       <summary>Why this pick</summary>
       <div class="col-stats" style="margin-top:6px">
@@ -671,7 +775,7 @@ function renderDailyDashboard(results, totalFixtures) {
   const best = results[0];
   let html = `<h2 class="results-title">DAILY DASHBOARD</h2>`;
   html += dashboardWindowButtons();
-  html += `<p style="font-size:11px;color:var(--dim);margin-bottom:10px">${totalFixtures} fixtures in the next ${dashboardWindowLabel(_dashboardWindowHours)} · ${results.length} with an opening-odds signal · opening odds + league stats + goal timing only, no closing/movement data</p>`;
+  html += `<p style="font-size:11px;color:var(--dim);margin-bottom:10px">${totalFixtures} fixtures in the next ${dashboardWindowLabel(_dashboardWindowHours)} · ${results.length} with an opening-odds signal · opening odds + league stats + goal timing everywhere; fixtures within ${NEAR_KICKOFF_MIN} min of kickoff also get an L123-style movement + closing-odds consensus check</p>`;
 
   if (!results.length) {
     html += `<div class="no-bets"><div class="warn-icon">⚠️</div><p>None of today's fixtures in this window matched a historical opening-odds bucket with enough sample. Try a wider window.</p></div>`;
