@@ -1312,7 +1312,7 @@ function newModelFormat(match, cand, liveMin, htSnap, odds) {
   } else if (cand.marketOdds != null) {
     verdictLine = realPriceVerdict(cand.label, cand.marketOdds, row.min_back_odds);
   } else {
-    verdictLine = `ℹ️ No live price check available — check Bet365 yourself (unverified pick).`;
+    verdictLine = `ℹ️ Target @${row.min_back_odds != null ? row.min_back_odds.toFixed(2) : '—'} · No live price check available — check Bet365 yourself for the current price.`;
   }
   const kellyLn = cand.marketOdds != null ? kellyLine(cand.marketOdds, lo) : null;
   const edgeSuffix = cand.edgePp != null ? `, edge ${cand.edgePp >= 0 ? '+' : ''}${cand.edgePp.toFixed(1)}pp` : '';
@@ -1542,7 +1542,7 @@ function newModelRecheckFormat(match, cand, liveMin, htSnap, curScore, odds, pic
   const hi = row.hi != null ? row.hi * 100 : null;
   const verdictLine = cand.marketOdds != null
     ? realPriceVerdict(cand.label, cand.marketOdds, row.min_back_odds)
-    : `ℹ️ No live price check available — check Bet365 yourself (unverified pick).`;
+    : `ℹ️ Target @${row.min_back_odds != null ? row.min_back_odds.toFixed(2) : '—'} · No live price check available — check Bet365 yourself for the current price.`;
   const kellyLn = cand.marketOdds != null ? kellyLine(cand.marketOdds, lo) : null;
   const edgeSuffix = cand.edgePp != null ? `, edge ${cand.edgePp >= 0 ? '+' : ''}${cand.edgePp.toFixed(1)}pp` : '';
   const ciLine = lo != null && hi != null
