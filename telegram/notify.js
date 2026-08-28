@@ -30,7 +30,9 @@ const {
 const { fetchLiveMatches, fetchNextMatches, refreshHashes, getCurrentHashes } = require('./livescore');
 const { verifyBet365Price } = require('./apifootball');
 const { recordAlert, settlePendingAlerts, buildDigestMessage, loadState, saveState } = require('./track_record');
-const { computeLiveOdd, computeLiveResult2H, computeLiveBtts2H, _2hResultField, _2H_RESULT_KEYS } = require('./live_odds');
+const { computeLiveOdd, computeLiveResult2H, computeLiveBtts2H, _2hResultField, _2H_RESULT_KEYS, mcLiveLo, mcLiveHi } = require('./live_odds');
+const LM = require('../static/live_model.js'); // E8 — new pricing engine, see Strategy NEWMODEL below
+const { solveLambdaFromOdds } = require('../static/live_lambda_solver.js'); // AH+O/U-only per-match implied lambda (fixes the lambda_lookup.json bucket-fallback circularity — see runStrategyNewModel); single canonical copy lives in static/ (same pattern as live_model.js) so the browser can also require it via a plain <script> tag
 
 const VERBOSE = process.argv.includes('--verbose') || process.env.VERBOSE === 'true';
 const verbose = VERBOSE ? (...a) => console.log(...a) : () => {};
@@ -76,12 +78,20 @@ function esc(s) {
 }
 
 // Parse live minute from match.minute. Returns null if upcoming/not started.
+// Phase 0 fix 0.4 (mirrors static/app.js's parseLiveMinute): keeps the "+N"
+// stoppage-time offset instead of discarding it — "90+4" -> 94, "45+2" -> 47
+// — so live_odds.js's stoppage-time decay (_STOP_MIN_2H) actually receives a
+// minute that keeps advancing through injury time instead of being frozen
+// at 90 for its entire duration.
 function parseLiveMinute(minute) {
   if (minute == null) return null;
   const s = String(minute).replace(/'/g, '').trim();
   if (s === 'HT') return 45;
-  const n = parseInt(s, 10);
-  return isNaN(n) ? null : n;
+  const m = s.match(/^(\d+)(?:\+(\d+))?$/);
+  if (!m) return null;
+  const base = parseInt(m[1], 10);
+  const extra = m[2] ? parseInt(m[2], 10) : 0;
+  return isNaN(base) ? null : base + extra;
 }
 
 // Returns true if matchTier is allowed under stratTier setting.
@@ -484,6 +494,8 @@ async function runStrategyL123(match, ctx) {
       favSide, favLine, tlLine: tlC,
       priceAtAlert: l123Price,
       mo: bet.mo, mo_lo: bet.mo_lo,
+      strategy: 'L123', venue: 'soft', minute: null,
+      state: { score: null, redCards: 0, half: null },
     });
   } else {
     flogv(liveMin, label, 'L123', 'Not recorded to track record — no verified price clearing target.');
@@ -639,6 +651,8 @@ async function runStrategyDashboard(match, ctx) {
       favSide, favLine, tlLine: odds.tl_o,
       priceAtAlert: dashboardPrice,
       mo: bet.mo, mo_lo: bet.mo_lo,
+      strategy: 'DASHBOARD', venue: 'soft', minute: null,
+      state: { score: null, redCards: 0, half: null },
     });
   } else {
     flogv(null, label, 'DASHBOARD', 'Not recorded to track record — no verified price clearing target.');
@@ -709,24 +723,25 @@ function tlPaceLine(odds, htSnap) {
   return `⚽ Goals so far: ${goalsSoFar} vs. TL ${odds.tl_c} (${pace})`;
 }
 
+// 2026-08-29: simplified — dropped modelProbLine (redundant with the
+// historical-rate line below and with kellyLine's own CI-lower mention) and
+// lineMovementLine (pre-match open→close context, tangential to an in-play
+// decision already conditioned on the real HT state).
 function lateGoalFormat(match, bet, liveMin, htSnap, liveOdd, liveOddLo, equivalent, apiFootballCheck, odds, tlBandUsed) {
   const marketLabel = equivalent ? equivalent.label : bet.label;
   const actualPrice = apiFootballCheck?.supported ? apiFootballCheck.odds : null;
   const verdictLine = realPriceVerdict(marketLabel, actualPrice, liveOdd.fair_odd);
   const kellyLn = kellyLine(actualPrice, liveOddLo.live_p);
-  const moveLine = lineMovementLine(odds);
   const paceLine = tlPaceLine(odds, htSnap);
   return buildMessage(
-    `Still no 2nd-half goal — worth a look`,
+    `🟡 LATEGOAL — still no 2nd-half goal`,
     match,
     `${liveMin}' · Score stuck at ${htSnap.home}-${htSnap.away} since half-time`,
     [
       `👉 <b>${esc(bet.label)}</b>`,
       verdictLine,
-      ...(liveOddLo.live_p != null ? [modelProbLine(liveOddLo.live_p)] : []),
       ...(kellyLn ? [kellyLn] : []),
       ...(paceLine ? [paceLine] : []),
-      ...(moveLine ? [moveLine] : []),
       `📊 ${bet.p.toFixed(0)}% historically vs ${bet.bl.toFixed(0)}% baseline (n=${bet.n}, similar HT scores${tlBandUsed ? ' + Total Line' : ''})`,
     ],
   );
@@ -829,6 +844,8 @@ async function runStrategyLateGoal(match, ctx) {
       favSide, favLine, tlLine: odds.tl_c,
       priceAtAlert: lateGoalPrice,
       mo: bet.mo, mo_lo: bet.mo_lo,
+      strategy: 'LATEGOAL', venue: 'soft', minute: liveMin,
+      state: { score: `${htSnap.home}-${htSnap.away}`, redCards: 0, half: 2 },
     });
   } else {
     flogv(liveMin, label, 'LATEGOAL', 'Not recorded to track record — no verified price clearing target.');
@@ -859,22 +876,20 @@ function equivalentRealMarketQuiet2h(betKey, htSnap) {
   return null;
 }
 
+// 2026-08-29: simplified — same rationale as lateGoalFormat above.
 function quiet2hFormat(match, bet, liveMin, htSnap, liveOdd, liveOddLo, equivalent, apiFootballCheck, odds, tlBandUsed) {
   const marketLabel = equivalent ? equivalent.label : bet.label;
   const actualPrice = apiFootballCheck?.supported ? apiFootballCheck.odds : null;
   const verdictLine = realPriceVerdict(marketLabel, actualPrice, liveOdd.fair_odd);
   const kellyLn = kellyLine(actualPrice, liveOddLo.live_p);
-  const moveLine = lineMovementLine(odds);
   return buildMessage(
-    `Quiet 2nd half expected`,
+    `🔵 QUIET2H — quiet 2nd half expected`,
     match,
     `${liveMin}' · HT score ${htSnap.home}-${htSnap.away} · TL ${odds.tl_c ?? '—'}`,
     [
       `👉 <b>${esc(bet.label)}</b>`,
       verdictLine,
-      ...(liveOddLo.live_p != null ? [modelProbLine(liveOddLo.live_p)] : []),
       ...(kellyLn ? [kellyLn] : []),
-      ...(moveLine ? [moveLine] : []),
       `📊 ${bet.p.toFixed(0)}% historically vs ${bet.bl.toFixed(0)}% baseline (n=${bet.n}, same HT score${tlBandUsed ? ' + Total Line' : ''})`,
     ],
   );
@@ -960,6 +975,8 @@ async function runStrategyQuiet2H(match, ctx) {
       favSide, favLine, tlLine: odds.tl_c,
       priceAtAlert: quiet2hPrice,
       mo: bet.mo, mo_lo: bet.mo_lo,
+      strategy: 'QUIET2H', venue: 'soft', minute: liveMin,
+      state: { score: `${htSnap.home}-${htSnap.away}`, redCards: 0, half: 2 },
     });
   } else {
     flogv(liveMin, label, 'QUIET2H', 'Not recorded to track record — no verified price clearing target.');
@@ -1129,9 +1146,19 @@ async function runStrategyHtPick(match, ctx) {
     const dogAnchor = anchorMap.get(favSide === 'HOME' ? 'awayScored2H' : 'homeScored2H');
     if (favAnchor && dogAnchor) {
       const field = _2hResultField(bet.k, favSide);
-      const point = computeLiveResult2H(favAnchor.p,  dogAnchor.p,  liveMin, favLine, 0, 0, false);
-      const loRes = computeLiveResult2H(favAnchor.lo, dogAnchor.lo, liveMin, favLine, 0, 0, false);
-      const p = point[field], lo = Math.min(p, loRes[field]);
+      const point = computeLiveResult2H(favAnchor.p, dogAnchor.p, liveMin, favLine, 0, 0, false);
+      if (point.alreadyDecided) {
+        flogv(liveMin, label, 'HTPICK', 'SKIP: result market already decided (no remaining goal-scoring time)');
+        return;
+      }
+      const p = point[field];
+      // Phase 0 fix 0.8: joint Monte Carlo CI over favAnchor/dogAnchor's own
+      // Wilson intervals, instead of the old "run once with both anchors at
+      // their own lo" (invalid joint lower bound — see live_odds.js's
+      // comment on mcLiveLo/mcLiveHi for why).
+      const loMc = mcLiveLo(favAnchor, dogAnchor, (a, b) => computeLiveResult2H(a, b, liveMin, favLine, 0, 0, false)[field]);
+      const hiMc = mcLiveHi(favAnchor, dogAnchor, (a, b) => computeLiveResult2H(a, b, liveMin, favLine, 0, 0, false)[field]);
+      const lo = Math.min(p, loMc != null ? loMc : p);
       liveOdd    = { live_p: Math.round(p  * 10) / 10, fair_odd: Math.round(1 / Math.max(p  / 100, 0.001) * 100) / 100 };
       liveOddLo  = { live_p: Math.round(lo * 10) / 10, fair_odd: Math.round(1 / Math.max(lo / 100, 0.001) * 100) / 100 };
     } else {
@@ -1141,8 +1168,17 @@ async function runStrategyHtPick(match, ctx) {
     const homeAnchor = anchorMap.get('homeScored2H');
     const awayAnchor = anchorMap.get('awayScored2H');
     if (homeAnchor && awayAnchor) {
-      const p  = computeLiveBtts2H(homeAnchor.p,  awayAnchor.p,  liveMin, favLine, 0, 0, favSide, false);
-      const lo = computeLiveBtts2H(homeAnchor.lo, awayAnchor.lo, liveMin, favLine, 0, 0, favSide, false);
+      const pointRes = computeLiveBtts2H(homeAnchor.p, awayAnchor.p, liveMin, favLine, 0, 0, favSide, false);
+      if (!pointRes || pointRes.alreadyDecided) {
+        flogv(liveMin, label, 'HTPICK', 'SKIP: btts2H already decided (no remaining goal-scoring time)');
+        return;
+      }
+      const p = pointRes.live_p;
+      const loMc = mcLiveLo(homeAnchor, awayAnchor, (a, b) => {
+        const r = computeLiveBtts2H(a, b, liveMin, favLine, 0, 0, favSide, false);
+        return r ? r.live_p : null;
+      });
+      const lo = Math.min(p, loMc != null ? loMc : p);
       liveOdd    = { live_p: p,  fair_odd: p  != null ? Math.round(1 / Math.max(p  / 100, 0.001) * 100) / 100 : null };
       liveOddLo  = { live_p: lo, fair_odd: lo != null ? Math.round(1 / Math.max(lo / 100, 0.001) * 100) / 100 : null };
     } else {
@@ -1150,6 +1186,10 @@ async function runStrategyHtPick(match, ctx) {
     }
   } else {
     liveOdd = computeLiveOdd(bet.p, bet.k, liveMin, favLine, 0, 0, favSide);
+    if (liveOdd.alreadyDecided) {
+      flogv(liveMin, label, 'HTPICK', 'SKIP: bet already decided (no remaining goal-scoring time)');
+      return;
+    }
     liveOddLo = computeLiveOdd(bet.lo, bet.k, liveMin, favLine, 0, 0, favSide);
   }
 
@@ -1182,10 +1222,464 @@ async function runStrategyHtPick(match, ctx) {
       favSide, favLine, tlLine: odds.tl_c,
       priceAtAlert: htPickPrice,
       mo: bet.mo, mo_lo: bet.mo_lo,
+      strategy: 'HTPICK', venue: 'soft', minute: liveMin,
+      state: { score: `${htSnap.home}-${htSnap.away}`, redCards: 0, half: 2 },
     });
   } else {
     flogv(liveMin, label, 'HTPICK', 'Not recorded to track record — no verified price clearing target.');
   }
+}
+
+// ── Strategy NEWMODEL — E8: static/live_model.js as an independent signal ────
+// See config.js's NEWMODEL_* block for the full design rationale. OPT-IN,
+// OFF by default — the pricing engine itself is not yet walk-forward
+// validated against real outcomes (that's E6, a separate follow-up), so this
+// exists purely to start accumulating a track record (see track_record.js's
+// per-strategy breakdown) without touching L123/LATEGOAL/QUIET2H/HTPICK/
+// DASHBOARD in any way.
+//
+// Trigger: HT window only (same HT_SNAPSHOT_WINDOW/_htSnapshots capture every
+// other HT-triggered strategy already uses — no new snapshot mechanism).
+//
+// Red-card trigger (LIVE_BETTING_PLAN.md Part C 3A "new" bullet): SKIPPED.
+// Wiring it would need a live fixture-events poll (red cards) from
+// api-football, and nothing in this codebase polls fixture events today —
+// telegram/apifootball.js only ever calls /odds/live and /fixtures, never
+// /fixtures/events. Adding a per-scan-cycle events poll for every live match
+// just to catch a red card promptly would either blow through the 100/day
+// notification budget (api_budget.js) or, if throttled enough to fit the
+// budget, arrive too late/rarely to be useful as an event trigger — a
+// genuinely different scope than "reuse the existing HT window," so it's
+// left out of this first cut rather than forced in.
+const newModelDedup = new Dedup(24 * 60 * 60 * 1000);
+const newModelRecheckDedup = new Dedup(24 * 60 * 60 * 1000);
+// 2026-08-29: remembers which matches' HT NEWMODEL pick was an Over-2H-goals
+// bet (over05_2H/over15_2H), so runStrategyNewModelRecheck can re-check ONLY
+// those specific matches later in the half — reusing LATEGOAL's own proven
+// 68'-72' window rather than inventing a new one. Cleared (a) once the bet
+// resolves/busts, (b) after the recheck fires or is skipped, or (c) by the
+// same natural process-restart reset every other in-memory map here has.
+const _newModelPickTracker = new Map();
+
+// Standard TL line for the Over/Under FT candidates: the match's own closing
+// Total Line, unrounded — so the feed's own ov_c/un_c prices (quoted exactly
+// at that line) can be used as a zero-cost, already-verified market price,
+// the same trick L123's liveOddsForBet() relies on for its 4 direct-price
+// bet types.
+function newModelOuLine(odds) {
+  return odds.tl_c != null ? odds.tl_c : (odds.tl_o != null ? odds.tl_o : 2.5);
+}
+
+// pct: model probability (0-100, i.e. already *100). marketOdds: decimal odds
+// or null. Returns { edgePp, marketImpliedPct } or nulls if no market price.
+function newModelEdge(pct, marketOdds) {
+  if (marketOdds == null || !(marketOdds > 1)) return { edgePp: null, marketImpliedPct: null };
+  const marketImpliedPct = 100 / marketOdds;
+  return { edgePp: pct - marketImpliedPct, marketImpliedPct };
+}
+
+function newModelFormat(match, cand, liveMin, htSnap, odds) {
+  const row = cand.row;
+  const lo = row.lo != null ? row.lo * 100 : null;
+  const p = row.p * 100;
+  const hi = row.hi != null ? row.hi * 100 : null;
+  // overTL/underTL's "market price" is odds.ov_c/un_c — per buildCfgFromLiveOdds's
+  // own header comment (static/app.js) these fields hold the PRE-MATCH CLOSING
+  // price and do not get re-scraped/updated once the match kicks off, so by HT
+  // this is NOT a live in-play quote — it has not moved for anything that
+  // happened in the first half (goals, cards, pace). A backtest of this exact
+  // check (telegram/research/backtest_newmodel_ou_v2.js) showed a large
+  // apparent "edge" that is very plausibly just the model correctly using the
+  // real HT score while the reference price is stale, not a real exploitable
+  // edge against an actual live market — see that report's caveats. Never
+  // present this as a live-verified price; always say so plainly so a real
+  // bet isn't placed on the strength of a false "✅ ODDS OK".
+  // 2026-08-29: shortened — same warning, fewer words (full rationale above
+  // unchanged). Also dropped modelProbLine (redundant with the CI line
+  // below) and lineMovementLine (tangential pre-match context), and folded
+  // the edge-vs-market pp into the CI line instead of its own line.
+  const isStaleOuCheck = cand.betKey === 'overTL' || cand.betKey === 'underTL';
+  let verdictLine;
+  if (isStaleOuCheck && cand.marketOdds != null) {
+    const clears = row.min_back_odds == null || cand.marketOdds >= row.min_back_odds;
+    verdictLine = `${clears ? '⚠️' : '❌'} Target @${row.min_back_odds != null ? row.min_back_odds.toFixed(2) : '—'} · Pre-match price @${cand.marketOdds.toFixed(2)} (not live — check your bookmaker)`;
+  } else if (cand.marketOdds != null) {
+    verdictLine = realPriceVerdict(cand.label, cand.marketOdds, row.min_back_odds);
+  } else {
+    verdictLine = `ℹ️ No live price check available — check Bet365 yourself (unverified pick).`;
+  }
+  const kellyLn = cand.marketOdds != null ? kellyLine(cand.marketOdds, lo) : null;
+  const edgeSuffix = cand.edgePp != null ? `, edge ${cand.edgePp >= 0 ? '+' : ''}${cand.edgePp.toFixed(1)}pp` : '';
+  const ciLine = lo != null && hi != null
+    ? `🧪 p=${p.toFixed(1)}% (CI ${lo.toFixed(1)}–${hi.toFixed(1)}%) — UNVALIDATED${edgeSuffix}`
+    : `🧪 p=${p.toFixed(1)}% — UNVALIDATED${edgeSuffix}`;
+  return buildMessage(
+    `🟣 NEWMODEL — HT reprice`,
+    match,
+    `${liveMin}' · HT score ${htSnap.home}-${htSnap.away}${odds.tl_c != null ? ` · TL ${odds.tl_c}` : ''}`,
+    [
+      `👉 <b>${esc(cand.label)}</b>`,
+      verdictLine,
+      ...(kellyLn ? [kellyLn] : []),
+      ciLine,
+    ],
+  );
+}
+
+async function runStrategyNewModel(match, ctx) {
+  const { matchId, label, tier, liveMin } = ctx;
+
+  if (!cfg.NEWMODEL_ENABLED) return;
+  if (liveMin == null || liveMin < HT_SNAPSHOT_WINDOW[0] || liveMin > HT_SNAPSHOT_WINDOW[1]) return;
+  if (!tierAllowed(tier, cfg.NEWMODEL_TIER)) { flogv(liveMin, label, 'NEWMODEL', `SKIP: tier=${tier} not in ${cfg.NEWMODEL_TIER}`); return; }
+
+  const dedupKey = `${matchId}:newmodel`;
+  if (newModelDedup.has(dedupKey)) return;
+
+  const htSnap = _htSnapshots.get(matchId);
+  if (!htSnap) { flogv(liveMin, label, 'NEWMODEL', 'SKIP: no HT snapshot captured for this match'); return; }
+
+  const odds = match.bet365_odds;
+  if (!odds) { flogv(liveMin, label, 'NEWMODEL', 'SKIP: no Bet365 odds'); return; }
+  if (odds.ah_hc == null) { flogv(liveMin, label, 'NEWMODEL', 'SKIP: no closing AH line'); return; }
+
+  let boot;
+  try { boot = LM.init(); } catch (e) { flogv(liveMin, label, 'NEWMODEL', `SKIP: LiveModel init failed: ${e.message}`); return; }
+  if (!boot.hazardLoaded) { flogv(liveMin, label, 'NEWMODEL', 'SKIP: goal_hazard.json not loaded'); return; }
+
+  const ouLine = newModelOuLine(odds);
+  const state = {
+    ah_line: odds.ah_hc, tl: odds.tl_c != null ? odds.tl_c : odds.tl_o,
+    tier,
+    home_goals: htSnap.home, away_goals: htSnap.away,
+    ht_home_goals: htSnap.home, ht_away_goals: htSnap.away,
+    red_h: 0, red_a: 0, // no red-card feed — see header comment; treated as 11v11
+  };
+
+  // ── Per-match implied lambda (fixes the bucket-fallback circularity) ──────
+  // Previously this state object only set ah_line/tl, so static/live_model.js's
+  // _normState() silently fell back to lambdaFromLookup() — a bucket MEDIAN
+  // over thousands of historical matches sharing the (line, TL, tier) cell,
+  // not a per-match fit. That produced a near-tautological backtest result
+  // (comparing a bucket-average price against individual draws from the same
+  // population). live_lambda_solver.js solves a real per-match (lambda_h,
+  // lambda_a) from ONLY the information the live Bet365 feed actually has —
+  // AH line + AH odds, Total Line + O/U odds — with rho fixed at a
+  // tier-specific constant (see that module's header). Falls back to the
+  // bucket lookup (by simply leaving lambda_h/lambda_a unset) if the solver
+  // fails or the odds needed for it are missing/malformed — never crashes,
+  // never silently skips the strategy.
+  let lambdaSource = 'bucket_fallback';
+  let lambdaSolveDetail = null;
+  const solved = solveLambdaFromOdds({
+    ahLine: odds.ah_hc,
+    ahHomeOdds: odds.ho_c,
+    ahAwayOdds: odds.ao_c,
+    tl: state.tl,
+    overOdds: odds.ov_c,
+    underOdds: odds.un_c,
+    tier,
+  });
+  if (solved.ok) {
+    state.lambda_h = solved.lambda_h;
+    state.lambda_a = solved.lambda_a;
+    state.rho = solved.rho;
+    lambdaSource = 'per_match_solver';
+    lambdaSolveDetail = `residualNorm=${solved.residualNorm.toFixed(5)} method=${solved.method} converged=${solved.converged}`;
+  } else {
+    lambdaSolveDetail = `solver failed: ${solved.error}`;
+  }
+  // Auditable per-alert: which lambda source actually priced this pick.
+  flogv(liveMin, label, 'NEWMODEL', `lambda source=${lambdaSource} (${lambdaSolveDetail})`);
+
+  // 2026-08-29: scoped to Over/Under FT, BTTS, and Over 0.5/1.5 2H — the
+  // market families with (a) real historical walk-forward validation behind
+  // the underlying goal-occurrence signal (LATEGOAL/QUIET2H's own
+  // over05_2H/under05_2H/under15_2H) and (b) a genuine live price check path
+  // (BTTS + over05_2H/over15_2H via api-football's equivalent-market trick,
+  // same one LATEGOAL/HTPICK already use; O/U-FT via the feed, caveat still
+  // applies — see newModelFormat's isStaleOuCheck disclosure). The 2H-result
+  // (home/draw/away) leg was removed earlier — never price-verifiable, never
+  // backtested as its own signal. Under05_2H/Under15_2H deliberately NOT
+  // added here even though QUIET2H covers them: unlike Over-type bets, an
+  // Under bet's correct entry point is right at HT (every extra minute
+  // survived without a goal is already priced in by an efficient market, so
+  // there's no "wait for the market to lag" edge the way there can be for
+  // Over bets) — QUIET2H already owns that entry point.
+  const over05Line = 0.5, over15Line = 1.5; // 2H-remainder lines
+  const specs = [
+    { type: 'over',  line: ouLine,      scope: 'match' },
+    { type: 'under', line: ouLine,      scope: 'match' },
+    { type: 'btts',  scope: 'match', yes: true },
+    { type: 'over',  line: over05Line,  scope: 'half' }, // over05_2H equivalent
+    { type: 'over',  line: over15Line,  scope: 'half' }, // over15_2H equivalent
+  ];
+  let rows;
+  try {
+    rows = LM.priceLadder(specs, state, 'HT', { samples: cfg.NEWMODEL_MC_SAMPLES });
+  } catch (e) {
+    flogv(liveMin, label, 'NEWMODEL', `SKIP: pricing failed: ${e.message}`);
+    return;
+  }
+  const [rOver, rUnder, rBtts, rOver05_2h, rOver15_2h] = rows;
+  const htTotal = htSnap.home + htSnap.away;
+
+  // ── Step 1: Over/Under FT vs the feed's own closing O/U price — zero API
+  // cost, same trick L123's liveOddsForBet() already relies on.
+  const overEdge  = newModelEdge(rOver.lo  * 100, odds.ov_c);
+  const underEdge = newModelEdge(rUnder.lo * 100, odds.un_c);
+  const ouCandidates = [
+    { label: `Over ${ouLine} FT`,  betKey: 'overTL',  row: rOver,  marketOdds: odds.ov_c ?? null, edgePp: overEdge.edgePp },
+    { label: `Under ${ouLine} FT`, betKey: 'underTL', row: rUnder, marketOdds: odds.un_c ?? null, edgePp: underEdge.edgePp },
+  ].filter(c => c.edgePp != null);
+  ouCandidates.sort((a, b) => b.edgePp - a.edgePp);
+
+  let chosen = null;
+  if (ouCandidates.length && ouCandidates[0].edgePp >= cfg.NEWMODEL_MIN_EDGE_PP) {
+    chosen = ouCandidates[0];
+  } else {
+    // ── Step 2: BTTS / Over05_2H / Over15_2H via api-football — only ONE
+    // budgeted call, spent on whichever of the three the model itself looks
+    // most confident about (avoids spending budget on a coinflip that could
+    // never clear the edge bar anyway, and avoids tripling the api-football
+    // cost per alert now that there are 3 checkable candidates instead of 1).
+    const apiCandidates = [
+      { betKey: 'btts',      row: rBtts,      apiKey: 'btts',   avgTl: null,             label: 'BTTS Yes' },
+      { betKey: 'over05_2H', row: rOver05_2h, apiKey: 'overTL', avgTl: htTotal + 0.5,    label: `Over ${htTotal + 0.5} FT (2H: Over 0.5)` },
+      { betKey: 'over15_2H', row: rOver15_2h, apiKey: 'overTL', avgTl: htTotal + 1.5,    label: `Over ${htTotal + 1.5} FT (2H: Over 1.5)` },
+    ]
+      .map(c => ({ ...c, conf: Math.max(c.row.lo * 100, 100 - c.row.hi * 100) }))
+      .filter(c => c.conf >= 55)
+      .sort((a, b) => b.conf - a.conf);
+
+    if (cfg.APIFOOTBALL_KEY && apiCandidates.length) {
+      const top = apiCandidates[0];
+      try {
+        const check = await verifyBet365Price(top.apiKey, {
+          matchId, homeTeam: match.home_team, awayTeam: match.away_team,
+          favSide: odds.ah_hc < 0 ? 'HOME' : 'AWAY', favLine: Math.abs(odds.ah_hc), avgTl: top.avgTl,
+        }, cfg.APIFOOTBALL_KEY);
+        if (check.supported && check.odds != null) {
+          const edge = newModelEdge(top.row.lo * 100, check.odds);
+          if (edge.edgePp != null && edge.edgePp >= cfg.NEWMODEL_MIN_EDGE_PP) {
+            chosen = { label: top.label, betKey: top.betKey, row: top.row, marketOdds: check.odds, edgePp: edge.edgePp };
+          }
+        }
+      } catch (e) {
+        flogv(liveMin, label, 'NEWMODEL', `api-football ${top.betKey} check failed: ${e.message}`);
+      }
+    }
+  }
+
+  // ── Step 3: unverified fallback — fires when no market price was found or
+  // reachable at all for anything above (no api-football key/budget, or the
+  // feed itself has no O/U price this match) — this is what keeps alerts
+  // firing even with api-football unavailable, gated on a stricter raw-
+  // confidence floor since there's no price to check the edge against.
+  if (!chosen) {
+    const unverified = [
+      ...(ouCandidates.length ? [] : [
+        { label: `Over ${ouLine} FT`,  betKey: 'overTL',  row: rOver,  marketOdds: null, edgePp: null },
+        { label: `Under ${ouLine} FT`, betKey: 'underTL', row: rUnder, marketOdds: null, edgePp: null },
+      ]),
+      { label: 'BTTS Yes', betKey: 'btts', row: rBtts, marketOdds: null, edgePp: null },
+      { label: `Over ${htTotal + 0.5} FT (2H: Over 0.5)`, betKey: 'over05_2H', row: rOver05_2h, marketOdds: null, edgePp: null },
+      { label: `Over ${htTotal + 1.5} FT (2H: Over 1.5)`, betKey: 'over15_2H', row: rOver15_2h, marketOdds: null, edgePp: null },
+    ].filter(c => c.row.lo != null && c.row.lo * 100 >= cfg.NEWMODEL_MIN_LO_UNVERIFIED);
+    unverified.sort((a, b) => b.row.lo - a.row.lo);
+    if (unverified.length) chosen = unverified[0];
+  }
+
+  if (!chosen) { flogv(liveMin, label, 'NEWMODEL', 'SKIP: no candidate cleared the edge/confidence bar'); return; }
+
+  const msg = newModelFormat(match, chosen, liveMin, htSnap, odds);
+  await sendTelegram(msg);
+  newModelDedup.mark(dedupKey);
+  flog(liveMin, label, 'NEWMODEL', `ALERT: ${chosen.label} p=${(chosen.row.p * 100).toFixed(1)}% lo=${(chosen.row.lo * 100).toFixed(1)}% edge=${chosen.edgePp != null ? chosen.edgePp.toFixed(1) + 'pp' : 'unverified'} tier=${tier} lambdaSource=${lambdaSource}`);
+
+  // 2026-08-29: if the HT pick was an Over-2H-goals bet, remember it so
+  // runStrategyNewModelRecheck can re-check it at 68'-72' if it still hasn't
+  // happened — see that function's header comment.
+  if (chosen.betKey === 'over05_2H' || chosen.betKey === 'over15_2H') {
+    _newModelPickTracker.set(matchId, { betKey: chosen.betKey, htTotal, firedAtMin: liveMin });
+  }
+
+  // track_record.js — logs regardless of verified/unverified (unlike
+  // L123/LATEGOAL/QUIET2H/HTPICK/DASHBOARD's verifiedGoodPrice() gate) since
+  // this strategy's whole purpose right now is accumulating a track record to
+  // decide whether the model has any edge at all (E6) — excluding unverified
+  // picks would bias that record toward only the O/U-feed-price cases.
+  recordAlert({
+    matchId, homeTeam: match.home_team, awayTeam: match.away_team,
+    league: match.league, tier,
+    fixtureId: null, betKey: chosen.betKey, betLabel: chosen.label,
+    favSide: odds.ah_hc < 0 ? 'HOME' : 'AWAY', favLine: Math.abs(odds.ah_hc),
+    // overTL/underTL settle against `tlLine` in track_record.js — use the
+    // exact line this alert priced (ouLine), not just whatever odds.tl_c
+    // happens to be (they're usually the same value, but ouLine is the one
+    // actually fed into LiveModel and shown in the message).
+    tlLine: (chosen.betKey === 'overTL' || chosen.betKey === 'underTL') ? ouLine : odds.tl_c,
+    priceAtAlert: chosen.marketOdds,
+    mo: chosen.row.fair_odds ?? null, mo_lo: chosen.row.min_back_odds ?? null,
+    strategy: 'NEWMODEL',
+    venue: 'soft',
+    minute: liveMin,
+    state: { score: `${htSnap.home}-${htSnap.away}`, redCards: 0, half: 2, lambdaSource },
+  });
+}
+
+// 2026-08-29: simplified — same rationale as newModelFormat above.
+function newModelRecheckFormat(match, cand, liveMin, htSnap, curScore, odds, pick) {
+  const row = cand.row;
+  const lo = row.lo != null ? row.lo * 100 : null;
+  const p = row.p * 100;
+  const hi = row.hi != null ? row.hi * 100 : null;
+  const verdictLine = cand.marketOdds != null
+    ? realPriceVerdict(cand.label, cand.marketOdds, row.min_back_odds)
+    : `ℹ️ No live price check available — check Bet365 yourself (unverified pick).`;
+  const kellyLn = cand.marketOdds != null ? kellyLine(cand.marketOdds, lo) : null;
+  const edgeSuffix = cand.edgePp != null ? `, edge ${cand.edgePp >= 0 ? '+' : ''}${cand.edgePp.toFixed(1)}pp` : '';
+  const ciLine = lo != null && hi != null
+    ? `🧪 p=${p.toFixed(1)}% (CI ${lo.toFixed(1)}–${hi.toFixed(1)}%) — UNVALIDATED${edgeSuffix}`
+    : `🧪 p=${p.toFixed(1)}% — UNVALIDATED${edgeSuffix}`;
+  const origLabel = pick.betKey === 'over05_2H' ? 'Over 0.5 2H' : 'Over 1.5 2H';
+  return buildMessage(
+    `🟣 NEWMODEL — 2H recheck (still hasn't happened)`,
+    match,
+    `${liveMin}' · HT pick was ${origLabel} at ${pick.firedAtMin}' · now ${curScore.home}-${curScore.away} (HT was ${htSnap.home}-${htSnap.away})`,
+    [
+      `👉 <b>${esc(cand.label)}</b>`,
+      verdictLine,
+      ...(kellyLn ? [kellyLn] : []),
+      ciLine,
+    ],
+  );
+}
+
+// 2026-08-29: re-checks NEWMODEL's own Over-2H-goals HT pick (over05_2H /
+// over15_2H) at 68'-72' — LATEGOAL's own proven trigger window (reused
+// rather than inventing a new one) — IF it still hasn't happened. This is
+// the "wait and see if the market lagged" pattern the user asked for, and
+// it deliberately only applies to Over-type bets (over05_2H/over15_2H) —
+// see runStrategyNewModel's header comment on why Under-type bets don't get
+// this treatment (their correct entry point is HT itself, not a later
+// recheck). Prices the SAME market again at the current, later minute — the
+// same gamma-Poisson update now reflects however many 2H goals (0 or 1,
+// since 2+ would already have resolved the bet) have happened since HT.
+async function runStrategyNewModelRecheck(match, ctx) {
+  const { matchId, label, tier, liveMin } = ctx;
+
+  if (!cfg.NEWMODEL_ENABLED) return;
+  if (liveMin == null || liveMin < cfg.LATEGOAL_TRIGGER_WINDOW[0] || liveMin > cfg.LATEGOAL_TRIGGER_WINDOW[1]) return;
+
+  const pick = _newModelPickTracker.get(matchId);
+  if (!pick) return; // NEWMODEL's HT pick for this match wasn't an Over-2H bet (or there was no HT pick)
+
+  const dedupKey = `${matchId}:newmodel_recheck`;
+  if (newModelRecheckDedup.has(dedupKey)) return;
+
+  const htSnap = _htSnapshots.get(matchId);
+  if (!htSnap) { _newModelPickTracker.delete(matchId); return; }
+
+  const curScore = parseScoreStr(match.score);
+  if (!curScore) return;
+  const goalsSinceHt = (curScore.home - htSnap.home) + (curScore.away - htSnap.away);
+  const neededMoreGoals = pick.betKey === 'over05_2H' ? 1 : 2;
+  if (goalsSinceHt >= neededMoreGoals) {
+    flogv(liveMin, label, 'NEWMODEL', `RECHECK SKIP: ${pick.betKey} already happened (goals since HT=${goalsSinceHt})`);
+    _newModelPickTracker.delete(matchId);
+    return;
+  }
+
+  const odds = match.bet365_odds;
+  if (!odds || odds.ah_hc == null) { flogv(liveMin, label, 'NEWMODEL', 'RECHECK SKIP: no closing AH line'); return; }
+
+  let boot;
+  try { boot = LM.init(); } catch (e) { flogv(liveMin, label, 'NEWMODEL', `RECHECK SKIP: LiveModel init failed: ${e.message}`); return; }
+  if (!boot.hazardLoaded) return;
+
+  const state = {
+    ah_line: odds.ah_hc, tl: odds.tl_c != null ? odds.tl_c : odds.tl_o,
+    tier,
+    home_goals: curScore.home, away_goals: curScore.away,
+    ht_home_goals: htSnap.home, ht_away_goals: htSnap.away,
+    red_h: 0, red_a: 0, // no red-card feed — see runStrategyNewModel's header comment
+  };
+  let lambdaSource = 'bucket_fallback';
+  const solved = solveLambdaFromOdds({
+    ahLine: odds.ah_hc, ahHomeOdds: odds.ho_c, ahAwayOdds: odds.ao_c,
+    tl: state.tl, overOdds: odds.ov_c, underOdds: odds.un_c, tier,
+  });
+  if (solved.ok) {
+    state.lambda_h = solved.lambda_h; state.lambda_a = solved.lambda_a; state.rho = solved.rho;
+    lambdaSource = 'per_match_solver';
+  }
+
+  const line = pick.betKey === 'over05_2H' ? 0.5 : 1.5;
+  let row;
+  try {
+    row = LM.priceMarket({ type: 'over', line, scope: 'half' }, state, String(liveMin), { samples: cfg.NEWMODEL_MC_SAMPLES });
+  } catch (e) {
+    flogv(liveMin, label, 'NEWMODEL', `RECHECK SKIP: pricing failed: ${e.message}`);
+    return;
+  }
+
+  // Invariant of how many (0 or 1) 2H goals have happened so far, as long as
+  // the bet hasn't already resolved — see header comment's math: the
+  // equivalent FT total-target is always htTotal + (0.5 for over05_2H,
+  // 1.5 for over15_2H), never needs recomputing against the current score.
+  const avgTl = pick.htTotal + (pick.betKey === 'over05_2H' ? 0.5 : 1.5);
+  const recheckLabel = `Over ${avgTl} FT (2H: ${pick.betKey === 'over05_2H' ? 'Over 0.5' : 'Over 1.5'})`;
+
+  let chosen = null;
+  if (cfg.APIFOOTBALL_KEY) {
+    try {
+      const check = await verifyBet365Price('overTL', {
+        matchId, homeTeam: match.home_team, awayTeam: match.away_team,
+        favSide: odds.ah_hc < 0 ? 'HOME' : 'AWAY', favLine: Math.abs(odds.ah_hc), avgTl,
+      }, cfg.APIFOOTBALL_KEY);
+      if (check.supported && check.odds != null) {
+        const edge = newModelEdge(row.lo * 100, check.odds);
+        if (edge.edgePp != null && edge.edgePp >= cfg.NEWMODEL_MIN_EDGE_PP) {
+          chosen = { label: recheckLabel, betKey: pick.betKey, row, marketOdds: check.odds, edgePp: edge.edgePp };
+        }
+      }
+    } catch (e) {
+      flogv(liveMin, label, 'NEWMODEL', `RECHECK api-football check failed: ${e.message}`);
+    }
+  }
+  // Unverified fallback — fires even without a working api-football key,
+  // same as the HT alert's own Step 3.
+  if (!chosen && row.lo != null && row.lo * 100 >= cfg.NEWMODEL_MIN_LO_UNVERIFIED) {
+    chosen = { label: recheckLabel, betKey: pick.betKey, row, marketOdds: null, edgePp: null };
+  }
+
+  _newModelPickTracker.delete(matchId); // one recheck attempt per match, whether it fires or not
+
+  if (!chosen) { flogv(liveMin, label, 'NEWMODEL', 'RECHECK SKIP: no longer clears the edge/confidence bar'); return; }
+
+  const msg = newModelRecheckFormat(match, chosen, liveMin, htSnap, curScore, odds, pick);
+  await sendTelegram(msg);
+  newModelRecheckDedup.mark(dedupKey);
+  flog(liveMin, label, 'NEWMODEL', `RECHECK ALERT: ${chosen.label} p=${(chosen.row.p * 100).toFixed(1)}% lo=${(chosen.row.lo * 100).toFixed(1)}% edge=${chosen.edgePp != null ? chosen.edgePp.toFixed(1) + 'pp' : 'unverified'} tier=${tier} lambdaSource=${lambdaSource}`);
+
+  // Tagged as its own strategy ('NEWMODEL_RECHECK', not 'NEWMODEL') so the
+  // digest's by-strategy breakdown can answer, once enough data accumulates,
+  // whether waiting for confirmation actually helps or hurts vs. betting the
+  // HT pick immediately.
+  recordAlert({
+    matchId, homeTeam: match.home_team, awayTeam: match.away_team,
+    league: match.league, tier,
+    fixtureId: null, betKey: chosen.betKey, betLabel: chosen.label,
+    favSide: odds.ah_hc < 0 ? 'HOME' : 'AWAY', favLine: Math.abs(odds.ah_hc),
+    tlLine: odds.tl_c,
+    priceAtAlert: chosen.marketOdds,
+    mo: chosen.row.fair_odds ?? null, mo_lo: chosen.row.min_back_odds ?? null,
+    strategy: 'NEWMODEL_RECHECK',
+    venue: 'soft',
+    minute: liveMin,
+    state: { score: `${curScore.home}-${curScore.away}`, redCards: 0, half: 2, lambdaSource },
+  });
 }
 
 // ── Hash-failure alert (once per failed hash value) ──────────────────────────
@@ -1268,6 +1762,8 @@ async function runScan() {
       await runStrategyQuiet2H(match, ctx);
       await runStrategyLateGoal(match, ctx);
       await runStrategyHtPick(match, ctx);
+      await runStrategyNewModel(match, ctx);
+      await runStrategyNewModelRecheck(match, ctx);
     } else {
       flogv(liveMin, `${label} [${tier}]`, 'ALL', `not in pre-match window (liveMin=— toKickoff=${toKickoff != null ? Math.round(toKickoff) + 'm' : '—'})`);
     }
@@ -1342,6 +1838,7 @@ async function main() {
   console.log(`Strategy L123 [${on(cfg.L123_ENABLED)}][${cfg.L123_TIER}]: Layer 1(open)/2(move)/3(close) consensus  minAgree=${cfg.L123_MIN_AGREE}/3  fire=${PRE_MATCH_WINDOW_MIN}min pre-kickoff window  n≥${cfg.L123_MIN_N} z≥${cfg.L123_MIN_Z} edge≥${cfg.L123_MIN_EDGE}pp bl≥${cfg.L123_MIN_BASELINE}%`);
   console.log(`Strategy HTPICK [${on(cfg.HTPICK_ENABLED)}][${cfg.HTPICK_TIER}]: cross-fit HT pick  fire=HT window ${HT_SNAPSHOT_WINDOW[0]}'-${HT_SNAPSHOT_WINDOW[1]}'  n≥${cfg.HTPICK_MIN_N} z≥${cfg.HTPICK_MIN_Z} edge≥${cfg.HTPICK_MIN_EDGE}pp`);
   console.log(`Strategy DASHBOARD [${on(cfg.DASHBOARD_ENABLED)}][${cfg.DASHBOARD_TIER}]: cross-fit opening-odds pick  fire=${cfg.DASHBOARD_WINDOW_MIN}min pre-kickoff window  n≥${cfg.DASHBOARD_MIN_N} z≥${cfg.DASHBOARD_MIN_Z} edge≥${cfg.DASHBOARD_MIN_EDGE}pp`);
+  console.log(`Strategy NEWMODEL [${on(cfg.NEWMODEL_ENABLED)}][${cfg.NEWMODEL_TIER}]: E8 LiveModel HT reprice (UNVALIDATED)  fire=HT window ${HT_SNAPSHOT_WINDOW[0]}'-${HT_SNAPSHOT_WINDOW[1]}'  minEdge≥${cfg.NEWMODEL_MIN_EDGE_PP}pp  minLoUnverified≥${cfg.NEWMODEL_MIN_LO_UNVERIFIED}%`);
   console.log(`Global tier default: ${cfg.LEAGUE_TIER}`);
 
   // Refresh all book hashes at startup

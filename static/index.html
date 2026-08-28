@@ -109,6 +109,53 @@
             <input type="checkbox" id="live-auto-refresh" checked onchange="toggleLiveAutoRefresh(this.checked)">
             Auto-refresh every minute
           </label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);margin-top:8px;cursor:pointer">
+            <input type="checkbox" id="live-new-model-toggle" checked onchange="toggleNewLiveModel(this.checked)">
+            🧪 New pricing model (beta)
+          </label>
+          <p style="font-size:10px;color:var(--dim);font-style:italic;margin-top:4px;line-height:1.4">
+            Shows an additional panel per match priced by the new market-implied hazard/gamma-Poisson
+            engine (E5), alongside the existing bucket-hit-rate numbers above — for comparison only,
+            doesn't replace them.
+          </p>
+          <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);margin-top:8px">
+            Exchange commission
+            <input type="number" id="live-exchange-commission" value="2" min="0" max="20" step="0.5"
+                   style="width:52px" oninput="setExchangeCommission(this.value)">
+            % <span style="font-style:italic">(0 = soft bookmaker)</span>
+          </label>
+
+          <details style="margin-top:8px">
+            <summary style="font-size:11px;color:var(--dim);cursor:pointer">🔽 Filter markets shown (none = default set)</summary>
+            <div style="display:flex;flex-direction:column;gap:4px;margin-top:6px;padding-left:4px">
+              <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);cursor:pointer">
+                <input type="checkbox" class="live-model-filter-cb" onchange="toggleLiveModelMarketFilter('result_home', this.checked)">1X2: Home</label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);cursor:pointer">
+                <input type="checkbox" class="live-model-filter-cb" onchange="toggleLiveModelMarketFilter('result_draw', this.checked)">1X2: Draw</label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);cursor:pointer">
+                <input type="checkbox" class="live-model-filter-cb" onchange="toggleLiveModelMarketFilter('result_away', this.checked)">1X2: Away</label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);cursor:pointer">
+                <input type="checkbox" class="live-model-filter-cb" onchange="toggleLiveModelMarketFilter('over15_ft', this.checked)">Over 1.5 FT</label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);cursor:pointer">
+                <input type="checkbox" class="live-model-filter-cb" onchange="toggleLiveModelMarketFilter('over25_ft', this.checked)">Over 2.5 FT</label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);cursor:pointer">
+                <input type="checkbox" class="live-model-filter-cb" onchange="toggleLiveModelMarketFilter('under25_ft', this.checked)">Under 2.5 FT</label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);cursor:pointer">
+                <input type="checkbox" class="live-model-filter-cb" onchange="toggleLiveModelMarketFilter('btts', this.checked)">BTTS Yes</label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);cursor:pointer">
+                <input type="checkbox" class="live-model-filter-cb" onchange="toggleLiveModelMarketFilter('over05_2h', this.checked)">Over 0.5 2H</label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);cursor:pointer">
+                <input type="checkbox" class="live-model-filter-cb" onchange="toggleLiveModelMarketFilter('over15_2h', this.checked)">Over 1.5 2H</label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);cursor:pointer">
+                <input type="checkbox" class="live-model-filter-cb" onchange="toggleLiveModelMarketFilter('under05_2h', this.checked)">Under 0.5 2H</label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);cursor:pointer">
+                <input type="checkbox" class="live-model-filter-cb" onchange="toggleLiveModelMarketFilter('under15_2h', this.checked)">Under 1.5 2H</label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);cursor:pointer">
+                <input type="checkbox" class="live-model-filter-cb" onchange="toggleLiveModelMarketFilter('nextgoal15', this.checked)">Next 15 min: no goal</label>
+              <button class="clear-btn" style="margin-top:4px;align-self:flex-start" onclick="clearLiveModelMarketFilter()">✕ Show all (clear filter)</button>
+            </div>
+          </details>
+
           <p style="font-size:10px;color:var(--dim);font-style:italic;margin-top:8px;line-height:1.4">
             HT score for live 2H odds is captured automatically the first time each match is seen
             crossing halftime — no manual entry needed. Matches opened mid-2nd-half show
@@ -304,6 +351,8 @@
 </div><!-- /app -->
 
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5/papaparse.min.js"></script>
+<script src="./live_model.js"></script>
+<script src="./live_lambda_solver.js"></script>
 <script src="./app.js"></script>
 </body>
 </html>

@@ -60,9 +60,31 @@ function saveState(state) {
 // (fav's AH line, positive), tlLine (this match's actual closing total
 // line), priceAtAlert (the verified price — never null by the time this is
 // called), mo, mo_lo.
+//
+// Added 2026-08-28 (E8): `strategy` (which of L123/DASHBOARD/LATEGOAL/
+// QUIET2H/HTPICK/NEWMODEL produced this alert — every call site in notify.js
+// now passes its own name explicitly; NEWMODEL is the first strategy that
+// logs a NOT-yet-price-verified alert too, since its whole purpose right now
+// is accumulating a track record to decide whether the model has any edge at
+// all), `venue` ('soft' for every strategy today — all are Bet365 in-play;
+// kept here so Part 3B's exchange venue has somewhere to go later without a
+// schema change), `minute` (live match minute at alert time, null for the
+// two pre-match strategies), and `state` ({score, redCards, half} — redCards
+// is always 0 today, no strategy has a red-card feed yet). None of this
+// changes the existing hit-rate/ROI math below — it's additive, and a
+// missing `strategy` on an old/pre-existing log entry falls back to
+// 'LEGACY' in the digest breakdown (see buildDigestMessage) rather than
+// silently mislabeling it as one specific strategy.
 function recordAlert(entry) {
   const log = loadLog();
-  log.push({ ...entry, timestamp: Date.now(), settled: false, result: null, finalScore: null, fraction: null });
+  log.push({
+    ...entry,
+    strategy: entry.strategy || 'LEGACY',
+    venue: entry.venue || 'soft',
+    minute: entry.minute ?? null,
+    state: entry.state ?? null,
+    timestamp: Date.now(), settled: false, result: null, finalScore: null, fraction: null,
+  });
   saveLog(log);
 }
 
@@ -276,6 +298,39 @@ function buildDigestMessage(windowDays = 7) {
   if (topBets.length) {
     lines.push(``, `By bet type:`);
     for (const [label, s] of topBets) lines.push(`  ${label}: ${(s.hits / s.n * 100).toFixed(0)}% (n=${s.n})`);
+  }
+
+  // ── By strategy (added 2026-08-28, E8) ──────────────────────────────────
+  // Same hit-rate/ROI math as the overall totals above, just grouped by
+  // `strategy` instead of pooled — lets NEWMODEL's (currently unvalidated)
+  // track record be watched separately from L123/DASHBOARD/LATEGOAL/
+  // QUIET2H/HTPICK as it accumulates, without touching any of the existing
+  // aggregate numbers computed above. `venue` is uniform ('soft') across
+  // every strategy today, so it isn't broken out yet — the field is only
+  // there so Part 3B's exchange venue has somewhere to go later.
+  const byStrategy = new Map();
+  for (const e of settled) {
+    const key = e.strategy || 'LEGACY';
+    if (!byStrategy.has(key)) byStrategy.set(key, { n: 0, hits: 0, pushes: 0, pnl: 0, priced: 0 });
+    const s = byStrategy.get(key);
+    s.n++;
+    if (e.fraction === 0) { s.pushes++; continue; }
+    if (e.fraction > 0) s.hits += e.fraction === 1 ? 1 : 0.5;
+    if (e.priceAtAlert != null) {
+      s.priced++;
+      s.pnl += e.fraction === 1 ? e.priceAtAlert - 1
+        : e.fraction === 0.5 ? (e.priceAtAlert - 1) / 2
+        : e.fraction === -0.5 ? -0.5 : -1;
+    }
+  }
+  if (byStrategy.size > 1 || (byStrategy.size === 1 && !byStrategy.has('L123'))) {
+    lines.push(``, `By strategy:`);
+    for (const [name, s] of [...byStrategy.entries()].sort((a, b) => b[1].n - a[1].n)) {
+      const nonPushN = s.n - s.pushes;
+      const hitPct = nonPushN ? (s.hits / nonPushN * 100).toFixed(0) + '%' : '—';
+      const roiStr = s.priced ? `${s.pnl / s.priced * 100 >= 0 ? '+' : ''}${(s.pnl / s.priced * 100).toFixed(1)}% ROI` : 'no priced picks';
+      lines.push(`  ${name}: ${hitPct} hit (n=${nonPushN}) · ${roiStr}${s.priced ? ` (n=${s.priced})` : ''}`);
+    }
   }
 
   return lines.join('\n');

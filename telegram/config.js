@@ -183,7 +183,7 @@ module.exports = {
   // backtest — the naive version is a real money-loser despite looking fine
   // on hit rate alone.
   // ════════════════════════════════════════════════════════════════════════════
-  HTPICK_ENABLED:   process.env.HTPICK_ENABLED !== 'false',
+  HTPICK_ENABLED:   process.env.HTPICK_ENABLED === 'true', // OFF by default (2026-08-29) — user asked to narrow Telegram to just the BTTS/O-U live families (LATEGOAL, QUIET2H, NEWMODEL's O-U+BTTS legs); this fires across the full 32-bet-type set, not scoped to those. Set HTPICK_ENABLED=true to re-enable.
   HTPICK_TIER:      process.env.HTPICK_TIER          || 'TOP+MAJOR',
   HTPICK_MIN_N:     parseInt(process.env.HTPICK_MIN_N    || '15',  10), // DEFAULT_MIN_N, matches the backtested config
   HTPICK_MIN_Z:     parseFloat(process.env.HTPICK_MIN_Z  || '1.5'), // MIN_Z, matches the backtested config
@@ -212,10 +212,56 @@ module.exports = {
   // 3 held-out months, TOP+MAJOR): naive single-pool select+price -1.7% to
   // -5.4% ROI@mo -> cross-fit +0.2% to +3.5%, positive in all 3 months.
   // ════════════════════════════════════════════════════════════════════════════
-  DASHBOARD_ENABLED:    process.env.DASHBOARD_ENABLED !== 'false',
+  DASHBOARD_ENABLED:    process.env.DASHBOARD_ENABLED === 'true', // OFF by default (2026-08-29) — pre-match fixture scan, not one of the live BTTS/O-U in-play bets the user asked to focus on. Set DASHBOARD_ENABLED=true to re-enable.
   DASHBOARD_TIER:       process.env.DASHBOARD_TIER          || 'TOP+MAJOR',
   DASHBOARD_WINDOW_MIN: parseInt(process.env.DASHBOARD_WINDOW_MIN || '15', 10),
   DASHBOARD_MIN_N:      parseInt(process.env.DASHBOARD_MIN_N    || '15',  10), // DEFAULT_MIN_N, matches the backtested config
   DASHBOARD_MIN_Z:      parseFloat(process.env.DASHBOARD_MIN_Z  || '1.5'), // MIN_Z, matches the backtested config
   DASHBOARD_MIN_EDGE:   parseFloat(process.env.DASHBOARD_MIN_EDGE || '0'),
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // STRATEGY NEWMODEL — E8: `static/live_model.js` (LIVE_BETTING_PLAN.md Part E)
+  // as an independent, OPT-IN, DISABLED-BY-DEFAULT signal source, alongside
+  // (not replacing) L123/LATEGOAL/QUIET2H/HTPICK/DASHBOARD. The pricing engine
+  // itself (state-conditioned goal-hazard + gamma-Poisson) has NOT been
+  // walk-forward validated against real outcomes yet — that is a separate
+  // follow-up (E6) — so this must stay off by default until it has its own
+  // logged track record (see track_record.js's per-strategy breakdown).
+  //
+  // Trigger: HT window only (reuses the existing HT_SNAPSHOT_WINDOW/
+  // _htSnapshots capture mechanism in notify.js — no new snapshot logic).
+  // A red-card-triggered reprice (LIVE_BETTING_PLAN.md Part C 3A "new" bullet)
+  // was scoped but NOT implemented — see notify.js's NEWMODEL section header
+  // comment for why (no fixture-events polling exists anywhere in this
+  // codebase today, and adding one cheaply enough to respect the 100/day
+  // api-football budget while still catching a red card promptly is a real
+  // scope expansion, not a lightweight addition).
+  //
+  // Markets: Over/Under FT total (at the match's own closing Total Line —
+  // verified for free via the live feed's own ov_c/un_c fields, the same
+  // fields L123's liveOddsForBet() already reads, so this costs ZERO
+  // api-football budget for the common case), BTTS FT (verified via
+  // apifootball.js, costs 1 call), 2nd-half result (home/draw/away — no
+  // api-football equivalent exists for a half-scoped result market, so this
+  // is always sent unverified, gated on a higher probability floor instead).
+  //
+  // Gate: always attempts price verification first (feed price for O/U, one
+  // budgeted api-football call for BTTS only if O/U didn't already qualify);
+  // fires only if the model's Wilson-style MC-lower probability (`lo`) clears
+  // the verified market's implied probability by NEWMODEL_MIN_EDGE_PP. If no
+  // price is available at all (feed missing ov_c/un_c AND api-football has no
+  // BTTS price AND the candidate is the unverifiable 2H-result market), it
+  // still fires — clearly labeled "unverified" — but only if `lo` clears the
+  // more conservative NEWMODEL_MIN_LO_UNVERIFIED floor.
+  // ════════════════════════════════════════════════════════════════════════════
+  NEWMODEL_ENABLED:             process.env.NEWMODEL_ENABLED !== 'false', // ON by default (2026-08-28) — unvalidated model, paper-track via track_record.js until E6 validates it; set NEWMODEL_ENABLED=false to disable
+  NEWMODEL_TIER:                process.env.NEWMODEL_TIER || 'TOP+MAJOR',
+  NEWMODEL_MC_SAMPLES:          parseInt(process.env.NEWMODEL_MC_SAMPLES || '500', 10),
+  // Min percentage points the model's CI-lower probability must clear the
+  // verified market's implied probability by, before alerting.
+  NEWMODEL_MIN_EDGE_PP:         parseFloat(process.env.NEWMODEL_MIN_EDGE_PP || '5'),
+  // When no price could be verified at all, require this much more raw
+  // confidence (CI-lower %) before firing — a stand-in for the missing price
+  // check, deliberately stricter than the edge-gated path above.
+  NEWMODEL_MIN_LO_UNVERIFIED:   parseFloat(process.env.NEWMODEL_MIN_LO_UNVERIFIED || '60'),
 };

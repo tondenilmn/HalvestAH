@@ -7,6 +7,15 @@
 // _TOTAL_SCORE_MOD likewise, _FAV_SCORE_MOD/_DOG_SCORE_MOD left as the
 // original Bet365-CSV-derived approximation — see app.js for the caveats).
 // If you change the model in app.js, mirror it here.
+//
+// Phase 0 plumbing-bug fixes (2026-08-28, see LIVE_BETTING_PLAN.md) mirrored
+// here: 0.4 (stoppage-time decay, was frozen at minute 90), 0.5
+// (alreadyDecided flag on computeLiveResult2H/computeLiveBtts2H), 0.6
+// (removed _LINE_STRENGTH_MOD double-count and the undocumented bayMod
+// shrink). Only what already existed in this file was touched — no new
+// functionality (e.g. no 1H functions) was added, per the sync-requirement
+// note: this file intentionally lags app.js's feature set until a Telegram
+// strategy actually needs the missing piece.
 
 const _1H_INTENSITY = [[0,15,0.907],[15,30,0.937],[30,45,1.156]];
 const _2H_INTENSITY = [[0,15,0.879],[15,30,0.874],[30,45,1.247]];
@@ -15,18 +24,26 @@ const _FLAT_INTENSITY = [[0,45,1.000]];
 // constant for the full methodology/sample size; mirrored here per the
 // sync-requirement note above.
 const _IT_2H = 5.07;
+// Average REAL stoppage minutes played when it happens — see static/app.js's
+// matching _STOP_MIN_2H comment (Phase 0 fix 0.4) for the full derivation.
+const _STOP_MIN_2H = 3.72;
 
-const _LINE_STRENGTH_MOD = {0.25:0.92,0.50:0.96,0.75:1.00,1.00:1.06,1.25:1.12,1.50:1.18};
+// REMOVED 2026-08-28 (Phase 0 fix 0.6): _LINE_STRENGTH_MOD used to
+// re-multiply lambda by a fav_line-keyed factor — double-counted the line's
+// effect since the anchor historical pool is already filtered by fav_line
+// before scoreBets() runs. Also removed: the unconditional, undocumented
+// `bayMod = 1 - (elapsed/45)*0.05` shrink factor — treated as 1 (no-op).
 // The 2H "who wins the half" 3-way market (favWins2H/draw2H/homeWins2H/
 // awayWins2H) is deliberately excluded — see static/app.js's matching
 // comment: "who wins/draws the 2nd half" depends on the joint evolution of
 // BOTH sides' goal counts, not a single threshold. Falling through to the
 // generic "at least 1 goal" default flipped draw2H to a bogus 100% the
-// moment any 2H goal was scored, and homeWins2H/awayWins2H to a bogus 100%
-// the instant that side took any 2H lead. app.js fixed this with a proper
-// bivariate model (computeLiveResult2H) — not ported here since no current
-// Telegram strategy's bet list includes any of these four keys; port it
-// verbatim from app.js if one ever does, same as everything else in this file.
+// moment any 2H goal was scored by either side, and homeWins2H/awayWins2H to
+// a bogus 100% the instant that side took any 2H lead. app.js fixed this
+// with a proper bivariate model (computeLiveResult2H) — not ported here since
+// no current Telegram strategy's bet list includes any of these four keys;
+// port it verbatim from app.js if one ever does, same as everything else in
+// this file.
 const _2H_BETS_SET = new Set([
   'over05_2H','over15_2H','over25_2H','favScored2H','ahCover',
   'homeScored2H','awayScored2H',
@@ -137,33 +154,39 @@ function computeLiveOdd(pHtPct,betKey,matchMinute,favLine=0.75,
     lam=k===1?-Math.log(1-p):_solveLam(p,k);
   }
 
-  const lineKeys=Object.keys(_LINE_STRENGTH_MOD).map(Number);
-  const closest=lineKeys.reduce((a,b)=>Math.abs(b-favLine)<Math.abs(a-favLine)?b:a);
-  lam*=_LINE_STRENGTH_MOD[closest];
+  // favLine no longer multiplies lambda — see the "REMOVED 2026-08-28"
+  // comment near the top of this file (Phase 0 fix 0.6). Param kept for
+  // call-signature compatibility only.
 
   const baseInt=_baseInt2h(curve);
+  // elapsed2h is no longer capped at 45 — minutes played beyond 90' (real
+  // stoppage time) now extend past 45 so the stoppage-mass consumption below
+  // decays smoothly instead of being frozen at whatever it was at exactly
+  // minute 90 (Phase 0 fix 0.4).
   let elapsed2h,remaining2h,note,fg2h=favGoals2h,dg2h=dogGoals2h;
   if(matchMinute<=45){
     elapsed2h=0;remaining2h=45;fg2h=0;dg2h=0;
     note=`1H min ${matchMinute} — full 2H ahead`;
   }else{
-    elapsed2h=Math.min(45,matchMinute-45);
-    remaining2h=Math.max(0,45-elapsed2h);
+    elapsed2h=matchMinute-45;
+    remaining2h=Math.max(0,45-Math.min(45,elapsed2h));
     note=`Min ${matchMinute} — ${Math.round(remaining2h)} min left in 2H`;
   }
 
+  const regPart=Math.min(45,elapsed2h);
+  const extraPart=Math.max(0,elapsed2h-45); // real minutes played into 2H stoppage time
   const itRate=curve[curve.length-1][2];
-  const remInt=_integrateInt(elapsed2h,45,2,curve)+itRate*_IT_2H;
+  const itFrac=Math.max(0,1-extraPart/_STOP_MIN_2H); // 1 at 90', decays to 0 by ~90'+_STOP_MIN_2H
+  const remInt=_integrateInt(regPart,45,2,curve)+itRate*_IT_2H*itFrac;
   const intFrac=remInt/baseInt;
-  const bayMod=1-(elapsed2h/45)*0.05;
-  let remLam=lam*intFrac*bayMod*_pickScoreMod(betKey,fg2h,dg2h,favSide);
+  let remLam=lam*intFrac*_pickScoreMod(betKey,fg2h,dg2h,favSide);
 
   const goalsScored=fg2h+dg2h;
   let liveP;
 
   if(_UNDER_BETS[betKey]){
     const[,maxG]=_UNDER_BETS[betKey];
-    if(goalsScored>maxG)return{live_p:0,fair_odd:99,note:note+' ✗ Already busted'};
+    if(goalsScored>maxG)return{live_p:0,fair_odd:99,note:note+' ✗ Already busted',alreadyDecided:true};
     const allowed=maxG-goalsScored;
     let prob=0;
     for(let i=0;i<=allowed;i++)prob+=Math.exp(-remLam)*Math.pow(remLam,i)/_fac(i);
@@ -176,7 +199,7 @@ function computeLiveOdd(pHtPct,betKey,matchMinute,favLine=0.75,
     else if(betKey==='awayOver15_2H')need=Math.max(0,2-awayG2h);
     else need=Math.max(0,(_BET_GOAL_THRESHOLD[betKey]||1)-goalsScored);
 
-    if(need===0)return{live_p:100,fair_odd:1.01,note:note+' ✓ Already hit'};
+    if(need===0)return{live_p:100,fair_odd:1.01,note:note+' ✓ Already hit',alreadyDecided:true};
     liveP=_poissonAtLeast(remLam,need)*100;
   }
 
@@ -201,22 +224,39 @@ function computeLiveResult2H(favAnchorP, dogAnchorP, matchMinute, favLine, favGo
   const toLam = p => -Math.log(1 - Math.max(0.001, Math.min(0.999, p / 100)));
   let lamFav = toLam(favAnchorP), lamDog = toLam(dogAnchorP);
 
-  const lineKeys = Object.keys(_LINE_STRENGTH_MOD).map(Number);
-  const closest = lineKeys.reduce((a, b) => Math.abs(b - favLine) < Math.abs(a - favLine) ? b : a);
-  lamFav *= _LINE_STRENGTH_MOD[closest];
+  // favLine no longer multiplies lamFav — see the "REMOVED 2026-08-28"
+  // comment near the top of this file (Phase 0 fix 0.6).
 
   const baseInt = _baseInt2h(curve);
   let elapsed2h, fg2h = favGoals2h, dg2h = dogGoals2h;
   if (matchMinute <= 45) { elapsed2h = 0; fg2h = 0; dg2h = 0; }
-  else { elapsed2h = Math.min(45, matchMinute - 45); }
+  else { elapsed2h = matchMinute - 45; }
+  const regPart = Math.min(45, elapsed2h);
+  const extraPart = Math.max(0, elapsed2h - 45);
   const itRate = curve[curve.length - 1][2];
-  const remInt = _integrateInt(elapsed2h, 45, 2, curve) + itRate * _IT_2H;
+  const itFrac = Math.max(0, 1 - extraPart / _STOP_MIN_2H);
+  const remInt = _integrateInt(regPart, 45, 2, curve) + itRate * _IT_2H * itFrac;
   const intFrac = remInt / baseInt;
-  const bayMod = 1 - (elapsed2h / 45) * 0.05;
 
   const bucket = _marginBucket(fg2h - dg2h);
-  const remLamFav = lamFav * intFrac * bayMod * _FAV_SCORE_MOD[bucket];
-  const remLamDog = lamDog * intFrac * bayMod * _DOG_SCORE_MOD[bucket];
+  const remLamFav = lamFav * intFrac * _FAV_SCORE_MOD[bucket];
+  const remLamDog = lamDog * intFrac * _DOG_SCORE_MOD[bucket];
+
+  // Phase 0 fix 0.5: when there's effectively no remaining goal-scoring mass
+  // left for EITHER side, the final margin is already fixed by fg2h/dg2h —
+  // flag alreadyDecided so callers (notify.js) can skip pricing/alerting a
+  // market that's already resolved instead of showing a probability that's
+  // still (very slightly) short of 100%/0%.
+  const REMLAM_EPS = 1e-6;
+  if (remLamFav < REMLAM_EPS && remLamDog < REMLAM_EPS) {
+    const finalMargin = fg2h - dg2h;
+    return {
+      fav_win_p: finalMargin > 0 ? 100 : 0,
+      draw_p:    finalMargin === 0 ? 100 : 0,
+      dog_win_p: finalMargin < 0 ? 100 : 0,
+      alreadyDecided: true,
+    };
+  }
 
   const CAP = 10; // 2H goal counts beyond this are negligible at any realistic lambda
   let favWinP = 0, drawP = 0, dogWinP = 0;
@@ -239,12 +279,17 @@ function computeLiveResult2H(favAnchorP, dogAnchorP, matchMinute, favLine, favGo
 
 // BTTS 2H — verbatim port of static/app.js's computeLiveBtts2H. Modeled as
 // the product of each side's own live "scores in 2H" probability, same
-// independence assumption as the app.js original.
+// independence assumption as the app.js original. Phase 0 fix 0.5: now
+// returns { live_p, alreadyDecided } instead of a raw number — alreadyDecided
+// once BOTH sides' own computeLiveOdd call has itself resolved.
 function computeLiveBtts2H(homeAnchorP, awayAnchorP, minute, favLine, favG2h, dogG2h, favSide, useFlatDecay) {
   const homeRes = computeLiveOdd(homeAnchorP, 'homeScored2H', minute, favLine, favG2h, dogG2h, favSide, useFlatDecay);
   const awayRes = computeLiveOdd(awayAnchorP, 'awayScored2H', minute, favLine, favG2h, dogG2h, favSide, useFlatDecay);
   if (homeRes.live_p == null || awayRes.live_p == null) return null;
-  return Math.round(homeRes.live_p * awayRes.live_p) / 100;
+  return {
+    live_p: Math.round(homeRes.live_p * awayRes.live_p) / 100,
+    alreadyDecided: !!(homeRes.alreadyDecided && awayRes.alreadyDecided),
+  };
 }
 
 // Which computeLiveResult2H output field each of the 4 "2H Result" keys
@@ -258,7 +303,47 @@ function _2hResultField(betKey, favSide) {
   return (isHomeKey === homeIsFav) ? 'fav_win_p' : 'dog_win_p';
 }
 
+// Phase 0 fix 0.8 — Monte Carlo confidence interval for the bivariate/BTTS
+// live-decay markets, port of static/app.js's _mcLivePercentile/_mcLiveLo/
+// _mcLiveHi. Replaces "run once with both anchors at their own Wilson lower
+// bound" (invalid joint lower bound — see app.js's comment for the full
+// rationale) with 500 independent joint draws per anchor's approximate
+// Normal(p, se) distribution (se derived from [lo,hi] as a ~95% CI), taking
+// the requested percentile of the resulting target-field values.
+const _MC_SAMPLES = 500;
+
+function _boxMullerSample(mean, se) {
+  let u = 0, v = 0;
+  while (u === 0) u = Math.random();
+  while (v === 0) v = Math.random();
+  const z = Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+  return mean + z * se;
+}
+
+function _wilsonSE(lo, hi) {
+  return Math.max(0.01, (hi - lo) / (2 * 1.96));
+}
+
+function _mcLivePercentile(anchorA, anchorB, buildFn, pct) {
+  const seA = _wilsonSE(anchorA.lo, anchorA.hi);
+  const seB = _wilsonSE(anchorB.lo, anchorB.hi);
+  const samples = [];
+  for (let i = 0; i < _MC_SAMPLES; i++) {
+    const a = Math.max(0.1, Math.min(99.9, _boxMullerSample(anchorA.p, seA)));
+    const b = Math.max(0.1, Math.min(99.9, _boxMullerSample(anchorB.p, seB)));
+    const v = buildFn(a, b);
+    if (v != null) samples.push(v);
+  }
+  if (!samples.length) return null;
+  samples.sort((x, y) => x - y);
+  const idx = Math.max(0, Math.min(samples.length - 1, Math.floor(samples.length * pct)));
+  return samples[idx];
+}
+function mcLiveLo(anchorA, anchorB, buildFn) { return _mcLivePercentile(anchorA, anchorB, buildFn, 0.05); }
+function mcLiveHi(anchorA, anchorB, buildFn) { return _mcLivePercentile(anchorA, anchorB, buildFn, 0.95); }
+
 module.exports = {
   computeLiveOdd, _2H_BETS_SET, _BET_SCORE_MOD_CLASS,
   computeLiveResult2H, computeLiveBtts2H, _2hResultField, _2H_RESULT_KEYS,
+  mcLiveLo, mcLiveHi,
 };

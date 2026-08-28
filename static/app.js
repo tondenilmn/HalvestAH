@@ -21,15 +21,30 @@ const MIN_EDGE       = 0;
 // still beats baseline by at least MIN_EDGE pp — mirrors telegram/notify.js's
 // l123Qualifies. Used to gate Top Pick, the PRE/GS ✓ badges, and what counts
 // as "not yet qualifying" for Value Hunting.
+// Minimum live-decayed probability (%) below which a bet is never worth
+// calling "qualifying" regardless of edge — Phase 0 fix 0.2's second guard.
+const _LIVE_MIN_P = 5;
+
 function qualifiesBet(b) {
+  if (!b) return false;
+  // Phase 0 fix 0.2: a live-decayed bet (buildLiveAdjustedBet/
+  // buildLive1HAdjustedBet, tagged _liveDecayed) must ALWAYS be re-checked
+  // against its own live-decayed lo/bl (Phase 0 fix 0.1 made these
+  // live-consistent), even if it also carries _pricedFold from the cross-fit
+  // selection step it was decayed from — a bet whose live probability has
+  // decayed to near-zero must not keep showing "✓ QUALIFIES" just because
+  // the PRE-decay historical bet once qualified.
+  if (b._liveDecayed) {
+    return b.p >= _LIVE_MIN_P && (b.lo - b.bl) >= MIN_EDGE;
+  }
   // Cross-fit bets (see crossFitBets()/mergeCrossFit(), added lower down)
   // are tagged _pricedFold — their qualification was already decided by the
   // OTHER (selecting) fold, not by this object's own z/lo, so re-checking
   // the raw bar against the pricing fold's own numbers here would be both
   // redundant and sometimes wrongly negative (the pricing fold's own z can
   // legitimately sit under the bar even though the selecting fold's did not).
-  if (b && b._pricedFold) return true;
-  return !!b && b.z >= MIN_Z && (b.lo - b.bl) >= MIN_EDGE;
+  if (b._pricedFold) return true;
+  return b.z >= MIN_Z && (b.lo - b.bl) >= MIN_EDGE;
 }
 
 const VALID_LINES = [0.00, 0.25, 0.50, 0.75, 1.00, 1.25, 1.50];
@@ -142,6 +157,34 @@ async function loadGoalTimingSummary() {
     const res = await fetch('data/goal_timing_summary.json');
     if (res.ok) _goalTimingSummary = await res.json();
   } catch (e) { _goalTimingSummary = null; }
+}
+
+// ── E7: new live_model.js pricing engine (additive, Live Games "beta" toggle) ──
+// Same lazy-load-once-cache pattern as loadGoalTimingSummary above: not
+// fetched at page load, only the first time the toggle is switched on.
+// `LiveModel` is the global exposed by static/live_model.js (loaded via a
+// plain <script> tag in index.html, before app.js — see its UMD wrapper).
+let _liveModelReady = false;
+let _liveModelLoadFailed = false;
+async function loadLiveModelData() {
+  if (_liveModelReady) return true;
+  if (typeof LiveModel === 'undefined') { _liveModelLoadFailed = true; return false; }
+  try {
+    const [hazardRes, lookupRes] = await Promise.all([
+      fetch('data/goal_hazard.json'),
+      fetch('data/lambda_lookup.json'),
+    ]);
+    if (!hazardRes.ok || !lookupRes.ok) { _liveModelLoadFailed = true; return false; }
+    const hazard = await hazardRes.json();
+    const lambdaLookup = await lookupRes.json();
+    LiveModel.init({ hazard, lambdaLookup });
+    _liveModelReady = true;
+    _liveModelLoadFailed = false;
+    return true;
+  } catch (e) {
+    _liveModelLoadFailed = true;
+    return false;
+  }
 }
 
 // 1H/2H-flavoured bet keys this dashboard can cross-check against a league's
@@ -702,11 +745,19 @@ function cfgMoveLabel(v) {
 // documented "status-left" signature pattern, not a one-off for this list.
 const _DASH_TIER_DOT_CLS = { HIGH: 'bd-strong', MEDIUM: 'bd-good', LOW: 'bd-weak' };
 
-// The bet name and its advised min odds together, on one row, so the two
-// things a user actually needs — what to bet, and the price it's worth
-// betting at — aren't separated by other numbers. Shared by every place a
-// single pick is surfaced in a scannable card: Dashboard fixture rows, Live
-// Games match cards, and the "ALL QUALIFYING BETS" list.
+// The bet name and its advised fair odds together, on one row, so the two
+// things a user actually needs — what to bet, and the zero-margin price it's
+// worth betting at — aren't separated by other numbers. Shared by every
+// place a single pick is surfaced in a scannable card: Dashboard fixture
+// rows, Live Games match cards, and the "ALL QUALIFYING BETS" list.
+//
+// Label fixed 2026-08-28 (Phase 0, direct consequence of the live-decay
+// bugfixes touching this code path): this used to say "min odds", but
+// bet.mo is 100/p — the FAIR odds at zero bookmaker margin, not a
+// recommended minimum-acceptable price (that's bet.mo_lo, the Wilson
+// CI-lower-bound price, now correctly live-decayed per Phase 0 fix 0.7).
+// Mislabeling it "min odds" read as "bet if you can get at least this",
+// which is backwards — bet.mo is the break-even line, not a safety margin.
 function renderBetPickBlock(bet, qualifies) {
   const flag = qualifies
     ? '<span class="pick-flag pick-flag-pass">✓ QUALIFIES</span>'
@@ -714,15 +765,22 @@ function renderBetPickBlock(bet, qualifies) {
   return `
     <div class="pick-row">
       <div class="pick-label">${esc(bet.label)}${flag}</div>
-      <div class="pick-odds" title="Bet only if you can get at least this price">
+      <div class="pick-odds" title="Break-even (zero-margin) odds implied by this bet's probability — bet only at a real price higher than this">
         <span class="pick-odds-value">${bet.mo}</span>
-        <span class="pick-odds-label">min odds</span>
+        <span class="pick-odds-label">fair odds</span>
       </div>
     </div>
     <div class="col-prob">
       <span class="prob-pct">${bet.p.toFixed(1)}%</span>
       <span class="prob-edge ${bet.edge >= 0 ? 'pos' : 'neg'}">${bet.edge >= 0 ? '+' : ''}${bet.edge.toFixed(1)}pp vs ${bet.bl.toFixed(1)}% baseline</span>
-    </div>`;
+    </div>
+    ${bet.lo != null && bet.hi != null ? `
+    <div class="bet-ci">
+      CI [${bet.lo.toFixed(1)}%–${bet.hi.toFixed(1)}%]
+      <span class="${bet.lo >= bet.bl ? 'prob-edge pos' : 'prob-edge neg'}">
+        ${bet.lo >= bet.bl ? `✓ lo clears baseline (${(bet.lo - bet.bl).toFixed(1)}pp)` : `✗ lo doesn't clear baseline (${(bet.lo - bet.bl).toFixed(1)}pp) — likely noise at this n`}
+      </span>
+    </div>` : ''}`;
 }
 
 // The scannable core of one fixture: team names + tier dot, bet + prob/edge,
@@ -2256,11 +2314,29 @@ const _FLAT_INTENSITY = [[0,45,1.000]];
 // check the calibration passes, not something it was tuned to hit.
 const _IT_2H = 5.07;
 const _IT_1H = 2.40;
+// Average REAL stoppage minutes played when it happens (as opposed to
+// _IT_1H/_IT_2H, which are the model's own internal rate-integral mass, not
+// real minutes) — same goals_time2 calibration run (2026-08-26) that
+// produced _IT_1H/_IT_2H: 1H stoppage averaged 2.65 real added minutes when
+// it occurred, 2H averaged 3.72. Used (2026-08-28, Phase 0 fix 0.4) as the
+// reference length over which a match's remaining stoppage-time goal mass is
+// consumed in real time once matchMinute passes 45/90, instead of being
+// frozen in full for the entire stoppage window (the old behaviour showed
+// the same ~12% "stoppage time still ahead" mass at 90+6' as at 90+0').
+const _STOP_MIN_1H = 2.65;
+const _STOP_MIN_2H = 3.72;
 
-// Validated against this app's own ~165k-match dataset (AH line vs. average
-// 2H goals) — observed ratios landed within ~1-2% of these values, so kept
-// unchanged rather than "corrected".
-const _LINE_STRENGTH_MOD = {0.25:0.92,0.50:0.96,0.75:1.00,1.00:1.06,1.25:1.12,1.50:1.18};
+// REMOVED 2026-08-28 (Phase 0 fix 0.6): _LINE_STRENGTH_MOD used to
+// re-multiply lambda by a fav_line-keyed factor (0.92x-1.18x) inside every
+// live-decay function below. The anchor historical pool Live Games/Telegram
+// feed into these functions is ALREADY filtered by fav_line (via
+// applyConfig/cfg.fav_line before scoreBets() ever runs), so re-applying a
+// line-strength multiplier on top double-counted the line's effect — and
+// inconsistently (only on the fav side in the bivariate functions, on
+// whichever side betKey pointed to in the univariate one). Also removed:
+// the unconditional `bayMod = 1 - (elapsed/45)*0.05` shrink factor, which had
+// no documented derivation anywhere in this codebase — treated as 1 (no-op)
+// rather than kept as an unexplained ~0-5% haircut.
 // The 2H "who wins the half" 3-way market (favWins2H/draw2H/homeWins2H/
 // awayWins2H) is deliberately excluded from the generic single-threshold
 // path below — unlike every other key here, "who wins/draws the 2nd half"
@@ -2439,18 +2515,26 @@ function computeLiveOdd(pHtPct,betKey,matchMinute,favLine=0.75,
     lam=k===1?-Math.log(1-p):_solveLam(p,k);
   }
 
-  const lineKeys=Object.keys(_LINE_STRENGTH_MOD).map(Number);
-  const closest=lineKeys.reduce((a,b)=>Math.abs(b-favLine)<Math.abs(a-favLine)?b:a);
-  lam*=_LINE_STRENGTH_MOD[closest];
+  // favLine no longer multiplies lambda here — see the "REMOVED 2026-08-28"
+  // comment above _STOP_MIN_1H/_STOP_MIN_2H (Phase 0 fix 0.6); the param is
+  // kept for call-signature compatibility only.
 
   const baseInt=_baseInt2h(curve);
+  // elapsed2h is no longer capped at 45 — minutes played beyond 90' (real
+  // stoppage time) now extend past 45 so the stoppage-mass consumption below
+  // can decay smoothly instead of being frozen at whatever it was at exactly
+  // minute 90 (Phase 0 fix 0.4). regPart is the part of elapsed2h that falls
+  // inside the normal 0-45 curve integral; extraPart is real minutes played
+  // into second-half stoppage time, used only to decay the itRate*_IT_2H
+  // mass, not to extend the curve integral itself (there's no data on
+  // intensity shape *inside* stoppage time, only its total share).
   let elapsed2h,remaining2h,note,fg2h=favGoals2h,dg2h=dogGoals2h;
   if(matchMinute<=45){
     elapsed2h=0;remaining2h=45;fg2h=0;dg2h=0;
     note=`1H min ${matchMinute} — full 2H ahead`;
   }else{
-    elapsed2h=Math.min(45,matchMinute-45);
-    remaining2h=Math.max(0,45-elapsed2h);
+    elapsed2h=matchMinute-45;
+    remaining2h=Math.max(0,45-Math.min(45,elapsed2h));
     note=`Min ${matchMinute} — ${Math.round(remaining2h)} min left in 2H`;
   }
 
@@ -2462,11 +2546,13 @@ function computeLiveOdd(pHtPct,betKey,matchMinute,favLine=0.75,
   // "already hit"/"already busted" checks and remLam naturally -> ~0 as
   // remaining time -> 0 (injury-time allowance aside).
 
+  const regPart=Math.min(45,elapsed2h);
+  const extraPart=Math.max(0,elapsed2h-45); // real minutes played into 2H stoppage time
   const itRate=curve[curve.length-1][2];
-  const remInt=_integrateInt(elapsed2h,45,2,curve)+itRate*_IT_2H;
+  const itFrac=Math.max(0,1-extraPart/_STOP_MIN_2H); // 1 at 90', decays to 0 by ~90'+_STOP_MIN_2H
+  const remInt=_integrateInt(regPart,45,2,curve)+itRate*_IT_2H*itFrac;
   const intFrac=remInt/baseInt;
-  const bayMod=1-(elapsed2h/45)*0.05;
-  let remLam=lam*intFrac*bayMod*_pickScoreMod(betKey,fg2h,dg2h,favSide);
+  let remLam=lam*intFrac*_pickScoreMod(betKey,fg2h,dg2h,favSide);
 
   const goalsScored=fg2h+dg2h;
   let liveP;
@@ -2527,20 +2613,24 @@ function computeLive1HOdd(pKickoffPct,betKey,matchMinute,favLine=0.75,
     lam=k===1?-Math.log(1-p):_solveLam(p,k);
   }
 
-  const lineKeys=Object.keys(_LINE_STRENGTH_MOD).map(Number);
-  const closest=lineKeys.reduce((a,b)=>Math.abs(b-favLine)<Math.abs(a-favLine)?b:a);
-  lam*=_LINE_STRENGTH_MOD[closest];
+  // favLine no longer multiplies lambda — see the "REMOVED 2026-08-28"
+  // comment above _STOP_MIN_1H/_STOP_MIN_2H (Phase 0 fix 0.6).
 
   const baseInt=_baseInt1h(curve);
-  const elapsed1h=Math.min(45,Math.max(0,matchMinute));
-  const remaining1h=Math.max(0,45-elapsed1h);
+  // elapsed1h no longer clamped to 45 — real 1H-stoppage minutes (matchMinute
+  // > 45, still before HT) extend past it so the stoppage-mass consumption
+  // below decays in real time (Phase 0 fix 0.4), mirroring computeLiveOdd.
+  const elapsed1h=Math.max(0,matchMinute);
+  const remaining1h=Math.max(0,45-Math.min(45,elapsed1h));
   const note=`Min ${matchMinute} — ${Math.round(remaining1h)} min left in 1H`;
 
+  const regPart=Math.min(45,elapsed1h);
+  const extraPart=Math.max(0,elapsed1h-45); // real minutes played into 1H stoppage time
   const itRate=curve[curve.length-1][2];
-  const remInt=_integrateInt(elapsed1h,45,1,curve)+itRate*_IT_1H;
+  const itFrac=Math.max(0,1-extraPart/_STOP_MIN_1H);
+  const remInt=_integrateInt(regPart,45,1,curve)+itRate*_IT_1H*itFrac;
   const intFrac=remInt/baseInt;
-  const bayMod=1-(elapsed1h/45)*0.05;
-  let remLam=lam*intFrac*bayMod;
+  let remLam=lam*intFrac;
 
   const goalsScored=homeGoals1h+awayGoals1h;
   let liveP;
@@ -2587,22 +2677,40 @@ function computeLiveResult2H(favAnchorP, dogAnchorP, matchMinute, favLine, favGo
   const toLam = p => -Math.log(1 - Math.max(0.001, Math.min(0.999, p / 100)));
   let lamFav = toLam(favAnchorP), lamDog = toLam(dogAnchorP);
 
-  const lineKeys = Object.keys(_LINE_STRENGTH_MOD).map(Number);
-  const closest = lineKeys.reduce((a, b) => Math.abs(b - favLine) < Math.abs(a - favLine) ? b : a);
-  lamFav *= _LINE_STRENGTH_MOD[closest];
+  // favLine no longer multiplies lamFav — see the "REMOVED 2026-08-28"
+  // comment above _STOP_MIN_1H/_STOP_MIN_2H (Phase 0 fix 0.6).
 
   const baseInt = _baseInt2h(curve);
   let elapsed2h, fg2h = favGoals2h, dg2h = dogGoals2h;
   if (matchMinute <= 45) { elapsed2h = 0; fg2h = 0; dg2h = 0; }
-  else { elapsed2h = Math.min(45, matchMinute - 45); }
+  else { elapsed2h = matchMinute - 45; }
+  const regPart = Math.min(45, elapsed2h);
+  const extraPart = Math.max(0, elapsed2h - 45);
   const itRate = curve[curve.length - 1][2];
-  const remInt = _integrateInt(elapsed2h, 45, 2, curve) + itRate * _IT_2H;
+  const itFrac = Math.max(0, 1 - extraPart / _STOP_MIN_2H);
+  const remInt = _integrateInt(regPart, 45, 2, curve) + itRate * _IT_2H * itFrac;
   const intFrac = remInt / baseInt;
-  const bayMod = 1 - (elapsed2h / 45) * 0.05;
 
   const bucket = _marginBucket(fg2h - dg2h);
-  const remLamFav = lamFav * intFrac * bayMod * _FAV_SCORE_MOD[bucket];
-  const remLamDog = lamDog * intFrac * bayMod * _DOG_SCORE_MOD[bucket];
+  const remLamFav = lamFav * intFrac * _FAV_SCORE_MOD[bucket];
+  const remLamDog = lamDog * intFrac * _DOG_SCORE_MOD[bucket];
+
+  // Phase 0 fix 0.5: when there's effectively no remaining goal-scoring mass
+  // left for EITHER side, the final margin is already fixed by fg2h/dg2h —
+  // compute it directly from the current score and flag alreadyDecided so
+  // callers can drop this from qualifying/live lists the same way the
+  // single-threshold bets already do via _ALREADY_DECIDED, instead of
+  // showing a probability that's still (very slightly) short of 100%/0%.
+  const REMLAM_EPS = 1e-6;
+  if (remLamFav < REMLAM_EPS && remLamDog < REMLAM_EPS) {
+    const finalMargin = fg2h - dg2h;
+    return {
+      fav_win_p: finalMargin > 0 ? 100 : 0,
+      draw_p:    finalMargin === 0 ? 100 : 0,
+      dog_win_p: finalMargin < 0 ? 100 : 0,
+      alreadyDecided: true,
+    };
+  }
 
   const CAP = 10; // 2H goal counts beyond this are negligible at any realistic lambda
   let favWinP = 0, drawP = 0, dogWinP = 0;
@@ -2631,11 +2739,18 @@ function computeLiveResult2H(favAnchorP, dogAnchorP, matchMinute, favLine, favGo
 // independence assumption, same simplifying spirit as the rest of this
 // engine's live-decay math (no joint home/away goal-timing data exists to
 // calibrate a true correlation against).
+// Returns { live_p, alreadyDecided } — alreadyDecided (Phase 0 fix 0.5) once
+// BOTH sides' own "scores in 2H" call has itself resolved (either already hit
+// or run out of remaining goal-scoring mass), since at that point the BTTS
+// outcome is fixed and there's no live bet left to place.
 function computeLiveBtts2H(homeAnchorP, awayAnchorP, minute, favLine, favG2h, dogG2h, favSide, useFlatDecay) {
   const homeRes = computeLiveOdd(homeAnchorP, 'homeScored2H', minute, favLine, favG2h, dogG2h, favSide, useFlatDecay);
   const awayRes = computeLiveOdd(awayAnchorP, 'awayScored2H', minute, favLine, favG2h, dogG2h, favSide, useFlatDecay);
   if (homeRes.live_p == null || awayRes.live_p == null) return null;
-  return Math.round(homeRes.live_p * awayRes.live_p) / 100;
+  return {
+    live_p: Math.round(homeRes.live_p * awayRes.live_p) / 100,
+    alreadyDecided: !!(homeRes.alreadyDecided && awayRes.alreadyDecided),
+  };
 }
 
 // Which computeLiveResult2H output field each of the 4 "2H Result" keys
@@ -2647,6 +2762,53 @@ function _2hResultField(betKey, favSide) {
   const homeIsFav = favSide === 'HOME';
   return (isHomeKey === homeIsFav) ? 'fav_win_p' : 'dog_win_p';
 }
+
+// Phase 0 fix 0.8 — Monte Carlo confidence interval for the bivariate/BTTS
+// live-decay markets. The old approach ran the deterministic model ONCE with
+// BOTH anchor probabilities simultaneously lowered to their own Wilson lower
+// bounds — not a valid joint lower bound (lowering the dog's rate can
+// actually RAISE favWinP, since less competition for the "who's ahead at the
+// end" race), and the resulting loRes[field] > p case was then silently
+// clamped back to p via Math.min, collapsing the interval to a point with
+// zero conservatism exactly where the model is weakest (two anchors
+// combined, not one). Instead: treat each anchor's [lo,hi] as a rough 95% CI
+// (Normal approx, se = (hi-lo)/(2*1.96)), independently sample each anchor
+// probability N times, run the deterministic model per sample pair, and take
+// the 5th percentile of the resulting target-field values as the new `lo`.
+const _MC_SAMPLES = 500;
+
+function _boxMullerSample(mean, se) {
+  let u = 0, v = 0;
+  while (u === 0) u = Math.random();
+  while (v === 0) v = Math.random();
+  const z = Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+  return mean + z * se;
+}
+
+function _wilsonSE(lo, hi) {
+  return Math.max(0.01, (hi - lo) / (2 * 1.96));
+}
+
+// buildFn(sampleA, sampleB) -> number in [0,100]. anchorA/anchorB need
+// .p/.lo/.hi. Returns the requested percentile (0.05 for a conservative
+// `lo`, 0.95 for `hi`) across _MC_SAMPLES joint draws.
+function _mcLivePercentile(anchorA, anchorB, buildFn, pct) {
+  const seA = _wilsonSE(anchorA.lo, anchorA.hi);
+  const seB = _wilsonSE(anchorB.lo, anchorB.hi);
+  const samples = [];
+  for (let i = 0; i < _MC_SAMPLES; i++) {
+    const a = Math.max(0.1, Math.min(99.9, _boxMullerSample(anchorA.p, seA)));
+    const b = Math.max(0.1, Math.min(99.9, _boxMullerSample(anchorB.p, seB)));
+    const v = buildFn(a, b);
+    if (v != null) samples.push(v);
+  }
+  if (!samples.length) return null;
+  samples.sort((x, y) => x - y);
+  const idx = Math.max(0, Math.min(samples.length - 1, Math.floor(samples.length * pct)));
+  return samples[idx];
+}
+function _mcLiveLo(anchorA, anchorB, buildFn) { return _mcLivePercentile(anchorA, anchorB, buildFn, 0.05); }
+function _mcLiveHi(anchorA, anchorB, buildFn) { return _mcLivePercentile(anchorA, anchorB, buildFn, 0.95); }
 
 // Wraps computeLiveOdd's (or, for the 2H Result 3-way market,
 // computeLiveResult2H's) output back into a scoreBets()-shaped bet object so
@@ -2666,8 +2828,17 @@ function _2hResultField(betKey, favSide) {
 // e.g. "Over 0.5 in 2H" once a goal has already gone in this half.
 const _ALREADY_DECIDED = Symbol('bet-already-decided');
 
+// Phase 0 fix 0.7: favLine=0 (level ball) is a legitimate value that must
+// survive — `parseFloat(x) || 0.75` treats it as falsy and silently swaps in
+// 0.75. Use a NaN-aware check instead, falling back to 0.75 only when the
+// value is genuinely missing/unparseable.
+function _favLineOrDefault(favLine) {
+  const n = parseFloat(favLine);
+  return Number.isNaN(n) ? 0.75 : n;
+}
+
 function buildLiveAdjustedBet(anchorBet, minute, favG2h, dogG2h, favSide, favLine, useFlatDecay, htBetsMap) {
-  const favLineNum = parseFloat(favLine) || 0.75;
+  const favLineNum = _favLineOrDefault(favLine);
 
   if (_2H_RESULT_KEYS.has(anchorBet.k)) {
     if (!htBetsMap) return null;
@@ -2675,16 +2846,43 @@ function buildLiveAdjustedBet(anchorBet, minute, favG2h, dogG2h, favSide, favLin
     const dogAnchor = htBetsMap.get(favSide === 'HOME' ? 'awayScored2H' : 'homeScored2H');
     if (!favAnchor || !dogAnchor) return null;
     const field = _2hResultField(anchorBet.k, favSide);
-    const point = computeLiveResult2H(favAnchor.p,  dogAnchor.p,  minute, favLineNum, favG2h, dogG2h, useFlatDecay);
-    const loRes = computeLiveResult2H(favAnchor.lo, dogAnchor.lo, minute, favLineNum, favG2h, dogG2h, useFlatDecay);
-    const p  = point[field];
-    const lo = Math.min(p, loRes[field]);
+    const point = computeLiveResult2H(favAnchor.p, dogAnchor.p, minute, favLineNum, favG2h, dogG2h, useFlatDecay);
+    if (point.alreadyDecided) return _ALREADY_DECIDED;
+    const p = point[field];
+    // Phase 0 fix 0.8: joint Monte Carlo CI instead of "run once with both
+    // anchors at their own Wilson lower bound" (invalid — lowering the dog's
+    // rate can raise favWinP, and Math.min(p, ...) then silently clamped that
+    // back to p, removing all conservatism).
+    const loMc = _mcLiveLo(favAnchor, dogAnchor, (a, b) => {
+      const r = computeLiveResult2H(a, b, minute, favLineNum, favG2h, dogG2h, useFlatDecay);
+      return r[field];
+    });
+    const hiMc = _mcLiveHi(favAnchor, dogAnchor, (a, b) => {
+      const r = computeLiveResult2H(a, b, minute, favLineNum, favG2h, dogG2h, useFlatDecay);
+      return r[field];
+    });
+    const lo = Math.min(p, loMc != null ? loMc : p);
+    const hi = Math.max(p, hiMc != null ? hiMc : p);
+    // Phase 0 fix 0.1: decay the baseline through the SAME bivariate model —
+    // favAnchor.bl/dogAnchor.bl are the baseline pool's own favScored2H/
+    // oppScored2H rates (from the same scoreBets() pass), so running them
+    // through computeLiveResult2H answers "what would this result market's
+    // rate be at the baseline pool's scoring rates, decayed to this minute" —
+    // a live-consistent baseline instead of the stale undecayed anchorBet.bl.
+    const blRes = computeLiveResult2H(favAnchor.bl, dogAnchor.bl, minute, favLineNum, favG2h, dogG2h, useFlatDecay);
+    const bl = blRes[field];
     return {
       ...anchorBet,
-      p, lo,
-      edge: p - anchorBet.bl,
+      p, lo, hi, bl,
+      edge: p - bl,
       mo: minOdds(p),
+      mo_lo: minOdds(lo),
       mo_mid: minOdds((p + lo) / 2),
+      // z is stale (carried from the HT-anchor bet, computed against the
+      // undecayed anchor baseline) — not meaningful for a live-decayed
+      // probability. Kept on the object (some UI paths read it defensively)
+      // but explicitly flagged so nothing displays it as if it were live.
+      _zIsHistoricalOnly: true,
       matches: [],
       _liveDecayed: true,
       _liveLabel: `LIVE @ ${minute}'`,
@@ -2696,17 +2894,30 @@ function buildLiveAdjustedBet(anchorBet, minute, favG2h, dogG2h, favSide, favLin
     const homeAnchor = htBetsMap.get('homeScored2H');
     const awayAnchor = htBetsMap.get('awayScored2H');
     if (!homeAnchor || !awayAnchor) return null;
-    const p  = computeLiveBtts2H(homeAnchor.p,  awayAnchor.p,  minute, favLineNum, favG2h, dogG2h, favSide, useFlatDecay);
-    const loRaw = computeLiveBtts2H(homeAnchor.lo, awayAnchor.lo, minute, favLineNum, favG2h, dogG2h, favSide, useFlatDecay);
-    if (p == null) return null;
-    if (p >= 100) return _ALREADY_DECIDED; // both sides have already scored
-    const lo = Math.min(p, loRaw != null ? loRaw : p);
+    const pointRes = computeLiveBtts2H(homeAnchor.p, awayAnchor.p, minute, favLineNum, favG2h, dogG2h, favSide, useFlatDecay);
+    if (pointRes == null) return null;
+    if (pointRes.alreadyDecided || pointRes.live_p >= 100) return _ALREADY_DECIDED;
+    const p = pointRes.live_p;
+    const loMc = _mcLiveLo(homeAnchor, awayAnchor, (a, b) => {
+      const r = computeLiveBtts2H(a, b, minute, favLineNum, favG2h, dogG2h, favSide, useFlatDecay);
+      return r ? r.live_p : null;
+    });
+    const hiMc = _mcLiveHi(homeAnchor, awayAnchor, (a, b) => {
+      const r = computeLiveBtts2H(a, b, minute, favLineNum, favG2h, dogG2h, favSide, useFlatDecay);
+      return r ? r.live_p : null;
+    });
+    const lo = Math.min(p, loMc != null ? loMc : p);
+    const hi = Math.max(p, hiMc != null ? hiMc : p);
+    const blRaw = computeLiveBtts2H(homeAnchor.bl, awayAnchor.bl, minute, favLineNum, favG2h, dogG2h, favSide, useFlatDecay);
+    const bl = blRaw ? blRaw.live_p : anchorBet.bl;
     return {
       ...anchorBet,
-      p, lo,
-      edge: p - anchorBet.bl,
+      p, lo, hi, bl,
+      edge: p - bl,
       mo: minOdds(p),
+      mo_lo: minOdds(lo),
       mo_mid: minOdds((p + lo) / 2),
+      _zIsHistoricalOnly: true,
       matches: [],
       _liveDecayed: true,
       _liveLabel: `LIVE @ ${minute}'`,
@@ -2719,16 +2930,27 @@ function buildLiveAdjustedBet(anchorBet, minute, favG2h, dogG2h, favSide, favLin
   if (pointRes.live_p == null) return null;
   if (pointRes.alreadyDecided) return _ALREADY_DECIDED;
   const loRes = computeLiveOdd(anchorBet.lo, anchorBet.k, minute, favLineNum, favG2h, dogG2h, favSide, useFlatDecay);
+  const hiRes = computeLiveOdd(anchorBet.hi, anchorBet.k, minute, favLineNum, favG2h, dogG2h, favSide, useFlatDecay);
+  // Phase 0 fix 0.1: decay the baseline (anchorBet.bl) through the SAME
+  // function/minute/goals as p, so edge = p_live - bl_live instead of
+  // comparing a decayed probability against a stale undecayed baseline (the
+  // old edge drifted negative purely from time passing, with no real signal
+  // change — see qualifiesBet's docs and CLAUDE.md Phase 0 item 0.1).
+  const blRes = computeLiveOdd(anchorBet.bl, anchorBet.k, minute, favLineNum, favG2h, dogG2h, favSide, useFlatDecay);
 
   const p  = pointRes.live_p;
   const lo = Math.min(p, loRes.live_p != null ? loRes.live_p : p);
+  const hi = Math.max(p, hiRes.live_p != null ? hiRes.live_p : p);
+  const bl = blRes.live_p != null ? blRes.live_p : anchorBet.bl;
 
   return {
     ...anchorBet,
-    p, lo,
-    edge: p - anchorBet.bl,
+    p, lo, hi, bl,
+    edge: p - bl,
     mo: minOdds(p),
+    mo_lo: minOdds(lo),
     mo_mid: minOdds((p + lo) / 2),
+    _zIsHistoricalOnly: true,
     matches: [], // historical match list belongs to the (undecayed) anchor rate — drop it rather than show stale detail
     _liveDecayed: true,
     _liveLabel: `LIVE @ ${minute}'`,
@@ -2745,19 +2967,32 @@ function computeLiveResult1H(favAnchorP, dogAnchorP, matchMinute, favLine, favGo
   const toLam = p => -Math.log(1 - Math.max(0.001, Math.min(0.999, p / 100)));
   let lamFav = toLam(favAnchorP), lamDog = toLam(dogAnchorP);
 
-  const lineKeys = Object.keys(_LINE_STRENGTH_MOD).map(Number);
-  const closest = lineKeys.reduce((a, b) => Math.abs(b - favLine) < Math.abs(a - favLine) ? b : a);
-  lamFav *= _LINE_STRENGTH_MOD[closest];
+  // favLine no longer multiplies lamFav — see the "REMOVED 2026-08-28"
+  // comment above _STOP_MIN_1H/_STOP_MIN_2H (Phase 0 fix 0.6).
 
   const baseInt = _baseInt1h(curve);
-  const elapsed1h = Math.min(45, Math.max(0, matchMinute));
+  const elapsed1h = Math.max(0, matchMinute);
+  const regPart = Math.min(45, elapsed1h);
+  const extraPart = Math.max(0, elapsed1h - 45);
   const itRate = curve[curve.length - 1][2];
-  const remInt = _integrateInt(elapsed1h, 45, 1, curve) + itRate * _IT_1H;
+  const itFrac = Math.max(0, 1 - extraPart / _STOP_MIN_1H);
+  const remInt = _integrateInt(regPart, 45, 1, curve) + itRate * _IT_1H * itFrac;
   const intFrac = remInt / baseInt;
-  const bayMod = 1 - (elapsed1h / 45) * 0.05;
 
-  const remLamFav = lamFav * intFrac * bayMod;
-  const remLamDog = lamDog * intFrac * bayMod;
+  const remLamFav = lamFav * intFrac;
+  const remLamDog = lamDog * intFrac;
+
+  // Phase 0 fix 0.5 — see computeLiveResult2H's matching comment.
+  const REMLAM_EPS = 1e-6;
+  if (remLamFav < REMLAM_EPS && remLamDog < REMLAM_EPS) {
+    const finalMargin = favGoals1h - dogGoals1h;
+    return {
+      fav_win_p: finalMargin > 0 ? 100 : 0,
+      draw_p:    finalMargin === 0 ? 100 : 0,
+      dog_win_p: finalMargin < 0 ? 100 : 0,
+      alreadyDecided: true,
+    };
+  }
 
   const CAP = 10;
   let favWinP = 0, drawP = 0, dogWinP = 0;
@@ -2784,7 +3019,10 @@ function computeLiveBtts1H(homeAnchorP, awayAnchorP, minute, favLine, homeG1h, a
   const homeRes = computeLive1HOdd(homeAnchorP, 'homeScored1H', minute, favLine, homeG1h, awayG1h, useFlatDecay);
   const awayRes = computeLive1HOdd(awayAnchorP, 'awayScored1H', minute, favLine, homeG1h, awayG1h, useFlatDecay);
   if (homeRes.live_p == null || awayRes.live_p == null) return null;
-  return Math.round(homeRes.live_p * awayRes.live_p) / 100;
+  return {
+    live_p: Math.round(homeRes.live_p * awayRes.live_p) / 100,
+    alreadyDecided: !!(homeRes.alreadyDecided && awayRes.alreadyDecided),
+  };
 }
 
 // Which computeLiveResult1H output field each of the 4 "1H Result" keys reads.
@@ -2803,7 +3041,7 @@ function _1hResultField(betKey, favSide) {
 // Result keys (favScored1H) and btts1H (homeScored1H/awayScored1H), neither
 // of which is itself in Live Games' displayed 1H set.
 function buildLive1HAdjustedBet(anchorBet, minute, homeG1h, awayG1h, favSide, favLine, useFlatDecay, anchorBetsMap) {
-  const favLineNum = parseFloat(favLine) || 0.75;
+  const favLineNum = _favLineOrDefault(favLine);
   const favG1h = favSide === 'HOME' ? homeG1h : awayG1h;
   const dogG1h = favSide === 'HOME' ? awayG1h : homeG1h;
 
@@ -2813,16 +3051,30 @@ function buildLive1HAdjustedBet(anchorBet, minute, homeG1h, awayG1h, favSide, fa
     const dogAnchor = anchorBetsMap.get(favSide === 'HOME' ? 'awayScored1H' : 'homeScored1H');
     if (!favAnchor || !dogAnchor) return null;
     const field = _1hResultField(anchorBet.k, favSide);
-    const point = computeLiveResult1H(favAnchor.p,  dogAnchor.p,  minute, favLineNum, favG1h, dogG1h, useFlatDecay);
-    const loRes = computeLiveResult1H(favAnchor.lo, dogAnchor.lo, minute, favLineNum, favG1h, dogG1h, useFlatDecay);
-    const p  = point[field];
-    const lo = Math.min(p, loRes[field]);
+    const point = computeLiveResult1H(favAnchor.p, dogAnchor.p, minute, favLineNum, favG1h, dogG1h, useFlatDecay);
+    if (point.alreadyDecided) return _ALREADY_DECIDED;
+    const p = point[field];
+    // Phase 0 fixes 0.1/0.8 — see buildLiveAdjustedBet's matching comments.
+    const loMc = _mcLiveLo(favAnchor, dogAnchor, (a, b) => {
+      const r = computeLiveResult1H(a, b, minute, favLineNum, favG1h, dogG1h, useFlatDecay);
+      return r[field];
+    });
+    const hiMc = _mcLiveHi(favAnchor, dogAnchor, (a, b) => {
+      const r = computeLiveResult1H(a, b, minute, favLineNum, favG1h, dogG1h, useFlatDecay);
+      return r[field];
+    });
+    const lo = Math.min(p, loMc != null ? loMc : p);
+    const hi = Math.max(p, hiMc != null ? hiMc : p);
+    const blRes = computeLiveResult1H(favAnchor.bl, dogAnchor.bl, minute, favLineNum, favG1h, dogG1h, useFlatDecay);
+    const bl = blRes[field];
     return {
       ...anchorBet,
-      p, lo,
-      edge: p - anchorBet.bl,
+      p, lo, hi, bl,
+      edge: p - bl,
       mo: minOdds(p),
+      mo_lo: minOdds(lo),
       mo_mid: minOdds((p + lo) / 2),
+      _zIsHistoricalOnly: true,
       matches: [],
       _liveDecayed: true,
       _liveLabel: `LIVE @ ${minute}'`,
@@ -2834,17 +3086,30 @@ function buildLive1HAdjustedBet(anchorBet, minute, homeG1h, awayG1h, favSide, fa
     const homeAnchor = anchorBetsMap.get('homeScored1H');
     const awayAnchor = anchorBetsMap.get('awayScored1H');
     if (!homeAnchor || !awayAnchor) return null;
-    const p  = computeLiveBtts1H(homeAnchor.p,  awayAnchor.p,  minute, favLineNum, homeG1h, awayG1h, useFlatDecay);
-    const loRaw = computeLiveBtts1H(homeAnchor.lo, awayAnchor.lo, minute, favLineNum, homeG1h, awayG1h, useFlatDecay);
-    if (p == null) return null;
-    if (p >= 100) return _ALREADY_DECIDED; // both sides have already scored
-    const lo = Math.min(p, loRaw != null ? loRaw : p);
+    const pointRes = computeLiveBtts1H(homeAnchor.p, awayAnchor.p, minute, favLineNum, homeG1h, awayG1h, useFlatDecay);
+    if (pointRes == null) return null;
+    if (pointRes.alreadyDecided || pointRes.live_p >= 100) return _ALREADY_DECIDED;
+    const p = pointRes.live_p;
+    const loMc = _mcLiveLo(homeAnchor, awayAnchor, (a, b) => {
+      const r = computeLiveBtts1H(a, b, minute, favLineNum, homeG1h, awayG1h, useFlatDecay);
+      return r ? r.live_p : null;
+    });
+    const hiMc = _mcLiveHi(homeAnchor, awayAnchor, (a, b) => {
+      const r = computeLiveBtts1H(a, b, minute, favLineNum, homeG1h, awayG1h, useFlatDecay);
+      return r ? r.live_p : null;
+    });
+    const lo = Math.min(p, loMc != null ? loMc : p);
+    const hi = Math.max(p, hiMc != null ? hiMc : p);
+    const blRaw = computeLiveBtts1H(homeAnchor.bl, awayAnchor.bl, minute, favLineNum, homeG1h, awayG1h, useFlatDecay);
+    const bl = blRaw ? blRaw.live_p : anchorBet.bl;
     return {
       ...anchorBet,
-      p, lo,
-      edge: p - anchorBet.bl,
+      p, lo, hi, bl,
+      edge: p - bl,
       mo: minOdds(p),
+      mo_lo: minOdds(lo),
       mo_mid: minOdds((p + lo) / 2),
+      _zIsHistoricalOnly: true,
       matches: [],
       _liveDecayed: true,
       _liveLabel: `LIVE @ ${minute}'`,
@@ -2857,16 +3122,23 @@ function buildLive1HAdjustedBet(anchorBet, minute, homeG1h, awayG1h, favSide, fa
   if (pointRes.live_p == null) return null;
   if (pointRes.alreadyDecided) return _ALREADY_DECIDED;
   const loRes = computeLive1HOdd(anchorBet.lo, anchorBet.k, minute, favLineNum, homeG1h, awayG1h, useFlatDecay);
+  const hiRes = computeLive1HOdd(anchorBet.hi, anchorBet.k, minute, favLineNum, homeG1h, awayG1h, useFlatDecay);
+  // Phase 0 fix 0.1 — see buildLiveAdjustedBet's matching comment.
+  const blRes = computeLive1HOdd(anchorBet.bl, anchorBet.k, minute, favLineNum, homeG1h, awayG1h, useFlatDecay);
 
   const p  = pointRes.live_p;
   const lo = Math.min(p, loRes.live_p != null ? loRes.live_p : p);
+  const hi = Math.max(p, hiRes.live_p != null ? hiRes.live_p : p);
+  const bl = blRes.live_p != null ? blRes.live_p : anchorBet.bl;
 
   return {
     ...anchorBet,
-    p, lo,
-    edge: p - anchorBet.bl,
+    p, lo, hi, bl,
+    edge: p - bl,
     mo: minOdds(p),
+    mo_lo: minOdds(lo),
     mo_mid: minOdds((p + lo) / 2),
+    _zIsHistoricalOnly: true,
     matches: [],
     _liveDecayed: true,
     _liveLabel: `LIVE @ ${minute}'`,
@@ -2893,6 +3165,11 @@ const state = {
   useFlatDecay: false,   // live 2H odds: shaped (literature-sourced) vs flat time-decay
   liveTierFilter: 'MAJOR', // which live matches are shown, by their OWN league tier (Live Games only)
   dashboardTierFilter: 'MAJOR', // which fixtures are shown, by their OWN league tier (Dashboard only)
+  exchangeCommissionPct: 2, // % commission on net winnings (Betfair-style), applied to the new pricing model's back/lay display; 0 = soft-bookmaker (no commission)
+  useNewLiveModel: true, // E7: additive toggle for the new live_model.js pricing panel (Live Games only),
+                          // session-only (not persisted) — mirrors the "either is fine" guidance in
+                          // LIVE_BETTING_PLAN.md E7; kept simple since this is a beta compare-view toggle,
+                          // not a setting worth surviving a reload the way HT anchors need to.
 };
 
 // Bundled CSVs use ISO "YYYY-MM-DD" dates (confirmed across all 15 files in
@@ -3844,7 +4121,7 @@ function buildBetCol(bet, passes, title, subtitle, rank, colId, minN) {
     <div class="progress-bar"><div class="progress-fill" style="width:${fill}%;background:${bColor}"></div></div>
     <div class="col-stats">
       ${sampleBadge(bet.n, minN)}
-      <span class="badge-z">z=${bet.z.toFixed(2)}</span>
+      <span class="badge-z"${bet._zIsHistoricalOnly ? ' title="Historical z-score, carried over from the pre-decay anchor bet — not recomputed against the live-decayed probability/baseline above"' : ''}>z=${bet.z.toFixed(2)}${bet._zIsHistoricalOnly ? ' (hist.)' : ''}</span>
       <span class="col-baseline">bl ${bet.bl.toFixed(1)}%</span>
     </div>
     <div class="bet-ci">CI [${bet.lo}%–${bet.hi}%]</div>
@@ -4185,13 +4462,21 @@ function matchKey(m) {
   return m.id || `${m.home_team}:${m.away_team}`;
 }
 
-// "23'" -> 23, "45+2'" -> 45, "HT" -> 45 (HT itself is treated as the
-// anchor-capture moment, same as the rest of 2H-start handling below).
+// "23'" -> 23, "45+2'" -> 47, "90+4'" -> 94, "HT" -> 45 (HT itself is treated
+// as the anchor-capture moment, same as the rest of 2H-start handling
+// below). Phase 0 fix 0.4: previously dropped the "+N" stoppage-time offset
+// entirely ("90+4" -> 90), which froze the live-decay model at minute 90 for
+// the whole of stoppage time — computeLiveOdd/computeLiveResult2H/1H now
+// consume this real elapsed minute to decay the remaining stoppage-time
+// goal mass proportionally (see _STOP_MIN_1H/_STOP_MIN_2H).
 function parseLiveMinute(raw) {
   if (raw == null) return null;
   if (raw === 'HT') return 45;
-  const m = String(raw).match(/(\d+)/);
-  return m ? parseInt(m[1], 10) : null;
+  const m = String(raw).match(/(\d+)(?:\+(\d+))?/);
+  if (!m) return null;
+  const base = parseInt(m[1], 10);
+  const extra = m[2] ? parseInt(m[2], 10) : 0;
+  return base + extra;
 }
 
 function loadHtAnchors() {
@@ -4298,7 +4583,17 @@ function analyzeLiveMatch(match, minute) {
   // ("PRE-MATCH", no time info); the live-decayed numbers go in
   // gsBets/liveBets ("IN-PLAY"), same pre/gs split the HT-anchored 2H branch
   // below uses.
-  if (!anchor && match.score) {
+  //
+  // Phase 0 fix 0.3: gated on minute < 45 — without this, a match at e.g.
+  // minute 70 with no captured HT anchor (the app wasn't watching during the
+  // 44-50 capture window) fell into this branch too, treating the FULL
+  // match score as if it were the 1H score and clamping minute to 45
+  // internally, silently mislabeling 20+ minutes of 2H play as still-1H. Once
+  // minute >= 45 with no anchor, anchorStatus stays 'unknown' (the default
+  // set above) and this match gets pre-match bets only — never a live
+  // column — until a fresh HT anchor is captured (impossible for this match
+  // instance; the 44-50 window has already passed).
+  if (!anchor && match.score && minute < 45) {
     const [curH, curA] = match.score.split('-').map(Number);
     if (!isNaN(curH) && !isNaN(curA)) {
       const preBetsMap = new Map(preBetsAll.map(b => [b.k, b]));
@@ -4401,6 +4696,16 @@ function analyzeLiveMatch(match, minute) {
   };
 }
 
+// NOTE (Phase 0 audit item 0.1): for a _liveDecayed bet, b.z is the stale
+// pre-decay historical z-score (see _zIsHistoricalOnly) while b.lo is now a
+// correctly live-decayed, live-consistent CI lower bound (Phase 0 fixes
+// 0.1/0.8). Multiplying the two together mixes a historical significance
+// measure with a live probability — not internally consistent, but left as
+// the ranking metric (rather than inventing a live-z formula that hasn't
+// been validated) since it's document-only exposure: qualifiesBet's own
+// gate for live bets (Phase 0 fix 0.2) no longer depends on z at all, so
+// rankScore only affects ORDER among already-qualifying bets, not whether a
+// decayed-to-nothing bet can qualify in the first place.
 function rankScore(b) {
   return b ? b.z * (b.lo / 100) : -Infinity;
 }
@@ -4463,6 +4768,9 @@ async function pollLiveMatches() {
 
 function startLivePolling() {
   loadHtAnchors();
+  if (state.useNewLiveModel && !_liveModelReady) {
+    loadLiveModelData().then(() => { if (_activeTab === 'live') renderLiveGames(); });
+  }
   pollLiveMatches();
   if (_livePollTimer) { clearInterval(_livePollTimer); _livePollTimer = null; }
   if (_liveAutoRefresh) _livePollTimer = setInterval(pollLiveMatches, LIVE_POLL_MS);
@@ -4477,6 +4785,223 @@ function toggleLiveAutoRefresh(checked) {
   if (_activeTab !== 'live') return;
   if (_liveAutoRefresh) startLivePolling();
   else stopLivePolling();
+}
+
+/* ── E7: new live_model.js pricing panel (additive beta toggle) ──────────
+   Old bucket-hit-rate Live Games pipeline above (analyzeLiveMatch etc.) is
+   untouched. This is a second, independent read of the SAME live match —
+   reusing its already-computed cfg (fav_line/fav_side/tl_c, from
+   buildCfgFromLiveOdds) and HT anchor (analysis.htScore, from the existing
+   _liveHtAnchors map) rather than rebuilding either — priced through
+   static/live_model.js's joint hazard/gamma-Poisson model instead of a
+   32-bucket hit-rate lookup. See LIVE_BETTING_PLAN.md Part E / E7. */
+function toggleNewLiveModel(checked) {
+  state.useNewLiveModel = !!checked;
+  if (state.useNewLiveModel && !_liveModelReady) {
+    loadLiveModelData().then(() => { if (_activeTab === 'live') renderLiveGames(); });
+  }
+  if (_activeTab === 'live') renderLiveGames();
+}
+
+function setExchangeCommission(pct) {
+  state.exchangeCommissionPct = Math.max(0, Math.min(20, parseFloat(pct) || 0));
+  if (_activeTab === 'live') renderLiveGames();
+}
+
+// Small, useful market set per LIVE_BETTING_PLAN.md E7: match-remainder O/U
+// at a couple of relevant lines, BTTS-remainder, live 1X2, and the
+// next-15-minutes "no goal" trading signal Part C's exchange strategies
+// care about. `priceLadder` prices all of them from ONE shared set of Monte
+// Carlo draws, so they stay internally consistent with each other.
+// 2026-08-29: added Over/Under 0.5 & 1.5 2H (scope:'half') alongside BTTS —
+// this is the same "stable" market family LATEGOAL/QUIET2H/NEWMODEL now
+// track in Telegram (real historical validation behind the goal-occurrence
+// signal, cleaner settlement than result markets), so the live UI shows the
+// same markets you're getting alerts for, for on-demand manual checking.
+// `key`/`label` are UI-only fields (live_model.js reads type/line/scope/
+// side/window/yes and ignores the rest) — used to build the market-filter
+// dropdown (toggleLiveModelMarketFilter) and to match a priced row back to
+// its spec (row.spec.key), since priceLadder() passes the spec object
+// through unchanged.
+const LIVE_MODEL_LADDER = [
+  { key: 'result_home', label: '1X2: Home',      type: 'result', side: 'home', scope: 'match' },
+  { key: 'result_draw', label: '1X2: Draw',      type: 'result', side: 'draw', scope: 'match' },
+  { key: 'result_away', label: '1X2: Away',      type: 'result', side: 'away', scope: 'match' },
+  { key: 'over15_ft',   label: 'Over 1.5 FT',    type: 'over',  line: 1.5, scope: 'match' },
+  { key: 'over25_ft',   label: 'Over 2.5 FT',    type: 'over',  line: 2.5, scope: 'match' },
+  { key: 'under25_ft',  label: 'Under 2.5 FT',   type: 'under', line: 2.5, scope: 'match' },
+  { key: 'btts',        label: 'BTTS Yes',       type: 'btts',  scope: 'remainder' },
+  { key: 'over05_2h',   label: 'Over 0.5 2H',    type: 'over',  line: 0.5, scope: 'half' },
+  { key: 'over15_2h',   label: 'Over 1.5 2H',    type: 'over',  line: 1.5, scope: 'half' },
+  { key: 'under05_2h',  label: 'Under 0.5 2H',   type: 'under', line: 0.5, scope: 'half' },
+  { key: 'under15_2h',  label: 'Under 1.5 2H',   type: 'under', line: 1.5, scope: 'half' },
+  { key: 'nextgoal15',  label: 'Next 15 min: no goal', type: 'nextgoal', side: 'none', window: 15 },
+];
+// Default compact subset shown on the collapsed match card when no custom
+// filter is active (full ladder is reserved for the detail modal) — keys
+// into LIVE_MODEL_LADDER above.
+const LIVE_MODEL_LADDER_COMPACT_KEYS = ['btts', 'over05_2h', 'over15_2h', 'under05_2h', 'nextgoal15'];
+
+// 2026-08-29: market filter — lets the user pick exactly which market(s) to
+// see (e.g. "only Over 0.5 2H"), overriding the compact-card default AND
+// narrowing the detail modal's normally-full ladder down to the same
+// selection. Empty set = no filter, fall back to the defaults above.
+let _liveModelFilterKeys = new Set();
+
+function toggleLiveModelMarketFilter(key, checked) {
+  if (checked) _liveModelFilterKeys.add(key);
+  else _liveModelFilterKeys.delete(key);
+  if (_activeTab === 'live') renderLiveGames();
+}
+
+function clearLiveModelMarketFilter() {
+  _liveModelFilterKeys.clear();
+  document.querySelectorAll('.live-model-filter-cb').forEach(cb => { cb.checked = false; });
+  if (_activeTab === 'live') renderLiveGames();
+}
+
+// Builds the state object live_model.js's priceMarket/priceLadder expects,
+// reusing analyzeLiveMatch()'s already-computed cfg (AH line/side, TL) and
+// HT anchor instead of re-deriving them from the raw feed.
+//
+// RED CARDS: functions/api/livescore.js's own header comment confirms
+// getDatalive1's args[4] "statusCode" field (e.g. 'Q1_FA3-SB1-FC2') is
+// parsed nowhere into the match objects this app receives — parseGetData1Calls
+// only extracts matchId/teams/league/minute/score from it, the rest of the
+// string is never decoded. So there is no real red-card signal available
+// from this codebase's live feed today; red_h/red_a are hardcoded to 0
+// (11 v 11) rather than fabricated, and the UI caption below says so.
+function buildLiveModelState(analysis) {
+  const { match, cfg, htScore } = analysis;
+  if (!cfg) return null;
+  const favLine = parseFloat(cfg.fav_line);
+  if (isNaN(favLine)) return null;
+  // live_model.js's ah_line convention (confirmed against lambda_lookup.json
+  // cells, e.g. "-1.5|2.5|OTHER" has mh >> ma): negative = HOME favourite,
+  // same sign convention buildRawCfgFromLiveOdds reads off ah_hc directly.
+  const ah_line = cfg.fav_side === 'AWAY' ? favLine : -favLine;
+  const tl = cfg.tl_c != null ? parseFloat(cfg.tl_c) : null;
+  let home_goals = 0, away_goals = 0;
+  if (match.score) {
+    const parts = match.score.split('-').map(Number);
+    if (!isNaN(parts[0]) && !isNaN(parts[1])) { home_goals = parts[0]; away_goals = parts[1]; }
+  }
+  const tier = (analysis.leagueTier === 'TOP' || analysis.leagueTier === 'MAJOR') ? analysis.leagueTier : 'OTHER';
+  const st = { tier, ah_line, tl, home_goals, away_goals, red_h: 0, red_a: 0 };
+  if (htScore) { st.ht_home_goals = htScore.home; st.ht_away_goals = htScore.away; }
+
+  // Per-match implied lambda (AH+O/U-only solver — same fix as telegram/
+  // notify.js's runStrategyNewModel, see static/live_lambda_solver.js).
+  // Without this, LiveModel._normState() silently falls back to
+  // lambda_lookup.json's bucket MEDIAN (an average over every historical
+  // match sharing this AH-line/TL/tier cell) instead of a real per-match
+  // estimate — that bucket-fallback gap existed here from E7 until this fix.
+  st.lambdaSource = 'bucket_fallback';
+  if (typeof LiveLambdaSolver !== 'undefined' && match.odds) {
+    const solved = LiveLambdaSolver.solveLambdaFromOdds({
+      ahLine: ah_line,
+      ahHomeOdds: match.odds.ho_c, ahAwayOdds: match.odds.ao_c,
+      tl, overOdds: match.odds.ov_c, underOdds: match.odds.un_c,
+      tier,
+    });
+    if (solved.ok) {
+      st.lambda_h = solved.lambda_h; st.lambda_a = solved.lambda_a; st.rho = solved.rho;
+      st.lambdaSource = 'per_match_solver';
+    }
+  }
+  return st;
+}
+
+// Prices LIVE_MODEL_LADDER for one match. Returns { rows, clock } on
+// success, { error } if live_model.js itself threw (e.g. an unparseable
+// clock string or a lambda_lookup.json cell genuinely absent), or null if
+// there isn't enough of this match's own data to build a state object yet.
+function priceLiveModel(analysis) {
+  const st = buildLiveModelState(analysis);
+  if (!st) return null;
+  try {
+    const commission = Math.max(0, Math.min(0.5, (parseFloat(state.exchangeCommissionPct) || 0) / 100));
+    const rows = LiveModel.priceLadder(LIVE_MODEL_LADDER, st, analysis.match.minute, { samples: 300, commission });
+    return { rows, clock: rows[0] ? rows[0].clock : null, lambdaSource: st.lambdaSource };
+  } catch (e) {
+    return { error: e.message || String(e) };
+  }
+}
+
+function liveModelOddsCell(v) { return v != null ? v.toFixed(2) : '—'; }
+
+// One row of the ladder, in the same "label / fair odds" visual language
+// renderBetPickBlock established (Phase 0's fair-odds label fix) — extended
+// with min-back/max-lay (the CI-derived prices) since that's this engine's
+// whole point (a real sampled interval, not the old "run it twice at the
+// Wilson lower bound" trick — see live_model.js's own header comment).
+function renderLiveModelRow(r) {
+  return `
+    <div class="pick-row">
+      <div class="pick-label">${esc(r.market)}</div>
+      <div class="pick-odds" title="Fair (zero-margin) odds, from this engine's joint score distribution">
+        <span class="pick-odds-value">${liveModelOddsCell(r.fair_odds)}</span>
+        <span class="pick-odds-label">fair odds</span>
+      </div>
+    </div>
+    <div class="col-stats" style="margin:2px 0 8px">
+      <span>${(r.p * 100).toFixed(1)}%</span>
+      <span style="color:var(--dim)">CI [${r.lo != null ? (r.lo * 100).toFixed(1) : '—'}–${r.hi != null ? (r.hi * 100).toFixed(1) : '—'}%]</span>
+      <span style="color:var(--dim)" title="Zero-commission breakeven (soft bookmaker)">min-back ${liveModelOddsCell(r.min_back_odds)} · max-lay ${liveModelOddsCell(r.max_lay_odds)}</span>
+      ${r.commission > 0 ? `<span style="color:var(--accent)" title="Breakeven price after ${(r.commission * 100).toFixed(1)}% exchange commission on net winnings">after ${(r.commission * 100).toFixed(1)}% commission: back ≥ ${liveModelOddsCell(r.min_back_odds_net)} · lay ≤ ${liveModelOddsCell(r.max_lay_odds_net)}</span>` : ''}
+    </div>`;
+}
+
+// State banner (score/minute/red-card caveat) + market ladder. With no
+// custom filter active: `compact` shows LIVE_MODEL_LADDER_COMPACT_KEYS (the
+// collapsed match card), the detail modal gets the full ladder. Once the
+// user picks specific markets via toggleLiveModelMarketFilter, BOTH views
+// narrow down to exactly that selection (a filter beats the compact
+// default, since picking "only Over 0.5 2H" should apply everywhere, not
+// just in the modal).
+function renderLiveModelPanel(analysis, compact) {
+  const { match } = analysis;
+  let body;
+  if (typeof LiveModel === 'undefined') {
+    body = `<p style="font-size:11px;color:var(--dim)">live_model.js failed to load — new pricing model unavailable.</p>`;
+  } else if (_liveModelLoadFailed) {
+    body = `<p style="font-size:11px;color:var(--dim)">Could not load goal_hazard.json / lambda_lookup.json — new pricing model unavailable.</p>`;
+  } else if (!_liveModelReady) {
+    body = `<p style="font-size:11px;color:var(--dim)">Loading new pricing model data…</p>`;
+  } else {
+    const pricing = priceLiveModel(analysis);
+    if (!pricing) {
+      body = `<p style="font-size:11px;color:var(--dim)">Not enough config data for this match yet (closing odds needed).</p>`;
+    } else if (pricing.error) {
+      body = `<p style="font-size:11px;color:var(--dim)">Could not price this match: ${esc(pricing.error)}</p>`;
+    } else {
+      let rows;
+      if (_liveModelFilterKeys.size) {
+        rows = pricing.rows.filter(r => _liveModelFilterKeys.has(r.spec.key));
+      } else if (compact) {
+        const order = new Map(LIVE_MODEL_LADDER_COMPACT_KEYS.map((k, i) => [k, i]));
+        rows = pricing.rows.filter(r => order.has(r.spec.key)).sort((a, b) => order.get(a.spec.key) - order.get(b.spec.key));
+      } else {
+        rows = pricing.rows;
+      }
+      body = rows.length
+        ? rows.map(renderLiveModelRow).join('')
+        : `<p style="font-size:11px;color:var(--dim)">No market matches the current filter.</p>`;
+      if (pricing.lambdaSource === 'bucket_fallback') {
+        body += `<p style="font-size:10px;color:var(--dim);font-style:italic;margin-top:4px">
+          ⚠ Using a historical bucket-average scale (AH/O-U odds missing or unsolvable for this match), not this match's own per-match estimate.</p>`;
+      }
+    }
+  }
+  return `
+    <div class="cfg-summary" style="margin-top:10px">
+      🧪 <b>New pricing model (beta)</b> — score ${esc(match.score || '—')} · minute ${esc(String(match.minute))} ·
+      <span style="color:var(--dim)">11 v 11 assumed (card data unavailable from the live feed — see CLAUDE.md/plan; red-card effect not live-wired)</span>
+    </div>
+    <p style="font-size:10px;color:var(--dim);font-style:italic;margin-top:2px">
+      ⚠ Odds shown are fair-value estimates, not confirmed live prices — this app's live feed carries the pre-match closing line
+      (it does not re-price after kickoff). Always check your bookmaker's current live price before betting.</p>
+    ${body}`;
 }
 
 function anchorStatusNote(analysis) {
@@ -4658,6 +5183,7 @@ function renderLiveMatchCard(analysis, idx) {
     <div class="scan-meta">${esc(match.league || '—')} · ${esc(anchorStatusNote(analysis))} ${anchorStatusBadge(analysis)}</div>
     <div class="scan-score-detail">${formatHtScoreLine(analysis)}</div>
     ${previewHtml}
+    ${state.useNewLiveModel ? `<div onclick="event.stopPropagation()">${renderLiveModelPanel(analysis, true)}</div>` : ''}
   </div>`;
 }
 
@@ -4701,6 +5227,11 @@ function openLiveMatchDetail(idx) {
     const ahSide = cfg.fav_side === 'AWAY' ? 'Away' : 'Home';
     bodyHtml = `<div class="cfg-summary" style="color:var(--bright)">${formatHtScoreLine(analysis)}</div>`;
     bodyHtml += `<div class="cfg-summary">${ahSide} AH −${cfg.fav_line} · line ${cfgMoveLabel(cfg.line_move)} · fav odds ${cfgMoveLabel(cfg.fav_odds_move)} · dog odds ${cfgMoveLabel(cfg.dog_odds_move)} · TL ${cfg.tl_c ?? '—'} (${cfgMoveLabel(cfg.tl_move)}) · over ${cfgMoveLabel(cfg.over_move)} · under ${cfgMoveLabel(cfg.under_move)} · ${analysis.cfg_n} matching records</div>`;
+
+    if (state.useNewLiveModel) {
+      bodyHtml += `<div class="section-label" style="margin-top:18px">NEW PRICING MODEL (BETA) — MARKET LADDER</div>`;
+      bodyHtml += renderLiveModelPanel(analysis, false);
+    }
 
     // rank namespace prefixed 'live-detail-' so this modal's Kelly widgets
     // never collide with Manual Analysis's own numeric/'top' ranks in the
