@@ -16,7 +16,7 @@
 // redeploy when both auto-discovery paths are stuck (paste the fresh hash
 // from a local `node -e "require('./livescore').refreshHashes().then(console.log)"` run).
 let PINNACLE_HASH = process.env.PINNACLE_HASH || '30e528c380c96b362ffacdc66b2808c8ad59ce9e';
-let BET365_HASH   = process.env.BET365_HASH   || '93d95c5e8742f7c98f6f1c8342cfbe7fa003a525';
+let BET365_HASH   = process.env.BET365_HASH   || '6f8bbe38e5554e2b299bb07bfe3f19640061088a';
 let SBOBET_HASH   = process.env.SBOBET_HASH   || 'f1bd8f485d42c4e9700599b0db02cd537a78801f';
 const GS_PRIMARY    = 'Q';
 const GS_CANDIDATES = ['Q', '1', '2', '3', 'AH', 'S', 'EU', 'A', 'ah', 's', '4', '5', '10', '6', '7', '8', 'B', 'F'];

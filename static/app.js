@@ -329,17 +329,25 @@ function deriveOpeningContext(odds) {
   return { favSide, favLine, favOo, tlO };
 }
 
-// Near-kickoff window in which the Dashboard also runs L123-style movement
-// (Layer 2) and closing/current-odds (Layer 3) signals on top of Layer 1
-// (openingOddsSignal), mirroring telegram/notify.js's Strategy L123. Kept
-// narrow deliberately: L123's closing-odds layer is only actually validated
-// against the true closing line taken within PRE_MATCH_WINDOW_MIN (10 min)
-// of kickoff — at the Dashboard's wider windows (1h/4h/24h) the "current"
-// odds field is just an early snapshot that can still move a lot before
-// kickoff, so treating it as Layer 3 there would misrepresent a signal that
-// was never validated at that horizon. 30 min (this dashboard's own
-// narrowest window option) is a conservative compromise, not the 10 min
-// notify.js itself fires on.
+// Near-kickoff window in which the Dashboard switches its headline pick
+// from Layer 1 (openingOddsSignal) to Layer 2 (movement) alone.
+//
+// Originally ran the full L123 3-layer consensus here, mirroring
+// telegram/notify.js's Strategy L123. Replaced 2026-08-28 with movement
+// standalone after backtesting both against real Bet365 closing prices
+// across 19 held-out months: the 3-layer consensus (and closing-odds Layer
+// 3 specifically) showed no reliable edge — pooled ROI negative in both
+// TOP+MAJOR and OTHER tier, and Layer 3 alone consistently the worst of the
+// three layers, likely because its own signal converges toward what the
+// market already prices in. Movement alone showed a stable, walk-forward-
+// consistent edge for Over/Under 2.5 at TL 2.5-3 specifically, especially
+// once gated on the real bookmaker price clearing our conservative min-odds
+// (mo_lo) — +10% pooled ROI on that gated subset across 19 months (see
+// telegram/backtest_l2_by_favline.js, backtest_tl25_over_under.js). 30 min
+// (this dashboard's own narrowest window option) is kept as the cutoff so
+// the "current" odds field used to build the movement cfg is close enough
+// to the true closing line to be meaningful, not an early snapshot that
+// can still move a lot before kickoff.
 const NEAR_KICKOFF_MIN = 30;
 
 function minutesToKickoff(match) {
@@ -348,69 +356,34 @@ function minutesToKickoff(match) {
   return (t - Date.now()) / 60000;
 }
 
-// Layer 3 — closing/current odds only (fav odds band + TL band off the
-// live-feed's current line), mirrors telegram/notify.js's layer3Live.
-function closingOddsSignal(favLine, favSide, favOc, tlC) {
-  if (favOc == null) return null;
-  const base = getDb().filter(r => r.fav_line === favLine && r.fav_side === favSide);
-  if (base.length < DEFAULT_MIN_N) return null;
-  const oddsBand = DASHBOARD_ODDS_BANDS.find(b => inOddsBand(favOc, b));
-  const tlBand = Object.values(TL_CLUSTERS).find(b => inOddsBand(tlC, b));
-  const cfgRows = base.filter(r => inOddsBand(r.fav_oc, oddsBand) && (tlBand ? inOddsBand(r.tl_c, tlBand) : true));
-  if (cfgRows.length < DEFAULT_MIN_N) return null;
-  const qualifying = scoreBets(cfgRows, base, base, DEFAULT_MIN_N, { includeMatches: false })
-    .filter(b => _DASHBOARD_BET_KEYS.has(b.k))
-    .filter(qualifiesBet);
-  return qualifying[0] || null;
-}
-
 // Layer 2 — movement only (line/TL move + fav/dog odds move), mirrors
 // telegram/notify.js's layer2Live. moveCfg comes from buildCfgFromLiveOdds,
 // which already restricts fav/dog odds move + over/under move to only the
 // dimension whose Tier-1 counterpart (line/TL) is STABLE.
+//
+// Cross-fit corrected (2026-08-27) — same rationale/pattern as
+// closingOddsSignal above.
 function movementSignal(moveCfg) {
-  const cfgRows = applyConfig(getDb(), moveCfg);
-  if (cfgRows.length < DEFAULT_MIN_N) return null;
   const fl = parseFloat(moveCfg.fav_line);
-  const base = getDb().filter(r => Math.abs(r.fav_line - fl) < 0.13 && r.fav_side === moveCfg.fav_side);
-  if (base.length < DEFAULT_MIN_N) return null;
-  const qualifying = scoreBets(cfgRows, base, base, DEFAULT_MIN_N, { includeMatches: false })
-    .filter(b => _DASHBOARD_BET_KEYS.has(b.k))
-    .filter(qualifiesBet);
+  const filterRows = (pool) => {
+    const stateRows = applyConfig(pool, moveCfg);
+    const baselineRows = pool.filter(r => Math.abs(r.fav_line - fl) < 0.13 && r.fav_side === moveCfg.fav_side);
+    return { stateRows, baselineRows, baselineSideRows: baselineRows };
+  };
+  const { betsA, betsB } = computeFoldPair(getDb(), filterRows, DEFAULT_MIN_N, { includeMatches: false });
+  const crossFit = (betsA.length && betsB.length) ? mergeCrossFit(betsA, betsB) : [];
+  const qualifying = crossFit.length
+    ? crossFit.filter(b => _DASHBOARD_BET_KEYS.has(b.k)).sort((a, b) => (b.z * (b.lo / 100)) - (a.z * (a.lo / 100)))
+    : (() => {
+        const cfgRows = applyConfig(getDb(), moveCfg);
+        if (cfgRows.length < DEFAULT_MIN_N) return [];
+        const base = getDb().filter(r => Math.abs(r.fav_line - fl) < 0.13 && r.fav_side === moveCfg.fav_side);
+        if (base.length < DEFAULT_MIN_N) return [];
+        return scoreBets(cfgRows, base, base, DEFAULT_MIN_N, { includeMatches: false })
+          .filter(b => _DASHBOARD_BET_KEYS.has(b.k))
+          .filter(qualifiesBet);
+      })();
   return qualifying[0] || null;
-}
-
-// Combines Layer 1 (sig1, already computed via openingOddsSignal), Layer 2
-// and Layer 3 the same way telegram/notify.js's runStrategyL123 does: each
-// layer independently proposes a bet from only its own slice of information,
-// and the fixture only gets an L123-style consensus if at least 2 of the
-// layers that managed to produce a rec land on the SAME bet key. Returns
-// null if fewer than 2 layers agree (including when fewer than 2 layers
-// produced a rec at all).
-function l123ConsensusSignal(sig1, odds, favLine, favSide) {
-  const moveCfg = buildCfgFromLiveOdds(odds);
-  if (!moveCfg) return null;
-  const favOc = moveCfg.fav_oc;
-  const tlC = sf(odds.tl_c);
-
-  const r1 = (sig1 && sig1.qualifies) ? sig1.bet : null;
-  const r2 = movementSignal(moveCfg);
-  const r3 = closingOddsSignal(favLine, favSide, favOc, tlC);
-
-  const recs = [
-    r1 && { rec: r1, name: 'L1(open)' },
-    r2 && { rec: r2, name: 'L2(move)' },
-    r3 && { rec: r3, name: 'L3(close)' },
-  ].filter(Boolean);
-  if (recs.length < 2) return null;
-
-  const counts = {};
-  for (const { rec } of recs) counts[rec.k] = (counts[rec.k] || 0) + 1;
-  const [topKey, topCount] = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
-  if (topCount < 2) return null;
-
-  const agreeing = recs.filter(x => x.rec.k === topKey);
-  return { bet: agreeing[0].rec, agreeCount: topCount, votes: agreeing.map(x => x.name) };
 }
 
 // Full per-fixture composite score. Returns null if there's nothing to show
@@ -426,27 +399,33 @@ function analyzeFixtureForDashboard(match) {
   const sig2 = leagueGroup ? leagueCalibration(leagueGroup, sig1.bet.k) : null;
   const sig3 = leagueGroup ? goalTimingCorroborates(leagueGroup, sig1.bet.k) : null;
 
-  // Only within NEAR_KICKOFF_MIN of kickoff — see l123ConsensusSignal's
-  // header comment for why this isn't run for the wider dashboard windows.
+  // Only within NEAR_KICKOFF_MIN of kickoff. Previously ran the full L123
+  // 3-layer consensus here (l123ConsensusSignal) — replaced 2026-08-28 with
+  // Layer 2 (movement) standalone, per backtest_l2_by_favline.js /
+  // backtest_tl25_over_under.js: the 3-layer consensus showed no reliable
+  // edge against real bookmaker closing prices across 4 held-out months
+  // (pooled ROI negative both TOP+MAJOR and OTHER tier), while movement
+  // alone, gated on the real market price clearing our own conservative
+  // min-odds (mo_lo), showed a stable, walk-forward-consistent edge for
+  // Over/Under 2.5 at TL 2.5-3 (+10% pooled ROI, 19 held-out months) — see
+  // CLAUDE.md's L123-consensus-pricing section for the full numbers. Only
+  // the pick itself moves here; the UI's own "bookmaker odds must clear
+  // mo_lo" discipline (via bet.mo/mo_lo already shown) is what actually
+  // captures that gate, not something enforced in this function.
   const toKickoff = minutesToKickoff(match);
-  const l123 = (toKickoff != null && toKickoff >= 0 && toKickoff <= NEAR_KICKOFF_MIN)
-    ? l123ConsensusSignal(sig1, match.odds || {}, ctx.favLine, ctx.favSide)
-    : null;
+  const nearKickoff = toKickoff != null && toKickoff >= 0 && toKickoff <= NEAR_KICKOFF_MIN;
+  const moveCfg = nearKickoff ? buildCfgFromLiveOdds(match.odds || {}) : null;
+  const l2 = moveCfg ? movementSignal(moveCfg) : null;
 
-  const bet = l123 ? l123.bet : sig1.bet;
-  const qualifies = l123 ? true : sig1.qualifies;
+  const bet = l2 || sig1.bet;
+  const qualifies = l2 ? true : sig1.qualifies;
 
   let score = qualifies ? 2 : 1;
   if (sig2 != null && sig2.gap >= 0) score += 1;
   if (sig3 === true) score += 1;
+  const tier = score >= 4 ? 'HIGH' : score >= 3 ? 'MEDIUM' : 'LOW';
 
-  // L123 agreement is the same convergence signal notify.js's own
-  // walk-forward validated (2/3 or 3/3 layers landing on the same bet) — a
-  // stronger, independently-corroborated read than sig2/sig3 above, so a
-  // fixture with it fires is treated as at least HIGH regardless of score.
-  const tier = l123 ? 'HIGH' : (score >= 4 ? 'HIGH' : score >= 3 ? 'MEDIUM' : 'LOW');
-
-  return { match, leagueGroup, bet, qualifies, sig2, sig3, l123, score, tier };
+  return { match, leagueGroup, bet, qualifies, sig2, sig3, l2, score, tier };
 }
 
 async function fetchUpcomingFixtures(hoursAhead) {
@@ -652,7 +631,17 @@ function buildRawCfgFromLiveOdds(odds, tier2) {
     dog_odds_move: tier2 ? dogOddsMove : 'ANY',
     over_move:     tier2 ? overMove    : 'ANY',
     under_move:    tier2 ? underMove   : 'ANY',
+    // tl_c kept for display only (cfg-summary line) — the actual filter
+    // uses tl_cluster (applyConfig/applyBaselineConfig give it priority
+    // over exact tl_c). Exact-matching closing TL was needlessly narrow —
+    // it doesn't correspond to a real market granularity the way fav_line
+    // does (AH lines are quoted at fixed 0.25 steps; TL isn't), and
+    // clustering into the same TL_CLUSTERS bands the Dashboard already
+    // uses both grows the matching pool and keeps TL 2.5-3 matches
+    // together — the band walk-forward testing found the real, consistent
+    // edge in (see CLAUDE.md's "Dashboard Near-Kickoff Movement Signal").
     tl_c: tlc != null ? tlc.toFixed(2) : null,
+    tl_cluster: tlc != null ? (tlc < 2.0 ? '<2' : tlc < 2.5 ? '2-2.5' : tlc < 3.0 ? '2.5-3' : '>3') : null,
     tl_move: tlMove,                               // Tier 1 — always on
     fav_oc: favOc, fav_oo: favOo, dog_oc: dogOc, dog_oo: dogOo,
   };
@@ -707,16 +696,26 @@ const _DASH_TIER_DOT_CLS = { HIGH: 'bd-strong', MEDIUM: 'bd-good', LOW: 'bd-weak
 // betting at — aren't separated by other numbers. Shared by every place a
 // single pick is surfaced in a scannable card: Dashboard fixture rows, Live
 // Games match cards, and the "ALL QUALIFYING BETS" list.
-function renderBetPickBlock(bet, qualifies) {
+//
+// oddsField picks which of the bet's odds figures is shown as "min odds" —
+// defaults to 'mo' (fair/point-estimate odds) everywhere. The Dashboard's
+// near-kickoff movement (Layer 2) pick passes 'mo_lo' instead: walk-forward
+// backtesting (telegram/backtest_tl25_over_under.js, 19 held-out months)
+// found the real, positive, consistent edge only showed up once the actual
+// bookmaker price cleared mo_lo specifically (the Wilson CI lower-bound
+// price) — clearing the looser mo bar alone was not reliably profitable.
+// See CLAUDE.md's "Dashboard Near-Kickoff Movement Signal" section.
+function renderBetPickBlock(bet, qualifies, oddsField = 'mo') {
   const flag = qualifies
     ? '<span class="pick-flag pick-flag-pass">✓ QUALIFIES</span>'
     : '<span class="pick-flag pick-flag-value">◆ VALUE HUNT</span>';
+  const oddsLabel = oddsField === 'mo_lo' ? 'min odds (conservative)' : 'min odds';
   return `
     <div class="pick-row">
       <div class="pick-label">${esc(bet.label)}${flag}</div>
       <div class="pick-odds" title="Bet only if you can get at least this price">
-        <span class="pick-odds-value">${bet.mo}</span>
-        <span class="pick-odds-label">min odds</span>
+        <span class="pick-odds-value">${bet[oddsField]}</span>
+        <span class="pick-odds-label">${oddsLabel}</span>
       </div>
     </div>
     <div class="col-prob">
@@ -739,11 +738,11 @@ function renderDashboardRowInner(r) {
   const sig3Txt = r.sig3 === true ? 'Supports this bet'
     : r.sig3 === false ? 'Works against this bet'
     : 'No goal-timing read for this bet';
-  const tierHint = r.l123
-    ? `L123 consensus: ${r.l123.agreeCount}/3 signals agree (${r.l123.votes.join(', ')})`
+  const tierHint = r.l2
+    ? 'Near-kickoff pick from line/odds movement (Layer 2), not the opening-odds signal'
     : r.tier === 'HIGH' ? 'All 3 checks line up' : r.tier === 'MEDIUM' ? '2 of 3 checks line up' : 'Only the core historical signal qualifies';
-  const l123Html = r.l123
-    ? `<div class="bet-ci" style="margin-top:6px">🎯 L123 — ${r.l123.agreeCount}/3 signals agree (${esc(r.l123.votes.join(', '))})</div>`
+  const l2Html = r.l2
+    ? `<div class="bet-ci" style="margin-top:6px">📈 Near-kickoff — movement (Layer 2) signal</div>`
     : '';
   return `
     <div class="scan-card-header">
@@ -753,8 +752,8 @@ function renderDashboardRowInner(r) {
       <span class="${tierBadgeClass(r.tier)}" title="${esc(tierHint)}">${r.tier}</span>
     </div>
     <div class="scan-meta">${esc(r.match.league || '—')} · Kickoff ${kickoffTxt}</div>
-    ${renderBetPickBlock(r.bet, r.qualifies)}
-    ${l123Html}
+    ${renderBetPickBlock(r.bet, r.qualifies, r.l2 ? 'mo_lo' : 'mo')}
+    ${l2Html}
     <details class="dash-why">
       <summary>Why this pick</summary>
       <div class="col-stats" style="margin-top:6px">
@@ -775,7 +774,7 @@ function renderDailyDashboard(results, totalFixtures) {
   const best = results[0];
   let html = `<h2 class="results-title">DAILY DASHBOARD</h2>`;
   html += dashboardWindowButtons();
-  html += `<p style="font-size:11px;color:var(--dim);margin-bottom:10px">${totalFixtures} fixtures in the next ${dashboardWindowLabel(_dashboardWindowHours)} · ${results.length} with an opening-odds signal · opening odds + league stats + goal timing everywhere; fixtures within ${NEAR_KICKOFF_MIN} min of kickoff also get an L123-style movement + closing-odds consensus check</p>`;
+  html += `<p style="font-size:11px;color:var(--dim);margin-bottom:10px">${totalFixtures} fixtures in the next ${dashboardWindowLabel(_dashboardWindowHours)} · ${results.length} with an opening-odds signal · opening odds + league stats + goal timing everywhere; fixtures within ${NEAR_KICKOFF_MIN} min of kickoff switch to a movement (Layer 2) signal instead</p>`;
 
   if (!results.length) {
     html += `<div class="no-bets"><div class="warn-icon">⚠️</div><p>None of today's fixtures in this window matched a historical opening-odds bucket with enough sample. Try a wider window.</p></div>`;
@@ -2684,6 +2683,7 @@ function buildLiveAdjustedBet(anchorBet, minute, favG2h, dogG2h, favSide, favLin
       p, lo,
       edge: p - anchorBet.bl,
       mo: minOdds(p),
+      mo_lo: minOdds(lo),
       mo_mid: minOdds((p + lo) / 2),
       matches: [],
       _liveDecayed: true,
@@ -2706,6 +2706,7 @@ function buildLiveAdjustedBet(anchorBet, minute, favG2h, dogG2h, favSide, favLin
       p, lo,
       edge: p - anchorBet.bl,
       mo: minOdds(p),
+      mo_lo: minOdds(lo),
       mo_mid: minOdds((p + lo) / 2),
       matches: [],
       _liveDecayed: true,
@@ -2728,6 +2729,7 @@ function buildLiveAdjustedBet(anchorBet, minute, favG2h, dogG2h, favSide, favLin
     p, lo,
     edge: p - anchorBet.bl,
     mo: minOdds(p),
+    mo_lo: minOdds(lo),
     mo_mid: minOdds((p + lo) / 2),
     matches: [], // historical match list belongs to the (undecayed) anchor rate — drop it rather than show stale detail
     _liveDecayed: true,
@@ -2822,6 +2824,7 @@ function buildLive1HAdjustedBet(anchorBet, minute, homeG1h, awayG1h, favSide, fa
       p, lo,
       edge: p - anchorBet.bl,
       mo: minOdds(p),
+      mo_lo: minOdds(lo),
       mo_mid: minOdds((p + lo) / 2),
       matches: [],
       _liveDecayed: true,
@@ -2844,6 +2847,7 @@ function buildLive1HAdjustedBet(anchorBet, minute, homeG1h, awayG1h, favSide, fa
       p, lo,
       edge: p - anchorBet.bl,
       mo: minOdds(p),
+      mo_lo: minOdds(lo),
       mo_mid: minOdds((p + lo) / 2),
       matches: [],
       _liveDecayed: true,
@@ -2866,6 +2870,7 @@ function buildLive1HAdjustedBet(anchorBet, minute, homeG1h, awayG1h, favSide, fa
     p, lo,
     edge: p - anchorBet.bl,
     mo: minOdds(p),
+    mo_lo: minOdds(lo),
     mo_mid: minOdds((p + lo) / 2),
     matches: [],
     _liveDecayed: true,
@@ -3750,16 +3755,24 @@ function buildTraceHtml(ftrace, title) {
 // Dashboard, which has no min-n control of its own) — below it a bet
 // wouldn't even have scored in the first place, so "low" here really means
 // "just barely cleared the bar, treat cautiously," not "invalid."
+// Thresholds revised 2026-08-28 after walk-forward backtesting real-market
+// ROI by sample size (telegram/backtest_l2_by_favline.js): per-month n in
+// the tens (3-56) swung wildly (-48% to +137% ROI on the same bucket), while
+// bands with n in the hundreds per month stayed stable/consistent across all
+// 19 held-out months. n=50 alone is not "solid" by that evidence — n≥100 is
+// where the historical rate actually stopped being noise-dominated.
 function sampleTier(n, minN) {
   const bar = minN != null ? minN : DEFAULT_MIN_N;
   if (n < bar) return 'low';
   if (n < 50)  return 'mid';
+  if (n < 100) return 'good';
   return 'high';
 }
 const _SAMPLE_TIER_TITLE = {
   low:  'Small sample — close to the minimum-matching-records bar, treat with caution',
   mid:  'Moderate sample',
-  high: 'Solid sample (n ≥ 50)',
+  good: 'Usable sample, but not yet the size where the historical rate reliably stops being noise (n ≥ 100 is)',
+  high: 'Solid sample (n ≥ 100) — large enough that the historical rate held up consistently in walk-forward testing',
 };
 function sampleBadge(n, minN, extraClass) {
   const tier = sampleTier(n, minN);
@@ -4521,7 +4534,7 @@ function renderLiveGames() {
   if (statusEl) {
     const hiddenCount = _liveMatchesAll.length - _liveMatches.length;
     statusEl.textContent = hiddenCount > 0
-      ? `${_liveMatches.length} shown (${hiddenCount} hidden by tier filter) · updated ${updatedTxt}`
+      ? `${_liveMatches.length} shown (${hiddenCount} hidden — league tier or sample size below n=50) · updated ${updatedTxt}`
       : `${_liveMatches.length} live · updated ${updatedTxt}`;
   }
   let html = `<h2 class="results-title">LIVE GAMES</h2>`;
@@ -4529,7 +4542,7 @@ function renderLiveGames() {
 
   if (!_liveMatches.length) {
     html += _liveMatchesAll.length
-      ? `<div class="no-bets"><div class="warn-icon">🏳️</div><p>${_liveMatchesAll.length} match${_liveMatchesAll.length !== 1 ? 'es' : ''} live, but none in the "${state.liveTierFilter}" league tier filter — try ALL or MAJOR+ in the left panel.</p></div>`
+      ? `<div class="no-bets"><div class="warn-icon">🏳️</div><p>${_liveMatchesAll.length} match${_liveMatchesAll.length !== 1 ? 'es' : ''} live, but none passed the "${state.liveTierFilter}" league tier filter or had a bet with n ≥ 50 — try ALL or MAJOR+ in the left panel, or check back once more matches build up a bigger sample.</p></div>`
       : `<div class="no-bets"><div class="warn-icon">⚽</div><p>No live matches right now — check back once matches kick off.</p></div>`;
     right.innerHTML = html;
     closeLiveMatchModal();
@@ -4756,8 +4769,24 @@ function liveMatchPassesTier(analysis) {
   return true;
 }
 
+// Hides matches whose best available bet (topLiveBet — live > HT > pre-match,
+// whichever is most specific) rests on a "mid" or "low" sample (n < 50, see
+// sampleTier()) — added 2026-08-28 after walk-forward testing found n in the
+// tens swung wildly (-48% to +137% ROI on the same bucket) while n in the
+// hundreds stayed consistent. A match with NO bet at all (no signal, or
+// status !== 'ok') is a different, pre-existing case — left alone here so
+// its own "no history"/"no signal" messaging still shows, rather than being
+// silently folded into this filter's hidden count.
+function liveMatchPassesSampleBar(analysis) {
+  if (analysis.status !== 'ok') return true;
+  const bet = topLiveBet(analysis);
+  if (!bet) return true;
+  const tier = sampleTier(bet.n, getMinN());
+  return tier === 'good' || tier === 'high';
+}
+
 function applyLiveTierFilter() {
-  _liveMatches = _liveMatchesAll.filter(liveMatchPassesTier);
+  _liveMatches = _liveMatchesAll.filter(a => liveMatchPassesTier(a) && liveMatchPassesSampleBar(a));
 }
 
 function setLiveTierFilter(tier) {
