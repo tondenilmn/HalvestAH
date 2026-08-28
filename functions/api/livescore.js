@@ -40,7 +40,7 @@
 // full history. PINNACLE_HASH is kept only as a best-effort secondary
 // odds source (silently empty if it fails, same as SBOBET_HASH).
 let PINNACLE_HASH = '30e528c380c96b362ffacdc66b2808c8ad59ce9e'; // overridden at runtime from context.env
-let BET365_HASH   = '93d95c5e8742f7c98f6f1c8342cfbe7fa003a525'; // overridden at runtime from context.env
+let BET365_HASH   = '6f8bbe38e5554e2b299bb07bfe3f19640061088a'; // overridden at runtime from context.env
 let SBOBET_HASH   = 'f1bd8f485d42c4e9700599b0db02cd537a78801f'; // overridden at runtime from context.env
 // gS candidates — 'Q' is the confirmed primary value; rest are fallbacks.
 // Auto-discovery (fetchAllBookHashes) is tried before the sweep when the primary hash fails.

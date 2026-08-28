@@ -633,6 +633,7 @@ select.gs-select {
 .n-stat      { font-weight: bold; }
 .n-stat-low  { color: var(--red); }
 .n-stat-mid  { color: var(--yellow); }
+.n-stat-good { color: var(--blue); }
 .n-stat-high { color: var(--green); }
 
 /* Pass/fail scenario badges in bet-stripe */
