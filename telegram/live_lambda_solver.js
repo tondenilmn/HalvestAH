@@ -1,12 +1,11 @@
-// static/live_lambda_solver.js — BROWSER copy, served directly as a
-// <script> tag by static/index.html.
-//
-// telegram/live_lambda_solver.js is a HAND-MIRRORED COPY of this file
-// (added 2026-08-29 — Railway's Docker build context is scoped to
-// telegram/ only, so a shared require('../static/...') throws
-// MODULE_NOT_FOUND in production even though it works locally — see
-// telegram/live_model.js's header for the full explanation). Keep both
-// copies' logic in sync by hand if you change one.
+// telegram/live_lambda_solver.js — HAND-MIRRORED COPY of
+// static/live_lambda_solver.js (see telegram/live_model.js's header "Sync
+// requirement" note — Railway's Docker build context is scoped to
+// telegram/ only, so a shared require('../static/...') breaks in
+// production even though it works in every local/dev environment). Pure
+// math, no Node built-ins, no data-file dependency, so this copy needs no
+// path adjustments beyond the module wrapper itself — just keep both
+// copies' LOGIC in sync by hand if you change one.
 //
 // Live-usable, AH+O/U-only implied-lambda solver.
 //

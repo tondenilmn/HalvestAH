@@ -1,36 +1,37 @@
-/* static/live_model.js — E5 unified in-play pricing engine (BROWSER copy —
- * see "telegram/ copy" note below for the Node/Railway side)
+/* telegram/live_model.js — E5 unified in-play pricing engine (HAND-MIRRORED
+ * COPY of static/live_model.js — see "Sync requirement" below)
  * ==========================================================================
  * Part E5 of LIVE_BETTING_PLAN.md. One coherent joint score distribution
  * prices EVERY market at ANY minute and ANY in-play state, replacing the
  * old "invert one bucket hit-rate into a single flat lambda per bet" path in
  * `computeLiveOdd` (static/app.js) / `telegram/live_odds.js`.
  *
- * THIS FILE IS STANDALONE AND ADDITIVE. It does not import, modify or
- * depend on app.js's OLD live-decay code (`computeLiveOdd` etc.) — both
- * engines keep working, side by side (E7's "new pricing model" toggle in
- * the Live Games tab).
+ * ── Sync requirement (added 2026-08-29 — Railway MODULE_NOT_FOUND fix) ───
+ * This file was ORIGINALLY meant to be a single canonical copy living only
+ * in static/, required directly from telegram/notify.js via
+ * `require('../static/live_model.js')` — that worked in every local/dev
+ * environment (whole repo checked out together) but broke in production:
+ * Railway's Docker build (telegram/Dockerfile, `COPY . .`) has its build
+ * context scoped to the telegram/ directory ONLY (Railway's project Root
+ * Directory is set to telegram/) — `../static/` does not exist inside that
+ * build context at all, so the deployed container threw
+ * `Cannot find module '../static/live_model.js'` at startup. This is
+ * exactly the same constraint `telegram/live_odds.js` already documents as
+ * its own reason for being a hand-mirrored copy of app.js code rather than
+ * a shared require — this file now follows that same established pattern.
+ * If you change the pricing model in static/live_model.js, copy the change
+ * into this file too (and vice versa) — there is no build step that does
+ * this automatically. Data files: this copy reads
+ * `telegram/live_model_data/{goal_hazard,lambda_lookup}.json` (a separate,
+ * git-tracked copy — NOT telegram/data/, which is gitignored runtime state
+ * for track_record.js) instead of static/data/ for the same reason.
  *
  * ── Dual usage (browser + Node) ────────────────────────────────────────
- * Vanilla script, no ES modules. In the browser (this copy):
- * `<script src="live_model.js">` exposes `window.LiveModel`; call
- * `LiveModel.init({hazard, lambdaLookup})` once with the two fetched JSON
- * blobs before pricing. In Node, this exact file also works via
- * `require('./live_model.js')` — it auto-loads `static/data/goal_hazard.json`
- * and `static/data/lambda_lookup.json` from disk on first use — but
- * telegram/notify.js does NOT require this file directly (see below).
- *
- * ── telegram/ copy (added 2026-08-29 — Railway MODULE_NOT_FOUND fix) ─────
- * `telegram/live_model.js` is a HAND-MIRRORED COPY of this file, not a
- * shared require. Railway's Docker build context is scoped to the
- * telegram/ directory only, so `require('../static/live_model.js')` from
- * `telegram/notify.js` throws `Cannot find module` in production even
- * though it works in any local/full-repo environment — the exact same
- * constraint `telegram/live_odds.js` already documents as its own reason
- * for being a hand-mirrored copy of app.js code. If you change the model
- * here, copy the change into `telegram/live_model.js` too (and its data
- * files into `telegram/live_model_data/`) — there is no build step that
- * syncs this automatically.
+ * Vanilla script, no ES modules. In Node: `require('./live_model.js')` from
+ * telegram/ — auto-loads the two JSON files above from disk on first use.
+ * In the browser (static/live_model.js only): `<script src="live_model.js">`
+ * exposes `window.LiveModel`; call `LiveModel.init({hazard, lambdaLookup})`
+ * once with the two fetched JSON blobs before pricing.
  *
  * ── The model ──────────────────────────────────────────────────────────
  *
@@ -203,7 +204,7 @@ var MAX_GOALS = 20;
     try {
       var fs = require('fs');
       var path = require('path');
-      var dir = path.resolve(__dirname, 'data');
+      var dir = path.resolve(__dirname, 'live_model_data'); // telegram/ copy — see header "Sync requirement"
       if (!_hazard) _hazard = JSON.parse(fs.readFileSync(path.join(dir, 'goal_hazard.json'), 'utf8'));
       if (!_lookup) {
         var lp = path.join(dir, 'lambda_lookup.json');

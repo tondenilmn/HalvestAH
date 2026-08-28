@@ -31,8 +31,14 @@ const { fetchLiveMatches, fetchNextMatches, refreshHashes, getCurrentHashes } = 
 const { verifyBet365Price } = require('./apifootball');
 const { recordAlert, settlePendingAlerts, buildDigestMessage, loadState, saveState } = require('./track_record');
 const { computeLiveOdd, computeLiveResult2H, computeLiveBtts2H, _2hResultField, _2H_RESULT_KEYS, mcLiveLo, mcLiveHi } = require('./live_odds');
-const LM = require('../static/live_model.js'); // E8 — new pricing engine, see Strategy NEWMODEL below
-const { solveLambdaFromOdds } = require('../static/live_lambda_solver.js'); // AH+O/U-only per-match implied lambda (fixes the lambda_lookup.json bucket-fallback circularity — see runStrategyNewModel); single canonical copy lives in static/ (same pattern as live_model.js) so the browser can also require it via a plain <script> tag
+// 2026-08-29: switched from `require('../static/...')` to local copies —
+// Railway's Docker build context is scoped to telegram/ only, so a require
+// reaching outside it (`../static/`) throws MODULE_NOT_FOUND in production
+// even though it works locally. See telegram/live_model.js's header "Sync
+// requirement" note for the hand-mirroring convention this now follows
+// (same one telegram/live_odds.js already used).
+const LM = require('./live_model.js'); // E8 — new pricing engine, see Strategy NEWMODEL below
+const { solveLambdaFromOdds } = require('./live_lambda_solver.js'); // AH+O/U-only per-match implied lambda (fixes the lambda_lookup.json bucket-fallback circularity — see runStrategyNewModel)
 
 const VERBOSE = process.argv.includes('--verbose') || process.env.VERBOSE === 'true';
 const verbose = VERBOSE ? (...a) => console.log(...a) : () => {};
