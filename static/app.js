@@ -3169,6 +3169,8 @@ const state = {
   dashboardTierFilter: 'MAJOR', // which fixtures are shown, by their OWN league tier (Dashboard only)
   exchangeCommissionPct: 2, // % commission on net winnings (Betfair-style), applied to the new pricing model's back/lay display; 0 = soft-bookmaker (no commission)
   useNewLiveModel: true, // E7: additive toggle for the new live_model.js pricing panel (Live Games only),
+  liveModelFocus: false, // "live-playable bets only" preset — see toggleLiveModelFocus
+  showFocusMarkets: true, // 1T/2T goals focus table (Over/Under 0.5/1.5) — see toggleFocusMarkets
                           // session-only (not persisted) — mirrors the "either is fine" guidance in
                           // LIVE_BETTING_PLAN.md E7; kept simple since this is a beta compare-view toggle,
                           // not a setting worth surviving a reload the way HT anchors need to.
@@ -4852,6 +4854,46 @@ const LIVE_MODEL_LADDER = [
 // into LIVE_MODEL_LADDER above.
 const LIVE_MODEL_LADDER_COMPACT_KEYS = ['btts', 'over05_2h', 'over15_2h', 'under05_2h', 'nextgoal15'];
 
+// "Focus" preset — the 3 market families with (a) real walk-forward
+// validation behind the underlying goal-occurrence signal (LATEGOAL/
+// QUIET2H's own over05_2H/over15_2H) and (b) a genuine "wait for the market
+// to lag, then strike live" edge — same reasoning as telegram/notify.js's
+// NEWMODEL scoping (CLAUDE.md's "Strategy NEWMODEL" section). Under-type
+// bets are deliberately excluded: their correct entry point is right at HT,
+// not live (every extra minute survived without a goal is already priced in
+// by an efficient market) — see notify.js's runStrategyNewModel comment.
+// over_tl is keyed dynamically per match (priceLiveModel appends it to the
+// ladder using the match's own closing TL) rather than the fixed 1.5/2.5
+// lines above, matching telegram/live_check.js's ouLine logic.
+const LIVE_MODEL_FOCUS_KEYS = ['over_tl', 'btts', 'over05_2h', 'over15_2h'];
+
+// True once a market's outcome is already decided by the current score —
+// no live edge left to "wait for". Mirrors telegram/live_check.js's
+// not-yet-happened filter. `st` is the state object buildLiveModelState
+// returns (home_goals/away_goals/tl/ht_home_goals/ht_away_goals).
+function liveModelAlreadyHappened(key, st) {
+  const total = (st.home_goals || 0) + (st.away_goals || 0);
+  const tl = st.tl != null ? st.tl : 2.5;
+  if (key === 'over_tl' || key === 'under_tl') return total >= tl;
+  if (key === 'btts') return st.home_goals >= 1 && st.away_goals >= 1;
+  if ((key === 'over05_2h' || key === 'over15_2h' || key === 'under05_2h' || key === 'under15_2h')
+      && st.ht_home_goals != null && st.ht_away_goals != null) {
+    const g2h = total - (st.ht_home_goals + st.ht_away_goals);
+    const need = (key === 'over05_2h' || key === 'under05_2h') ? 0 : 1;
+    return g2h > need;
+  }
+  return false;
+}
+
+function toggleLiveModelFocus(checked) {
+  state.liveModelFocus = !!checked;
+  _liveModelFilterKeys = new Set(state.liveModelFocus ? LIVE_MODEL_FOCUS_KEYS : []);
+  document.querySelectorAll('.live-model-filter-cb').forEach(cb => {
+    cb.checked = state.liveModelFocus && LIVE_MODEL_FOCUS_KEYS.includes(cb.dataset.key);
+  });
+  if (_activeTab === 'live') renderLiveGames();
+}
+
 // 2026-08-29: market filter — lets the user pick exactly which market(s) to
 // see (e.g. "only Over 0.5 2H"), overriding the compact-card default AND
 // narrowing the detail modal's normally-full ladder down to the same
@@ -4861,12 +4903,22 @@ let _liveModelFilterKeys = new Set();
 function toggleLiveModelMarketFilter(key, checked) {
   if (checked) _liveModelFilterKeys.add(key);
   else _liveModelFilterKeys.delete(key);
+  // Manual filter edits take the checkbox set out of sync with the Focus
+  // preset — un-check Focus itself rather than leaving a stale "on" state.
+  if (state.liveModelFocus) {
+    state.liveModelFocus = false;
+    const focusCb = document.getElementById('live-model-focus-toggle');
+    if (focusCb) focusCb.checked = false;
+  }
   if (_activeTab === 'live') renderLiveGames();
 }
 
 function clearLiveModelMarketFilter() {
   _liveModelFilterKeys.clear();
+  state.liveModelFocus = false;
   document.querySelectorAll('.live-model-filter-cb').forEach(cb => { cb.checked = false; });
+  const focusCb = document.getElementById('live-model-focus-toggle');
+  if (focusCb) focusCb.checked = false;
   if (_activeTab === 'live') renderLiveGames();
 }
 
@@ -4931,8 +4983,18 @@ function priceLiveModel(analysis) {
   if (!st) return null;
   try {
     const commission = Math.max(0, Math.min(0.5, (parseFloat(state.exchangeCommissionPct) || 0) / 100));
-    const rows = LiveModel.priceLadder(LIVE_MODEL_LADDER, st, analysis.match.minute, { samples: 300, commission });
-    return { rows, clock: rows[0] ? rows[0].clock : null, lambdaSource: st.lambdaSource };
+    // Dynamic Over/Under-TL specs, keyed off THIS match's own closing TL
+    // (telegram/live_check.js's ouLine logic) — the fixed 1.5/2.5 lines in
+    // LIVE_MODEL_LADDER don't line up with every match's actual quoted line.
+    // Appended (not swapped in) so both are available; priced from the same
+    // MC draws so they stay internally consistent with the rest of the ladder.
+    const tlLine = st.tl != null ? st.tl : 2.5;
+    const dynamicSpecs = [
+      { key: 'over_tl',  label: `Over ${tlLine} FT`,  type: 'over',  line: tlLine, scope: 'match' },
+      { key: 'under_tl', label: `Under ${tlLine} FT`, type: 'under', line: tlLine, scope: 'match' },
+    ];
+    const rows = LiveModel.priceLadder(LIVE_MODEL_LADDER.concat(dynamicSpecs), st, analysis.match.minute, { samples: 300, commission });
+    return { rows, clock: rows[0] ? rows[0].clock : null, lambdaSource: st.lambdaSource, st };
   } catch (e) {
     return { error: e.message || String(e) };
   }
@@ -4960,6 +5022,63 @@ function renderLiveModelRow(r) {
       <span style="color:var(--dim)" title="Zero-commission breakeven (soft bookmaker)">min-back ${liveModelOddsCell(r.min_back_odds)} · max-lay ${liveModelOddsCell(r.max_lay_odds)}</span>
       ${r.commission > 0 ? `<span style="color:var(--accent)" title="Breakeven price after ${(r.commission * 100).toFixed(1)}% exchange commission on net winnings">after ${(r.commission * 100).toFixed(1)}% commission: back ≥ ${liveModelOddsCell(r.min_back_odds_net)} · lay ≤ ${liveModelOddsCell(r.max_lay_odds_net)}</span>` : ''}
     </div>`;
+}
+
+/* ── 1H/2H goals focus table — bucket-hit-rate engine, not E7/E8 ─────────
+   Reuses analysis.preBets/gsBets exactly as analyzeLiveMatch already computes
+   them: 1H bets come from preBets (pre-match/closing-odds config only — "the
+   1T match should consider only the match configuration"), 2H bets come from
+   gsBets (HT-anchor-conditioned via applyGameState, further live-decayed once
+   minute>45 — "the 2T should consider the HT score as additional filter").
+   No new scoring path; same _LIVE_SCAN_1H_KEYS/_LIVE_SCAN_2H_KEYS gating the
+   rest of the Live Games UI already uses, so a bet only appears here while
+   it's actually still live-playable (1H bets vanish once 1H is over, 2H bets
+   only appear once an HT anchor exists). */
+const FOCUS_MARKET_BETS = [
+  { half: 1, k: 'over05_1H',  label: 'Over 0.5 1T' },
+  { half: 1, k: 'over15_1H',  label: 'Over 1.5 1T' },
+  { half: 1, k: 'under05_1H', label: 'Under 0.5 1T (HT)' },
+  { half: 2, k: 'over05_2H',  label: 'Over 0.5 2T' },
+  { half: 2, k: 'over15_2H',  label: 'Over 1.5 2T' },
+  { half: 2, k: 'under05_2H', label: 'Under 0.5 2T' },
+  { half: 2, k: 'under15_2H', label: 'Under 1.5 2T' },
+];
+
+function renderFocusMarketRow(label, bet, minN) {
+  const edgeColor = bet.edge >= 0 ? 'var(--accent)' : 'var(--dim)';
+  return `
+    <div class="pick-row">
+      <div class="pick-label">${esc(label)}</div>
+      <div class="pick-odds" title="Fair (zero-margin) odds from this bet's historical hit rate">
+        <span class="pick-odds-value">${liveModelOddsCell(bet.mo)}</span>
+        <span class="pick-odds-label">fair odds</span>
+      </div>
+    </div>
+    <div class="col-stats" style="margin:2px 0 8px">
+      <span>${bet.p.toFixed(1)}%</span>
+      <span style="color:var(--dim)" title="Historical rate for this exact bet across the whole database, unfiltered — what 'above baseline' is measured against">baseline ${bet.bl.toFixed(1)}%</span>
+      <span style="color:${edgeColor}">${bet.edge >= 0 ? '+' : ''}${bet.edge.toFixed(1)}pp</span>
+      ${sampleBadge(bet.n, minN)}
+    </div>`;
+}
+
+function toggleFocusMarkets(checked) {
+  state.showFocusMarkets = !!checked;
+  if (_activeTab === 'live') renderLiveGames();
+}
+
+function renderFocusMarketsPanel(analysis) {
+  const preMap = new Map((analysis.preBets || []).map(b => [b.k, b]));
+  const gsMap  = new Map((analysis.gsBets  || []).map(b => [b.k, b]));
+  const minN = getMinN();
+  const rows = FOCUS_MARKET_BETS
+    .map(f => ({ ...f, bet: f.half === 1 ? preMap.get(f.k) : gsMap.get(f.k) }))
+    .filter(r => r.bet);
+  if (!rows.length) {
+    const waitingOn = analysis.minute < 45 ? 'more 1H matching history' : 'an HT anchor (auto-captured at kickoff of 2H) / 2H matching history';
+    return `<p style="font-size:11px;color:var(--dim)">No 1T/2T focus markets available yet — waiting on ${waitingOn}.</p>`;
+  }
+  return rows.map(r => renderFocusMarketRow(r.label, r.bet, minN)).join('');
 }
 
 // State banner (score/minute/red-card caveat) + market ladder. With no
@@ -4994,9 +5113,13 @@ function renderLiveModelPanel(analysis, compact) {
       } else {
         rows = pricing.rows;
       }
+      // Focus mode also drops any market whose outcome is already decided
+      // by the current score — no live edge left to "wait for" (see
+      // liveModelAlreadyHappened / telegram/live_check.js's same filter).
+      if (state.liveModelFocus) rows = rows.filter(r => !liveModelAlreadyHappened(r.spec.key, pricing.st));
       body = rows.length
         ? rows.map(renderLiveModelRow).join('')
-        : `<p style="font-size:11px;color:var(--dim)">No market matches the current filter.</p>`;
+        : `<p style="font-size:11px;color:var(--dim)">${state.liveModelFocus ? 'No live-playable market left — outcomes already decided by the current score.' : 'No market matches the current filter.'}</p>`;
       if (pricing.lambdaSource === 'bucket_fallback') {
         body += `<p style="font-size:10px;color:var(--dim);font-style:italic;margin-top:4px">
           ⚠ Using a historical bucket-average scale (AH/O-U odds missing or unsolvable for this match), not this match's own per-match estimate.</p>`;
@@ -5193,6 +5316,7 @@ function renderLiveMatchCard(analysis, idx) {
     <div class="scan-meta">${esc(match.league || '—')} · ${esc(anchorStatusNote(analysis))} ${anchorStatusBadge(analysis)}</div>
     <div class="scan-score-detail">${formatHtScoreLine(analysis)}</div>
     ${previewHtml}
+    ${state.showFocusMarkets ? `<div onclick="event.stopPropagation()"><div class="cfg-summary" style="margin-top:10px">🥅 <b>1T/2T Goals Focus</b></div>${renderFocusMarketsPanel(analysis)}</div>` : ''}
     ${state.useNewLiveModel ? `<div onclick="event.stopPropagation()">${renderLiveModelPanel(analysis, true)}</div>` : ''}
   </div>`;
 }
@@ -5237,6 +5361,11 @@ function openLiveMatchDetail(idx) {
     const ahSide = cfg.fav_side === 'AWAY' ? 'Away' : 'Home';
     bodyHtml = `<div class="cfg-summary" style="color:var(--bright)">${formatHtScoreLine(analysis)}</div>`;
     bodyHtml += `<div class="cfg-summary">${ahSide} AH −${cfg.fav_line} · line ${cfgMoveLabel(cfg.line_move)} · fav odds ${cfgMoveLabel(cfg.fav_odds_move)} · dog odds ${cfgMoveLabel(cfg.dog_odds_move)} · TL ${cfg.tl_c ?? '—'} (${cfgMoveLabel(cfg.tl_move)}) · over ${cfgMoveLabel(cfg.over_move)} · under ${cfgMoveLabel(cfg.under_move)} · ${analysis.cfg_n} matching records</div>`;
+
+    if (state.showFocusMarkets) {
+      bodyHtml += `<div class="section-label" style="margin-top:18px">1T/2T GOALS FOCUS</div>`;
+      bodyHtml += renderFocusMarketsPanel(analysis);
+    }
 
     if (state.useNewLiveModel) {
       bodyHtml += `<div class="section-label" style="margin-top:18px">NEW PRICING MODEL (BETA) — MARKET LADDER</div>`;
