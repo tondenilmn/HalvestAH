@@ -960,6 +960,16 @@ select.gs-select {
   .scan-card-header { flex-wrap: wrap; gap: 6px; }
   .scan-match-name   { min-width: 0; }
 
+  /* Quick-jump nav chips: comfortable tap target and a touch of extra
+     breathing room since this is a horizontally-scrollable strip on a
+     narrow screen (no visible scrollbar to hint more content follows). */
+  .live-jump-chip { min-height: 34px; padding: 7px 13px; font-size: 12px; }
+  .live-jump-nav  { padding-bottom: 12px; }
+  .live-jump-nav::after {
+    content: '›'; flex: 0 0 auto; align-self: center; color: var(--dim);
+    font-size: 16px; padding: 0 4px;
+  }
+
   /* Top-level tabs (Dashboard / Live Games / Manual) keep a comfortable tap
      height even as the label font drops slightly to fit 3-up. */
   .top-tabs .tab-btn { font-size: 12px; padding: 11px 4px; min-height: 44px; }
@@ -1090,6 +1100,36 @@ select.gs-select {
 }
 .scan-card:hover  { border-color: var(--green); background: var(--bg2); box-shadow: var(--shadow-raised); }
 .scan-card:active { transform: scale(0.995); }
+
+/* Brief highlight after a jump-nav click (scrollToLiveCard) so the
+   destination card is easy to spot even in a long, dense list. */
+.live-card-flash { animation: liveCardFlash .9s ease-out; }
+@keyframes liveCardFlash {
+  0%   { box-shadow: 0 0 0 2px var(--green); }
+  100% { box-shadow: var(--shadow-card); }
+}
+
+/* Sticky strip of per-match quick-jump chips above "ALL LIVE MATCHES" —
+   scrolls horizontally on both desktop and mobile rather than wrapping, so
+   it stays a fixed-height single row no matter how many matches are live. */
+.live-jump-nav {
+  position: sticky; top: 0; z-index: 5;
+  display: flex; gap: 6px; overflow-x: auto; -webkit-overflow-scrolling: touch;
+  padding: 6px 2px 10px; margin-bottom: 4px;
+  background: var(--bg0, var(--bg1));
+  scrollbar-width: thin;
+}
+.live-jump-nav::-webkit-scrollbar { height: 5px; }
+.live-jump-nav::-webkit-scrollbar-thumb { background: var(--bg3); border-radius: 3px; }
+.live-jump-chip {
+  flex: 0 0 auto; display: flex; align-items: center; gap: 5px;
+  background: var(--bg1); border: 1px solid var(--border); border-radius: 999px;
+  padding: 6px 12px; font-size: 11px; color: var(--fg); white-space: nowrap;
+  cursor: pointer; transition: border-color .15s, background .15s;
+}
+.live-jump-chip:hover  { border-color: var(--green); background: var(--bg2); }
+.live-jump-chip:active { transform: scale(0.97); }
+.live-jump-min { color: var(--dim); font-size: 10px; }
 
 /* Whether the card's headline pick is a qualifying bet (clears the
    statistical bar) or only a value-hunt one (positive edge, not qualifying

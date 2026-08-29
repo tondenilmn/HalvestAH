@@ -3193,6 +3193,13 @@ const state = {
                           // unchanged from before this toggle existed) — see setLiveUiMode. Persisted
                           // to localStorage (LIVE_UI_STORAGE_KEY) since, unlike showFocusMarkets above,
                           // this changes the whole tab's layout and is worth remembering across reloads.
+  liveSortMode: 'stable', // 'stable' (default — each match keeps its position once first seen, only
+                          // appending new/dropping finished matches) | 'strength' (re-ranks by live
+                          // score every refresh, like before this existed) — see orderLiveMatchIndices.
+                          // Persisted alongside liveUiMode.
+  liveLeagueFilter: new Set(), // empty = show all leagues; else only these (checkbox list built live from
+                          // whichever leagues are actually in play — see renderLiveLeagueFilterOptions)
+  liveMinuteBand: 'ALL',  // 'ALL' | '1H' | '45-60' | '60-75' | '75-90' — see LIVE_MINUTE_BANDS
 };
 
 // Bundled CSVs use ISO "YYYY-MM-DD" dates (confirmed across all 15 files in
@@ -4511,8 +4518,76 @@ const LIVE_ANALYZE_CHUNK_SIZE = 3;
 let _liveAutoRefresh = true;
 let _liveLastUpdated = null;
 
+// Fixes each match's position in the "ALL LIVE MATCHES" list the first time
+// it's seen (matchKey -> insertion order), so a 60s refresh only appends new
+// matches / drops finished ones instead of reshuffling every card whenever a
+// live-decayed score changes underneath it — the reordering itself was the
+// "hard to follow" complaint, not the refresh. Opt-in 'strength' sort mode
+// (state.liveSortMode) still re-ranks by score every render for anyone who
+// wants the most-actionable match on top and doesn't mind cards moving.
+let _liveOrderMap = new Map();
+let _liveOrderCounter = 0;
+
 function matchKey(m) {
   return m.id || `${m.home_team}:${m.away_team}`;
+}
+
+// Display order (array of indices into `matches`) for the "ALL LIVE
+// MATCHES" list. Default: stable insertion order (see _liveOrderMap above).
+// state.liveSortMode === 'strength': re-sort by scoreFn every render.
+function orderLiveMatchIndices(matches, scoreFn) {
+  const liveKeys = new Set(matches.map(m => matchKey(m.match)));
+  for (const k of [..._liveOrderMap.keys()]) {
+    if (!liveKeys.has(k)) _liveOrderMap.delete(k); // match ended / dropped off feed
+  }
+  const indices = matches.map((m, i) => i);
+  if (state.liveSortMode === 'strength') {
+    return indices.sort((a, b) => scoreFn(matches[b]) - scoreFn(matches[a]));
+  }
+  matches.forEach(m => {
+    const k = matchKey(m.match);
+    if (!_liveOrderMap.has(k)) _liveOrderMap.set(k, _liveOrderCounter++);
+  });
+  return indices.sort((a, b) =>
+    _liveOrderMap.get(matchKey(matches[a].match)) - _liveOrderMap.get(matchKey(matches[b].match)));
+}
+
+function setLiveSortMode(mode) {
+  state.liveSortMode = mode === 'strength' ? 'strength' : 'stable';
+  document.getElementById('live-sort-btn-stable')?.classList.toggle('active', state.liveSortMode === 'stable');
+  document.getElementById('live-sort-btn-strength')?.classList.toggle('active', state.liveSortMode === 'strength');
+  saveLiveUiPrefs();
+  if (_activeTab === 'live') renderLiveGames();
+}
+
+// Truncates a team name for the compact quick-jump nav chips.
+function shortTeamName(name) {
+  if (!name) return '?';
+  return name.length > 11 ? name.slice(0, 10) + '…' : name;
+}
+
+// Smooth-scrolls the live match list to a given card and briefly highlights
+// it, so a click in the quick-jump nav is easy to visually re-find.
+function scrollToLiveCard(idx) {
+  const el = document.getElementById(`live-card-${idx}`);
+  if (!el) return;
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  el.classList.add('live-card-flash');
+  setTimeout(() => el.classList.remove('live-card-flash'), 900);
+}
+
+// Sticky strip of one small chip per live match — click to jump straight to
+// its card without hunting through the list, especially useful once cards
+// stop reshuffling (stable order) but still doesn't require remembering a
+// scroll position. Only rendered once there's more than a couple of matches.
+function renderLiveJumpNav(order, matches) {
+  if (order.length < 3) return '';
+  const chips = order.map(i => {
+    const m = matches[i].match;
+    const label = `${shortTeamName(m.home_team)}–${shortTeamName(m.away_team)}`;
+    return `<button class="live-jump-chip" onclick="scrollToLiveCard(${i})" title="${esc(m.home_team)} vs ${esc(m.away_team)} (${esc(m.league || '—')})">${esc(label)} <span class="live-jump-min">${esc(m.minute)}</span></button>`;
+  }).join('');
+  return `<div class="live-jump-nav">${chips}</div>`;
 }
 
 // "23'" -> 23, "45+2'" -> 47, "90+4'" -> 94, "HT" -> 45 (HT itself is treated
@@ -4826,6 +4901,7 @@ async function pollLiveMatches() {
       // the full list. Re-sorted and re-rendered after every chunk so the
       // list stays in the right order even though it's still filling in.
       _liveMatchesAll = [...analyzed].sort((a, b) => b.minute - a.minute);
+      renderLiveLeagueFilterOptions();
       applyLiveTierFilter();
       _liveLastUpdated = new Date();
       renderLiveGames();
@@ -5164,6 +5240,11 @@ function loadLiveUiPrefs() {
       state.showFocusMarkets = prefs.mode === 'focus';
       applyLiveUiModeToDom(prefs.mode);
     }
+    if (prefs.sortMode === 'stable' || prefs.sortMode === 'strength') {
+      state.liveSortMode = prefs.sortMode;
+      document.getElementById('live-sort-btn-stable')?.classList.toggle('active', prefs.sortMode === 'stable');
+      document.getElementById('live-sort-btn-strength')?.classList.toggle('active', prefs.sortMode === 'strength');
+    }
     if (prefs.advancedOpen) {
       const adv = document.getElementById('live-advanced');
       if (adv) adv.open = true;
@@ -5176,6 +5257,7 @@ function saveLiveUiPrefs() {
     const adv = document.getElementById('live-advanced');
     localStorage.setItem(LIVE_UI_STORAGE_KEY, JSON.stringify({
       mode: state.liveUiMode,
+      sortMode: state.liveSortMode,
       advancedOpen: adv ? adv.open : false,
     }));
   } catch { /* localStorage unavailable — mode just won't survive a reload */ }
@@ -5330,6 +5412,18 @@ function renderLiveGames() {
   const right = document.getElementById('right-live');
   if (!right) return;
 
+  // Every poll fully replaces #right-live's innerHTML — without this, the
+  // panel (and, on mobile where the page itself scrolls instead of the
+  // panel, the window) snaps back to the top every 60s, which reads as the
+  // whole tab "reloading" mid-read. Save/restore across the rebuild below.
+  const scrollParent = right.parentElement;
+  const savedPanelScroll = scrollParent ? scrollParent.scrollTop : 0;
+  const savedWinScroll = window.scrollY;
+  const restoreScroll = () => {
+    if (scrollParent) scrollParent.scrollTop = savedPanelScroll;
+    window.scrollTo(0, savedWinScroll);
+  };
+
   const updatedTxt = _liveLastUpdated
     ? _liveLastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
     : '—';
@@ -5345,10 +5439,11 @@ function renderLiveGames() {
 
   if (!_liveMatches.length) {
     html += _liveMatchesAll.length
-      ? `<div class="no-bets"><div class="warn-icon">🏳️</div><p>${_liveMatchesAll.length} match${_liveMatchesAll.length !== 1 ? 'es' : ''} live, but none passed the "${state.liveTierFilter}" league tier filter or had a bet with n ≥ 50 — try ALL or MAJOR+ in the left panel, or check back once more matches build up a bigger sample.</p></div>`
+      ? `<div class="no-bets"><div class="warn-icon">🏳️</div><p>${_liveMatchesAll.length} match${_liveMatchesAll.length !== 1 ? 'es' : ''} live, but none passed the "${state.liveTierFilter}" league tier filter, the league/minute filters, or had a bet with n ≥ 50 — try ALL or MAJOR+, clear the league filter, or widen the minute band in the left panel.</p></div>`
       : `<div class="no-bets"><div class="warn-icon">⚽</div><p>No live matches right now — check back once matches kick off.</p></div>`;
     right.innerHTML = html;
     closeLiveMatchModal();
+    restoreScroll();
     return;
   }
 
@@ -5403,19 +5498,21 @@ function renderLiveGames() {
   }
 
   html += `<div class="section-label" style="margin-top:18px">ALL LIVE MATCHES</div>`;
-  if (state.liveUiMode === 'focus') {
-    // Sort by best focus-bet edge (same rankScore metric used everywhere
-    // else) so the most actionable 1T/2T match surfaces first — render by
-    // original index (not a reordered copy) so onclick="openLiveMatchDetail(idx)"
-    // still points at the right entry in _liveMatches.
-    const order = _liveMatches.map((m, i) => i)
-      .sort((a, b) => bestFocusEdgeScore(_liveMatches[b]) - bestFocusEdgeScore(_liveMatches[a]));
-    order.forEach(i => { html += renderLiveMatchCard(_liveMatches[i], i); });
-  } else {
-    _liveMatches.forEach((m, i) => { html += renderLiveMatchCard(m, i); });
-  }
+  // Order: 'stable' (default) keeps each match at the position it was first
+  // seen at — see orderLiveMatchIndices — so the list only grows/shrinks
+  // instead of reshuffling every refresh. 'strength' opts back into ranking
+  // by score every render (focus-bet edge in Focus mode, top-bet rankScore
+  // in All-markets mode). idx (into _liveMatches, not the display position)
+  // is what onclick="openLiveMatchDetail(idx)" / card ids key off of.
+  const scoreFn = isFocusMode
+    ? m => bestFocusEdgeScore(m)
+    : m => { const b = topLiveBet(m); return b ? rankScore(b) : -Infinity; };
+  const order = orderLiveMatchIndices(_liveMatches, scoreFn);
+  html += renderLiveJumpNav(order, _liveMatches);
+  order.forEach(i => { html += renderLiveMatchCard(_liveMatches[i], i); });
 
   right.innerHTML = html;
+  restoreScroll();
 }
 
 // Collects every qualifying bet (buildQualifyingList — same statistical bar
@@ -5465,7 +5562,7 @@ function renderLiveMatchCard(analysis, idx) {
     const msg = analysis.status === 'no-odds'
       ? 'Closing odds not available yet'
       : 'Not enough historical matches for this exact closing config';
-    return `<div class="scan-card" style="cursor:default">
+    return `<div class="scan-card" id="live-card-${idx}" style="cursor:default">
       <div class="scan-card-header">
         <span class="scan-match-name">${esc(match.home_team)}<span class="scan-vs">vs</span>${esc(match.away_team)}</span>
         <div class="scan-live-info">
@@ -5485,7 +5582,7 @@ function renderLiveMatchCard(analysis, idx) {
   // Pick preview and beta model ladder (both "every market" tools) are noise
   // for this view and live behind the "All markets" mode instead.
   if (isFocusMode) {
-    return `<div class="scan-card" onclick="openLiveMatchDetail(${idx})">
+    return `<div class="scan-card" id="live-card-${idx}" onclick="openLiveMatchDetail(${idx})">
       <div class="scan-card-header">
         <span class="scan-match-name">${esc(match.home_team)}<span class="scan-vs">vs</span>${esc(match.away_team)}</span>
         <div class="scan-live-info">
@@ -5661,8 +5758,90 @@ function liveMatchPassesSampleBar(analysis) {
   return tier === 'good' || tier === 'high';
 }
 
+// Minute-band filter — lets the user narrow the list to a specific window
+// (e.g. "60-75" while deciding on a late-goal bet) instead of scanning past
+// every match at every minute. Bands intentionally line up with the trigger
+// windows used elsewhere (LATEGOAL/QUIET2H/LIVEWATCH fire around 68-72, HT
+// snapshot is 44-50) so "60-75" genuinely groups matches in the same
+// decision window together.
+const LIVE_MINUTE_BANDS = {
+  ALL:    { label: 'ALL',    test: () => true },
+  '1H':   { label: '1H (0-45)',  test: m => m <= 45 },
+  '45-60':{ label: '45-60',  test: m => m > 45 && m <= 60 },
+  '60-75':{ label: '60-75',  test: m => m > 60 && m <= 75 },
+  '75-90':{ label: '75-90+', test: m => m > 75 },
+};
+
+function liveMatchPassesMinuteBand(analysis) {
+  const band = LIVE_MINUTE_BANDS[state.liveMinuteBand] || LIVE_MINUTE_BANDS.ALL;
+  return band.test(analysis.minute);
+}
+
+function setLiveMinuteBand(band) {
+  state.liveMinuteBand = LIVE_MINUTE_BANDS[band] ? band : 'ALL';
+  for (const k of Object.keys(LIVE_MINUTE_BANDS)) {
+    document.getElementById(`live-minute-btn-${k}`)?.classList.toggle('active', k === state.liveMinuteBand);
+  }
+  applyLiveTierFilter();
+  if (_activeTab === 'live') renderLiveGames();
+}
+
+// League filter — checkbox list built live from whichever leagues are
+// actually in play right now (there's no fixed list to hardcode ahead of
+// time), so it grows/shrinks with the feed itself. An empty
+// state.liveLeagueFilter means "no filter, show all".
+function liveMatchPassesLeague(analysis) {
+  if (!state.liveLeagueFilter.size) return true;
+  return state.liveLeagueFilter.has(analysis.match.league || '—');
+}
+
+let _liveLeagueOptionsCache = null; // last rendered league list, to skip pointless DOM rebuilds
+
+function renderLiveLeagueFilterOptions() {
+  const container = document.getElementById('live-league-filter-options');
+  if (!container) return;
+  const leagues = [...new Set(_liveMatchesAll.map(a => a.match.league || '—'))].sort();
+  const cacheKey = leagues.join('|');
+  if (cacheKey === _liveLeagueOptionsCache) {
+    // Leagues unchanged since last render — just resync checked state
+    // (in case it was cleared) without rebuilding the DOM under the user's
+    // cursor mid-click.
+    container.querySelectorAll('input[type=checkbox]').forEach(cb => {
+      cb.checked = state.liveLeagueFilter.has(cb.dataset.league);
+    });
+    return;
+  }
+  _liveLeagueOptionsCache = cacheKey;
+  if (!leagues.length) {
+    container.innerHTML = `<p style="font-size:10px;color:var(--dim);font-style:italic">No live matches yet</p>`;
+    return;
+  }
+  container.innerHTML = leagues.map(lg => `
+    <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);cursor:pointer">
+      <input type="checkbox" data-league="${esc(lg)}" ${state.liveLeagueFilter.has(lg) ? 'checked' : ''}
+             onchange="toggleLiveLeagueFilter('${esc(lg).replace(/'/g, "\\'")}', this.checked)">
+      ${esc(lg)}
+    </label>`).join('');
+}
+
+function toggleLiveLeagueFilter(league, checked) {
+  if (checked) state.liveLeagueFilter.add(league);
+  else state.liveLeagueFilter.delete(league);
+  applyLiveTierFilter();
+  if (_activeTab === 'live') renderLiveGames();
+}
+
+function clearLiveLeagueFilter() {
+  state.liveLeagueFilter.clear();
+  renderLiveLeagueFilterOptions();
+  applyLiveTierFilter();
+  if (_activeTab === 'live') renderLiveGames();
+}
+
 function applyLiveTierFilter() {
-  _liveMatches = _liveMatchesAll.filter(a => liveMatchPassesTier(a) && liveMatchPassesSampleBar(a));
+  _liveMatches = _liveMatchesAll.filter(a =>
+    liveMatchPassesTier(a) && liveMatchPassesSampleBar(a) &&
+    liveMatchPassesLeague(a) && liveMatchPassesMinuteBand(a));
 }
 
 function setLiveTierFilter(tier) {

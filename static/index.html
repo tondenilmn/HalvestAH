@@ -127,6 +127,35 @@
             historical pools and underperformed out-of-sample in past backtesting. MAJOR+ recommended.
           </p>
 
+          <div class="section-label" style="margin-top:14px">MATCH MINUTE</div>
+          <div class="gs-triggers">
+            <button class="gs-trigger-btn active" id="live-minute-btn-ALL"    onclick="setLiveMinuteBand('ALL')">ALL</button>
+            <button class="gs-trigger-btn"        id="live-minute-btn-1H"     onclick="setLiveMinuteBand('1H')">1H (0-45)</button>
+            <button class="gs-trigger-btn"        id="live-minute-btn-45-60"  onclick="setLiveMinuteBand('45-60')">45-60</button>
+            <button class="gs-trigger-btn"        id="live-minute-btn-60-75"  onclick="setLiveMinuteBand('60-75')">60-75</button>
+            <button class="gs-trigger-btn"        id="live-minute-btn-75-90"  onclick="setLiveMinuteBand('75-90')">75-90+</button>
+          </div>
+          <p style="font-size:10px;color:var(--dim);font-style:italic;margin-top:6px;line-height:1.4">
+            Narrows the list to matches currently in a given window — handy while watching for a
+            specific late-goal decision point.
+          </p>
+
+          <div class="section-label" style="margin-top:14px">ORDER</div>
+          <div class="gs-triggers">
+            <button class="gs-trigger-btn active" id="live-sort-btn-stable"   onclick="setLiveSortMode('stable')"   title="Each match keeps its position once first seen — only new matches append, finished matches drop out. No reshuffling on refresh.">📌 Stable</button>
+            <button class="gs-trigger-btn"        id="live-sort-btn-strength" onclick="setLiveSortMode('strength')" title="Re-ranks by live bet strength every refresh — the strongest match is always first, but cards can jump around.">📊 By strength</button>
+          </div>
+
+          <details id="live-league-filter" style="margin-top:14px" ontoggle="saveLiveUiPrefs()">
+            <summary style="font-size:11px;color:var(--dim);cursor:pointer">🏆 Filter by league</summary>
+            <div style="margin-top:8px">
+              <button class="clear-btn" style="margin-bottom:6px" onclick="clearLiveLeagueFilter()">✕ Show all leagues (clear filter)</button>
+              <div id="live-league-filter-options" style="display:flex;flex-direction:column;gap:4px;max-height:220px;overflow-y:auto;padding-right:4px">
+                <p style="font-size:10px;color:var(--dim);font-style:italic">No live matches yet</p>
+              </div>
+            </div>
+          </details>
+
           <details id="live-advanced" style="margin-top:14px" ontoggle="saveLiveUiPrefs()">
             <summary style="font-size:11px;color:var(--dim);cursor:pointer">⚙️ Advanced</summary>
             <div style="margin-top:8px">
