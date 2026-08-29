@@ -2067,7 +2067,20 @@ async function runStrategyLiveWatch(match, ctx) {
           red_h: 0, red_a: 0,
           ...(lambdaSolved.ok ? { lambda_h: lambdaSolved.lambda_h, lambda_a: lambdaSolved.lambda_a, rho: lambdaSolved.rho } : {}),
         };
-        priced = newModelLiveWatchPrice(key, line, liveMin, state);
+        // live_model.js's parseClock(minute) treats any numeric minute <=45
+        // as still being IN THE 1ST HALF (half:1, reg:45 at minute exactly
+        // 45 — i.e. ~0 minutes left in that half), not the start of the 2nd.
+        // LIVEWATCH's 2H-under checkpoint fires right at HT (default window
+        // 44'-50'), so a raw liveMin of 44/45 would be misread as "almost no
+        // time left in 1H" instead of "45 minutes left in 2H" — collapsing
+        // an Under bet's probability to ~96-100% (advised odds ~1.00) for a
+        // reason that has nothing to do with the actual match state. Passing
+        // an explicit {half:2, reg} clock object (parseClock's other
+        // accepted input shape) sidesteps the ambiguity entirely — same fix
+        // runStrategyNewModel gets for free by always passing the literal
+        // string 'HT' instead of a raw minute.
+        const clockArg = { half: 2, reg: Math.max(0, liveMin - 45), stop: 0 };
+        priced = newModelLiveWatchPrice(key, line, clockArg, state);
       }
       if (priced) {
         ({ liveOdd, liveOddLo } = priced);
