@@ -5050,7 +5050,7 @@ function renderFocusMarketRow(label, bet, minN) {
     <div class="pick-row">
       <div class="pick-label">${esc(label)}</div>
       <div class="pick-odds" title="Fair (zero-margin) odds from this bet's historical hit rate">
-        <span class="pick-odds-value">${liveModelOddsCell(bet.mo)}</span>
+        <span class="pick-odds-value">${bet.mo}</span>
         <span class="pick-odds-label">fair odds</span>
       </div>
     </div>
