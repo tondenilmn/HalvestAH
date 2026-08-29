@@ -311,14 +311,28 @@ module.exports = {
   //     walk-forward testing) — and the message's "minimum odds" is likewise
   //     the model's own CI-lower-bound-implied price, not the raw point
   //     estimate,
-  //   - for the 1H keys: checked on every scan cycle up to minute 45 (no
-  //     natural single check point exists pre-HT the way LATEGOAL/QUIET2H
-  //     have one at HT),
-  //   - for the 4 2H keys: fires only within LIVEWATCH_TRIGGER_WINDOW_2H
-  //     (default 68'-72', "around minute 70") — windowed rather than a
-  //     single minute so a missed/delayed scan cycle can't fire it
-  //     arbitrarily late, same convention as LATEGOAL_TRIGGER_WINDOW — rather
-  //     than checking continuously through the whole 2nd half.
+  //   - each key now fires at ONE fixed checkpoint instead of being swept
+  //     continuously (2026-08-29, at the user's request), chosen per the
+  //     bet's own direction+half — mirrors why LATEGOAL/QUIET2H each have a
+  //     single natural entry point (LATEGOAL waits for a specific window
+  //     before the "still hasn't happened" claim is meaningful; QUIET2H fires
+  //     the moment its own condition first becomes checkable):
+  //       Over,  1H (over05_1H/over15_1H + homeScored1H/awayScored1H):
+  //         LIVEWATCH_TRIGGER_WINDOW_1H_OVER  (default 18'-22', "around 20'")
+  //       Under, 1H (under05_1H):
+  //         LIVEWATCH_TRIGGER_WINDOW_1H_UNDER (default 0'-4', start of 1H —
+  //         an Under's edge is highest before anything has had a chance to
+  //         happen yet, unlike an Over, which needs time to accumulate
+  //         evidence that it's running late)
+  //       Over,  2H (over05_2H/over15_2H + homeScored2H/awayScored2H):
+  //         LIVEWATCH_TRIGGER_WINDOW_2H_OVER  (default 68'-72', "around 70'")
+  //       Under, 2H (under05_2H/under15_2H):
+  //         LIVEWATCH_TRIGGER_WINDOW_2H_UNDER (default 44'-50', start of 2H —
+  //         same HT window QUIET2H itself fires in, same reasoning as the 1H
+  //         Under case above)
+  //     Each window stays a small range rather than one exact minute so a
+  //     missed/delayed scan cycle can't skip the check entirely — same
+  //     convention as LATEGOAL_TRIGGER_WINDOW.
   // This is explicitly UNVALIDATED — a real-time convenience alert on top of
   // numbers you can already see in the app, not a backtested strategy like
   // L123/LATEGOAL/QUIET2H. Treat it the same way as NEWMODEL: useful to watch,
@@ -339,9 +353,21 @@ module.exports = {
   // meaningfully different from the generic case", the threshold check says
   // "and time has decayed it convincingly high/low" — both must pass.
   LIVEWATCH_MIN_EDGE:           parseFloat(process.env.LIVEWATCH_MIN_EDGE || '0'),
-  LIVEWATCH_TRIGGER_WINDOW_2H: [
-    parseInt(process.env.LIVEWATCH_TRIGGER_MIN || '68', 10),
-    parseInt(process.env.LIVEWATCH_TRIGGER_MAX || '72', 10),
+  LIVEWATCH_TRIGGER_WINDOW_1H_OVER: [
+    parseInt(process.env.LIVEWATCH_TRIGGER_1H_OVER_MIN || '18', 10),
+    parseInt(process.env.LIVEWATCH_TRIGGER_1H_OVER_MAX || '22', 10),
+  ],
+  LIVEWATCH_TRIGGER_WINDOW_1H_UNDER: [
+    parseInt(process.env.LIVEWATCH_TRIGGER_1H_UNDER_MIN || '0', 10),
+    parseInt(process.env.LIVEWATCH_TRIGGER_1H_UNDER_MAX || '4', 10),
+  ],
+  LIVEWATCH_TRIGGER_WINDOW_2H_OVER: [
+    parseInt(process.env.LIVEWATCH_TRIGGER_MIN || process.env.LIVEWATCH_TRIGGER_2H_OVER_MIN || '68', 10),
+    parseInt(process.env.LIVEWATCH_TRIGGER_MAX || process.env.LIVEWATCH_TRIGGER_2H_OVER_MAX || '72', 10),
+  ],
+  LIVEWATCH_TRIGGER_WINDOW_2H_UNDER: [
+    parseInt(process.env.LIVEWATCH_TRIGGER_2H_UNDER_MIN || '44', 10),
+    parseInt(process.env.LIVEWATCH_TRIGGER_2H_UNDER_MAX || '50', 10),
   ],
   // The 7 O/U keys (focus_lib.FOCUS_KEYS) plus 4 "team to score" keys —
   // homeScored1H/awayScored1H/homeScored2H/awayScored2H — added 2026-08-29 at

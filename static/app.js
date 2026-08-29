@@ -1966,13 +1966,28 @@ function mergeCrossFit(betsA, betsB) {
   return merged;
 }
 
+// db.filter(r => r.fold === 'A'/'B') is the same split every time for a
+// given db array — cached per db reference (WeakMap) instead of re-scanning
+// the whole array on every computeFoldPair call. Live Games calls
+// computeFoldPair up to 4x per match per poll (preBets + HT branches), all
+// against the same getDb() result, so this turns O(matches * dbSize) full
+// re-splits into one O(dbSize) split per poll.
+const _foldSplitCache = new WeakMap();
+function _splitByFold(db) {
+  let split = _foldSplitCache.get(db);
+  if (!split) {
+    split = { dbA: db.filter(r => r.fold === 'A'), dbB: db.filter(r => r.fold === 'B') };
+    _foldSplitCache.set(db, split);
+  }
+  return split;
+}
+
 // Runs scoreBets independently on each fold's subset of db. filterRows(pool)
 // must return { stateRows, baselineRows, baselineSideRows } for that fold's
 // rows — i.e. the same applyConfig/applyBaselineConfig/applyGameState chain
 // a caller would normally run once on the full db, run once per fold instead.
 function computeFoldPair(db, filterRows, minN, scoreOpts) {
-  const dbA = db.filter(r => r.fold === 'A');
-  const dbB = db.filter(r => r.fold === 'B');
+  const { dbA, dbB } = _splitByFold(db);
   const runFold = (pool) => {
     const { stateRows, baselineRows, baselineSideRows } = filterRows(pool);
     return scoreBets(stateRows, baselineRows, baselineSideRows, minN, scoreOpts);
@@ -3189,7 +3204,24 @@ function parseRowDate(dateStr) {
   return isNaN(d.getTime()) ? null : d;
 }
 
+// Memoized on (_db reference, leagueTier, recencyMonths) — Live Games calls
+// getDb() once per live match per poll (potentially dozens when many games
+// are in play), and it was re-filtering the entire dataset from scratch each
+// time even though none of its inputs had changed since the last call. The
+// recencyMonths cutoff is a month-granularity boundary, so caching it across
+// a 60s poll interval (or longer, until state/db actually changes) has no
+// observable effect on results.
+let _getDbCache = null;
 function getDb() {
+  if (
+    _getDbCache &&
+    _getDbCache.db === _db &&
+    _getDbCache.leagueTier === state.leagueTier &&
+    _getDbCache.recencyMonths === state.recencyMonths
+  ) {
+    return _getDbCache.result;
+  }
+
   let rows = _db;
   if (state.leagueTier === 'TOP')   rows = rows.filter(r => r.league_tier === 'TOP');
   else if (state.leagueTier === 'MAJOR') rows = rows.filter(r => r.league_tier === 'TOP' || r.league_tier === 'MAJOR');
@@ -3205,6 +3237,7 @@ function getDb() {
     });
   }
 
+  _getDbCache = { db: _db, leagueTier: state.leagueTier, recencyMonths: state.recencyMonths, result: rows };
   return rows;
 }
 

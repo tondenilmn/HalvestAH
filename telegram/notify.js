@@ -1873,32 +1873,94 @@ function liveWatchBasePool(lineBase, tlBand) {
   return bandBase.length >= cfg.LIVEWATCH_MIN_N ? bandBase : lineBase;
 }
 
-// liveP: point-estimate live probability (display only). liveLoP: the
+// liveP: point-estimate live probability (unused in the message itself,
+// kept as a param for the ALERT log line at the call site). liveLoP: the
 // Wilson-CI-lower-bound live probability — this is what the "minimum odds"
-// target, modelProbLine, and Kelly sizing are all derived from, matching how
-// every other strategy in this file prices (see mo_lo/bet.lo usage
-// throughout) rather than the winner's-curse-prone point estimate.
-function liveWatchFormat(match, key, liveP, liveLoP, histP, histN, blP, minuteScore, equivalent, apiFootballCheck) {
+// target and Kelly sizing are derived from, matching how every other
+// strategy in this file prices (see mo_lo/bet.lo usage throughout) rather
+// than the winner's-curse-prone point estimate.
+//
+// 2026-08-29: rebuilt to the user's own requested layout — a colored-dot
+// header (to tell LIVEWATCH apart from the other strategies' dots: 🟡
+// LATEGOAL, 🔵 QUIET2H, 🟣 NEWMODEL — 🟠 here), then match/league/score,
+// the match's own AH+TL configuration (opening vs closing, since that's what
+// actually drove which historical pool this alert is priced from), game
+// status, and finally the bet/odds/success-rate block. Doesn't use the
+// shared buildMessage() helper (unlike every other strategy here) because
+// the Configuration line has no equivalent in that shared shape.
+function liveWatchFormat(match, key, liveLoP, histP, histN, blP, ctx) {
+  const { liveMin, isHalf1, curScore, htSnap, odds, equivalent, apiFootballCheck } = ctx;
   const marketLabel = equivalent ? equivalent.label : liveWatchLabel(key);
   const actualPrice = apiFootballCheck?.supported ? apiFootballCheck.odds : null;
   const minOdd = liveLoP > 0 ? parseFloat((100 / liveLoP).toFixed(2)) : null;
   const verdictLine = realPriceVerdict(marketLabel, actualPrice, minOdd);
   const kellyLn = kellyLine(actualPrice, liveLoP);
-  const edge = histP - blP;
-  return buildMessage(
-    `⏱️ LIVEWATCH — ${liveWatchLabel(key)} crossed ${cfg.LIVEWATCH_THRESHOLD_PCT}%`,
-    match,
-    minuteScore,
-    [
-      `👉 <b>${esc(liveWatchLabel(key))}</b>`,
-      verdictLine,
-      ...(kellyLn ? [kellyLn] : []),
-      modelProbLine(liveLoP),
-      `📊 Live ${liveP.toFixed(1)}% (point estimate) · conservative CI-lower ${liveLoP.toFixed(1)}% · historical ${histP.toFixed(1)}% (n=${histN}, fav-line/side + closing-TL band${liveWatchHalf(key) === '2H' ? ' + HT score' : ''})`,
-      `📈 ${edge >= 0 ? '+' : ''}${edge.toFixed(1)}pp vs ${blP.toFixed(1)}% baseline (less-conditioned pool, before this match's own ${liveWatchHalf(key) === '2H' ? 'HT-score' : 'TL-band'} narrowing)`,
-      `⚠️ Unvalidated — LIVEWATCH is a real-time threshold watch, not a backtested strategy. Check the sample size above before staking.`,
-    ],
-  );
+  const criteria = `fav-line/side + closing-TL band${isHalf1 ? '' : ' + HT score'}`;
+
+  const fmtLine = (v) => v != null ? v : '—';
+  const configLine = `📐 AH ${fmtLine(odds.ah_ho)} → ${fmtLine(odds.ah_hc)}  ·  TL ${fmtLine(odds.tl_o)} → ${fmtLine(odds.tl_c)}`;
+  const statusLine = isHalf1
+    ? `⏱ ${liveMin}' — 1st half`
+    : `⏱ ${liveMin}' — 2nd half (HT was ${htSnap.home}-${htSnap.away})`;
+
+  return [
+    `🟠 <b>LIVEWATCH — ${esc(liveWatchLabel(key))} crossed ${cfg.LIVEWATCH_THRESHOLD_PCT}%</b>`,
+    ``,
+    `⚽ <b>${esc(match.home_team)} vs ${esc(match.away_team)}</b>`,
+    `🏆 ${esc(match.league) || '—'}`,
+    `🔢 Score: ${curScore.home}-${curScore.away}`,
+    configLine,
+    statusLine,
+    ``,
+    `👉 <b>${esc(liveWatchLabel(key))}</b>`,
+    verdictLine,
+    ...(kellyLn ? [kellyLn] : []),
+    `📊 Current ${liveLoP.toFixed(0)}% vs ${blP.toFixed(0)}% baseline (n=${histN}, ${criteria}; historically ${histP.toFixed(0)}%)`,
+    `⚠️ Unvalidated — real-time watch, not backtested. Check n above before staking.`,
+  ].join('\n');
+}
+
+// NEWMODEL (E5/E8, telegram/live_model.js) pricing for LIVEWATCH's 7 O/U
+// keys (focus_lib.FOCUS_KEYS) only — added 2026-08-29 at the user's request
+// to price LIVEWATCH off the same coherent goal-hazard/gamma-Poisson model
+// NEWMODEL itself uses, instead of the older bucket-hit-rate + flat-decay
+// curve (computeLiveOdd/computeLive1HOdd). Deliberately NOT applied to the 4
+// "team to score" extra keys (homeScored1H/awayScored1H/homeScored2H/
+// awayScored2H) — live_model.js's _evalMarket has no per-side over/under
+// market type (only combined-total over/under, btts, result, correct_score),
+// so those 4 keep using the legacy engine. Falls back to the legacy engine
+// for the 7 O/U keys too if the hazard data isn't loaded or pricing throws —
+// this must never be the reason a key silently stops firing.
+//
+// goalsSoFar > line is checked directly (not left to the model) so an
+// already-settled key is skipped the same way legacy's alreadyDecided does —
+// the model's own p/lo would naturally converge to 0 or 1 in that case, but
+// "already happened" isn't a live signal worth alerting on either way, same
+// reasoning as computeLiveOdd's explicit early-return.
+function newModelLiveWatchPrice(key, line, minute, state) {
+  let boot;
+  try { boot = LM.init(); } catch (e) { return null; }
+  if (!boot.hazardLoaded) return null;
+
+  const isUnder = !!focusLib.FOCUS_IS_UNDER[key];
+  const htTotal = (state.ht_home_goals != null ? state.ht_home_goals + state.ht_away_goals : 0);
+  const goalsSoFar = (state.home_goals + state.away_goals) - htTotal;
+  if (goalsSoFar > line) {
+    const p = isUnder ? 0 : 100;
+    return { liveOdd: { live_p: p, alreadyDecided: true }, liveOddLo: { live_p: p, alreadyDecided: true } };
+  }
+
+  let row;
+  try {
+    row = LM.priceMarket({ type: isUnder ? 'under' : 'over', line, scope: 'half' }, state, minute, { samples: cfg.NEWMODEL_MC_SAMPLES });
+  } catch (e) {
+    return null;
+  }
+  if (row.p == null) return null;
+  return {
+    liveOdd:   { live_p: row.p * 100, alreadyDecided: false },
+    liveOddLo: { live_p: (row.lo != null ? row.lo : row.p) * 100, alreadyDecided: false },
+  };
 }
 
 async function runStrategyLiveWatch(match, ctx) {
@@ -1919,16 +1981,41 @@ async function runStrategyLiveWatch(match, ctx) {
   const curScore = parseScoreStr(match.score);
   const lineBase = _dbAll.filter(r => r.fav_line === favLine && r.fav_side === favSide);
 
+  // Per-match implied lambda for the NEWMODEL pricing path below — same
+  // per-match solver runStrategyNewModel uses (see its own header comment
+  // for why the bucket-lookup fallback alone isn't good enough), solved once
+  // per scan cycle rather than once per key. Left unset (bucket-lookup
+  // fallback inside live_model.js's _normState) if the AH line is missing or
+  // the solver fails — never blocks LIVEWATCH from running.
+  let lambdaSolved = null;
+  if (odds.ah_hc != null) {
+    lambdaSolved = solveLambdaFromOdds({
+      ahLine: odds.ah_hc, ahHomeOdds: odds.ho_c, ahAwayOdds: odds.ao_c,
+      tl: odds.tl_c != null ? odds.tl_c : odds.tl_o,
+      overOdds: odds.ov_c, underOdds: odds.un_c, tier,
+    });
+  }
+
   for (const key of LIVEWATCH_ALL_KEYS) {
     if (!cfg.LIVEWATCH_KEYS.includes(key)) continue;
+
+    const isHalf1 = liveWatchHalf(key) === '1H';
+    const isUnder = !!focusLib.FOCUS_IS_UNDER[key];
+    // Each key fires at ONE fixed checkpoint (2026-08-29, at the user's
+    // request) instead of being swept continuously — see config.js's
+    // LIVEWATCH_TRIGGER_WINDOW_* comment for the reasoning per direction/half.
+    const window = isHalf1
+      ? (isUnder ? cfg.LIVEWATCH_TRIGGER_WINDOW_1H_UNDER : cfg.LIVEWATCH_TRIGGER_WINDOW_1H_OVER)
+      : (isUnder ? cfg.LIVEWATCH_TRIGGER_WINDOW_2H_UNDER : cfg.LIVEWATCH_TRIGGER_WINDOW_2H_OVER);
+    if (liveMin < window[0] || liveMin > window[1]) continue;
+
     const dedupKey = `${matchId}:livewatch:${key}`;
     if (liveWatchDedup.has(dedupKey)) continue;
 
-    const isHalf1 = liveWatchHalf(key) === '1H';
-    let liveOdd, liveOddLo, histP, histN, blP, equivalent = null, minuteScore;
+    let liveOdd, liveOddLo, histP, histN, blP, equivalent = null;
+    let htSnap = null;
 
     if (isHalf1) {
-      if (liveMin > 45) continue; // 1H already over — nothing left to watch
       if (!curScore) { flogv(liveMin, label, 'LIVEWATCH', `SKIP ${key}: no live score`); continue; }
       const pool = liveWatchBasePool(lineBase, tlBand);
       if (pool.length < cfg.LIVEWATCH_MIN_N) continue;
@@ -1936,15 +2023,26 @@ async function runStrategyLiveWatch(match, ctx) {
       blP = pct(lineBase, key); // baseline: fav-line/side only, before TL-band narrowing
       const [lo] = wilsonCI(histP, histN);
       if ((lo - blP) < cfg.LIVEWATCH_MIN_EDGE) { flogv(liveMin, label, 'LIVEWATCH', `SKIP ${key}: edge ${(lo - blP).toFixed(1)}pp below baseline ${blP.toFixed(1)}%`); continue; }
-      liveOdd   = computeLive1HOdd(histP, key, liveMin, favLine, curScore.home, curScore.away);
-      liveOddLo = computeLive1HOdd(lo,    key, liveMin, favLine, curScore.home, curScore.away);
-      minuteScore = `${liveMin}' · ${curScore.home}-${curScore.away} (1H) · TL ${odds.tl_c ?? '—'}`;
+
+      let priced = null;
+      if (focusLib.FOCUS_KEYS.includes(key) && lambdaSolved) {
+        const line = key.includes('05') ? 0.5 : 1.5;
+        const state = {
+          ah_line: odds.ah_hc, tl: odds.tl_c != null ? odds.tl_c : odds.tl_o, tier,
+          home_goals: curScore.home, away_goals: curScore.away,
+          red_h: 0, red_a: 0,
+          ...(lambdaSolved.ok ? { lambda_h: lambdaSolved.lambda_h, lambda_a: lambdaSolved.lambda_a, rho: lambdaSolved.rho } : {}),
+        };
+        priced = newModelLiveWatchPrice(key, line, liveMin, state);
+      }
+      if (priced) {
+        ({ liveOdd, liveOddLo } = priced);
+      } else {
+        liveOdd   = computeLive1HOdd(histP, key, liveMin, favLine, curScore.home, curScore.away);
+        liveOddLo = computeLive1HOdd(lo,    key, liveMin, favLine, curScore.home, curScore.away);
+      }
     } else {
-      // Fire only around minute 70 — windowed, not continuous through the
-      // whole 2nd half — see config.js's LIVEWATCH_TRIGGER_WINDOW_2H comment.
-      const [winLo, winHi] = cfg.LIVEWATCH_TRIGGER_WINDOW_2H;
-      if (liveMin < winLo || liveMin > winHi) continue;
-      const htSnap = _htSnapshots.get(matchId);
+      htSnap = _htSnapshots.get(matchId);
       if (!htSnap) { flogv(liveMin, label, 'LIVEWATCH', `SKIP ${key}: no HT snapshot yet`); continue; }
       if (!curScore) { flogv(liveMin, label, 'LIVEWATCH', `SKIP ${key}: no live score`); continue; }
       const pool = liveWatchBasePool(lineBase, tlBand);
@@ -1958,10 +2056,26 @@ async function runStrategyLiveWatch(match, ctx) {
       const home2h = curScore.home - htSnap.home, away2h = curScore.away - htSnap.away;
       const favG2h = favSide === 'HOME' ? home2h : away2h;
       const dogG2h = favSide === 'HOME' ? away2h : home2h;
-      liveOdd   = computeLiveOdd(histP, key, liveMin, favLine, favG2h, dogG2h, favSide);
-      liveOddLo = computeLiveOdd(lo,    key, liveMin, favLine, favG2h, dogG2h, favSide);
+
+      let priced = null;
+      if (focusLib.FOCUS_KEYS.includes(key) && lambdaSolved) {
+        const line = key.includes('05') ? 0.5 : 1.5;
+        const state = {
+          ah_line: odds.ah_hc, tl: odds.tl_c != null ? odds.tl_c : odds.tl_o, tier,
+          home_goals: curScore.home, away_goals: curScore.away,
+          ht_home_goals: htSnap.home, ht_away_goals: htSnap.away,
+          red_h: 0, red_a: 0,
+          ...(lambdaSolved.ok ? { lambda_h: lambdaSolved.lambda_h, lambda_a: lambdaSolved.lambda_a, rho: lambdaSolved.rho } : {}),
+        };
+        priced = newModelLiveWatchPrice(key, line, liveMin, state);
+      }
+      if (priced) {
+        ({ liveOdd, liveOddLo } = priced);
+      } else {
+        liveOdd   = computeLiveOdd(histP, key, liveMin, favLine, favG2h, dogG2h, favSide);
+        liveOddLo = computeLiveOdd(lo,    key, liveMin, favLine, favG2h, dogG2h, favSide);
+      }
       equivalent = focusSelect.equivalentRealMarketFocus2h(key, htSnap.home, htSnap.away);
-      minuteScore = `${liveMin}' · HT ${htSnap.home}-${htSnap.away} → ${curScore.home}-${curScore.away} · TL ${odds.tl_c ?? '—'}`;
     }
 
     if (liveOdd.live_p == null || liveOdd.alreadyDecided) continue;
@@ -1982,7 +2096,9 @@ async function runStrategyLiveWatch(match, ctx) {
       }
     }
 
-    const msg = liveWatchFormat(match, key, liveOdd.live_p, liveOddLo.live_p, histP, histN, blP, minuteScore, equivalent, apiFootballCheck);
+    const msg = liveWatchFormat(match, key, liveOddLo.live_p, histP, histN, blP, {
+      liveMin, isHalf1, curScore, htSnap, odds, equivalent, apiFootballCheck,
+    });
     await sendTelegram(msg);
     liveWatchDedup.mark(dedupKey);
     flog(liveMin, label, 'LIVEWATCH', `ALERT: ${key} live_p=${liveOdd.live_p.toFixed(1)}% live_lo=${liveOddLo.live_p.toFixed(1)}% hist=${histP.toFixed(1)}% n=${histN} tier=${tier}`);
@@ -2168,7 +2284,7 @@ async function main() {
   console.log(`Strategy NEWMODEL [${on(cfg.NEWMODEL_ENABLED)}][${cfg.NEWMODEL_TIER}]: E8 LiveModel HT reprice (UNVALIDATED)  fire=HT window ${HT_SNAPSHOT_WINDOW[0]}'-${HT_SNAPSHOT_WINDOW[1]}'  minEdge≥${cfg.NEWMODEL_MIN_EDGE_PP}pp  minLoUnverified≥${cfg.NEWMODEL_MIN_LO_UNVERIFIED}%`);
   const focusSurvivorCounts = Object.entries(focusSelect.loadConfigs().results || {}).map(([k, v]) => `${k}=${v.length}`).join(' ') || 'none loaded';
   console.log(`Strategy FOCUS [${on(cfg.FOCUS_ENABLED)}]: 1T/2T O/U 0.5/1.5, cells fixed offline by focus_config_search.js  fire=1H@${cfg.FOCUS_PRE_WINDOW_MIN}min pre-kickoff / 2H@HT window ${HT_SNAPSHOT_WINDOW[0]}'-${HT_SNAPSHOT_WINDOW[1]}'  minLiveN≥${cfg.FOCUS_MIN_LIVE_N}  survivingCells: ${focusSurvivorCounts}`);
-  console.log(`Strategy LIVEWATCH [${on(cfg.LIVEWATCH_ENABLED)}][${cfg.LIVEWATCH_TIER}]: live probability threshold watch (UNVALIDATED)  fire=CI-lower live_p≥${cfg.LIVEWATCH_THRESHOLD_PCT}% AND edge≥${cfg.LIVEWATCH_MIN_EDGE}pp vs baseline  1H=every scan≤45'  2H window=${cfg.LIVEWATCH_TRIGGER_WINDOW_2H[0]}'-${cfg.LIVEWATCH_TRIGGER_WINDOW_2H[1]}'  minN≥${cfg.LIVEWATCH_MIN_N}  keys=${cfg.LIVEWATCH_KEYS.join(',')}`);
+  console.log(`Strategy LIVEWATCH [${on(cfg.LIVEWATCH_ENABLED)}][${cfg.LIVEWATCH_TIER}]: live probability threshold watch (UNVALIDATED)  fire=CI-lower live_p≥${cfg.LIVEWATCH_THRESHOLD_PCT}% AND edge≥${cfg.LIVEWATCH_MIN_EDGE}pp vs baseline  1H-over=${cfg.LIVEWATCH_TRIGGER_WINDOW_1H_OVER[0]}'-${cfg.LIVEWATCH_TRIGGER_WINDOW_1H_OVER[1]}'  1H-under=${cfg.LIVEWATCH_TRIGGER_WINDOW_1H_UNDER[0]}'-${cfg.LIVEWATCH_TRIGGER_WINDOW_1H_UNDER[1]}'  2H-over=${cfg.LIVEWATCH_TRIGGER_WINDOW_2H_OVER[0]}'-${cfg.LIVEWATCH_TRIGGER_WINDOW_2H_OVER[1]}'  2H-under=${cfg.LIVEWATCH_TRIGGER_WINDOW_2H_UNDER[0]}'-${cfg.LIVEWATCH_TRIGGER_WINDOW_2H_UNDER[1]}'  minN≥${cfg.LIVEWATCH_MIN_N}  keys=${cfg.LIVEWATCH_KEYS.join(',')}`);
   console.log(`Global tier default: ${cfg.LEAGUE_TIER}`);
 
   // Refresh all book hashes at startup
