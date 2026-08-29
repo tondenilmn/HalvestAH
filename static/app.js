@@ -4504,6 +4504,10 @@ let _liveMatchesAll = [];       // last analyzed batch, before the live-tier dis
 let _liveMatches    = [];       // _liveMatchesAll filtered by state.liveTierFilter — what's actually rendered/indexed
 let _liveHtAnchors = new Map(); // matchId -> {home, away, ts}
 let _livePollTimer = null;
+let _livePollInProgress = false; // re-entrancy guard — see pollLiveMatches's chunking comment
+// How many matches' analyzeLiveMatch() to run before yielding back to the
+// browser — see pollLiveMatches.
+const LIVE_ANALYZE_CHUNK_SIZE = 3;
 let _liveAutoRefresh = true;
 let _liveLastUpdated = null;
 
@@ -4779,39 +4783,65 @@ function topLiveBet(analysis) {
   return vh[0] || null;
 }
 
+// analyzeLiveMatch() runs several full-dataset passes per match (see its own
+// header comment and crossFitBets' cross-fit doubling) — on a slow mobile
+// CPU with many matches live at once, running all of them back-to-back in
+// one synchronous loop blocked the main thread long enough that the page
+// looked frozen (no scroll response) and every match then appeared at once
+// the moment the whole batch finally finished. Processing in small chunks
+// with an `await` yield between them, re-rendering after every chunk, fixes
+// both symptoms: the browser gets a chance to paint/scroll between chunks,
+// and matches populate progressively instead of arriving all at once several
+// minutes later. `_livePollInProgress` guards against a second poll (the
+// 60s interval) starting while a slow scan is still mid-flight, which would
+// otherwise race on the same _liveMatchesAll array.
 async function pollLiveMatches() {
   if (!_db.length) {
     const el = document.getElementById('right-live');
     if (el) el.innerHTML = `<div class="no-bets"><div class="warn-icon">⚠️</div><p>Load a database first.</p></div>`;
     return;
   }
+  if (_livePollInProgress) return;
+  _livePollInProgress = true;
   const statusEl = document.getElementById('live-status-text');
   if (statusEl) statusEl.textContent = 'Refreshing…';
 
   try {
     const rawMatches = await fetchLiveMatches();
+    const analyzed = [];
 
-    const analyzed = rawMatches.map(m => {
-      const minute = parseLiveMinute(m.minute);
-      if (minute == null) return null;
-      updateHtAnchor(m, minute);
-      return analyzeLiveMatch(m, minute);
-    }).filter(Boolean);
+    for (let i = 0; i < rawMatches.length; i += LIVE_ANALYZE_CHUNK_SIZE) {
+      const chunk = rawMatches.slice(i, i + LIVE_ANALYZE_CHUNK_SIZE);
+      for (const m of chunk) {
+        const minute = parseLiveMinute(m.minute);
+        if (minute == null) continue;
+        updateHtAnchor(m, minute);
+        const a = analyzeLiveMatch(m, minute);
+        if (a) analyzed.push(a);
+      }
 
-    // List order is by match minute descending (longest-running match first)
-    // — the "BEST LIVE BET" banner picks its own headline match independently
-    // by score (see renderLiveGames), so this only affects the full list.
-    analyzed.sort((a, b) => b.minute - a.minute);
-    _liveMatchesAll = analyzed;
-    applyLiveTierFilter();
-    _liveLastUpdated = new Date();
-    renderLiveGames();
+      // List order is by match minute descending (longest-running match
+      // first) — the "BEST LIVE BET" banner picks its own headline match
+      // independently by score (see renderLiveGames), so this only affects
+      // the full list. Re-sorted and re-rendered after every chunk so the
+      // list stays in the right order even though it's still filling in.
+      _liveMatchesAll = [...analyzed].sort((a, b) => b.minute - a.minute);
+      applyLiveTierFilter();
+      _liveLastUpdated = new Date();
+      renderLiveGames();
+
+      if (i + LIVE_ANALYZE_CHUNK_SIZE < rawMatches.length) {
+        await new Promise(resolve => setTimeout(resolve, 0));
+      }
+    }
   } catch (e) {
     if (statusEl) statusEl.textContent = 'Refresh failed';
     if (_activeTab === 'live') {
       document.getElementById('right-live').innerHTML =
         `<div class="no-bets"><div class="warn-icon">⚠️</div><p>Could not load live matches: ${esc(e.message)}</p></div>`;
     }
+  } finally {
+    _livePollInProgress = false;
   }
 }
 
