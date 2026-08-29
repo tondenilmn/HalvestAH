@@ -109,83 +109,12 @@
             <input type="checkbox" id="live-auto-refresh" checked onchange="toggleLiveAutoRefresh(this.checked)">
             Auto-refresh every minute
           </label>
-          <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);margin-top:8px;cursor:pointer">
-            <input type="checkbox" id="live-focus-markets-toggle" checked onchange="toggleFocusMarkets(this.checked)">
-            🥅 1T/2T Goals Focus (Over/Under 0.5 &amp; 1.5)
-          </label>
-          <p style="font-size:10px;color:var(--dim);font-style:italic;margin-top:4px;line-height:1.4">
-            Over/Under 0.5 &amp; 1.5 goals per half, from the historical bucket-hit-rate engine (not
-            the beta pricing model below): 1H bets use only the match's pre-match/closing config,
-            2H bets additionally condition on the actual HT score. Shows probability, the baseline
-            historical rate it's measured against, and fair odds. A bet disappears once its half is
-            over (1H bets) or before an HT anchor exists (2H bets).
-          </p>
-          <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);margin-top:8px;cursor:pointer">
-            <input type="checkbox" id="live-new-model-toggle" checked onchange="toggleNewLiveModel(this.checked)">
-            🧪 New pricing model (beta)
-          </label>
-          <p style="font-size:10px;color:var(--dim);font-style:italic;margin-top:4px;line-height:1.4">
-            Shows an additional panel per match priced by the new market-implied hazard/gamma-Poisson
-            engine (E5), alongside the existing bucket-hit-rate numbers above — for comparison only,
-            doesn't replace them.
-          </p>
-          <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);margin-top:8px;cursor:pointer">
-            <input type="checkbox" id="live-model-focus-toggle" onchange="toggleLiveModelFocus(this.checked)">
-            🎯 Focus: live-playable bets only
-          </label>
-          <p style="font-size:10px;color:var(--dim);font-style:italic;margin-top:4px;line-height:1.4">
-            Narrows the panel to Over FT (match's own closing TL), BTTS Yes, and Over 0.5/1.5 2H —
-            the markets with real walk-forward validation AND a genuine live "wait for the market
-            to lag" edge (Under-type bets are HT-entry only, so excluded) — and hides any market
-            whose outcome is already decided by the current score.
-          </p>
-          <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);margin-top:8px">
-            Exchange commission
-            <input type="number" id="live-exchange-commission" value="2" min="0" max="20" step="0.5"
-                   style="width:52px" oninput="setExchangeCommission(this.value)">
-            % <span style="font-style:italic">(0 = soft bookmaker)</span>
-          </label>
 
-          <details style="margin-top:8px">
-            <summary style="font-size:11px;color:var(--dim);cursor:pointer">🔽 Filter markets shown (none = default set)</summary>
-            <div style="display:flex;flex-direction:column;gap:4px;margin-top:6px;padding-left:4px">
-              <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);cursor:pointer">
-                <input type="checkbox" class="live-model-filter-cb" data-key="result_home" onchange="toggleLiveModelMarketFilter('result_home', this.checked)">1X2: Home</label>
-              <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);cursor:pointer">
-                <input type="checkbox" class="live-model-filter-cb" data-key="result_draw" onchange="toggleLiveModelMarketFilter('result_draw', this.checked)">1X2: Draw</label>
-              <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);cursor:pointer">
-                <input type="checkbox" class="live-model-filter-cb" data-key="result_away" onchange="toggleLiveModelMarketFilter('result_away', this.checked)">1X2: Away</label>
-              <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);cursor:pointer">
-                <input type="checkbox" class="live-model-filter-cb" data-key="over15_ft" onchange="toggleLiveModelMarketFilter('over15_ft', this.checked)">Over 1.5 FT</label>
-              <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);cursor:pointer">
-                <input type="checkbox" class="live-model-filter-cb" data-key="over25_ft" onchange="toggleLiveModelMarketFilter('over25_ft', this.checked)">Over 2.5 FT</label>
-              <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);cursor:pointer">
-                <input type="checkbox" class="live-model-filter-cb" data-key="under25_ft" onchange="toggleLiveModelMarketFilter('under25_ft', this.checked)">Under 2.5 FT</label>
-              <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);cursor:pointer">
-                <input type="checkbox" class="live-model-filter-cb" data-key="over_tl" onchange="toggleLiveModelMarketFilter('over_tl', this.checked)">Over TL FT (match's own closing line)</label>
-              <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);cursor:pointer">
-                <input type="checkbox" class="live-model-filter-cb" data-key="under_tl" onchange="toggleLiveModelMarketFilter('under_tl', this.checked)">Under TL FT (match's own closing line)</label>
-              <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);cursor:pointer">
-                <input type="checkbox" class="live-model-filter-cb" data-key="btts" onchange="toggleLiveModelMarketFilter('btts', this.checked)">BTTS Yes</label>
-              <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);cursor:pointer">
-                <input type="checkbox" class="live-model-filter-cb" data-key="over05_2h" onchange="toggleLiveModelMarketFilter('over05_2h', this.checked)">Over 0.5 2H</label>
-              <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);cursor:pointer">
-                <input type="checkbox" class="live-model-filter-cb" data-key="over15_2h" onchange="toggleLiveModelMarketFilter('over15_2h', this.checked)">Over 1.5 2H</label>
-              <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);cursor:pointer">
-                <input type="checkbox" class="live-model-filter-cb" data-key="under05_2h" onchange="toggleLiveModelMarketFilter('under05_2h', this.checked)">Under 0.5 2H</label>
-              <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);cursor:pointer">
-                <input type="checkbox" class="live-model-filter-cb" data-key="under15_2h" onchange="toggleLiveModelMarketFilter('under15_2h', this.checked)">Under 1.5 2H</label>
-              <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);cursor:pointer">
-                <input type="checkbox" class="live-model-filter-cb" data-key="nextgoal15" onchange="toggleLiveModelMarketFilter('nextgoal15', this.checked)">Next 15 min: no goal</label>
-              <button class="clear-btn" style="margin-top:4px;align-self:flex-start" onclick="clearLiveModelMarketFilter()">✕ Show all (clear filter)</button>
-            </div>
-          </details>
-
-          <p style="font-size:10px;color:var(--dim);font-style:italic;margin-top:8px;line-height:1.4">
-            HT score for live 2H odds is captured automatically the first time each match is seen
-            crossing halftime — no manual entry needed. Matches opened mid-2nd-half show
-            closing-odds signal only until a fresh HT is captured.
-          </p>
+          <div class="section-label" style="margin-top:14px">MODE</div>
+          <div class="gs-triggers">
+            <button class="gs-trigger-btn active" id="live-mode-btn-FOCUS" onclick="setLiveUiMode('focus')" title="Only the 1T/2T Over/Under 0.5 &amp; 1.5 goal markets — a compact one-row-per-match view">🥅 Focus (1T/2T O/U)</button>
+            <button class="gs-trigger-btn"        id="live-mode-btn-ALL"   onclick="setLiveUiMode('all')" title="Full bet dashboard, Top Pick/Value Hunt banners and every market — the original detailed view">📋 All markets</button>
+          </div>
 
           <div class="section-label" style="margin-top:14px">LIVE MATCH LEAGUE TIER</div>
           <div class="gs-triggers">
@@ -197,6 +126,67 @@
             Restricts which live matches are shown by their own league — obscure leagues have thinner
             historical pools and underperformed out-of-sample in past backtesting. MAJOR+ recommended.
           </p>
+
+          <details id="live-advanced" style="margin-top:14px" ontoggle="saveLiveUiPrefs()">
+            <summary style="font-size:11px;color:var(--dim);cursor:pointer">⚙️ Advanced</summary>
+            <div style="margin-top:8px">
+              <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);cursor:pointer" title="Shows an additional panel per match priced by the new market-implied hazard/gamma-Poisson engine (E5), alongside the bucket-hit-rate numbers — comparison only, doesn't replace them.">
+                <input type="checkbox" id="live-new-model-toggle" checked onchange="toggleNewLiveModel(this.checked)">
+                🧪 New pricing model (beta)
+              </label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);margin-top:8px;cursor:pointer" title="Narrows the beta model panel to Over FT (match's own closing TL), BTTS Yes, and Over 0.5/1.5 2H — the markets with real walk-forward validation and a genuine live 'wait for the market to lag' edge — and hides any market already decided by the current score.">
+                <input type="checkbox" id="live-model-focus-toggle" onchange="toggleLiveModelFocus(this.checked)">
+                🎯 Beta model: live-playable bets only
+              </label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);margin-top:8px">
+                Exchange commission
+                <input type="number" id="live-exchange-commission" value="2" min="0" max="20" step="0.5"
+                       style="width:52px" oninput="setExchangeCommission(this.value)">
+                % <span style="font-style:italic">(0 = soft bookmaker)</span>
+              </label>
+
+              <details style="margin-top:8px">
+                <summary style="font-size:11px;color:var(--dim);cursor:pointer">🔽 Filter beta-model markets shown (none = default set)</summary>
+                <div style="display:flex;flex-direction:column;gap:4px;margin-top:6px;padding-left:4px">
+                  <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);cursor:pointer">
+                    <input type="checkbox" class="live-model-filter-cb" data-key="result_home" onchange="toggleLiveModelMarketFilter('result_home', this.checked)">1X2: Home</label>
+                  <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);cursor:pointer">
+                    <input type="checkbox" class="live-model-filter-cb" data-key="result_draw" onchange="toggleLiveModelMarketFilter('result_draw', this.checked)">1X2: Draw</label>
+                  <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);cursor:pointer">
+                    <input type="checkbox" class="live-model-filter-cb" data-key="result_away" onchange="toggleLiveModelMarketFilter('result_away', this.checked)">1X2: Away</label>
+                  <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);cursor:pointer">
+                    <input type="checkbox" class="live-model-filter-cb" data-key="over15_ft" onchange="toggleLiveModelMarketFilter('over15_ft', this.checked)">Over 1.5 FT</label>
+                  <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);cursor:pointer">
+                    <input type="checkbox" class="live-model-filter-cb" data-key="over25_ft" onchange="toggleLiveModelMarketFilter('over25_ft', this.checked)">Over 2.5 FT</label>
+                  <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);cursor:pointer">
+                    <input type="checkbox" class="live-model-filter-cb" data-key="under25_ft" onchange="toggleLiveModelMarketFilter('under25_ft', this.checked)">Under 2.5 FT</label>
+                  <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);cursor:pointer">
+                    <input type="checkbox" class="live-model-filter-cb" data-key="over_tl" onchange="toggleLiveModelMarketFilter('over_tl', this.checked)">Over TL FT (match's own closing line)</label>
+                  <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);cursor:pointer">
+                    <input type="checkbox" class="live-model-filter-cb" data-key="under_tl" onchange="toggleLiveModelMarketFilter('under_tl', this.checked)">Under TL FT (match's own closing line)</label>
+                  <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);cursor:pointer">
+                    <input type="checkbox" class="live-model-filter-cb" data-key="btts" onchange="toggleLiveModelMarketFilter('btts', this.checked)">BTTS Yes</label>
+                  <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);cursor:pointer">
+                    <input type="checkbox" class="live-model-filter-cb" data-key="over05_2h" onchange="toggleLiveModelMarketFilter('over05_2h', this.checked)">Over 0.5 2H</label>
+                  <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);cursor:pointer">
+                    <input type="checkbox" class="live-model-filter-cb" data-key="over15_2h" onchange="toggleLiveModelMarketFilter('over15_2h', this.checked)">Over 1.5 2H</label>
+                  <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);cursor:pointer">
+                    <input type="checkbox" class="live-model-filter-cb" data-key="under05_2h" onchange="toggleLiveModelMarketFilter('under05_2h', this.checked)">Under 0.5 2H</label>
+                  <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);cursor:pointer">
+                    <input type="checkbox" class="live-model-filter-cb" data-key="under15_2h" onchange="toggleLiveModelMarketFilter('under15_2h', this.checked)">Under 1.5 2H</label>
+                  <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);cursor:pointer">
+                    <input type="checkbox" class="live-model-filter-cb" data-key="nextgoal15" onchange="toggleLiveModelMarketFilter('nextgoal15', this.checked)">Next 15 min: no goal</label>
+                  <button class="clear-btn" style="margin-top:4px;align-self:flex-start" onclick="clearLiveModelMarketFilter()">✕ Show all (clear filter)</button>
+                </div>
+              </details>
+
+              <p style="font-size:10px;color:var(--dim);font-style:italic;margin-top:8px;line-height:1.4">
+                HT score for live 2H odds is captured automatically the first time each match is seen
+                crossing halftime — no manual entry needed. Matches opened mid-2nd-half show
+                closing-odds signal only until a fresh HT is captured.
+              </p>
+            </div>
+          </details>
         </div>
       </div><!-- /tab-live-controls -->
 

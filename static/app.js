@@ -3170,10 +3170,14 @@ const state = {
   exchangeCommissionPct: 2, // % commission on net winnings (Betfair-style), applied to the new pricing model's back/lay display; 0 = soft-bookmaker (no commission)
   useNewLiveModel: true, // E7: additive toggle for the new live_model.js pricing panel (Live Games only),
   liveModelFocus: false, // "live-playable bets only" preset — see toggleLiveModelFocus
-  showFocusMarkets: true, // 1T/2T goals focus table (Over/Under 0.5/1.5) — see toggleFocusMarkets
+  showFocusMarkets: true, // 1T/2T goals focus table (Over/Under 0.5/1.5) — driven by liveUiMode below, see setLiveUiMode
                           // session-only (not persisted) — mirrors the "either is fine" guidance in
                           // LIVE_BETTING_PLAN.md E7; kept simple since this is a beta compare-view toggle,
                           // not a setting worth surviving a reload the way HT anchors need to.
+  liveUiMode: 'focus',    // 'focus' (default — 1T/2T O/U only, compact cards) | 'all' (full dashboard,
+                          // unchanged from before this toggle existed) — see setLiveUiMode. Persisted
+                          // to localStorage (LIVE_UI_STORAGE_KEY) since, unlike showFocusMarkets above,
+                          // this changes the whole tab's layout and is worth remembering across reloads.
 };
 
 // Bundled CSVs use ISO "YYYY-MM-DD" dates (confirmed across all 15 files in
@@ -4450,7 +4454,7 @@ function switchTab(name) {
     document.getElementById(`tab-${t}-controls`)?.classList.toggle('active', t === name);
     document.getElementById(`right-${t}`)?.classList.toggle('active', t === name);
   });
-  if (name === 'live') startLivePolling();
+  if (name === 'live') { loadLiveUiPrefs(); startLivePolling(); }
   else stopLivePolling();
 }
 
@@ -5035,50 +5039,141 @@ function renderLiveModelRow(r) {
    it's actually still live-playable (1H bets vanish once 1H is over, 2H bets
    only appear once an HT anchor exists). */
 const FOCUS_MARKET_BETS = [
-  { half: 1, k: 'over05_1H',  label: 'Over 0.5 1T' },
-  { half: 1, k: 'over15_1H',  label: 'Over 1.5 1T' },
-  { half: 1, k: 'under05_1H', label: 'Under 0.5 1T (HT)' },
-  { half: 2, k: 'over05_2H',  label: 'Over 0.5 2T' },
-  { half: 2, k: 'over15_2H',  label: 'Over 1.5 2T' },
-  { half: 2, k: 'under05_2H', label: 'Under 0.5 2T' },
-  { half: 2, k: 'under15_2H', label: 'Under 1.5 2T' },
+  { half: 1, k: 'over05_1H',    label: 'Over 0.5 1T' },
+  { half: 1, k: 'over15_1H',    label: 'Over 1.5 1T' },
+  { half: 1, k: 'under05_1H',   label: 'Under 0.5 1T (HT)' },
+  { half: 1, k: 'homeScored1H', label: 'Home to score 1T' },
+  { half: 1, k: 'awayScored1H', label: 'Away to score 1T' },
+  { half: 2, k: 'over05_2H',    label: 'Over 0.5 2T' },
+  { half: 2, k: 'over15_2H',    label: 'Over 1.5 2T' },
+  { half: 2, k: 'under05_2H',   label: 'Under 0.5 2T' },
+  { half: 2, k: 'under15_2H',   label: 'Under 1.5 2T' },
+  { half: 2, k: 'homeScored2H', label: 'Home to score 2T' },
+  { half: 2, k: 'awayScored2H', label: 'Away to score 2T' },
 ];
 
+// `bet.mo_lo` (the Wilson-CI-lower-bound-implied price) is the "advised
+// odds" — the same conservative number kellyLine()/realPriceVerdict() key
+// off throughout this codebase, not the winner's-curse-prone point-estimate
+// fair odds (bet.mo). Only ever called for a bet that already cleared the
+// above-baseline filter in renderFocusMarketsPanel below.
 function renderFocusMarketRow(label, bet, minN) {
   const edgeColor = bet.edge >= 0 ? 'var(--accent)' : 'var(--dim)';
   return `
     <div class="pick-row">
       <div class="pick-label">${esc(label)}</div>
-      <div class="pick-odds" title="Fair (zero-margin) odds from this bet's historical hit rate">
-        <span class="pick-odds-value">${bet.mo}</span>
-        <span class="pick-odds-label">fair odds</span>
+      <div class="pick-odds" title="Advised odds — the conservative (Wilson CI lower-bound) target price to look for at the bookmaker">
+        <span class="pick-odds-value">${bet.mo_lo}</span>
+        <span class="pick-odds-label">advised odds</span>
       </div>
     </div>
     <div class="col-stats" style="margin:2px 0 8px">
       <span>${bet.p.toFixed(1)}%</span>
       <span style="color:var(--dim)" title="Historical rate for this exact bet across the whole database, unfiltered — what 'above baseline' is measured against">baseline ${bet.bl.toFixed(1)}%</span>
       <span style="color:${edgeColor}">${bet.edge >= 0 ? '+' : ''}${bet.edge.toFixed(1)}pp</span>
+      <span style="color:var(--dim)" title="Fair (zero-margin) odds from the raw historical hit rate — before the conservative CI-lower adjustment">fair ${bet.mo}</span>
       ${sampleBadge(bet.n, minN)}
     </div>`;
 }
 
-function toggleFocusMarkets(checked) {
-  state.showFocusMarkets = !!checked;
+// ── Live tab UI mode (2026-08-29) ────────────────────────────────────────
+// 'focus' (default): compact one-row-per-match cards showing only the 7
+// 1T/2T Over/Under 0.5/1.5 bets — the market this whole feature exists for.
+// 'all': the original full dashboard (Top Pick/Value Hunt banners, full bet
+// table, filter trace) — unchanged behavior, just reached via this toggle
+// now instead of always being on screen. Persisted so a reload keeps the
+// user's chosen mode; wrapped in try/catch since a private window or
+// cleared site data can make localStorage throw on read OR write.
+const LIVE_UI_STORAGE_KEY = 'halvest_live_ui';
+
+function applyLiveUiModeToDom(mode) {
+  document.getElementById('live-mode-btn-FOCUS')?.classList.toggle('active', mode === 'focus');
+  document.getElementById('live-mode-btn-ALL')?.classList.toggle('active', mode === 'all');
+}
+
+function loadLiveUiPrefs() {
+  try {
+    const raw = localStorage.getItem(LIVE_UI_STORAGE_KEY);
+    if (!raw) return;
+    const prefs = JSON.parse(raw);
+    if (prefs.mode === 'focus' || prefs.mode === 'all') {
+      state.liveUiMode = prefs.mode;
+      state.showFocusMarkets = prefs.mode === 'focus';
+      applyLiveUiModeToDom(prefs.mode);
+    }
+    if (prefs.advancedOpen) {
+      const adv = document.getElementById('live-advanced');
+      if (adv) adv.open = true;
+    }
+  } catch { /* localStorage unavailable — defaults stand for this session */ }
+}
+
+function saveLiveUiPrefs() {
+  try {
+    const adv = document.getElementById('live-advanced');
+    localStorage.setItem(LIVE_UI_STORAGE_KEY, JSON.stringify({
+      mode: state.liveUiMode,
+      advancedOpen: adv ? adv.open : false,
+    }));
+  } catch { /* localStorage unavailable — mode just won't survive a reload */ }
+}
+
+function setLiveUiMode(mode) {
+  state.liveUiMode = mode;
+  state.showFocusMarkets = mode === 'focus';
+  applyLiveUiModeToDom(mode);
+  saveLiveUiPrefs();
   if (_activeTab === 'live') renderLiveGames();
 }
 
+// Only ever shows bets ABOVE baseline (bet.edge > 0) — a bet at or below the
+// baseline rate isn't a live signal worth surfacing, it's just noise (added
+// 2026-08-29 at the user's request: "only show matches where the selected
+// bets are above baseline"). This re-polls (and recomputes preBets/gsBets,
+// live-decayed as the minute advances) every LIVE_POLL_MS cycle via
+// pollLiveMatches() — the same "updated live every scan" the user asked for,
+// entirely on the web UI side (Telegram's LIVEWATCH stays a one-shot alert).
 function renderFocusMarketsPanel(analysis) {
   const preMap = new Map((analysis.preBets || []).map(b => [b.k, b]));
   const gsMap  = new Map((analysis.gsBets  || []).map(b => [b.k, b]));
   const minN = getMinN();
-  const rows = FOCUS_MARKET_BETS
+  const allRows = FOCUS_MARKET_BETS
     .map(f => ({ ...f, bet: f.half === 1 ? preMap.get(f.k) : gsMap.get(f.k) }))
     .filter(r => r.bet);
-  if (!rows.length) {
+  if (!allRows.length) {
     const waitingOn = analysis.minute < 45 ? 'more 1H matching history' : 'an HT anchor (auto-captured at kickoff of 2H) / 2H matching history';
     return `<p style="font-size:11px;color:var(--dim)">No 1T/2T focus markets available yet — waiting on ${waitingOn}.</p>`;
   }
+  const rows = allRows.filter(r => r.bet.edge > 0);
+  if (!rows.length) {
+    return `<p style="font-size:11px;color:var(--dim)">No 1T/2T bet is currently above its baseline rate for this match (${allRows.length} market${allRows.length !== 1 ? 's' : ''} checked).</p>`;
+  }
+  rows.sort((a, b) => rankScore(b.bet) - rankScore(a.bet));
   return rows.map(r => renderFocusMarketRow(r.label, r.bet, minN)).join('');
+}
+
+// Best rankScore (same z*lo/100 metric used everywhere else) among a match's
+// own 1T/2T focus bets only — used to sort "ALL LIVE MATCHES" in Focus mode
+// so the most actionable match surfaces first, without needing a bespoke
+// second ranking system.
+function bestFocusEdgeScore(analysis) {
+  const top = topFocusBet(analysis);
+  return top ? rankScore(top.bet) : -Infinity;
+}
+
+// The single best 1T/2T focus bet for a match (label + bet object), or null.
+// Mirrors topLiveBet()'s shape but restricted to FOCUS_MARKET_BETS — used by
+// the Focus-mode "BEST FOCUS BET" banner.
+function topFocusBet(analysis) {
+  if (analysis.status !== 'ok') return null;
+  const preMap = new Map((analysis.preBets || []).map(b => [b.k, b]));
+  const gsMap  = new Map((analysis.gsBets  || []).map(b => [b.k, b]));
+  let best = null;
+  for (const f of FOCUS_MARKET_BETS) {
+    const bet = f.half === 1 ? preMap.get(f.k) : gsMap.get(f.k);
+    if (bet && bet.edge > 0 && (!best || rankScore(bet) > rankScore(best.bet))) best = { label: f.label, bet };
+  }
+  return best;
 }
 
 // State banner (score/minute/red-card caveat) + market ladder. With no
@@ -5195,37 +5290,67 @@ function renderLiveGames() {
   }
 
   const okMatches = _liveMatches.filter(m => m.status === 'ok');
-  let best = null;
-  for (const m of okMatches) {
-    const b = topLiveBet(m);
-    if (b && (!best || rankScore(b) > rankScore(best.bet))) best = { match: m, bet: b };
-  }
-  if (best) {
-    const preMap = new Map((best.match.preBetsQual || []).map(b => [b.k, b]));
-    const gsMap  = new Map((best.match.gsBetsQual  || []).map(b => [b.k, b]));
-    const minN = getMinN();
-    const qualifying = buildQualifyingList(preMap, gsMap, minN);
-    if (qualifying.length) {
-      const label = `🏆 BEST LIVE BET — ${esc(best.match.match.home_team)} vs ${esc(best.match.match.away_team)} (${esc(best.match.match.league || '—')})`;
-      // rank='live-top' keeps this Kelly-widget namespace distinct from
-      // Manual Analysis's own 'top' rank — both write into the shared
-      // _lastBetsByWidget map and must not collide on the same widget id.
-      html += `<div class="top-pick-banner">${renderMergedBetCard(qualifying[0], 'live-top', anchorStatusNote(best.match), label, best.match.cfg)}</div>`;
+  const isFocusMode = state.liveUiMode === 'focus';
+
+  if (isFocusMode) {
+    // "BEST FOCUS BET" — the mode-appropriate equivalent of "BEST LIVE BET"/
+    // "ALL QUALIFYING BETS" below, scoped to just the 7 1T/2T markets so
+    // Focus mode never surfaces a bet outside its own scope.
+    let bestFocus = null;
+    for (const m of okMatches) {
+      const f = topFocusBet(m);
+      if (f && (!bestFocus || rankScore(f.bet) > rankScore(bestFocus.bet))) bestFocus = { match: m, ...f };
+    }
+    if (bestFocus) {
+      const minN = getMinN();
+      html += `<div class="top-pick-banner">
+        <div class="cfg-summary">🏆 <b>BEST FOCUS BET</b> — ${esc(bestFocus.match.match.home_team)} vs ${esc(bestFocus.match.match.away_team)} (${esc(bestFocus.match.match.league || '—')})</div>
+        ${renderFocusMarketRow(bestFocus.label, bestFocus.bet, minN)}
+      </div>`;
+    }
+  } else {
+    let best = null;
+    for (const m of okMatches) {
+      const b = topLiveBet(m);
+      if (b && (!best || rankScore(b) > rankScore(best.bet))) best = { match: m, bet: b };
+    }
+    if (best) {
+      const preMap = new Map((best.match.preBetsQual || []).map(b => [b.k, b]));
+      const gsMap  = new Map((best.match.gsBetsQual  || []).map(b => [b.k, b]));
+      const minN = getMinN();
+      const qualifying = buildQualifyingList(preMap, gsMap, minN);
+      if (qualifying.length) {
+        const label = `🏆 BEST LIVE BET — ${esc(best.match.match.home_team)} vs ${esc(best.match.match.away_team)} (${esc(best.match.match.league || '—')})`;
+        // rank='live-top' keeps this Kelly-widget namespace distinct from
+        // Manual Analysis's own 'top' rank — both write into the shared
+        // _lastBetsByWidget map and must not collide on the same widget id.
+        html += `<div class="top-pick-banner">${renderMergedBetCard(qualifying[0], 'live-top', anchorStatusNote(best.match), label, best.match.cfg)}</div>`;
+      }
+    }
+
+    // Every qualifying bet across every shown match, not just the single
+    // strongest one above — a match can have more than one bet clear the bar
+    // at once, and the "BEST LIVE BET" banner only ever surfaces one.
+    const allQualifying = collectAllQualifyingLiveBets(_liveMatches);
+    if (allQualifying.length) {
+      html += `<div class="section-label" style="margin-top:18px">ALL QUALIFYING BETS (${allQualifying.length})</div>`;
+      html += `<p style="font-size:11px;color:var(--dim);margin-bottom:10px">Every bet clearing the statistical bar right now, across all shown matches · sorted by strength · click a row for full match detail</p>`;
+      allQualifying.forEach(entry => { html += renderQualifyingLiveBetRow(entry); });
     }
   }
 
-  // Every qualifying bet across every shown match, not just the single
-  // strongest one above — a match can have more than one bet clear the bar
-  // at once, and the "BEST LIVE BET" banner only ever surfaces one.
-  const allQualifying = collectAllQualifyingLiveBets(_liveMatches);
-  if (allQualifying.length) {
-    html += `<div class="section-label" style="margin-top:18px">ALL QUALIFYING BETS (${allQualifying.length})</div>`;
-    html += `<p style="font-size:11px;color:var(--dim);margin-bottom:10px">Every bet clearing the statistical bar right now, across all shown matches · sorted by strength · click a row for full match detail</p>`;
-    allQualifying.forEach(entry => { html += renderQualifyingLiveBetRow(entry); });
-  }
-
   html += `<div class="section-label" style="margin-top:18px">ALL LIVE MATCHES</div>`;
-  _liveMatches.forEach((m, i) => { html += renderLiveMatchCard(m, i); });
+  if (state.liveUiMode === 'focus') {
+    // Sort by best focus-bet edge (same rankScore metric used everywhere
+    // else) so the most actionable 1T/2T match surfaces first — render by
+    // original index (not a reordered copy) so onclick="openLiveMatchDetail(idx)"
+    // still points at the right entry in _liveMatches.
+    const order = _liveMatches.map((m, i) => i)
+      .sort((a, b) => bestFocusEdgeScore(_liveMatches[b]) - bestFocusEdgeScore(_liveMatches[a]));
+    order.forEach(i => { html += renderLiveMatchCard(_liveMatches[i], i); });
+  } else {
+    _liveMatches.forEach((m, i) => { html += renderLiveMatchCard(m, i); });
+  }
 
   right.innerHTML = html;
 }
@@ -5290,11 +5415,31 @@ function renderLiveMatchCard(analysis, idx) {
     </div>`;
   }
 
+  const minN = getMinN();
+  const isFocusMode = state.liveUiMode === 'focus';
+
+  // Focus mode: one compact card per match, JUST the 1T/2T panel — the Top
+  // Pick preview and beta model ladder (both "every market" tools) are noise
+  // for this view and live behind the "All markets" mode instead.
+  if (isFocusMode) {
+    return `<div class="scan-card" onclick="openLiveMatchDetail(${idx})">
+      <div class="scan-card-header">
+        <span class="scan-match-name">${esc(match.home_team)}<span class="scan-vs">vs</span>${esc(match.away_team)}</span>
+        <div class="scan-live-info">
+          <span class="scan-score">${esc(match.score || '—')}</span>
+          <span class="scan-minute">${esc(match.minute)}</span>
+        </div>
+      </div>
+      <div class="scan-meta">${esc(match.league || '—')} · ${esc(anchorStatusNote(analysis))} ${anchorStatusBadge(analysis)}</div>
+      <div class="scan-score-detail">${formatHtScoreLine(analysis)}</div>
+      ${renderFocusMarketsPanel(analysis)}
+    </div>`;
+  }
+
   const preMapQual = new Map((analysis.preBetsQual || []).map(b => [b.k, b]));
   const gsMapQual  = new Map((analysis.gsBetsQual  || []).map(b => [b.k, b]));
   const preMap = new Map((analysis.preBets || []).map(b => [b.k, b]));
   const gsMap  = new Map((analysis.gsBets  || []).map(b => [b.k, b]));
-  const minN = getMinN();
   const qualifying = buildQualifyingList(preMapQual, gsMapQual, minN);
   const vhBets = buildValueHuntList(preMap, gsMap, minN);
   const top = qualifying[0] ? (qualifying[0].gsPass && qualifying[0].gs ? qualifying[0].gs : qualifying[0].pre) : vhBets[0];
@@ -5376,22 +5521,33 @@ function openLiveMatchDetail(idx) {
     // never collide with Manual Analysis's own numeric/'top' ranks in the
     // shared _lastBetsByWidget map (both can be present in the DOM at once —
     // the modal layers over whichever tab is active).
+    let everythingElse = '';
     if (qualifying.length) {
       const topPickLabel = `🏆 TOP PICK — ${esc(match.home_team)} vs ${esc(match.away_team)} (${esc(match.league || '—')})`;
-      bodyHtml += `<div class="top-pick-banner">${renderMergedBetCard(qualifying[0], 'live-detail-top', gsLabel, topPickLabel, cfg)}</div>`;
-      bodyHtml += `<div class="section-label" style="margin-top:18px">QUALIFYING BETS</div>`;
-      bodyHtml += `<p style="font-size:11px;color:var(--dim);margin-bottom:10px">${qualifying.length} bet${qualifying.length !== 1 ? 's' : ''} · sorted by strength</p>`;
-      qualifying.forEach((m, i) => { bodyHtml += renderMergedBetCard(m, `live-detail-${i + 1}`, gsLabel, null, cfg); });
+      everythingElse += `<div class="top-pick-banner">${renderMergedBetCard(qualifying[0], 'live-detail-top', gsLabel, topPickLabel, cfg)}</div>`;
+      everythingElse += `<div class="section-label" style="margin-top:18px">QUALIFYING BETS</div>`;
+      everythingElse += `<p style="font-size:11px;color:var(--dim);margin-bottom:10px">${qualifying.length} bet${qualifying.length !== 1 ? 's' : ''} · sorted by strength</p>`;
+      qualifying.forEach((m, i) => { everythingElse += renderMergedBetCard(m, `live-detail-${i + 1}`, gsLabel, null, cfg); });
     } else {
-      bodyHtml += `<div class="no-bets" style="margin-top:20px"><div class="warn-icon">⚠</div><p>No bets clear the statistical bar for this match's signal pattern yet.</p></div>`;
+      everythingElse += `<div class="no-bets" style="margin-top:20px"><div class="warn-icon">⚠</div><p>No bets clear the statistical bar for this match's signal pattern yet.</p></div>`;
     }
 
-    bodyHtml += renderTopValueBanner(vhBets[0], minN);
-    if (vhBets.length) bodyHtml += renderValueHuntSection(vhBets, minN);
+    everythingElse += renderTopValueBanner(vhBets[0], minN);
+    if (vhBets.length) everythingElse += renderValueHuntSection(vhBets, minN);
 
     const ftrace = traceConfig(getDb(), cfg, analysis.gsForTrace);
-    bodyHtml += buildTraceHtml(ftrace, 'FILTER TRACE');
-    bodyHtml += renderBetDashboard(preMap, gsMap, minN);
+    everythingElse += buildTraceHtml(ftrace, 'FILTER TRACE');
+    everythingElse += renderBetDashboard(preMap, gsMap, minN);
+
+    // Focus mode: Top Pick/Qualifying/Value Hunt/Trace/full dashboard are
+    // "every market" tools, not part of the 1T/2T view — collapse them
+    // behind one details element instead of removing them. All markets mode
+    // keeps the original always-expanded layout unchanged.
+    if (state.liveUiMode === 'focus') {
+      bodyHtml += `<details style="margin-top:18px"><summary class="section-label" style="cursor:pointer;display:inline-block">▸ Everything else (full bet dashboard, all markets)</summary><div style="margin-top:10px">${everythingElse}</div></details>`;
+    } else {
+      bodyHtml += everythingElse;
+    }
   }
 
   const modal = document.createElement('div');

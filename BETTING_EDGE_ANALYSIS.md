@@ -267,3 +267,74 @@ Bet365:   offered > MIN ODDS → green Kelly% → bet
 
 Size:     Kelly% of bankroll, cap at 5%
 ```
+
+## Focus bets (1T/2T O/U) — PLAN_FOCUS_BETS.md Phases 2 & 4 (2026-08-29)
+
+Config search (`telegram/focus_config_search.js`) over the 7 in-scope 1H/2H Over/Under 0.5/1.5
+bets, walk-forward validated on the last 8 held-out months of `CrossBooks/Bet365_Data_months`
+(cross-fit selected/priced per `focus_config_search.js`'s `crossFitCells` — never picks and prices
+a cell from the same fold). Cross-book follow/fade check (`telegram/focus_crossbook.js`) using
+`CrossBooks/Sbobet_Data_months` for the ~50% of fixtures both books quote. Full output:
+`telegram/data/focus_configs.json`, `telegram/data/focus_crossbook.json`.
+
+**Important caveat before reading any number below:** the CrossBooks CSVs carry no real historical
+price for half-time 0.5/1.5 lines — only the FT Over/Under at the closing Total Line. Every
+"hit%"/"ROI" figure here is against a **model-implied price** (`focus_lib.js`'s `impliedPrice`: a
+bivariate-Poisson fit to the match's own closing AH+O/U odds via `live_lambda_solver.js`, split
+into 1H/2H shares using the real goal-timing data in `goal_timing_summary.json`). This validates
+"does this configuration beat what the match's own odds imply", not "does this beat a real
+bookmaker quote for this exact half-line market" — treat it as a signal-quality ranking, not a
+literal expected return.
+
+**A real calibration bug was found and fixed before trusting any of this.** The first pass (no
+correction) showed 18-31 "surviving" cells, all Under-side, all OTHER tier, with implausibly large
+pooled ROI (up to +35%). Before believing that, a plain unconditional check — pooled model-implied
+mean probability vs. realized rate across all 152,350 Bet365 rows, no filtering at all — showed a
+**systematic bias in the pricing model itself**: every Over-family key was overpriced by the model
+by 2.6-4.5pp, every Under-family key underpriced by the same amount. Likely cause: splitting one
+combined FT lambda into two independent per-half Poisson processes discards the Dixon-Coles tau
+correction, which specifically adjusts the low-score cells (0-0, 1-0, 0-1, 1-1) that a 0.5-goal
+line sits exactly on. Left uncorrected, this bias alone was enough to make "always bet Under"
+look like a walk-forward-consistent edge with nothing to do with any of the configuration filters.
+
+**Fix:** `focus_lib.js`'s `computeCalibration(rows, key)` derives an additive correction (realized%
+minus model-implied%) from **train rows only**, recomputed fresh inside every walk-forward
+iteration (never from the test month — that would leak test-set information into the price) —
+same walk-forward discipline used everywhere else in this codebase. Both `focus_config_search.js`
+and `focus_crossbook.js` now price every train/test row through this corrected estimate.
+
+**Result after the fix — almost everything that looked like an edge was the calibration bug:**
+
+| Key | Surviving cells (pre-fix) | Surviving cells (post-fix) | Best post-fix ROI |
+|---|---|---|---|
+| `over05_1H` | 0 | 0 | — |
+| `over15_1H` | 0 | 0 | — |
+| `under05_1H` | 18 | **1** | +12.0% (n=168) |
+| `over05_2H` | 0 | 0 | — |
+| `over15_2H` | 0 | **1** | +12.6% (n=122) |
+| `under05_2H` | 4 | **3** | +20.0% (n=752) |
+| `under15_2H` | 9 | 0 | — |
+
+The one config that survives with real weight (`under05_2H`, n=752 pooled, +20% ROI, 7/8 held-out
+months positive) is: fav line 0.25, HOME or AWAY favourite, closing TL 2-2.5, OTHER tier, HT 0-0,
+TL/Over-Under odds flat since open. Everything else that survives is thin (n=122-196) and should
+be treated as noise until more months of data confirm it.
+
+**Cross-book check (Phase 4) found no follow/fade signal, and confirms the calibration fix worked.**
+With the bias corrected, unconditional ROI at the model-implied price is negative for every one of
+the 7 keys (roughly -1% to -12%, i.e. close to "a fairly-margined market minus the book's vig" —
+exactly what a well-calibrated price should look like with no edge applied) — a good sanity check
+that the correction isn't overcorrecting. Conditioning on Bet365's own TL movement (`tl_move`) or on
+Sbobet-vs-Bet365 closing TL disagreement produced no consistent (>=6/8 months) directional edge for
+any key once the bias is removed; several buckets hit the 6/8-months bar but with a "counter-intuitive"
+sign (the opposite of what a real follow/fade story would predict) and both buckets still net negative
+— read as noise, not a fadeable signal.
+
+**Bottom line for the plan's scope:** this analysis does not support building the FOCUS strategy
+around a wide net of configurations. It supports exactly one candidate worth carrying into Phase 5
+(`under05_2H` at fav 0.25/TL 2-2.5/OTHER/HT 0-0/flat odds), staked conservatively given OTHER-tier's
+known extra risk (CLAUDE.md's Dashboard near-kickoff section flags the same caution independently),
+and it means `over05_1H`, `over15_1H`, `over05_2H`, `under15_2H` currently have **no supported
+pre-match/HT selection rule** — Strategy FOCUS should only alert on `under05_1H`/`over15_2H`/`under05_2H`
+in the specific surviving cells, and should surface the other four keys purely for the live-playable
+1T/2T panel (no historical edge claim), not as alert triggers.

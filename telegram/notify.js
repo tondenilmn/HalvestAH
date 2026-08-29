@@ -26,11 +26,15 @@ const {
   mergeCrossFit,
   BETS,
   VALID_LINES,
+  pct,
+  wilsonCI,
 } = require('./engine');
 const { fetchLiveMatches, fetchNextMatches, refreshHashes, getCurrentHashes } = require('./livescore');
 const { verifyBet365Price } = require('./apifootball');
 const { recordAlert, settlePendingAlerts, buildDigestMessage, loadState, saveState } = require('./track_record');
-const { computeLiveOdd, computeLiveResult2H, computeLiveBtts2H, _2hResultField, _2H_RESULT_KEYS, mcLiveLo, mcLiveHi } = require('./live_odds');
+const { computeLiveOdd, computeLive1HOdd, computeLiveResult2H, computeLiveBtts2H, _2hResultField, _2H_RESULT_KEYS, mcLiveLo, mcLiveHi } = require('./live_odds');
+const focusLib = require('./focus_lib');
+const focusSelect = require('./focus_select');
 // 2026-08-29: switched from `require('../static/...')` to local copies —
 // Railway's Docker build context is scoped to telegram/ only, so a require
 // reaching outside it (`../static/`) throws MODULE_NOT_FOUND in production
@@ -142,6 +146,7 @@ function matchContext(match) {
     toKickoff,
     isL123Fire:      liveMin == null && toKickoff != null && toKickoff >= 0 && toKickoff <= PRE_MATCH_WINDOW_MIN,
     isDashboardFire: liveMin == null && toKickoff != null && toKickoff >= 0 && toKickoff <= cfg.DASHBOARD_WINDOW_MIN,
+    isFocusPreFire:  liveMin == null && toKickoff != null && toKickoff >= 0 && toKickoff <= cfg.FOCUS_PRE_WINDOW_MIN,
   };
 }
 
@@ -1688,6 +1693,319 @@ async function runStrategyNewModelRecheck(match, ctx) {
   });
 }
 
+// ── Strategy FOCUS — 1T/2T Over/Under 0.5/1.5 watch ──────────────────────────
+// See config.js's FOCUS_* block and focus_select.js's header for the full
+// design rationale. Two entry points: runStrategyFocusPreMatch (the 3
+// pre-kickoff 1H keys, fired in the same style of window L123 uses) and
+// runStrategyFocusHt (the 4 HT-fired 2H keys). Both just check the live
+// match against focus_configs.json's already-validated cells — no live
+// argmax/threshold sweep of their own.
+const focusDedup = new Dedup(24 * 60 * 60 * 1000);
+const FOCUS_1H_KEYS = focusLib.FOCUS_KEYS.filter(k => focusLib.FOCUS_HALF[k] === '1H');
+const FOCUS_2H_KEYS = focusLib.FOCUS_KEYS.filter(k => focusLib.FOCUS_HALF[k] === '2H');
+
+function focusFormat(match, key, cell, liveOdd, liveOddLo, equivalent, apiFootballCheck, odds, minuteScore) {
+  const marketLabel = equivalent ? equivalent.label : focusLib.FOCUS_LABELS[key];
+  const actualPrice = apiFootballCheck?.supported ? apiFootballCheck.odds : null;
+  const verdictLine = realPriceVerdict(marketLabel, actualPrice, liveOdd.fair_odd);
+  const kellyLn = kellyLine(actualPrice, liveOddLo.live_p);
+  const f = cell.filters;
+  return buildMessage(
+    `🥅 FOCUS — ${focusLib.FOCUS_LABELS[key]}`,
+    match,
+    minuteScore,
+    [
+      `👉 <b>${esc(focusLib.FOCUS_LABELS[key])}</b>`,
+      verdictLine,
+      ...(kellyLn ? [kellyLn] : []),
+      modelProbLine(liveOddLo.live_p ?? cell.live.lo),
+      `📊 ${cell.live.p.toFixed(0)}% historically (n=${cell.live.n}) — config: fav ${f.fav_line}/${f.fav_side}, TL ${f.tl_band}, ${f.tier}, TLmove ${f.tl_move}, O/Umove ${f.over_move}${f.ht_state ? ', HT ' + f.ht_state : ''}`,
+      `📈 Offline validation: ${cell.pooledHitPct.toFixed(0)}% over ${cell.monthsSeen} held-out months (${cell.monthsPositive} positive), ROI@model-price ${cell.pooledRoi.toFixed(1)}% (n=${cell.pooledN}) — see BETTING_EDGE_ANALYSIS.md`,
+    ],
+  );
+}
+
+async function runStrategyFocusPreMatch(match, ctx) {
+  const { matchId, label, tier, toKickoff } = ctx;
+  if (!cfg.FOCUS_ENABLED) return;
+  if (!_dbAll || !_dbAll.length) return;
+
+  const odds = match.bet365_odds;
+  if (!odds) { flogv(null, label, 'FOCUS', 'SKIP: no Bet365 odds'); return; }
+  const matchCfg = buildCfgFromMatch(odds, { LINE_MOVE_ON: true, FAV_ODDS_ON: true, DOG_ODDS_ON: true, TL_MOVE_ON: true, OVER_ODDS_ON: true, UNDER_ODDS_ON: true });
+  if (!matchCfg) { flogv(null, label, 'FOCUS', 'SKIP: odds incomplete'); return; }
+
+  for (const key of FOCUS_1H_KEYS) {
+    const dedupKey = `${matchId}:focus:${key}`;
+    if (focusDedup.has(dedupKey)) continue;
+
+    const cell = focusSelect.findMatchingCell(key, matchCfg.signals, tier, odds, null);
+    if (!cell) { flogv(null, label, 'FOCUS', `SKIP ${key}: no validated config matches this match`); continue; }
+
+    const live = focusSelect.priceCellLive(_dbAll, key, cell.cellKey, cell.isHalf2);
+    if (!live) { flogv(null, label, 'FOCUS', `SKIP ${key}: live pool too thin (< ${focusSelect.MIN_LIVE_N})`); continue; }
+    cell.live = live;
+
+    // Pre-kickoff — always minute 0, no goals yet.
+    const liveOdd   = computeLive1HOdd(live.p,  key, 0);
+    const liveOddLo = computeLive1HOdd(live.lo, key, 0);
+
+    // No real-market equivalence exists for a 1H key fired pre-kickoff (the
+    // "score is still 0-0" reduction LATEGOAL/QUIET2H use only applies once
+    // some of the match has already been played with no goal) — always
+    // unverified; api-football has no half-specific O/U market anyway (see
+    // apifootball.js's SUPPORTED set).
+    const msg = focusFormat(match, key, cell, liveOdd, liveOddLo, null, null, odds, `Kickoff in ${Math.round(toKickoff)}m`);
+    await sendTelegram(msg);
+    focusDedup.mark(dedupKey);
+    flog(null, label, 'FOCUS', `ALERT: ${key} p=${live.p.toFixed(1)}% n=${live.n} liveOdd=${liveOdd.fair_odd} tier=${tier}`);
+    // Not recorded to track_record — no verified price to gate on for this key.
+  }
+}
+
+async function runStrategyFocusHt(match, ctx) {
+  const { matchId, label, tier, liveMin } = ctx;
+  if (!cfg.FOCUS_ENABLED) return;
+  if (liveMin == null || liveMin < HT_SNAPSHOT_WINDOW[0] || liveMin > HT_SNAPSHOT_WINDOW[1]) return;
+  if (!_dbAll || !_dbAll.length) return;
+
+  const htSnap = _htSnapshots.get(matchId);
+  if (!htSnap) { flogv(liveMin, label, 'FOCUS', 'SKIP: no HT snapshot captured for this match'); return; }
+
+  const odds = match.bet365_odds;
+  if (!odds) { flogv(liveMin, label, 'FOCUS', 'SKIP: no Bet365 odds'); return; }
+  const matchCfg = buildCfgFromMatch(odds, { LINE_MOVE_ON: true, FAV_ODDS_ON: true, DOG_ODDS_ON: true, TL_MOVE_ON: true, OVER_ODDS_ON: true, UNDER_ODDS_ON: true });
+  if (!matchCfg) { flogv(liveMin, label, 'FOCUS', 'SKIP: odds incomplete'); return; }
+
+  const favSide = matchCfg.signals.favSide;
+  const favHt = favSide === 'HOME' ? htSnap.home : htSnap.away;
+  const dogHt = favSide === 'HOME' ? htSnap.away : htSnap.home;
+
+  for (const key of FOCUS_2H_KEYS) {
+    const dedupKey = `${matchId}:focus:${key}`;
+    if (focusDedup.has(dedupKey)) continue;
+
+    const cell = focusSelect.findMatchingCell(key, matchCfg.signals, tier, odds, { favHt, dogHt });
+    if (!cell) { flogv(liveMin, label, 'FOCUS', `SKIP ${key}: no validated config matches this match`); continue; }
+
+    const live = focusSelect.priceCellLive(_dbAll, key, cell.cellKey, cell.isHalf2);
+    if (!live) { flogv(liveMin, label, 'FOCUS', `SKIP ${key}: live pool too thin (< ${focusSelect.MIN_LIVE_N})`); continue; }
+    cell.live = live;
+
+    // favG2h/dogG2h are always 0 — this fires right as the 2nd half starts.
+    const liveOdd   = computeLiveOdd(live.p,  key, liveMin, matchCfg.signals.favLine, 0, 0, favSide);
+    const liveOddLo = computeLiveOdd(live.lo, key, liveMin, matchCfg.signals.favLine, 0, 0, favSide);
+
+    const equivalent = focusSelect.equivalentRealMarketFocus2h(key, htSnap.home, htSnap.away);
+    let apiFootballCheck = null;
+    if (equivalent && cfg.APIFOOTBALL_KEY) {
+      try {
+        apiFootballCheck = await verifyBet365Price(equivalent.apiKey, {
+          matchId, homeTeam: match.home_team, awayTeam: match.away_team,
+          favSide, favLine: matchCfg.signals.favLine, avgTl: equivalent.avgTl,
+        }, cfg.APIFOOTBALL_KEY);
+      } catch (e) {
+        flogv(liveMin, label, 'FOCUS', `api-football check failed: ${e.message}`);
+      }
+    }
+
+    const msg = focusFormat(match, key, cell, liveOdd, liveOddLo, equivalent, apiFootballCheck, odds, `${liveMin}' · HT score ${htSnap.home}-${htSnap.away} · TL ${odds.tl_c ?? '—'}`);
+    await sendTelegram(msg);
+    focusDedup.mark(dedupKey);
+    flog(liveMin, label, 'FOCUS', `ALERT: ${key} p=${live.p.toFixed(1)}% n=${live.n} liveOdd=${liveOdd.fair_odd} equiv=${equivalent ? equivalent.label : '—'} tier=${tier}`);
+
+    const focusPrice = apiFootballCheck?.supported ? apiFootballCheck.odds : null;
+    if (verifiedGoodPrice(focusPrice, liveOdd.fair_odd)) {
+      recordAlert({
+        matchId, homeTeam: match.home_team, awayTeam: match.away_team,
+        league: match.league, tier,
+        fixtureId: apiFootballCheck?.fixtureId ?? null, betKey: key, betLabel: focusLib.FOCUS_LABELS[key],
+        favSide, favLine: matchCfg.signals.favLine, tlLine: odds.tl_c,
+        priceAtAlert: focusPrice,
+        mo: parseFloat((100 / live.p).toFixed(2)), mo_lo: parseFloat((100 / live.lo).toFixed(2)),
+        strategy: 'FOCUS', venue: 'soft', minute: liveMin,
+        state: { score: `${htSnap.home}-${htSnap.away}`, redCards: 0, half: 2 },
+      });
+    } else {
+      flogv(liveMin, label, 'FOCUS', 'Not recorded to track record — no verified price clearing target.');
+    }
+  }
+}
+
+// ── Strategy LIVEWATCH — live probability threshold watch ───────────────────
+// See config.js's LIVEWATCH_* block for the full rationale: unlike FOCUS
+// (which only fires on a pre-validated offline cell, at one fixed window),
+// this runs every scan cycle throughout the match and fires the moment the
+// live-decayed historical probability for ANY of the 7 focus keys clears
+// LIVEWATCH_THRESHOLD_PCT — explicitly unvalidated, a real-time convenience
+// alert on numbers you can already see in the web UI's "1T/2T Goals Focus"
+// panel, not a backtested strategy.
+//
+// Fires once per match+key, same 24h-Dedup discipline every other strategy
+// here uses — "live-updated every scan" applies to the WEB UI's Live tab
+// (already re-polls and recomputes every cycle), NOT to the Telegram
+// message, which should stay a single one-shot alert (2026-08-29 clarified).
+const liveWatchDedup = new Dedup(24 * 60 * 60 * 1000);
+
+// "Team to score" keys, added alongside the 7 focus_lib.FOCUS_KEYS at the
+// user's request (2026-08-29) — NOT part of focus_lib.FOCUS_KEYS (not
+// offline-validated by focus_config_search.js/Strategy FOCUS), but already
+// fully supported by engine.js's BETS list and both live-decay functions
+// (_1H_BETS_SET/_2H_BETS_SET in live_odds.js both include homeScored*/
+// awayScored*), so no new pricing logic was needed to add them here.
+const LIVEWATCH_EXTRA_LABELS = {
+  homeScored1H: 'Home to score (1H)',
+  awayScored1H: 'Away to score (1H)',
+  homeScored2H: 'Home to score (2H)',
+  awayScored2H: 'Away to score (2H)',
+};
+const LIVEWATCH_EXTRA_HALF = { homeScored1H: '1H', awayScored1H: '1H', homeScored2H: '2H', awayScored2H: '2H' };
+const LIVEWATCH_ALL_KEYS = [...focusLib.FOCUS_KEYS, ...Object.keys(LIVEWATCH_EXTRA_LABELS)];
+function liveWatchLabel(key) { return focusLib.FOCUS_LABELS[key] || LIVEWATCH_EXTRA_LABELS[key] || key; }
+function liveWatchHalf(key) { return focusLib.FOCUS_HALF[key] || LIVEWATCH_EXTRA_HALF[key]; }
+
+// Historical pool for a key: fav_line/side + closing-TL band, falling back
+// to the line-only pool if the band is too thin — same pattern QUIET2H's own
+// base-pool selection uses. `lineBase` (fav_line/side only, no TL band) is
+// also the LESS-conditioned baseline the edge check below compares against.
+function liveWatchBasePool(lineBase, tlBand) {
+  const bandBase = lineBase.filter(r => tlBandOf(r.tl_c) === tlBand);
+  return bandBase.length >= cfg.LIVEWATCH_MIN_N ? bandBase : lineBase;
+}
+
+// liveP: point-estimate live probability (display only). liveLoP: the
+// Wilson-CI-lower-bound live probability — this is what the "minimum odds"
+// target, modelProbLine, and Kelly sizing are all derived from, matching how
+// every other strategy in this file prices (see mo_lo/bet.lo usage
+// throughout) rather than the winner's-curse-prone point estimate.
+function liveWatchFormat(match, key, liveP, liveLoP, histP, histN, blP, minuteScore, equivalent, apiFootballCheck) {
+  const marketLabel = equivalent ? equivalent.label : liveWatchLabel(key);
+  const actualPrice = apiFootballCheck?.supported ? apiFootballCheck.odds : null;
+  const minOdd = liveLoP > 0 ? parseFloat((100 / liveLoP).toFixed(2)) : null;
+  const verdictLine = realPriceVerdict(marketLabel, actualPrice, minOdd);
+  const kellyLn = kellyLine(actualPrice, liveLoP);
+  const edge = histP - blP;
+  return buildMessage(
+    `⏱️ LIVEWATCH — ${liveWatchLabel(key)} crossed ${cfg.LIVEWATCH_THRESHOLD_PCT}%`,
+    match,
+    minuteScore,
+    [
+      `👉 <b>${esc(liveWatchLabel(key))}</b>`,
+      verdictLine,
+      ...(kellyLn ? [kellyLn] : []),
+      modelProbLine(liveLoP),
+      `📊 Live ${liveP.toFixed(1)}% (point estimate) · conservative CI-lower ${liveLoP.toFixed(1)}% · historical ${histP.toFixed(1)}% (n=${histN}, fav-line/side + closing-TL band${liveWatchHalf(key) === '2H' ? ' + HT score' : ''})`,
+      `📈 ${edge >= 0 ? '+' : ''}${edge.toFixed(1)}pp vs ${blP.toFixed(1)}% baseline (less-conditioned pool, before this match's own ${liveWatchHalf(key) === '2H' ? 'HT-score' : 'TL-band'} narrowing)`,
+      `⚠️ Unvalidated — LIVEWATCH is a real-time threshold watch, not a backtested strategy. Check the sample size above before staking.`,
+    ],
+  );
+}
+
+async function runStrategyLiveWatch(match, ctx) {
+  const { matchId, label, tier, liveMin } = ctx;
+  if (!cfg.LIVEWATCH_ENABLED) return;
+  if (liveMin == null) return;
+  if (!tierAllowed(tier, cfg.LIVEWATCH_TIER)) { flogv(liveMin, label, 'LIVEWATCH', `SKIP: tier=${tier} not in ${cfg.LIVEWATCH_TIER}`); return; }
+  if (!_dbAll || !_dbAll.length) return;
+
+  const odds = match.bet365_odds;
+  if (!odds) { flogv(liveMin, label, 'LIVEWATCH', 'SKIP: no Bet365 odds'); return; }
+  const matchCfg = buildCfgFromMatch(odds, {});
+  if (!matchCfg) { flogv(liveMin, label, 'LIVEWATCH', 'SKIP: odds incomplete'); return; }
+
+  const favLine = matchCfg.signals.favLine;
+  const favSide = matchCfg.signals.favSide;
+  const tlBand = tlBandOf(odds.tl_c);
+  const curScore = parseScoreStr(match.score);
+  const lineBase = _dbAll.filter(r => r.fav_line === favLine && r.fav_side === favSide);
+
+  for (const key of LIVEWATCH_ALL_KEYS) {
+    if (!cfg.LIVEWATCH_KEYS.includes(key)) continue;
+    const dedupKey = `${matchId}:livewatch:${key}`;
+    if (liveWatchDedup.has(dedupKey)) continue;
+
+    const isHalf1 = liveWatchHalf(key) === '1H';
+    let liveOdd, liveOddLo, histP, histN, blP, equivalent = null, minuteScore;
+
+    if (isHalf1) {
+      if (liveMin > 45) continue; // 1H already over — nothing left to watch
+      if (!curScore) { flogv(liveMin, label, 'LIVEWATCH', `SKIP ${key}: no live score`); continue; }
+      const pool = liveWatchBasePool(lineBase, tlBand);
+      if (pool.length < cfg.LIVEWATCH_MIN_N) continue;
+      histP = pct(pool, key); histN = pool.length;
+      blP = pct(lineBase, key); // baseline: fav-line/side only, before TL-band narrowing
+      const [lo] = wilsonCI(histP, histN);
+      if ((lo - blP) < cfg.LIVEWATCH_MIN_EDGE) { flogv(liveMin, label, 'LIVEWATCH', `SKIP ${key}: edge ${(lo - blP).toFixed(1)}pp below baseline ${blP.toFixed(1)}%`); continue; }
+      liveOdd   = computeLive1HOdd(histP, key, liveMin, favLine, curScore.home, curScore.away);
+      liveOddLo = computeLive1HOdd(lo,    key, liveMin, favLine, curScore.home, curScore.away);
+      minuteScore = `${liveMin}' · ${curScore.home}-${curScore.away} (1H) · TL ${odds.tl_c ?? '—'}`;
+    } else {
+      // Fire only around minute 70 — windowed, not continuous through the
+      // whole 2nd half — see config.js's LIVEWATCH_TRIGGER_WINDOW_2H comment.
+      const [winLo, winHi] = cfg.LIVEWATCH_TRIGGER_WINDOW_2H;
+      if (liveMin < winLo || liveMin > winHi) continue;
+      const htSnap = _htSnapshots.get(matchId);
+      if (!htSnap) { flogv(liveMin, label, 'LIVEWATCH', `SKIP ${key}: no HT snapshot yet`); continue; }
+      if (!curScore) { flogv(liveMin, label, 'LIVEWATCH', `SKIP ${key}: no live score`); continue; }
+      const pool = liveWatchBasePool(lineBase, tlBand);
+      if (pool.length < cfg.LIVEWATCH_MIN_N) continue;
+      const gsRows = applyGameState(pool, { trigger: 'HT', home_goals: String(htSnap.home), away_goals: String(htSnap.away) });
+      if (gsRows.length < cfg.LIVEWATCH_MIN_N) { flogv(liveMin, label, 'LIVEWATCH', `SKIP ${key}: only ${gsRows.length} matches reached this HT state`); continue; }
+      histP = pct(gsRows, key); histN = gsRows.length;
+      blP = pct(pool, key); // baseline: fav-line/side + TL-band, before HT-state narrowing
+      const [lo] = wilsonCI(histP, histN);
+      if ((lo - blP) < cfg.LIVEWATCH_MIN_EDGE) { flogv(liveMin, label, 'LIVEWATCH', `SKIP ${key}: edge ${(lo - blP).toFixed(1)}pp below baseline ${blP.toFixed(1)}%`); continue; }
+      const home2h = curScore.home - htSnap.home, away2h = curScore.away - htSnap.away;
+      const favG2h = favSide === 'HOME' ? home2h : away2h;
+      const dogG2h = favSide === 'HOME' ? away2h : home2h;
+      liveOdd   = computeLiveOdd(histP, key, liveMin, favLine, favG2h, dogG2h, favSide);
+      liveOddLo = computeLiveOdd(lo,    key, liveMin, favLine, favG2h, dogG2h, favSide);
+      equivalent = focusSelect.equivalentRealMarketFocus2h(key, htSnap.home, htSnap.away);
+      minuteScore = `${liveMin}' · HT ${htSnap.home}-${htSnap.away} → ${curScore.home}-${curScore.away} · TL ${odds.tl_c ?? '—'}`;
+    }
+
+    if (liveOdd.live_p == null || liveOdd.alreadyDecided) continue;
+    if (liveOddLo.live_p == null) continue;
+    // Gate on the CONSERVATIVE (Wilson CI lower-bound) live probability, not
+    // the raw point estimate — same discipline L123/LATEGOAL/QUIET2H use.
+    if (liveOddLo.live_p < cfg.LIVEWATCH_THRESHOLD_PCT) continue;
+
+    let apiFootballCheck = null;
+    if (equivalent && cfg.APIFOOTBALL_KEY) {
+      try {
+        apiFootballCheck = await verifyBet365Price(equivalent.apiKey, {
+          matchId, homeTeam: match.home_team, awayTeam: match.away_team,
+          favSide, favLine, avgTl: equivalent.avgTl,
+        }, cfg.APIFOOTBALL_KEY);
+      } catch (e) {
+        flogv(liveMin, label, 'LIVEWATCH', `api-football check failed: ${e.message}`);
+      }
+    }
+
+    const msg = liveWatchFormat(match, key, liveOdd.live_p, liveOddLo.live_p, histP, histN, blP, minuteScore, equivalent, apiFootballCheck);
+    await sendTelegram(msg);
+    liveWatchDedup.mark(dedupKey);
+    flog(liveMin, label, 'LIVEWATCH', `ALERT: ${key} live_p=${liveOdd.live_p.toFixed(1)}% live_lo=${liveOddLo.live_p.toFixed(1)}% hist=${histP.toFixed(1)}% n=${histN} tier=${tier}`);
+
+    const lwPrice = apiFootballCheck?.supported ? apiFootballCheck.odds : null;
+    const lwMinOdd = liveOddLo.live_p > 0 ? parseFloat((100 / liveOddLo.live_p).toFixed(2)) : null;
+    if (verifiedGoodPrice(lwPrice, lwMinOdd)) {
+      recordAlert({
+        matchId, homeTeam: match.home_team, awayTeam: match.away_team,
+        league: match.league, tier,
+        fixtureId: apiFootballCheck?.fixtureId ?? null, betKey: key, betLabel: liveWatchLabel(key),
+        favSide, favLine, tlLine: odds.tl_c,
+        priceAtAlert: lwPrice,
+        mo: parseFloat((100 / liveOdd.live_p).toFixed(2)), mo_lo: lwMinOdd,
+        strategy: 'LIVEWATCH', venue: 'soft', minute: liveMin,
+        state: { score: match.score || null, redCards: 0, half: isHalf1 ? 1 : 2 },
+      });
+    } else {
+      flogv(liveMin, label, 'LIVEWATCH', 'Not recorded to track record — no verified price clearing target.');
+    }
+  }
+}
+
 // ── Hash-failure alert (once per failed hash value) ──────────────────────────
 const _hashAlerted = new Set();
 async function notifyHashFailed(bookmaker, shortHash) {
@@ -1745,7 +2063,7 @@ async function runScan() {
 
   for (const match of matches) {
     const ctx = matchContext(match);
-    const { matchId, label, tier, liveMin, toKickoff, isL123Fire, isDashboardFire } = ctx;
+    const { matchId, label, tier, liveMin, toKickoff, isL123Fire, isDashboardFire, isFocusPreFire } = ctx;
 
     // HT snapshot capture happens for every live match regardless of which
     // strategy (if any) fires — LateGoal needs it much later (at 70'+), so
@@ -1758,11 +2076,12 @@ async function runScan() {
     // is in the Dashboard window but not L123's, and both can be true at
     // once inside 10 minutes. Each strategy has its own dedup key, so
     // running both here is safe.
-    if (isL123Fire || isDashboardFire) {
+    if (isL123Fire || isDashboardFire || isFocusPreFire) {
       inWindowCount++;
       flogv(liveMin, `${label} [${tier}]`, 'ALL', `pre-match, kickoff in ${Math.round(toKickoff)}m  bet365_odds=${match.bet365_odds ? 'ok' : 'MISSING'}`);
       if (isL123Fire) await runStrategyL123(match, ctx);
       if (isDashboardFire) await runStrategyDashboard(match, ctx);
+      if (isFocusPreFire) await runStrategyFocusPreMatch(match, ctx);
     } else if (liveMin != null) {
       flogv(liveMin, `${label} [${tier}]`, 'ALL', `live ${liveMin}'  score=${match.score || '—'}`);
       await runStrategyQuiet2H(match, ctx);
@@ -1770,6 +2089,8 @@ async function runScan() {
       await runStrategyHtPick(match, ctx);
       await runStrategyNewModel(match, ctx);
       await runStrategyNewModelRecheck(match, ctx);
+      await runStrategyFocusHt(match, ctx);
+      await runStrategyLiveWatch(match, ctx);
     } else {
       flogv(liveMin, `${label} [${tier}]`, 'ALL', `not in pre-match window (liveMin=— toKickoff=${toKickoff != null ? Math.round(toKickoff) + 'm' : '—'})`);
     }
@@ -1845,6 +2166,9 @@ async function main() {
   console.log(`Strategy HTPICK [${on(cfg.HTPICK_ENABLED)}][${cfg.HTPICK_TIER}]: cross-fit HT pick  fire=HT window ${HT_SNAPSHOT_WINDOW[0]}'-${HT_SNAPSHOT_WINDOW[1]}'  n≥${cfg.HTPICK_MIN_N} z≥${cfg.HTPICK_MIN_Z} edge≥${cfg.HTPICK_MIN_EDGE}pp`);
   console.log(`Strategy DASHBOARD [${on(cfg.DASHBOARD_ENABLED)}][${cfg.DASHBOARD_TIER}]: cross-fit opening-odds pick  fire=${cfg.DASHBOARD_WINDOW_MIN}min pre-kickoff window  n≥${cfg.DASHBOARD_MIN_N} z≥${cfg.DASHBOARD_MIN_Z} edge≥${cfg.DASHBOARD_MIN_EDGE}pp`);
   console.log(`Strategy NEWMODEL [${on(cfg.NEWMODEL_ENABLED)}][${cfg.NEWMODEL_TIER}]: E8 LiveModel HT reprice (UNVALIDATED)  fire=HT window ${HT_SNAPSHOT_WINDOW[0]}'-${HT_SNAPSHOT_WINDOW[1]}'  minEdge≥${cfg.NEWMODEL_MIN_EDGE_PP}pp  minLoUnverified≥${cfg.NEWMODEL_MIN_LO_UNVERIFIED}%`);
+  const focusSurvivorCounts = Object.entries(focusSelect.loadConfigs().results || {}).map(([k, v]) => `${k}=${v.length}`).join(' ') || 'none loaded';
+  console.log(`Strategy FOCUS [${on(cfg.FOCUS_ENABLED)}]: 1T/2T O/U 0.5/1.5, cells fixed offline by focus_config_search.js  fire=1H@${cfg.FOCUS_PRE_WINDOW_MIN}min pre-kickoff / 2H@HT window ${HT_SNAPSHOT_WINDOW[0]}'-${HT_SNAPSHOT_WINDOW[1]}'  minLiveN≥${cfg.FOCUS_MIN_LIVE_N}  survivingCells: ${focusSurvivorCounts}`);
+  console.log(`Strategy LIVEWATCH [${on(cfg.LIVEWATCH_ENABLED)}][${cfg.LIVEWATCH_TIER}]: live probability threshold watch (UNVALIDATED)  fire=CI-lower live_p≥${cfg.LIVEWATCH_THRESHOLD_PCT}% AND edge≥${cfg.LIVEWATCH_MIN_EDGE}pp vs baseline  1H=every scan≤45'  2H window=${cfg.LIVEWATCH_TRIGGER_WINDOW_2H[0]}'-${cfg.LIVEWATCH_TRIGGER_WINDOW_2H[1]}'  minN≥${cfg.LIVEWATCH_MIN_N}  keys=${cfg.LIVEWATCH_KEYS.join(',')}`);
   console.log(`Global tier default: ${cfg.LEAGUE_TIER}`);
 
   // Refresh all book hashes at startup

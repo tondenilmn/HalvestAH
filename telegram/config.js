@@ -254,7 +254,7 @@ module.exports = {
   // still fires — clearly labeled "unverified" — but only if `lo` clears the
   // more conservative NEWMODEL_MIN_LO_UNVERIFIED floor.
   // ════════════════════════════════════════════════════════════════════════════
-  NEWMODEL_ENABLED:             process.env.NEWMODEL_ENABLED !== 'false', // ON by default (2026-08-28) — unvalidated model, paper-track via track_record.js until E6 validates it; set NEWMODEL_ENABLED=false to disable
+  NEWMODEL_ENABLED:             process.env.NEWMODEL_ENABLED === 'true', // OFF by default (2026-08-29) — user asked to remove the HT reprice notification from Telegram (covers both runStrategyNewModel and runStrategyNewModelRecheck, gated on the same flag); set NEWMODEL_ENABLED=true to re-enable
   NEWMODEL_TIER:                process.env.NEWMODEL_TIER || 'TOP+MAJOR',
   NEWMODEL_MC_SAMPLES:          parseInt(process.env.NEWMODEL_MC_SAMPLES || '500', 10),
   // Min percentage points the model's CI-lower probability must clear the
@@ -264,4 +264,94 @@ module.exports = {
   // confidence (CI-lower %) before firing — a stand-in for the missing price
   // check, deliberately stricter than the edge-gated path above.
   NEWMODEL_MIN_LO_UNVERIFIED:   parseFloat(process.env.NEWMODEL_MIN_LO_UNVERIFIED || '60'),
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // STRATEGY FOCUS — 1T/2T Over/Under 0.5/1.5 watch (PLAN_FOCUS_BETS.md)
+  // Only the 7 keys over05_1H/over15_1H/under05_1H/over05_2H/over15_2H/
+  // under05_2H/under15_2H are in scope. UNLIKE every other strategy here,
+  // FOCUS does not pick a bet live via any threshold sweep — its candidate
+  // set was fixed OFFLINE by telegram/focus_config_search.js's walk-forward +
+  // cross-fit config search (telegram/data/focus_configs.json). At alert
+  // time this only checks "does the live match's own fav-line/side/TL-band/
+  // tier/TL-move/Over-Under-move (+ HT score, for the 4 2H keys) match one of
+  // those validated cells" — see focus_select.js.
+  //
+  // Fires for 1H keys in the same pre-match window L123 uses (kickoff minus
+  // FOCUS_PRE_WINDOW_MIN), and for the 4 2H keys at half-time (same
+  // HT_SNAPSHOT_WINDOW every other HT-triggered strategy uses).
+  //
+  // IMPORTANT — see BETTING_EDGE_ANALYSIS.md's "Focus bets" section: as of
+  // 2026-08-29, focus_configs.json has very few surviving cells (most of the
+  // 7 keys have NO validated config at all after a calibration-bias fix
+  // removed ~30 look-alike "edges"). This is deliberately conservative —
+  // FOCUS will simply stay silent for a key with no surviving cell rather
+  // than fall back to an unvalidated guess. Re-run focus_config_search.js
+  // periodically as more months of data accumulate; it may find more.
+  // ════════════════════════════════════════════════════════════════════════════
+  FOCUS_ENABLED:        process.env.FOCUS_ENABLED !== 'false',
+  FOCUS_PRE_WINDOW_MIN: parseInt(process.env.FOCUS_PRE_WINDOW_MIN || '10', 10),
+  FOCUS_MIN_LIVE_N:     parseInt(process.env.FOCUS_MIN_LIVE_N || '50', 10), // min size of the live _dbAll pool backing a matched cell
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // STRATEGY LIVEWATCH — live probability threshold watch (added 2026-08-29)
+  // The broader ask behind FOCUS: "tell me when a bet's live probability
+  // crosses a threshold and it hasn't happened yet" — for ANY live match, not
+  // just the handful of configs focus_config_search.js validated offline.
+  // UNLIKE Strategy FOCUS (only fires on a pre-validated cell, at one fixed
+  // window — pre-kickoff for 1H, HT for 2H), LIVEWATCH:
+  //   - uses the plain historical hit-rate for this match's own fav-line/side
+  //     + closing-TL-band (+ exact HT score, for 2H keys) — the same numbers
+  //     already shown in the web UI's "1T/2T Goals Focus" panel — with NO
+  //     offline validation step, so it WILL alert on configurations nobody
+  //     has walk-forward-checked,
+  //   - gates on the CONSERVATIVE Wilson-CI-lower-bound live probability
+  //     (not the raw point estimate) clearing LIVEWATCH_THRESHOLD_PCT — same
+  //     discipline L123/LATEGOAL/QUIET2H all use (gating on the point
+  //     estimate produced negative ROI out-of-sample in this codebase's own
+  //     walk-forward testing) — and the message's "minimum odds" is likewise
+  //     the model's own CI-lower-bound-implied price, not the raw point
+  //     estimate,
+  //   - for the 1H keys: checked on every scan cycle up to minute 45 (no
+  //     natural single check point exists pre-HT the way LATEGOAL/QUIET2H
+  //     have one at HT),
+  //   - for the 4 2H keys: fires only within LIVEWATCH_TRIGGER_WINDOW_2H
+  //     (default 68'-72', "around minute 70") — windowed rather than a
+  //     single minute so a missed/delayed scan cycle can't fire it
+  //     arbitrarily late, same convention as LATEGOAL_TRIGGER_WINDOW — rather
+  //     than checking continuously through the whole 2nd half.
+  // This is explicitly UNVALIDATED — a real-time convenience alert on top of
+  // numbers you can already see in the app, not a backtested strategy like
+  // L123/LATEGOAL/QUIET2H. Treat it the same way as NEWMODEL: useful to watch,
+  // not something to blindly stake without checking the historical n/context
+  // in the message.
+  // ════════════════════════════════════════════════════════════════════════════
+  LIVEWATCH_ENABLED:            process.env.LIVEWATCH_ENABLED !== 'false',
+  LIVEWATCH_TIER:               process.env.LIVEWATCH_TIER || 'TOP+MAJOR',
+  LIVEWATCH_MIN_N:              parseInt(process.env.LIVEWATCH_MIN_N || '50', 10),
+  LIVEWATCH_THRESHOLD_PCT:      parseFloat(process.env.LIVEWATCH_THRESHOLD_PCT || '75'),
+  // Min pp the STATIC (pre-live-decay) Wilson CI lower bound of this match's
+  // own conditioned pool (TL-band, +HT-state for 2H keys) must clear a
+  // LESS-conditioned baseline pool by (fav-line/side [+TL-band for 2H]) —
+  // same "cfgRows vs. a less-conditioned base pool" edge check L123/QUIET2H
+  // already use, added 2026-08-29 at the user's request ("only show matches
+  // where the selected bets are above baseline"). This is separate from
+  // LIVEWATCH_THRESHOLD_PCT: the edge check says "this specific config is
+  // meaningfully different from the generic case", the threshold check says
+  // "and time has decayed it convincingly high/low" — both must pass.
+  LIVEWATCH_MIN_EDGE:           parseFloat(process.env.LIVEWATCH_MIN_EDGE || '0'),
+  LIVEWATCH_TRIGGER_WINDOW_2H: [
+    parseInt(process.env.LIVEWATCH_TRIGGER_MIN || '68', 10),
+    parseInt(process.env.LIVEWATCH_TRIGGER_MAX || '72', 10),
+  ],
+  // The 7 O/U keys (focus_lib.FOCUS_KEYS) plus 4 "team to score" keys —
+  // homeScored1H/awayScored1H/homeScored2H/awayScored2H — added 2026-08-29 at
+  // the user's request ("probability for Home/Away team to score, not yet
+  // happened"). These 4 are NOT part of focus_lib.FOCUS_KEYS (they're not
+  // offline-validated by focus_config_search.js/Strategy FOCUS — see
+  // notify.js's LIVEWATCH_EXTRA_KEYS comment) but are already fully supported
+  // by engine.js's BETS list and both live-decay functions, so no new pricing
+  // logic was needed to add them here.
+  LIVEWATCH_KEYS: (process.env.LIVEWATCH_KEYS ||
+    'over05_1H,over15_1H,under05_1H,over05_2H,over15_2H,under05_2H,under15_2H,' +
+    'homeScored1H,awayScored1H,homeScored2H,awayScored2H').split(','),
 };
