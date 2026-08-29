@@ -57,12 +57,22 @@ const FOCUS_THRESHOLD = { // "at least N goals" (over) or "at most N-1" (under)
 // over/under pair derived from the Poisson split below.
 const BOOK_MARGIN = { Bet365: 0.06, Sbobet: 0.04 };
 
-// ── 1H goal-share, weighted from static/data/goal_timing_summary.json ────────
+// ── 1H goal-share, weighted from goal_timing_summary.json ────────────────────
 // (12 leagues x 3 seasons, real goal-minute data — see CLAUDE.md's "Live 2H
 // Time-Decay Odds" section). Weighted by each league's totalGoals so bigger
 // samples count more; NOT a flat average of the 12 percentages.
+//
+// Hand-mirrored copy of static/data/goal_timing_summary.json, NOT a
+// require('../static/...') reach-out — Railway's Docker build context is
+// scoped to telegram/ only, so a path outside it throws ENOENT in production
+// (confirmed 2026-08-29: this crashed notify.js's Railway deploy at require
+// time, since loadH1Share() runs eagerly at module load). Same hand-mirroring
+// convention telegram/live_model.js/live_lambda_solver.js already use — see
+// their header comments. Keep this file in sync by hand if
+// static/data/goal_timing_summary.json is ever regenerated
+// (telegram/generate_goal_timing_summary.js).
 function loadH1Share() {
-  const p = path.resolve(__dirname, '../static/data/goal_timing_summary.json');
+  const p = path.resolve(__dirname, 'goal_timing_summary.json');
   const j = JSON.parse(fs.readFileSync(p, 'utf8'));
   let h1 = 0, total = 0;
   for (const lg of Object.values(j.leagues)) {
