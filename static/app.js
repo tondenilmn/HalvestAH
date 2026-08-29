@@ -814,6 +814,7 @@ function renderDashboardRowInner(r) {
     </div>
     <div class="scan-meta">${esc(r.match.league || '—')} · Kickoff ${kickoffTxt}</div>
     ${renderBetPickBlock(r.bet, r.qualifies, r.l2 ? 'mo_lo' : 'mo')}
+    <div class="col-stats" style="margin-top:6px">${sampleBadge(r.bet.n, DEFAULT_MIN_N)}</div>
     ${l2Html}
     <details class="dash-why">
       <summary>Why this pick</summary>
