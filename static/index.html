@@ -110,12 +110,6 @@
             Auto-refresh every minute
           </label>
 
-          <div class="section-label" style="margin-top:14px">MODE</div>
-          <div class="gs-triggers">
-            <button class="gs-trigger-btn active" id="live-mode-btn-FOCUS" onclick="setLiveUiMode('focus')" title="Only the 1T/2T Over/Under 0.5 &amp; 1.5 goal markets — a compact one-row-per-match view">🥅 Focus (1T/2T O/U)</button>
-            <button class="gs-trigger-btn"        id="live-mode-btn-ALL"   onclick="setLiveUiMode('all')" title="Full bet dashboard, Top Pick/Value Hunt banners and every market — the original detailed view">📋 All markets</button>
-          </div>
-
           <div class="section-label" style="margin-top:14px">LIVE MATCH LEAGUE TIER</div>
           <div class="gs-triggers">
             <button class="gs-trigger-btn"        id="live-tier-btn-ALL"   onclick="setLiveTierFilter('ALL')">ALL</button>
@@ -138,6 +132,19 @@
           <p style="font-size:10px;color:var(--dim);font-style:italic;margin-top:6px;line-height:1.4">
             Narrows the list to matches currently in a given window — handy while watching for a
             specific late-goal decision point.
+          </p>
+
+          <div class="section-label" style="margin-top:14px">MAX ODDS</div>
+          <div class="gs-triggers">
+            <button class="gs-trigger-btn"        id="live-max-odds-btn-ALL" onclick="setLiveMaxOdds('ALL')">ALL</button>
+            <button class="gs-trigger-btn"        id="live-max-odds-btn-3"   onclick="setLiveMaxOdds('3')">≤ 3</button>
+            <button class="gs-trigger-btn active"  id="live-max-odds-btn-4"  onclick="setLiveMaxOdds('4')">≤ 4</button>
+            <button class="gs-trigger-btn"        id="live-max-odds-btn-6"   onclick="setLiveMaxOdds('6')">≤ 6</button>
+          </div>
+          <p style="font-size:10px;color:var(--dim);font-style:italic;margin-top:6px;line-height:1.4">
+            Excludes any bet whose min odds is above this from being surfaced as THE pick (Opportunities feed
+            and per-match card preview) — a long-odds bet is a rare, hard-to-trust historical event. Still
+            visible unfiltered inside a match's own detail view.
           </p>
 
           <div class="section-label" style="margin-top:14px">ORDER</div>
