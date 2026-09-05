@@ -151,7 +151,7 @@ module.exports = {
   // message shows the internal computeLiveOdd target only, same as
   // LATEGOAL's fallback when no equivalence/verification applies.
   // ════════════════════════════════════════════════════════════════════════════
-  QUIET2H_ENABLED:      process.env.QUIET2H_ENABLED !== 'false',
+  QUIET2H_ENABLED:      process.env.QUIET2H_ENABLED === 'true',
   QUIET2H_TIER:         process.env.QUIET2H_TIER          || 'TOP+MAJOR',
   QUIET2H_TL_BANDS:     (process.env.QUIET2H_TL_BANDS     || '<2,2-2.5').split(','),
   QUIET2H_BETS:         (process.env.QUIET2H_BETS         || 'under05_2H,under15_2H').split(','),
