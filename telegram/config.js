@@ -398,4 +398,69 @@ module.exports = {
   LIVEWATCH_KEYS: (process.env.LIVEWATCH_KEYS ||
     'over05_1H,over15_1H,under05_1H,over05_2H,over15_2H,under05_2H,under15_2H,' +
     'homeScored1H,awayScored1H,homeScored2H,awayScored2H').split(','),
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // STRATEGY OPENLINE — bet the OPENING 1X2 price, not closing (added 2026-09-05)
+  // Fires the moment a match's opening odds are first seen — asianbetsoccer's
+  // nextgame.html (tablenext table) publishes them roughly a week before
+  // kickoff (confirmed live 2026-09-05: day7 already carries populated
+  // 1X2/AH/TL opening odds) — rather than waiting for the pre-kickoff window
+  // every other pre-match strategy here (L123, DASHBOARD, FOCUS) fires in.
+  //
+  // Genesis: backtest_l1_standalone_pricing.js found Layer 1 (opening-odds/TL
+  // cross-fit signal) has NO edge vs the real CLOSING market price (pooled
+  // ROI -6.9%/19 months) — same conclusion as the full L123 consensus.
+  // backtest_l1_at_opening_price.js asked the different question this
+  // strategy actually bets on — same signal, priced/settled at the OPENING
+  // market price instead — and found the gap mostly closes (-1.0% "always",
+  // +2.1% gated on clearing our own min-odds). backtest_l1_opening_breakdown.js
+  // then found that +2.1% wasn't broad — Over/Under 2.5 FT contributed
+  // nothing or lost in every tier; only the 1X2 match-winner markets
+  // (homeWinsFT/awayWinsFT) carried it. backtest_l1_1x2_lockbox.js validated
+  // THAT narrowed hypothesis with a proper walk-forward split — candidate set
+  // fixed to {homeWinsFT, awayWinsFT} a priori, bands/thresholds unchanged
+  // from every prior script, 14 exploratory months vs. 5 never-touched
+  // lock-box months (Bet365_03_26..07_26), gated ROI checked for outlier-
+  // driven results (top3WinShare 1-12% — thousands of small wins, not a
+  // couple of lucky longshots):
+  //   TIER      EXPLORATORY gated ROI   LOCK-BOX gated ROI
+  //   TOP+MAJOR        +5.9%  (n=1411)         +18.8%  (n=433)
+  //   OTHER            +17.4% (n=12035)        +20.3%  (n=4416)
+  //   ALL              +16.3% (n=13842)        +21.5%  (n=5404)
+  // Real, reproducible edge in every tier, on the never-touched months too —
+  // the strongest validation result in this codebase. Default tier is ALL
+  // (best-supported lock-box number, and homeWinsFT flipped sign in
+  // TOP+MAJOR alone — see the backtest file for that caveat).
+  //
+  // CAVEAT — execution risk, not a stats problem: this requires actually
+  // betting at (or very near) the true opening price, which for a match a
+  // week out may not stay available/bettable at real stakes on every league
+  // Bet365 lists that early. The backtest can't measure whether you can
+  // actually get matched at the observed price — only that the "opening"
+  // price recorded in the historical dataset, if you could bet it, was
+  // profitable. Firing as soon as the match enters the scan window (rather
+  // than on a delay) is specifically meant to minimize this gap.
+  //
+  // Uses the SAME bands/MIN_N/MIN_Z/MIN_EDGE as every backtest script above
+  // (15/1.5/0pp) — NOT L123's own thresholds (30/1.8/20%) — changing these
+  // would mean alerting on something other than what was actually validated.
+  // Cross-fit at alert time too (row.fold A/B, price from the OTHER fold),
+  // mirroring the backtest's own mechanism — plain single-pool pricing (what
+  // L123's layer1Live does) was NOT what was validated here, so OPENLINE
+  // doesn't reuse layer1Live.
+  OPENLINE_ENABLED:     process.env.OPENLINE_ENABLED !== 'false',
+  OPENLINE_TIER:        process.env.OPENLINE_TIER        || 'ALL',
+  OPENLINE_MIN_N:       parseInt(process.env.OPENLINE_MIN_N   || '15',  10),
+  OPENLINE_MIN_Z:       parseFloat(process.env.OPENLINE_MIN_Z || '1.5'),
+  OPENLINE_MIN_EDGE:    parseFloat(process.env.OPENLINE_MIN_EDGE || '0'),
+  // How many days ahead to scan (tablenext is day-indexed, day0=today). Wider
+  // than exactly 7 so a league posting its line a bit earlier/later than a
+  // week is still caught — the match-id dedup below makes re-seeing the same
+  // match on multiple days harmless.
+  OPENLINE_WINDOW_DAYS: parseInt(process.env.OPENLINE_WINDOW_DAYS || '9', 10),
+  // Coarse cadence — unlike the 2-min live scan, new matches only enter this
+  // week-out window a handful of times a day, so there's nothing to gain from
+  // scanning it every SCAN_INTERVAL_MINUTES (and it costs OPENLINE_WINDOW_DAYS+1
+  // extra HTTP round-trips to botbot3.space each time it runs).
+  OPENLINE_SCAN_INTERVAL_MINUTES: parseInt(process.env.OPENLINE_SCAN_INTERVAL_MINUTES || '120', 10),
 };

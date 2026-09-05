@@ -112,7 +112,20 @@ function parseGetData1Calls(jsText) {
       const ag = typeof args[23] === 'number' ? args[23] : parseInt(args[23], 10);
       if (!isNaN(hg) && !isNaN(ag) && hg >= 0 && ag >= 0) score = `${hg}-${ag}`;
     }
-    results.push({ matchId, homeTeam, awayTeam, league, minute, kickoffTime, score });
+    // HT score: args[12]/[13] = HT home/away goals — confirmed 2026-09-05 by hooking
+    // getDatalive1() live and cross-referencing several in-progress matches. Present in the
+    // raw feed for ANY match past halftime, not just ones watched since kickoff. Pre-HT these
+    // are 0,0 placeholders (indistinguishable from a real 0-0 HT), so only trust them once the
+    // match has actually reached halftime — mirrors functions/api/livescore.js's parsing.
+    const minuteNum = minute && !isHT ? parseInt(minute, 10) : null;
+    const pastHT = isHT || (minuteNum !== null && !isNaN(minuteNum) && minuteNum > 45);
+    let htScore = null;
+    if (pastHT && args.length > 13) {
+      const hth = typeof args[12] === 'number' ? args[12] : parseInt(args[12], 10);
+      const hta = typeof args[13] === 'number' ? args[13] : parseInt(args[13], 10);
+      if (!isNaN(hth) && !isNaN(hta) && hth >= 0 && hta >= 0) htScore = `${hth}-${hta}`;
+    }
+    results.push({ matchId, homeTeam, awayTeam, league, minute, kickoffTime, score, htScore });
   }
   return results;
 }
@@ -139,6 +152,8 @@ function mergeMatchData(oddsRows, metaRows) {
       minute:       meta.minute      || null,
       kickoff_time: meta.kickoffTime || null,
       score:        meta.score       || null,
+      ht_score:     meta.htScore     || null,
+      x2_odds:      meta.x2          || null,
       odds,
     });
   }
@@ -149,6 +164,12 @@ function mergeMatchData(oddsRows, metaRows) {
 // getDatanext1(rowIdx, ?, leagueKey, encodedOdds, statusCode,
 //   matchId, leagueName, homeTeam, kickoffTimeUTC, h1X2c, dX2c, a1X2c,
 //   h1X2o, dX2o, a1X2o, awayTeam)
+// The h1X2*/a1X2* args are the ONLY source of 1X2 (match-winner) odds in this
+// table — getData2 (parseGetData2Calls) only carries AH/TL/O-U — so they're
+// extracted here into `x2` and carried through mergeMatchData onto
+// match.x2_odds. Added 2026-09-05 for Strategy OPENLINE (see notify.js),
+// which needs the OPENING 1X2 price (h1X2o/a1X2o) to check against, not just
+// the AH/TL data every other strategy already uses.
 function parseGetDatanext1Calls(jsText) {
   const re = /\bmatch1text\s*\+=\s*getDatanext1\s*\(/g;
   const results = [];
@@ -156,12 +177,17 @@ function parseGetDatanext1Calls(jsText) {
   while ((m = re.exec(jsText)) !== null) {
     const args = extractCallArgs(jsText, m.index + m[0].length);
     if (args.length < 16) continue;
+    const pf = v => { const n = typeof v === 'number' ? v : parseFloat(v); return isNaN(n) ? null : n; };
     const matchId     = (typeof args[5] === 'string' && /^[a-f0-9]{20,}$/i.test(args[5])) ? args[5] : null;
     const league      = typeof args[6]  === 'string' ? args[6]  : '';
     const homeTeam    = typeof args[7]  === 'string' ? args[7]  : '';
     const kickoffTime = typeof args[8]  === 'string' ? args[8]  : null;  // UTC ISO with Z
     const awayTeam    = typeof args[15] === 'string' ? args[15] : '';
-    results.push({ matchId, homeTeam, awayTeam, league, minute: null, kickoffTime, score: null });
+    const x2 = {
+      home_c: pf(args[9]),  draw_c: pf(args[10]), away_c: pf(args[11]),
+      home_o: pf(args[12]), draw_o: pf(args[13]), away_o: pf(args[14]),
+    };
+    results.push({ matchId, homeTeam, awayTeam, league, minute: null, kickoffTime, score: null, x2 });
   }
   return results;
 }
@@ -616,6 +642,47 @@ async function fetchNextMatchesAllDays(maxDays = 1) {
   return { matches: allMatches, pinnacleHashFailed: false, pinnacleHash: PINNACLE_HASH, bet365HashFailed, bet365Hash: BET365_HASH };
 }
 
+// ── OPENLINE window fetch ─────────────────────────────────────────────────────
+// Strategy OPENLINE (notify.js) needs matches from ~a week out, not just the
+// day0 slice fetchNextMatches() gives — asianbetsoccer's nextgame.html/
+// tablenext table is day-indexed (day0 = today, dayN = today+N, confirmed
+// against the real site 2026-09-05: day7 returned kickoffs exactly 7 days
+// out, with opening 1X2/AH/TL odds already populated). Scans day0..maxDay and
+// unions by id — deliberately wider than exactly "day7" so a league that
+// posts its line a bit earlier/later than a week still gets caught; the
+// caller's own dedup (by match id) makes seeing the same match on multiple
+// days harmless. tryNextCombo already merges odds (getData2) + meta incl.
+// 1X2 (getDatanext1/x2, see parseGetDatanext1Calls) per day, so no separate
+// odds-attach pass is needed here — unlike the older, broken
+// fetchNextMatchesAllDays above (still hardcoded to the dead PINNACLE_HASH,
+// left in place unexported/unused rather than touched for this change).
+async function fetchOpenlineMatches(maxDay = 9) {
+  const timestamp = Date.now();
+  console.log(`OpenLine: hash=${BET365_HASH.slice(0,8)}…  scanning day0–day${maxDay}`);
+
+  const seen = new Map();
+  let hashFailed = false;
+
+  for (let day = 0; day <= maxDay; day++) {
+    let { matches, hashInvalid } = await tryNextCombo(BET365_HASH, GS_PRIMARY, timestamp, day);
+    if (!matches && hashInvalid) {
+      console.log(`OpenLine: hash invalid at day${day} — auto-discovering…`);
+      const discovered = await fetchBet365Hash();
+      if (discovered && discovered !== BET365_HASH) {
+        BET365_HASH = discovered;
+        ({ matches, hashInvalid } = await tryNextCombo(BET365_HASH, GS_PRIMARY, timestamp, day));
+      }
+    }
+    if (!matches) { if (hashInvalid) hashFailed = true; continue; }
+    for (const m of matches) if (m.id) seen.set(m.id, m);
+  }
+
+  const allMatches = [...seen.values()];
+  for (const m of allMatches) m.bet365_odds = m.odds;
+  console.log(`OpenLine: ${allMatches.length} unique matches across day0–day${maxDay}`);
+  return { matches: allMatches, bet365HashFailed: hashFailed, bet365Hash: BET365_HASH };
+}
+
 // Current in-memory hashes with no network call — used by notify.js's /hashes
 // HTTP endpoint so the Cloudflare Pages Function can relay through Railway
 // when its own direct discovery is blocked (see functions/api/livescore.js).
@@ -624,4 +691,4 @@ function getCurrentHashes() {
 }
 
 // module.exports = { fetchLiveMatches, fetchNextMatches, fetchNextMatchesAllDays, refreshHashes };
-module.exports = { fetchLiveMatches, fetchNextMatches, refreshHashes, getCurrentHashes };
+module.exports = { fetchLiveMatches, fetchNextMatches, fetchOpenlineMatches, refreshHashes, getCurrentHashes };

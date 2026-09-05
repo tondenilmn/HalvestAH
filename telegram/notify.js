@@ -29,7 +29,7 @@ const {
   pct,
   wilsonCI,
 } = require('./engine');
-const { fetchLiveMatches, fetchNextMatches, refreshHashes, getCurrentHashes } = require('./livescore');
+const { fetchLiveMatches, fetchNextMatches, fetchOpenlineMatches, refreshHashes, getCurrentHashes } = require('./livescore');
 const { verifyBet365Price } = require('./apifootball');
 const { recordAlert, settlePendingAlerts, buildDigestMessage, loadState, saveState } = require('./track_record');
 const { computeLiveOdd, computeLive1HOdd, computeLiveResult2H, computeLiveBtts2H, _2hResultField, _2H_RESULT_KEYS, mcLiveLo, mcLiveHi } = require('./live_odds');
@@ -513,6 +513,140 @@ async function runStrategyL123(match, ctx) {
   }
 }
 
+// ── Strategy OPENLINE — bet the opening 1X2 price, week-out ──────────────────
+// See config.js's OPENLINE_* block for the full validation story. Candidate
+// set is fixed to homeWinsFT/awayWinsFT only (drawFT and O/U showed no
+// consistent edge in the backtests this is based on). Cross-fit at alert
+// time (row.fold A/B, price the pick with the OTHER fold) — this is what was
+// actually walk-forward validated; a plain single-pool estimate (like L123's
+// layer1Live) was not.
+const OPENLINE_BETS = BETS.filter(b => b.k === 'homeWinsFT' || b.k === 'awayWinsFT');
+
+function openlineQualifies(b) {
+  return b.n >= cfg.OPENLINE_MIN_N && b.z >= cfg.OPENLINE_MIN_Z && (b.lo - b.bl) >= cfg.OPENLINE_MIN_EDGE;
+}
+
+function openlineScoreFold(pool, favLine, favSide, favOo, tlO) {
+  const base = pool.filter(r => r.fav_line === favLine && r.fav_side === favSide);
+  if (base.length < cfg.OPENLINE_MIN_N) return [];
+  const oddsBand = ODDS_BANDS.find(b => inBand(favOo, b));
+  const tlBand   = Object.values(TL_BANDS).find(b => inBand(tlO, b));
+  const cfgRows  = base.filter(r => inBand(r.fav_oo, oddsBand) && (tlBand ? inBand(r.tl_o, tlBand) : true));
+  if (cfgRows.length < cfg.OPENLINE_MIN_N) return [];
+  return scoreBets(cfgRows, base, base, cfg.OPENLINE_MIN_N).filter(b => b.k === 'homeWinsFT' || b.k === 'awayWinsFT');
+}
+
+function openlineBet(favLine, favSide, favOo, tlO) {
+  if (favOo == null) return null;
+  const poolA = _dbAll.filter(r => r.fold === 'A');
+  const poolB = _dbAll.filter(r => r.fold === 'B');
+  const scoredA = openlineScoreFold(poolA, favLine, favSide, favOo, tlO);
+  const scoredB = openlineScoreFold(poolB, favLine, favSide, favOo, tlO);
+  const crossFit = (scoredA.length && scoredB.length)
+    ? mergeCrossFit(scoredA, scoredB, OPENLINE_BETS, openlineQualifies)
+    : [];
+  let candidates = crossFit.filter(openlineQualifies);
+  if (!candidates.length) {
+    // Either fold too thin — fall back to the single unsplit pool, same as
+    // every backtest script's crossFitL1().
+    candidates = openlineScoreFold(_dbAll, favLine, favSide, favOo, tlO).filter(openlineQualifies);
+  }
+  if (!candidates.length) return null;
+  candidates.sort((a, b) => (b.z * b.lo / 100) - (a.z * a.lo / 100));
+  return candidates[0];
+}
+
+const openlineDedup = new Dedup(14 * 24 * 60 * 60 * 1000); // 14 days — longer than OPENLINE_WINDOW_DAYS so a match can't re-alert just by staying in the scan window
+
+async function runStrategyOpenline(match, ctx) {
+  const { matchId, label, tier, liveMin } = ctx;
+
+  if (!cfg.OPENLINE_ENABLED) return;
+  if (!tierAllowed(tier, cfg.OPENLINE_TIER)) { flogv(liveMin, label, 'OPENLINE', `SKIP: tier=${tier} not in ${cfg.OPENLINE_TIER}`); return; }
+  if (!_dbAll || !_dbAll.length) { flog(liveMin, label, 'OPENLINE', 'SKIP: DB empty'); return; }
+
+  const odds = match.bet365_odds;
+  if (!odds) { flogv(liveMin, label, 'OPENLINE', 'SKIP: no Bet365 odds'); return; }
+  const x2 = match.x2_odds;
+  if (!x2 || (x2.home_o == null && x2.away_o == null)) { flogv(liveMin, label, 'OPENLINE', 'SKIP: no 1X2 opening odds'); return; }
+
+  const matchCfg = buildCfgFromMatch(odds, {});
+  if (!matchCfg) { flogv(liveMin, label, 'OPENLINE', 'SKIP: AH odds incomplete'); return; }
+
+  const favLine = matchCfg.signals.favLine;
+  const favSide = matchCfg.signals.favSide;
+  const favOo   = favSide === 'HOME' ? odds.ho_o : odds.ao_o;
+  const tlO     = odds.tl_o;
+
+  const bet = openlineBet(favLine, favSide, favOo, tlO);
+  if (!bet) { flogv(liveMin, label, 'OPENLINE', 'SKIP: no qualifying homeWinsFT/awayWinsFT pick'); return; }
+
+  const marketOdds = bet.k === 'homeWinsFT' ? x2.home_o : x2.away_o;
+  if (marketOdds == null) { flogv(liveMin, label, 'OPENLINE', `SKIP: no opening price for ${bet.k}`); return; }
+  if (marketOdds < bet.mo) { flogv(liveMin, label, 'OPENLINE', `SKIP: opening price @${marketOdds.toFixed(2)} below fair min @${bet.mo} for ${bet.k}`); return; }
+
+  const dedupKey = `${matchId}:openline:${bet.k}`;
+  if (openlineDedup.has(dedupKey)) { flogv(liveMin, label, 'OPENLINE', 'SKIP: already notified'); return; }
+
+  const kickoffStr = match.kickoff_time
+    ? new Date(match.kickoff_time).toLocaleString('it-IT', { timeZone: cfg.DISPLAY_TZ, weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+    : '—';
+  const betLabel = bet.k === 'homeWinsFT' ? 'Home wins FT' : 'Away wins FT';
+  const msg = buildMessage(
+    'OPENLINE — opening price value',
+    match,
+    `Kickoff ${kickoffStr}`,
+    [
+      `🏷 ${esc(betLabel)}`,
+      `📊 ${bet.p.toFixed(1)}% historically (n=${bet.n}, baseline ${bet.bl.toFixed(1)}%)`,
+      `🎲 Model probability (for manual Kelly): ${bet.lo.toFixed(1)}%`,
+      `🎯 Fair min odds: @${bet.mo}`,
+      `📖 Opening price found: @${marketOdds.toFixed(2)}${marketOdds >= bet.mo ? ' ✅' : ''}`,
+      ``,
+      `⚠️ Bet promptly — this requires the OPENING price, which drifts toward closing as kickoff approaches.`,
+    ]
+  );
+  await sendTelegram(msg);
+  openlineDedup.mark(dedupKey);
+  flog(liveMin, label, 'OPENLINE', `ALERT: ${bet.k} n=${bet.n} z=${bet.z.toFixed(2)} edge=${(bet.lo - bet.bl).toFixed(1)}pp opening=@${marketOdds.toFixed(2)} mo=@${bet.mo} tier=${tier}`);
+
+  if (verifiedGoodPrice(marketOdds, bet.mo_lo)) {
+    recordAlert({
+      matchId, homeTeam: match.home_team, awayTeam: match.away_team,
+      league: match.league, tier,
+      fixtureId: null,
+      betKey: bet.k, betLabel,
+      favSide, favLine, tlLine: tlO,
+      priceAtAlert: marketOdds,
+      mo: bet.mo, mo_lo: bet.mo_lo,
+      strategy: 'OPENLINE', venue: 'soft', minute: null,
+      state: { score: null, redCards: 0, half: null },
+    });
+  } else {
+    flogv(liveMin, label, 'OPENLINE', 'Not recorded to track record — opening price does not clear the conservative min-odds.');
+  }
+}
+
+// Separate scan loop from runScan() — OPENLINE reads a different botbot3
+// endpoint (tablenext across day0..OPENLINE_WINDOW_DAYS, not just the live
+// feed + day0 runScan already fetches) on its own coarser cadence (see
+// config.js's OPENLINE_SCAN_INTERVAL_MINUTES), since new matches only enter
+// this week-out window a handful of times a day.
+async function runOpenlineScan() {
+  if (!cfg.OPENLINE_ENABLED) return;
+  console.log(`[${new Date().toISOString()}] OpenLine scanning (day0-${cfg.OPENLINE_WINDOW_DAYS})…`);
+  let matches;
+  try { matches = (await fetchOpenlineMatches(cfg.OPENLINE_WINDOW_DAYS)).matches; }
+  catch (e) { console.error(`OpenLine fetch failed: ${e.message}`); return; }
+  if (!matches.length) { console.log('OpenLine: no matches found.'); return; }
+
+  for (const match of matches) {
+    const ctx = matchContext(match);
+    await runStrategyOpenline(match, ctx);
+  }
+  console.log(`OpenLine scan done — ${matches.length} matches checked.`);
+}
+
 // ── Strategy DASHBOARD — cross-fit opening-odds pick ─────────────────────────
 // Mirrors the Web UI's Daily Dashboard pick (static/app.js's
 // openingOddsSignal) — see config.js's DASHBOARD_* block for the full design
@@ -686,9 +820,33 @@ function parseScoreStr(scoreStr) {
   return { home: parseInt(m[1], 10), away: parseInt(m[2], 10) };
 }
 
-function captureHtSnapshot(matchId, liveMin, scoreStr) {
-  if (liveMin < HT_SNAPSHOT_WINDOW[0] || liveMin > HT_SNAPSHOT_WINDOW[1]) return;
+// 2026-08-29 fix: used to capture as soon as liveMin landed in the
+// [44,50] window, which fires while the 1st half is still being played
+// (normal time at 44'/45', or 1st-half stoppage at 45+1/45+2/...). A goal
+// scored in that stoppage time *after* the snapshot was taken but *before*
+// the ref actually blows for halftime made the "since-HT" anchor wrong —
+// LATEGOAL/QUIET2H/HTPICK/NEWMODEL/FOCUS then reasoned from a scoreline
+// that was already stale by the time 2H kicked off. The live feed reports
+// a literal 'HT' status once the half has actually ended (see livescore.js's
+// `isHT`), so wait for that instead of guessing off the raw minute.
+// Fallback: some feed paths may never surface the literal 'HT' string —
+// if we're still missing a snapshot once well into the 2nd half (>=55'),
+// capture whatever score is showing rather than never getting one at all.
+//
+// 2026-09-05: prefer htScoreStr (livescore.js's `ht_score`, the real HT-score
+// field baked into the raw getDatalive1() args — see that file's parsing
+// comment) when present — it's genuine HT data for ANY match past halftime,
+// unlike the isHT/>=55' fallback below, which only produces a correct anchor
+// if a scan actually landed at the right moment (a missed cycle, or a process
+// restart mid-match, previously meant no snapshot at all for that match, ever
+// — _htSnapshots is in-memory only, see this map's own header comment).
+function captureHtSnapshot(matchId, liveMin, scoreStr, isHT, htScoreStr) {
   if (_htSnapshots.has(matchId)) return;
+  if (htScoreStr) {
+    const htScore = parseScoreStr(htScoreStr);
+    if (htScore) { _htSnapshots.set(matchId, { ...htScore, ts: Date.now() }); return; }
+  }
+  if (!isHT && liveMin < 55) return;
   const score = parseScoreStr(scoreStr);
   if (!score) return;
   _htSnapshots.set(matchId, { ...score, ts: Date.now() });
@@ -2198,7 +2356,7 @@ async function runScan() {
     // strategy (if any) fires — LateGoal needs it much later (at 70'+), so
     // it has to be recorded the moment a match passes through HT, not just
     // when a strategy happens to be checking that match right now.
-    if (liveMin != null) captureHtSnapshot(matchId, liveMin, match.score);
+    if (liveMin != null) captureHtSnapshot(matchId, liveMin, match.score, match.minute === 'HT', match.ht_score);
 
     // isL123Fire (10min window) and isDashboardFire (15min window) are
     // independent, not mutually exclusive — a match 12 minutes from kickoff
@@ -2298,6 +2456,7 @@ async function main() {
   const focusSurvivorCounts = Object.entries(focusSelect.loadConfigs().results || {}).map(([k, v]) => `${k}=${v.length}`).join(' ') || 'none loaded';
   console.log(`Strategy FOCUS [${on(cfg.FOCUS_ENABLED)}]: 1T/2T O/U 0.5/1.5, cells fixed offline by focus_config_search.js  fire=1H@${cfg.FOCUS_PRE_WINDOW_MIN}min pre-kickoff / 2H@HT window ${HT_SNAPSHOT_WINDOW[0]}'-${HT_SNAPSHOT_WINDOW[1]}'  minLiveN≥${cfg.FOCUS_MIN_LIVE_N}  survivingCells: ${focusSurvivorCounts}`);
   console.log(`Strategy LIVEWATCH [${on(cfg.LIVEWATCH_ENABLED)}][${cfg.LIVEWATCH_TIER}]: live probability threshold watch (UNVALIDATED)  fire=CI-lower live_p≥${cfg.LIVEWATCH_THRESHOLD_PCT}% AND edge≥${cfg.LIVEWATCH_MIN_EDGE}pp vs baseline  1H-over=${cfg.LIVEWATCH_TRIGGER_WINDOW_1H_OVER[0]}'-${cfg.LIVEWATCH_TRIGGER_WINDOW_1H_OVER[1]}'  1H-under=${cfg.LIVEWATCH_TRIGGER_WINDOW_1H_UNDER[0]}'-${cfg.LIVEWATCH_TRIGGER_WINDOW_1H_UNDER[1]}'  2H-over=${cfg.LIVEWATCH_TRIGGER_WINDOW_2H_OVER[0]}'-${cfg.LIVEWATCH_TRIGGER_WINDOW_2H_OVER[1]}'  2H-under=${cfg.LIVEWATCH_TRIGGER_WINDOW_2H_UNDER[0]}'-${cfg.LIVEWATCH_TRIGGER_WINDOW_2H_UNDER[1]}'  minN≥${cfg.LIVEWATCH_MIN_N}  keys=${cfg.LIVEWATCH_KEYS.join(',')}`);
+  console.log(`Strategy OPENLINE [${on(cfg.OPENLINE_ENABLED)}][${cfg.OPENLINE_TIER}]: bet the OPENING 1X2 price (homeWinsFT/awayWinsFT only)  fire=day0-day${cfg.OPENLINE_WINDOW_DAYS} scan every ${cfg.OPENLINE_SCAN_INTERVAL_MINUTES}min  n≥${cfg.OPENLINE_MIN_N} z≥${cfg.OPENLINE_MIN_Z} edge≥${cfg.OPENLINE_MIN_EDGE}pp`);
   console.log(`Global tier default: ${cfg.LEAGUE_TIER}`);
 
   // Refresh all book hashes at startup
@@ -2305,6 +2464,7 @@ async function main() {
 
   if (once) {
     await runScan();
+    await runOpenlineScan();
     process.exit(0);
   }
 
@@ -2318,6 +2478,13 @@ async function main() {
   // send a scorecard digest once/day if APIFOOTBALL_KEY is configured.
   cron.schedule('*/30 * * * *', runSettlementCheck);
   cron.schedule('0 8 * * *', maybeSendDailyDigest);
+  // OpenLine's own coarser cadence — see config.js's OPENLINE_SCAN_INTERVAL_MINUTES.
+  // node-cron's minute field only goes 0-59, so `*/N` is invalid once N>=60
+  // (the default is 120) — express whole-hour intervals via the hour field.
+  const olInterval = cfg.OPENLINE_SCAN_INTERVAL_MINUTES;
+  const olCron = (olInterval % 60 === 0) ? `0 */${olInterval / 60} * * *` : `*/${olInterval} * * * *`;
+  await runOpenlineScan();
+  cron.schedule(olCron, () => runOpenlineScan().catch(e => console.error('OpenLine scan error:', e)));
 }
 
 main().catch(e => { console.error(e); process.exit(1); });
