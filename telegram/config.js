@@ -333,16 +333,34 @@ module.exports = {
   //     Each window stays a small range rather than one exact minute so a
   //     missed/delayed scan cycle can't skip the check entirely — same
   //     convention as LATEGOAL_TRIGGER_WINDOW.
-  // This is explicitly UNVALIDATED — a real-time convenience alert on top of
-  // numbers you can already see in the app, not a backtested strategy like
-  // L123/LATEGOAL/QUIET2H. Treat it the same way as NEWMODEL: useful to watch,
-  // not something to blindly stake without checking the historical n/context
-  // in the message.
+  // This was originally shipped explicitly UNVALIDATED — a real-time
+  // convenience alert, not a backtested strategy like L123/LATEGOAL/QUIET2H.
+  // `telegram/backtest_livewatch.js` (added 2026-09-05) closed part of that
+  // gap with a walk-forward check across 2 held-out months. Findings:
+  //   - 9 of the 11 keys (all three 1H keys + all 4 "team to score" keys +
+  //     over15_1H/under05_1H) NEVER fired at any threshold tested (55-75%) —
+  //     the fav-line/side + TL-band conditioning has no measurable edge over
+  //     baseline for those markets in this dataset (same conclusion FOCUS's
+  //     own offline search already reached — see focus_configs.json's "very
+  //     few surviving cells"). This is a real finding, not a config problem —
+  //     don't expect loosening the gate further to make those keys fire.
+  //   - Only under15_2H (checked exactly at HT — its match-state assumption
+  //     is exact, not an approximation) and over05_2H (checked at 70', whose
+  //     backtested volume is an optimistic ceiling — see the file header
+  //     caveat) ever cleared the gate, and both are reasonably calibrated.
+  //   - Sweep result at TIER=ALL: 70% threshold gave the best calibration
+  //     (realized 71.6% vs claimed 73.0%, -1.4pp gap) at real volume
+  //     (~163/month); 65% tripled volume but the gap widened to +4.0pp.
+  // Bottom line: LIVEWATCH in practice is really just under15_2H (+ a lower-
+  // volume over05_2H) — treat it accordingly, same caution as NEWMODEL for
+  // anything outside those two keys.
   // ════════════════════════════════════════════════════════════════════════════
   LIVEWATCH_ENABLED:            process.env.LIVEWATCH_ENABLED !== 'false',
-  LIVEWATCH_TIER:               process.env.LIVEWATCH_TIER || 'TOP+MAJOR',
+  LIVEWATCH_TIER:               process.env.LIVEWATCH_TIER || 'ALL',
   LIVEWATCH_MIN_N:              parseInt(process.env.LIVEWATCH_MIN_N || '50', 10),
-  LIVEWATCH_THRESHOLD_PCT:      parseFloat(process.env.LIVEWATCH_THRESHOLD_PCT || '75'),
+  // 70% chosen via backtest_livewatch.js's walk-forward sweep (best
+  // calibration at TIER=ALL — see comment block above).
+  LIVEWATCH_THRESHOLD_PCT:      parseFloat(process.env.LIVEWATCH_THRESHOLD_PCT || '70'),
   // Min pp the STATIC (pre-live-decay) Wilson CI lower bound of this match's
   // own conditioned pool (TL-band, +HT-state for 2H keys) must clear a
   // LESS-conditioned baseline pool by (fav-line/side [+TL-band for 2H]) —
