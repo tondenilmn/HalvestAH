@@ -611,6 +611,13 @@ function parseGetData2Calls(jsText) {
  *   [22]=awayTeam
  *
  * Score: args[11]=home goals, args[23]=away goals (confirmed by cross-referencing live matches).
+ * HT score: args[12]=HT home goals, args[13]=HT away goals — confirmed 2026-09-05 by hooking
+ * getDatalive1() live on asianbetsoccer.com and cross-referencing several in-progress matches
+ * (e.g. a 73' match at 4-1 current / 3-1 HT had args [...,"73'",4,3,1,...]). These two slots are
+ * real HT-score data, not a byproduct of when the scraper started watching the match — they're
+ * present in the raw feed for ANY match that has reached halftime, live or otherwise. Before HT
+ * they're just `0,0` placeholders (indistinguishable from a genuine 0-0 HT), which is why the
+ * site's own UI renders '-' instead of a score there — we apply the same rule via `pastHT` below.
  * Corner kicks: args[24]=home, args[25]=away.
  * args[4] statusCode contains match stats like 'Q1_FA3-SB1-FC2' — NOT the score.
  * Score is only read for live matches (minute present); upcoming matches also have 0s here.
@@ -646,7 +653,18 @@ function parseGetData1Calls(jsText) {
       if (!isNaN(hg) && !isNaN(ag) && hg >= 0 && ag >= 0) score = `${hg}-${ag}`;
     }
 
-    results.push({ matchId, homeTeam, awayTeam, league, minute, kickoffTime, score });
+    // HT score: only trust args[12]/[13] once the match has actually reached halftime —
+    // pre-HT they're 0,0 placeholders, not a real scoreline.
+    const minuteNum = minute && !isHT ? parseInt(minute, 10) : null;
+    const pastHT = isHT || (minuteNum !== null && !isNaN(minuteNum) && minuteNum > 45);
+    let htScore = null;
+    if (pastHT && args.length > 13) {
+      const hth = typeof args[12] === 'number' ? args[12] : parseInt(args[12], 10);
+      const hta = typeof args[13] === 'number' ? args[13] : parseInt(args[13], 10);
+      if (!isNaN(hth) && !isNaN(hta) && hth >= 0 && hta >= 0) htScore = `${hth}-${hta}`;
+    }
+
+    results.push({ matchId, homeTeam, awayTeam, league, minute, kickoffTime, score, htScore });
   }
 
   return results;
@@ -679,7 +697,12 @@ function parseMatch1HtmlForMeta(tm1Html) {
     const scoreM  = rowText.match(/\b(\d{1,2})\s*[-–]\s*(\d{1,2})\b/);
     const score   = scoreM ? `${scoreM[1]}-${scoreM[2]}` : null;
 
-    results.push({ matchId, homeTeam, awayTeam, score });
+    // The HT column is explicitly labeled (class='info'>ht</td><td>N-M</td>) — a dash means
+    // the match hasn't reached halftime yet, same convention as the getData1() args path above.
+    const htM = (hRows[i] + aRows[i]).match(/class=['"]info['"]>ht<\/td>\s*<td[^>]*>(\d{1,2})\s*[-–]\s*(\d{1,2})<\/td>/i);
+    const htScore = htM ? `${htM[1]}-${htM[2]}` : null;
+
+    results.push({ matchId, homeTeam, awayTeam, score, htScore });
   }
 
   return results;
@@ -739,6 +762,7 @@ function mergeMatchData(oddsRows, metaRows) {
       minute:       meta.minute      || null,
       kickoff_time: meta.kickoffTime || null,
       score:        meta.score       || null,
+      ht_score:     meta.htScore     || null,
       odds,
     });
   }
