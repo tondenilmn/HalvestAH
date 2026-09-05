@@ -469,6 +469,11 @@ async function fetchBet365Hash() {
   return bet365;
 }
 
+async function fetchSbobetHash() {
+  const { sbobet } = await fetchAllBookHashes();
+  return sbobet;
+}
+
 // Bet365 is the primary (and only) source: it carries both the match list
 // (teams/minute/score, via getDatalive1/getDatalast1) and the odds (via
 // getData2) off the same livegame/{hash}.js payload — see tryCombo. Pinnacle
@@ -574,6 +579,64 @@ async function fetchNextMatches() {
   for (const m of matches) m.bet365_odds = m.odds;
 
   return { matches, bet365HashFailed: false, bet365Hash: BET365_HASH };
+}
+
+// ── Sbobet fetch (added for Strategy CROSSDOG) ────────────────────────────────
+// Mirrors fetchLiveMatches/fetchNextMatches exactly, keyed by SBOBET_HASH
+// instead of BET365_HASH — tryCombo/tryNextCombo already take the hash as a
+// plain parameter, so no new parsing logic is needed, just a second set of
+// thin wrappers. Sbobet is used ONLY as a secondary cross-check of Bet365's
+// own Asian Handicap line (Strategy CROSSDOG — see config.js), never as a
+// primary match/odds source the way Bet365 is everywhere else in this file.
+async function fetchSbobetLiveMatches() {
+  const timestamp = Date.now();
+  let { matches, hashInvalid } = await tryCombo(SBOBET_HASH, GS_PRIMARY, timestamp);
+  if (!matches && hashInvalid) {
+    console.log('Sbobet livegame: hash invalid — auto-discovering new Sbobet hash…');
+    const discovered = await fetchSbobetHash();
+    if (discovered && discovered !== SBOBET_HASH) {
+      SBOBET_HASH = discovered;
+      ({ matches, hashInvalid } = await tryCombo(SBOBET_HASH, GS_PRIMARY, timestamp));
+    }
+  }
+  if (!matches) return { matches: [], sbobetHashFailed: hashInvalid, sbobetHash: SBOBET_HASH };
+  for (const m of matches) m.sbobet_odds = m.odds;
+  return { matches, sbobetHashFailed: false, sbobetHash: SBOBET_HASH };
+}
+
+async function fetchSbobetNextMatches() {
+  const timestamp = Date.now();
+  let { matches, hashInvalid } = await tryNextCombo(SBOBET_HASH, GS_PRIMARY, timestamp);
+  if (!matches && hashInvalid) {
+    console.log('Sbobet tablenext: hash invalid — auto-discovering new Sbobet hash…');
+    const discovered = await fetchSbobetHash();
+    if (discovered && discovered !== SBOBET_HASH) {
+      SBOBET_HASH = discovered;
+      ({ matches, hashInvalid } = await tryNextCombo(SBOBET_HASH, GS_PRIMARY, timestamp));
+    }
+  }
+  if (!matches) return { matches: [], sbobetHashFailed: hashInvalid, sbobetHash: SBOBET_HASH };
+  for (const m of matches) m.sbobet_odds = m.odds;
+  return { matches, sbobetHashFailed: false, sbobetHash: SBOBET_HASH };
+}
+
+// Merges the live + upcoming Sbobet tables the same way notify.js's own
+// fetchMatches() merges Bet365's two tables — live-table data (has
+// minute/score) preferred on id overlap with the next-table data (only has
+// kickoff_time). Returned matches carry team names/league for the caller to
+// join against the corresponding Bet365 match by team name — Sbobet match
+// ids live in a completely separate id space from Bet365's, so ids can't be
+// used to link the two books' listings of the same real-world match.
+async function fetchSbobetMatches() {
+  const [liveResult, nextResult] = await Promise.all([fetchSbobetLiveMatches(), fetchSbobetNextMatches()]);
+  const merged = new Map();
+  for (const m of nextResult.matches) if (m.id) merged.set(m.id, m);
+  for (const m of liveResult.matches) merged.set(m.id || `${m.home_team}:${m.away_team}`, m);
+  return {
+    matches: [...merged.values()],
+    sbobetHashFailed: liveResult.sbobetHashFailed || nextResult.sbobetHashFailed,
+    sbobetHash: SBOBET_HASH,
+  };
 }
 
 async function fetchNextMatchesAllDays(maxDays = 1) {
@@ -691,4 +754,4 @@ function getCurrentHashes() {
 }
 
 // module.exports = { fetchLiveMatches, fetchNextMatches, fetchNextMatchesAllDays, refreshHashes };
-module.exports = { fetchLiveMatches, fetchNextMatches, fetchOpenlineMatches, refreshHashes, getCurrentHashes };
+module.exports = { fetchLiveMatches, fetchNextMatches, fetchOpenlineMatches, fetchSbobetMatches, refreshHashes, getCurrentHashes };

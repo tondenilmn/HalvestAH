@@ -463,4 +463,65 @@ module.exports = {
   // scanning it every SCAN_INTERVAL_MINUTES (and it costs OPENLINE_WINDOW_DAYS+1
   // extra HTTP round-trips to botbot3.space each time it runs).
   OPENLINE_SCAN_INTERVAL_MINUTES: parseInt(process.env.OPENLINE_SCAN_INTERVAL_MINUTES || '120', 10),
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // STRATEGY CROSSDOG — back the dog when Sbobet's line disagrees (added 2026-09-05)
+  // Genesis: the user asked whether having BOTH Bet365 and Sbobet historical
+  // datasets (static/data/Bet365 + static/data/Sbobet, both scraped from the
+  // same source — identical Date/Time/League/Home Team/Away Team columns, so
+  // an EXACT join works, no fuzzy team-name matching needed) could surface a
+  // profitable config neither book alone reveals. telegram/backtest_book_
+  // disagreement.js swept all 32 bet types by Sbobet-vs-Bet365 closing
+  // disagreement, cell-conditioned on Bet365's own exact (fav_line, fav_side,
+  // exact closing TL, tier) so any residual "edge" is Sbobet's genuinely
+  // independent information, not just a finer read of Bet365's own price.
+  //
+  // Only one bet type survived the jump from hit-rate-vs-baseline to REAL
+  // ROI at Bet365's own closing price: dogCover (backing the underdog),
+  // specifically when Sbobet's fav_line is LOWER than Bet365's (Sbobet rates
+  // the favourite less strongly — "DOWN" bucket). Overs/Unders looked
+  // promising on hit-rate but the edge vanished once priced (the market had
+  // already absorbed that information) — see the file's header comment for
+  // the full methodology and why the naive/uncontrolled version looked much
+  // bigger (confound: coarse TL-band conditioning let disagreement direction
+  // just re-detect Bet365's own price position within the band).
+  //
+  // Walk-forward qualifying-gate test (backtest_book_disagreement.js's
+  // dogCoverDeepDive, train-only Wilson CI-lower hit rate per (fav_line,
+  // fav_side, tier) cell, only counted as qualifying if that conservative
+  // implied price beats the real dog_oc price on offer — same mo_lo
+  // discipline every other strategy here uses): 8/8 held-out months
+  // positive, pooled +17.6% ROI on 6,294 qualifying bets (32.8% coverage of
+  // the DOWN bucket), while the REJECTED bets averaged -7.6% — the gate is
+  // doing real discriminative work, not riding a uniformly good bucket.
+  // Concentration check: HOME/AWAY favourites near-identical (13.9%/13.4%),
+  // MAJOR (+14.1%, n=3638) and OTHER (+13.7%, n=15332) both strong (TOP too
+  // thin, n=198, to judge) — EXCEPT fav_line=1.0, which alone is -8.7% ROI
+  // (n=2978). No special-case exclusion needed for that: its own cell's
+  // Wilson CI-lower hit rate (~47-49%, see crossdog_cells.json) is naturally
+  // too low to clear a realistic dog_oc price, so the per-cell gate below
+  // screens it out on its own — confirmed by the deep-dive gate test above,
+  // which needed no manual fav_line filter to hit 8/8 positive months.
+  //
+  // Cell table: telegram/data/crossdog_cells.json, built by
+  // crossdog_config_search.js from ALL available merged history (not
+  // walk-forward split — this is the production table). Re-run periodically
+  // as more months accumulate, same maintenance model as focus_configs.json.
+  //
+  // Live mechanics (notify.js): fires in the same pre-kickoff window as L123
+  // (CROSSDOG_WINDOW_MIN, using near-kickoff odds from BOTH books as a
+  // same-timing-approximation of "closing", same caveat PRE_MATCH_WINDOW_MIN's
+  // own comment gives for L123). Requires Sbobet's live match to be joined by
+  // TEAM NAME (crossdog_lib has no id-space in common between books — Sbobet
+  // match ids are unrelated to Bet365's) and both books to agree on which
+  // side is favoured (buildCfgFromMatch run on each book's own odds
+  // independently) before fav_line can be compared at all. Live gate: cell's
+  // train-derived Wilson CI-lower implied price must beat the LIVE Bet365
+  // dog_oc price actually on offer (liveOddsForBet — the exact same live
+  // feed field L123 already reads, zero extra API cost).
+  // ════════════════════════════════════════════════════════════════════════════
+  CROSSDOG_ENABLED:     process.env.CROSSDOG_ENABLED !== 'false',
+  CROSSDOG_TIER:        process.env.CROSSDOG_TIER || 'ALL',
+  CROSSDOG_WINDOW_MIN:  parseInt(process.env.CROSSDOG_WINDOW_MIN || '10', 10), // same pre-kickoff window as L123 (PRE_MATCH_WINDOW_MIN)
+  CROSSDOG_GATE_MIN_N:  parseInt(process.env.CROSSDOG_GATE_MIN_N || '30', 10), // must match crossdog_config_search.js's --minn used to build crossdog_cells.json
 };

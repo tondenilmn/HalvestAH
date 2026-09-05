@@ -88,12 +88,35 @@ telegram/
   focus_exchange.js       # Phase 6 — exchange (Betfair/Smarkets) calculators: time-decay lay,
                           # back-then-lay split, laddered entry, book-vs-exchange arb check, cut
                           # minute. `node focus_exchange.js --demo`.
-  test_live_odds_1h.js, test_focus_select.js, test_livewatch_logic.js
-                          # Isolated unit tests for the 1H live-decay port, focus_select.js, and
-                          # Strategy LIVEWATCH's pool/decay logic (against the real production
-                          # dataset) — do NOT require notify.js directly (it has no require.main
-                          # guard and runs a real live scan + sends real Telegram alerts as a side
-                          # effect of being required — see notify.js's own header if this changes).
+  test_live_odds_1h.js, test_focus_select.js, test_livewatch_logic.js,
+  test_crossdog_logic.js
+                          # Isolated unit tests for the 1H live-decay port, focus_select.js,
+                          # Strategy LIVEWATCH's pool/decay logic, and Strategy CROSSDOG's
+                          # cell-key/orientation/DOWN-bucket gate logic (against the real
+                          # production dataset) — do NOT require notify.js directly (it has no
+                          # require.main guard and runs a real live scan + sends real Telegram
+                          # alerts as a side effect of being required — see notify.js's own
+                          # header if this changes).
+  crossdog_lib.js         # Shared library for Strategy CROSSDOG — exact-merges
+                          # static/data/Bet365 + static/data/Sbobet (both scraped from the same
+                          # source, identical Date/Time/Home Team/Away Team columns, so no fuzzy
+                          # matching is needed, unlike focus_lib's mergeBooks), defines the
+                          # (fav_line, fav_side, tier) cellKey shared with the live strategy in
+                          # notify.js, and loads/saves telegram/data/crossdog_cells.json.
+  crossdog_config_search.js
+                          # Builds telegram/data/crossdog_cells.json from ALL available merged
+                          # Bet365+Sbobet history (not walk-forward split — this is the
+                          # production table). Re-run periodically as more months accumulate,
+                          # same maintenance model as focus_config_search.js/focus_configs.json.
+  backtest_book_disagreement.js
+                          # The research script behind Strategy CROSSDOG — sweeps all 32 bet
+                          # types by Sbobet-vs-Bet365 closing-line/TL disagreement, cell-
+                          # conditioned on Bet365's own exact fav_line/side/TL/tier so any
+                          # residual "edge" is genuinely Sbobet's independent information, not
+                          # just a finer read of Bet365's own price. Only dogCover (backing the
+                          # dog when Sbobet's fav_line is lower) survived the jump from hit-rate-
+                          # vs-baseline to real ROI-at-market-price — see config.js's CROSSDOG_*
+                          # block for the full numbers.
   backtest.js, backtest_mkt.js, backtest_tlm1h.js, backtest_under15ht.js,
   backtest_baseline.js, backtest_config.js, backtest_crossbook.js,
   backtest_dogah_favsteam.js, backtest_favsteam.js, backtest_gsa.js,

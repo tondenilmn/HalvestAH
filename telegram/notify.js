@@ -29,8 +29,9 @@ const {
   pct,
   wilsonCI,
 } = require('./engine');
-const { fetchLiveMatches, fetchNextMatches, fetchOpenlineMatches, refreshHashes, getCurrentHashes } = require('./livescore');
+const { fetchLiveMatches, fetchNextMatches, fetchOpenlineMatches, fetchSbobetMatches, refreshHashes, getCurrentHashes } = require('./livescore');
 const { verifyBet365Price } = require('./apifootball');
+const crossdogLib = require('./crossdog_lib');
 const { recordAlert, settlePendingAlerts, buildDigestMessage, loadState, saveState } = require('./track_record');
 const { computeLiveOdd, computeLive1HOdd, computeLiveResult2H, computeLiveBtts2H, _2hResultField, _2H_RESULT_KEYS, mcLiveLo, mcLiveHi } = require('./live_odds');
 const focusLib = require('./focus_lib');
@@ -147,6 +148,7 @@ function matchContext(match) {
     isL123Fire:      liveMin == null && toKickoff != null && toKickoff >= 0 && toKickoff <= PRE_MATCH_WINDOW_MIN,
     isDashboardFire: liveMin == null && toKickoff != null && toKickoff >= 0 && toKickoff <= cfg.DASHBOARD_WINDOW_MIN,
     isFocusPreFire:  liveMin == null && toKickoff != null && toKickoff >= 0 && toKickoff <= cfg.FOCUS_PRE_WINDOW_MIN,
+    isCrossDogFire:  liveMin == null && toKickoff != null && toKickoff >= 0 && toKickoff <= cfg.CROSSDOG_WINDOW_MIN,
   };
 }
 
@@ -511,6 +513,112 @@ async function runStrategyL123(match, ctx) {
   } else {
     flogv(liveMin, label, 'L123', 'Not recorded to track record — no verified price clearing target.');
   }
+}
+
+// ── Strategy CROSSDOG — back the dog when Sbobet's line disagrees ───────────
+// See config.js's CROSSDOG_* block for the full backtest story
+// (backtest_book_disagreement.js + crossdog_lib.js/crossdog_config_search.js).
+// Fires in the same pre-kickoff window as L123, when Sbobet's live fav_line
+// is lower than Bet365's (Sbobet leans more toward the underdog) AND the
+// matching historical (fav_line, fav_side, tier) cell's Wilson CI-lower hit
+// rate implies a price still below the real live dog_oc price on offer.
+const _crossdogCells = crossdogLib.loadCells();
+const crossdogDedup = new Dedup(24 * 60 * 60 * 1000);
+
+async function runStrategyCrossDog(match, ctx) {
+  const { matchId, label, tier, liveMin, toKickoff, isCrossDogFire } = ctx;
+
+  if (!cfg.CROSSDOG_ENABLED) return;
+  if (!isCrossDogFire) {
+    flogv(liveMin, label, 'CROSSDOG', `SKIP: not in the pre-match window (toKickoff=${toKickoff != null ? Math.round(toKickoff) + 'm' : '—'})`);
+    return;
+  }
+  if (!tierAllowed(tier, cfg.CROSSDOG_TIER)) { flogv(liveMin, label, 'CROSSDOG', `SKIP: tier=${tier} not in ${cfg.CROSSDOG_TIER}`); return; }
+
+  const odds = match.bet365_odds;
+  if (!odds) { flogv(liveMin, label, 'CROSSDOG', 'SKIP: no Bet365 odds'); return; }
+  if (!match.sbobet_odds) { flogv(liveMin, label, 'CROSSDOG', 'SKIP: no matching Sbobet listing found'); return; }
+
+  const b365Cfg = buildCfgFromMatch(odds, {});
+  const sboCfg  = buildCfgFromMatch(match.sbobet_odds, {});
+  if (!b365Cfg || !sboCfg) { flogv(liveMin, label, 'CROSSDOG', 'SKIP: odds incomplete on one side'); return; }
+
+  const favSide = b365Cfg.signals.favSide;
+  const favLine = b365Cfg.signals.favLine;
+  if (sboCfg.signals.favSide !== favSide) {
+    flogv(liveMin, label, 'CROSSDOG', `SKIP: books disagree on WHICH side is favoured (Bet365=${favSide} Sbobet=${sboCfg.signals.favSide}) — not comparable`);
+    return;
+  }
+
+  const lineDelta = sboCfg.signals.favLine - favLine;
+  if (lineDelta > -crossdogLib.LINE_DELTA_THRESH) {
+    flogv(liveMin, label, 'CROSSDOG', `SKIP: Sbobet fav_line (${sboCfg.signals.favLine}) not meaningfully lower than Bet365's (${favLine}) — delta=${lineDelta.toFixed(2)}`);
+    return;
+  }
+
+  const cellKey = crossdogLib.cellKey(favLine, favSide, tier);
+  const cell = _crossdogCells.cells?.[cellKey];
+  if (!cell || cell.n < cfg.CROSSDOG_GATE_MIN_N) {
+    flogv(liveMin, label, 'CROSSDOG', `SKIP: no qualifying historical cell for ${cellKey} (n=${cell?.n ?? 0} < ${cfg.CROSSDOG_GATE_MIN_N})`);
+    return;
+  }
+
+  const impliedPrice = 100 / cell.ciLo;
+  const liveDogPrice = liveOddsForBet('dogCover', odds, favSide);
+  if (liveDogPrice == null) { flogv(liveMin, label, 'CROSSDOG', 'SKIP: no live dog price in feed'); return; }
+  if (liveDogPrice < impliedPrice) {
+    flogv(liveMin, label, 'CROSSDOG', `SKIP: live dog price @${liveDogPrice.toFixed(2)} below cell's conservative min @${impliedPrice.toFixed(2)}`);
+    return;
+  }
+
+  const dedupKey = `${matchId}:crossdog:dogCover`;
+  if (crossdogDedup.has(dedupKey)) { flogv(liveMin, label, 'CROSSDOG', 'SKIP: already notified'); return; }
+
+  // Informational cross-check only, same as L123's own apiFootballCheck use —
+  // does NOT change whether the alert fires (the live feed price above
+  // already IS the real market price this decision is made on).
+  let apiFootballCheck = null;
+  if (cfg.APIFOOTBALL_KEY) {
+    try {
+      apiFootballCheck = await verifyBet365Price('dogCover', {
+        matchId, homeTeam: match.home_team, awayTeam: match.away_team,
+        favSide, favLine, avgTl: odds.tl_c,
+      }, cfg.APIFOOTBALL_KEY);
+    } catch (e) {
+      flogv(liveMin, label, 'CROSSDOG', `api-football check failed: ${e.message}`);
+    }
+  }
+
+  const kickoffLine = toKickoff != null ? `Kickoff in ${Math.max(0, Math.round(toKickoff))} min` : 'Kickoff imminent';
+  const msg = buildMessage(
+    'CROSSDOG — Sbobet disagrees, back the dog',
+    match,
+    kickoffLine,
+    [
+      `👉 <b>AH Cover (Dog)</b>`,
+      realPriceVerdict('AH Cover (Dog)', liveDogPrice, impliedPrice),
+      modelProbLine(cell.ciLo),
+      kellyLine(liveDogPrice, cell.ciLo),
+      `📈 Bet365 fav_line ${favLine.toFixed(2)} (${favSide})  →  Sbobet ${sboCfg.signals.favLine.toFixed(2)} (Δ${lineDelta.toFixed(2)})`,
+      `📊 ${cell.hitPct.toFixed(0)}% historically (n=${cell.n}, cell=${cellKey}) — backtested +17.6% ROI@mo_lo pooled, 8/8 walk-forward months positive`,
+      ...(apiFootballCheck ? [apiFootballVerdictLine('AH Cover (Dog)', impliedPrice, apiFootballCheck)] : []),
+    ].filter(Boolean),
+  );
+  await sendTelegram(msg);
+  crossdogDedup.mark(dedupKey);
+  flog(liveMin, label, 'CROSSDOG', `ALERT: dogCover @${liveDogPrice.toFixed(2)} (target @${impliedPrice.toFixed(2)}) cell=${cellKey} n=${cell.n} tier=${tier}`);
+
+  recordAlert({
+    matchId, homeTeam: match.home_team, awayTeam: match.away_team,
+    league: match.league, tier,
+    fixtureId: apiFootballCheck?.fixtureId ?? null,
+    betKey: 'dogCover', betLabel: 'AH Cover (Dog)',
+    favSide, favLine, tlLine: odds.tl_c,
+    priceAtAlert: liveDogPrice,
+    mo: impliedPrice, mo_lo: impliedPrice,
+    strategy: 'CROSSDOG', venue: 'soft', minute: null,
+    state: { score: null, redCards: 0, half: null },
+  });
 }
 
 // ── Strategy OPENLINE — bet the opening 1X2 price, week-out ──────────────────
@@ -2323,15 +2431,45 @@ async function notifyHashFailed(bookmaker, shortHash) {
 // with a real kickoff_time — this is what the pre-match window logic
 // actually needs. Merged by id, live-match data preferred on overlap (it's
 // more current/complete — has minute/score, not just kickoff_time).
+// normTeam-keyed join with the Sbobet listing (attaches match.sbobet_odds)
+// for Strategy CROSSDOG — Sbobet match ids live in a completely separate id
+// space from Bet365's (see livescore.js's fetchSbobetMatches header comment),
+// so team-name matching is the only option here, unlike the id-based merge
+// used for Bet365's own two tables above. Both books' listings come off the
+// same underlying site/data provider, so team spelling should line up
+// without crossdog_lib's exact-CSV-column join (which relies on identical
+// Date/Time text in the historical files, not applicable to live JSON feeds)
+// — a normalized-name key is the live equivalent.
+function normTeamLive(s) {
+  return (s || '').toLowerCase().replace(/[^a-z0-9]/g, '').trim();
+}
+function attachSbobetOdds(bet365Matches, sbobetMatches) {
+  const sboMap = new Map();
+  for (const m of sbobetMatches) {
+    if (!m.odds || m.odds.ah_hc == null) continue;
+    sboMap.set(`${normTeamLive(m.home_team)}|${normTeamLive(m.away_team)}`, m);
+  }
+  let attached = 0;
+  for (const m of bet365Matches) {
+    const s = sboMap.get(`${normTeamLive(m.home_team)}|${normTeamLive(m.away_team)}`);
+    if (s) { m.sbobet_odds = s.odds; attached++; }
+  }
+  if (bet365Matches.length) console.log(`  Sbobet cross-match: attached to ${attached}/${bet365Matches.length} matches`);
+  return bet365Matches;
+}
+
 async function fetchMatches() {
-  const [liveResult, nextResult] = await Promise.all([fetchLiveMatches(), fetchNextMatches()]);
+  const [liveResult, nextResult, sbobetResult] = await Promise.all([fetchLiveMatches(), fetchNextMatches(), fetchSbobetMatches()]);
   if (liveResult.bet365HashFailed) await notifyHashFailed('Bet365', (liveResult.bet365Hash || '????????').slice(0, 8));
   else if (nextResult.bet365HashFailed) await notifyHashFailed('Bet365', (nextResult.bet365Hash || '????????').slice(0, 8));
+  if (sbobetResult.sbobetHashFailed) await notifyHashFailed('Sbobet', (sbobetResult.sbobetHash || '????????').slice(0, 8));
 
   const merged = new Map();
   for (const m of nextResult.matches) if (m.id) merged.set(m.id, m);
   for (const m of liveResult.matches) merged.set(m.id || `${m.home_team}:${m.away_team}`, m);
-  return [...merged.values()];
+  const matches = [...merged.values()];
+  attachSbobetOdds(matches, sbobetResult.matches);
+  return matches;
 }
 
 // ── Scan loop ─────────────────────────────────────────────────────────────────
@@ -2349,7 +2487,7 @@ async function runScan() {
 
   for (const match of matches) {
     const ctx = matchContext(match);
-    const { matchId, label, tier, liveMin, toKickoff, isL123Fire, isDashboardFire, isFocusPreFire } = ctx;
+    const { matchId, label, tier, liveMin, toKickoff, isL123Fire, isDashboardFire, isFocusPreFire, isCrossDogFire } = ctx;
 
     // HT snapshot capture happens for every live match regardless of which
     // strategy (if any) fires — LateGoal needs it much later (at 70'+), so
@@ -2362,12 +2500,13 @@ async function runScan() {
     // is in the Dashboard window but not L123's, and both can be true at
     // once inside 10 minutes. Each strategy has its own dedup key, so
     // running both here is safe.
-    if (isL123Fire || isDashboardFire || isFocusPreFire) {
+    if (isL123Fire || isDashboardFire || isFocusPreFire || isCrossDogFire) {
       inWindowCount++;
-      flogv(liveMin, `${label} [${tier}]`, 'ALL', `pre-match, kickoff in ${Math.round(toKickoff)}m  bet365_odds=${match.bet365_odds ? 'ok' : 'MISSING'}`);
+      flogv(liveMin, `${label} [${tier}]`, 'ALL', `pre-match, kickoff in ${Math.round(toKickoff)}m  bet365_odds=${match.bet365_odds ? 'ok' : 'MISSING'}  sbobet_odds=${match.sbobet_odds ? 'ok' : 'missing'}`);
       if (isL123Fire) await runStrategyL123(match, ctx);
       if (isDashboardFire) await runStrategyDashboard(match, ctx);
       if (isFocusPreFire) await runStrategyFocusPreMatch(match, ctx);
+      if (isCrossDogFire) await runStrategyCrossDog(match, ctx);
     } else if (liveMin != null) {
       flogv(liveMin, `${label} [${tier}]`, 'ALL', `live ${liveMin}'  score=${match.score || '—'}`);
       await runStrategyQuiet2H(match, ctx);
@@ -2456,6 +2595,7 @@ async function main() {
   console.log(`Strategy FOCUS [${on(cfg.FOCUS_ENABLED)}]: 1T/2T O/U 0.5/1.5, cells fixed offline by focus_config_search.js  fire=1H@${cfg.FOCUS_PRE_WINDOW_MIN}min pre-kickoff / 2H@HT window ${HT_SNAPSHOT_WINDOW[0]}'-${HT_SNAPSHOT_WINDOW[1]}'  minLiveN≥${cfg.FOCUS_MIN_LIVE_N}  survivingCells: ${focusSurvivorCounts}`);
   console.log(`Strategy LIVEWATCH [${on(cfg.LIVEWATCH_ENABLED)}][${cfg.LIVEWATCH_TIER}]: live probability threshold watch (UNVALIDATED)  fire=CI-lower live_p≥${cfg.LIVEWATCH_THRESHOLD_PCT}% AND edge≥${cfg.LIVEWATCH_MIN_EDGE}pp vs baseline  1H-over=${cfg.LIVEWATCH_TRIGGER_WINDOW_1H_OVER[0]}'-${cfg.LIVEWATCH_TRIGGER_WINDOW_1H_OVER[1]}'  1H-under=${cfg.LIVEWATCH_TRIGGER_WINDOW_1H_UNDER[0]}'-${cfg.LIVEWATCH_TRIGGER_WINDOW_1H_UNDER[1]}'  2H-over=${cfg.LIVEWATCH_TRIGGER_WINDOW_2H_OVER[0]}'-${cfg.LIVEWATCH_TRIGGER_WINDOW_2H_OVER[1]}'  2H-under=${cfg.LIVEWATCH_TRIGGER_WINDOW_2H_UNDER[0]}'-${cfg.LIVEWATCH_TRIGGER_WINDOW_2H_UNDER[1]}'  minN≥${cfg.LIVEWATCH_MIN_N}  keys=${cfg.LIVEWATCH_KEYS.join(',')}`);
   console.log(`Strategy OPENLINE [${on(cfg.OPENLINE_ENABLED)}][${cfg.OPENLINE_TIER}]: bet the OPENING 1X2 price (homeWinsFT/awayWinsFT only)  fire=day0-day${cfg.OPENLINE_WINDOW_DAYS} scan every ${cfg.OPENLINE_SCAN_INTERVAL_MINUTES}min  n≥${cfg.OPENLINE_MIN_N} z≥${cfg.OPENLINE_MIN_Z} edge≥${cfg.OPENLINE_MIN_EDGE}pp`);
+  console.log(`Strategy CROSSDOG [${on(cfg.CROSSDOG_ENABLED)}][${cfg.CROSSDOG_TIER}]: back the dog when Sbobet's line disagrees (dogCover only)  fire=${cfg.CROSSDOG_WINDOW_MIN}min pre-kickoff window  gateMinN≥${cfg.CROSSDOG_GATE_MIN_N}  cells loaded: ${Object.keys(_crossdogCells.cells || {}).length} (generated ${_crossdogCells.generatedAt || 'never — run crossdog_config_search.js'})`);
   console.log(`Global tier default: ${cfg.LEAGUE_TIER}`);
 
   // Refresh all book hashes at startup
