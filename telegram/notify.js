@@ -333,7 +333,7 @@ function kellyLine(price, loPct) {
     return `💰 Kelly: no edge at this price on the conservative (CI-lower) ${loPct.toFixed(0)}% estimate — sizing not advised.`;
   }
   const full = f * 100;
-  return `💰 Kelly stake: ${full.toFixed(1)}% of bankroll (half-Kelly: ${(full / 2).toFixed(1)}%) — based on CI-lower ${loPct.toFixed(0)}% @ ${price.toFixed(2)}`;
+  return `💰 Kelly stake (¼): ${(full / 4).toFixed(1)}% of bankroll — based on CI-lower ${loPct.toFixed(0)}% @ ${price.toFixed(2)}`;
 }
 
 // Standalone probability line, always shown (unlike kellyLine, which only
@@ -592,6 +592,7 @@ async function runStrategyOpenline(match, ctx) {
     ? new Date(match.kickoff_time).toLocaleString('it-IT', { timeZone: cfg.DISPLAY_TZ, weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
     : '—';
   const betLabel = bet.k === 'homeWinsFT' ? 'Home wins FT' : 'Away wins FT';
+  const kellyLn = kellyLine(marketOdds, bet.lo);
   const msg = buildMessage(
     'OPENLINE — opening price value',
     match,
@@ -599,11 +600,9 @@ async function runStrategyOpenline(match, ctx) {
     [
       `🏷 ${esc(betLabel)}`,
       `📊 ${bet.p.toFixed(1)}% historically (n=${bet.n}, baseline ${bet.bl.toFixed(1)}%)`,
-      `🎲 Model probability (for manual Kelly): ${bet.lo.toFixed(1)}%`,
       `🎯 Fair min odds: @${bet.mo}`,
       `📖 Opening price found: @${marketOdds.toFixed(2)}${marketOdds >= bet.mo ? ' ✅' : ''}`,
-      ``,
-      `⚠️ Bet promptly — this requires the OPENING price, which drifts toward closing as kickoff approaches.`,
+      ...(kellyLn ? [kellyLn] : []),
     ]
   );
   await sendTelegram(msg);
