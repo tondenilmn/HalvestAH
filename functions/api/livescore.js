@@ -42,6 +42,16 @@
 let PINNACLE_HASH = '30e528c380c96b362ffacdc66b2808c8ad59ce9e'; // overridden at runtime from context.env
 let BET365_HASH   = '553c7f0fdbb889a93c9a85abaa1639de76943277'; // overridden at runtime from context.env
 let SBOBET_HASH   = 'f1bd8f485d42c4e9700599b0db02cd537a78801f'; // overridden at runtime from context.env
+// "Bet365 Live" — a separate #book_filter option from plain Bet365 (see
+// BOOK_PATTERNS comment below). Confirmed 2026-09-06 by diffing this feed
+// against plain Bet365 for the same match 6 minutes into play: its "open"
+// position exactly matched plain Bet365's "close" (the real pre-match
+// closing line), while its "close" position was already a different,
+// moving number — i.e. this feed's "close" is the actual current live
+// in-play price, not a second closing snapshot. Used as the live market
+// price to compare our own model probability against for in-play value
+// detection (api-football isn't usable for this yet — see PRODUCT context).
+let BET365_LIVE_HASH = '56f7105ddda384f0955acb8ffe874c8b61daec49'; // overridden at runtime from context.env
 // gS candidates — 'Q' is the confirmed primary value; rest are fallbacks.
 // Auto-discovery (fetchAllBookHashes) is tried before the sweep when the primary hash fails.
 // Worst-case subrequest budget: 1 (fast path) + 1 (page fetch) + 1 (Q+discovered) + 18 (sweep) = 21, well under 50.
@@ -67,13 +77,15 @@ const LIVESCORE_HEADER_SETS = [
 ];
 
 // Anchored exact-match — the page also lists a separate "Bet365 Live" option
-// whose hash serves a different feed (0 odds rows on the livegame endpoint);
-// a loose /bet\s*365/i match would collide with it and silently overwrite
-// the correct hash with a broken one since a naive loop takes the last match.
+// (a real, separately useful feed — see BET365_LIVE_HASH above, not "0 odds
+// rows" as originally assumed here); a loose /bet\s*365/i match would still
+// collide with it and silently overwrite the plain-Bet365 hash since a naive
+// loop takes the last match, so both patterns stay anchored and distinct.
 const BOOK_PATTERNS = {
-  pinnacle: /^pinnacle$/i,
-  bet365:   /^bet\s*365$/i,
-  sbobet:   /^sbo\s*bet$/i,
+  pinnacle:   /^pinnacle$/i,
+  bet365:     /^bet\s*365$/i,
+  bet365live: /^bet\s*365\s*live$/i,
+  sbobet:     /^sbo\s*bet$/i,
 };
 
 /**
@@ -104,10 +116,10 @@ async function fetchAllBookHashes(diag = null) {
       if (resp.ok && bodyText.length > 2000) { html = bodyText; break; }
     }
     if (diag) diag.attempts = attempts;
-    if (html == null) return { pinnacle: null, bet365: null, sbobet: null };
+    if (html == null) return { pinnacle: null, bet365: null, bet365live: null, sbobet: null };
     if (diag) { diag.htmlLength = html.length; diag.htmlSample = html.slice(0, 500); }
 
-    const result = { pinnacle: null, bet365: null, sbobet: null };
+    const result = { pinnacle: null, bet365: null, bet365live: null, sbobet: null };
     const optRe = /value="([a-f0-9]{40})"[^>]*>\s*([^<]+)/gi;
     let m;
     const allOptions = [];
@@ -117,6 +129,7 @@ async function fetchAllBookHashes(diag = null) {
       allOptions.push({ hash: hash.slice(0, 8) + '…', label });
       if (!result.pinnacle && BOOK_PATTERNS.pinnacle.test(label)) result.pinnacle = hash;
       else if (!result.bet365 && BOOK_PATTERNS.bet365.test(label)) result.bet365   = hash;
+      else if (!result.bet365live && BOOK_PATTERNS.bet365live.test(label)) result.bet365live = hash;
       else if (!result.sbobet && BOOK_PATTERNS.sbobet.test(label)) result.sbobet   = hash;
     }
     if (diag) diag.optionsFound = allOptions;
@@ -130,12 +143,13 @@ async function fetchAllBookHashes(diag = null) {
     return result;
   } catch (e) {
     if (diag) diag.error = e.message;
-    return { pinnacle: null, bet365: null, sbobet: null };
+    return { pinnacle: null, bet365: null, bet365live: null, sbobet: null };
   }
 }
 
-async function fetchPinnacleHash() { return (await fetchAllBookHashes()).pinnacle; }
-async function fetchBet365Hash()   { return (await fetchAllBookHashes()).bet365; }
+async function fetchPinnacleHash()   { return (await fetchAllBookHashes()).pinnacle; }
+async function fetchBet365Hash()     { return (await fetchAllBookHashes()).bet365; }
+async function fetchBet365LiveHash() { return (await fetchAllBookHashes()).bet365live; }
 
 // Second-line fallback when fetchAllBookHashes() above comes back empty —
 // confirmed 2026-08-24 that asianbetsoccer.com's WAF returns a 202
@@ -145,23 +159,28 @@ async function fetchBet365Hash()   { return (await fetchAllBookHashes()).bet365;
 // Railway, a different network not subject to that block) exposes its own
 // last-discovered hash via GET /hashes — relay through that instead. Set
 // RAILWAY_RELAY_URL to the Railway service's public URL to enable.
+// bet365live has no relay field yet (telegram/notify.js's /hashes endpoint
+// doesn't discover or expose it) — always comes back null from this path;
+// only direct discovery (fetchAllBookHashes) or a BET365_LIVE_HASH env var
+// override can refresh it for now.
 async function fetchHashesViaRailwayRelay(railwayRelayUrl, diag = null) {
-  if (!railwayRelayUrl) return { pinnacle: null, bet365: null, sbobet: null };
+  if (!railwayRelayUrl) return { pinnacle: null, bet365: null, bet365live: null, sbobet: null };
   const url = `${railwayRelayUrl.replace(/\/$/, '')}/hashes`;
   try {
     const resp = await fetch(url);
     if (diag) diag.railwayRelay = { url, status: resp.status, ok: resp.ok };
-    if (!resp.ok) return { pinnacle: null, bet365: null, sbobet: null };
+    if (!resp.ok) return { pinnacle: null, bet365: null, bet365live: null, sbobet: null };
     const json = await resp.json();
     const isHash = v => typeof v === 'string' && /^[a-f0-9]{40}$/i.test(v);
     return {
-      pinnacle: isHash(json.pinnacle_hash) ? json.pinnacle_hash : null,
-      bet365:   isHash(json.bet365_hash)   ? json.bet365_hash   : null,
-      sbobet:   isHash(json.sbobet_hash)   ? json.sbobet_hash   : null,
+      pinnacle:   isHash(json.pinnacle_hash) ? json.pinnacle_hash : null,
+      bet365:     isHash(json.bet365_hash)   ? json.bet365_hash   : null,
+      bet365live: null,
+      sbobet:     isHash(json.sbobet_hash)   ? json.sbobet_hash   : null,
     };
   } catch (e) {
     if (diag) diag.railwayRelay = { url, error: e.message };
-    return { pinnacle: null, bet365: null, sbobet: null };
+    return { pinnacle: null, bet365: null, bet365live: null, sbobet: null };
   }
 }
 
@@ -187,6 +206,27 @@ async function fetchLiveOddsMap(hash, timestamp) {
   }
 }
 
+/**
+ * Fetch the current live market odds (Bet365 Live feed) by matchId.
+ * Returns Map<matchId, liveOdds>. Best-effort like fetchLiveOddsMap —
+ * empty map on any failure, never blocks the primary Bet365 fetch.
+ */
+async function fetchBet365LiveMarketMap(hash, timestamp) {
+  if (!hash) return new Map();
+  const url = `https://botbot3.space/tables/v4/${GS_PRIMARY}/livegame/${hash}.js?date=${timestamp}&_=${timestamp + 1}`;
+  try {
+    const resp = await fetch(url, { headers: makeBotbotHeaders(GS_PRIMARY, hash) });
+    if (!resp.ok) return new Map();
+    const jsText = await resp.text();
+    const rows   = parseGetData2NoneCalls(jsText);
+    const map    = new Map();
+    for (const row of rows) map.set(row.matchId, row.live_odds);
+    return map;
+  } catch {
+    return new Map();
+  }
+}
+
 function makeBotbotHeaders(gS, book) {
   return {
     Origin:            'https://www.asianbetsoccer.com',
@@ -201,9 +241,10 @@ function makeBotbotHeaders(gS, book) {
 }
 
 export async function onRequest(context) {
-  if (context.env?.PINNACLE_HASH) PINNACLE_HASH = context.env.PINNACLE_HASH;
-  if (context.env?.BET365_HASH)   BET365_HASH   = context.env.BET365_HASH;
-  if (context.env?.SBOBET_HASH)   SBOBET_HASH   = context.env.SBOBET_HASH;
+  if (context.env?.PINNACLE_HASH)   PINNACLE_HASH   = context.env.PINNACLE_HASH;
+  if (context.env?.BET365_HASH)     BET365_HASH     = context.env.BET365_HASH;
+  if (context.env?.BET365_LIVE_HASH) BET365_LIVE_HASH = context.env.BET365_LIVE_HASH;
+  if (context.env?.SBOBET_HASH)     SBOBET_HASH     = context.env.SBOBET_HASH;
   const RAILWAY_RELAY_URL = context.env?.RAILWAY_RELAY_URL || null;
 
   const cors = {
@@ -223,7 +264,12 @@ export async function onRequest(context) {
   // Used by the Telegram notifier to bootstrap its hashes from the Cloudflare dashboard.
   if (reqUrl.searchParams.get('hashes') === '1') {
     return new Response(
-      JSON.stringify({ pinnacle_hash: PINNACLE_HASH, bet365_hash: BET365_HASH, sbobet_hash: SBOBET_HASH }),
+      JSON.stringify({
+        pinnacle_hash:   PINNACLE_HASH,
+        bet365_hash:     BET365_HASH,
+        bet365live_hash: BET365_LIVE_HASH,
+        sbobet_hash:     SBOBET_HASH,
+      }),
       { headers: cors }
     );
   }
@@ -289,9 +335,10 @@ export async function onRequest(context) {
         getData1_parsed:  getData1Parsed,
         orphan_meta:      orphans,
         hash_discovery: {
-          seeded_bet365_hash: BET365_HASH,
-          discovered:          discoveredHashes,
-          diag:                hashDiag,
+          seeded_bet365_hash:      BET365_HASH,
+          seeded_bet365live_hash:  BET365_LIVE_HASH,
+          discovered:              discoveredHashes,
+          diag:                    hashDiag,
         },
       }),
       { headers: cors }
@@ -403,17 +450,23 @@ export async function onRequest(context) {
   // Pinnacle/Sbobet are best-effort only now — fetchLiveOddsMap silently
   // returns an empty map on any failure, so a delisted/stale Pinnacle hash
   // just means no reference odds for that book, not a broken response.
-  const [nextMatches, pinnacleMap, sboMap] = await Promise.all([
+  const [nextMatches, pinnacleMap, sboMap, bet365LiveMap] = await Promise.all([
     tryNextComboData(BET365_HASH, GS_PRIMARY).then(r => r ?? []),
     fetchLiveOddsMap(PINNACLE_HASH, timestamp),
     fetchLiveOddsMap(SBOBET_HASH, timestamp),
+    fetchBet365LiveMarketMap(BET365_LIVE_HASH, timestamp),
   ]);
 
   // Attach reference odds to each Bet365 match by shared matchId
   for (const m of liveResult.matches) {
     if (!m.id) continue;
-    if (pinnacleMap.has(m.id)) m.pinnacle_odds = pinnacleMap.get(m.id);
-    if (sboMap.has(m.id))      m.sbobet_odds   = sboMap.get(m.id);
+    if (pinnacleMap.has(m.id))   m.pinnacle_odds    = pinnacleMap.get(m.id);
+    if (sboMap.has(m.id))        m.sbobet_odds      = sboMap.get(m.id);
+    // The actual current live/in-play market price (Bet365 Live feed) — use
+    // this, not m.odds/m.bet365_odds (the frozen pre-match close), for any
+    // in-play comparison against a model probability. See BET365_LIVE_HASH
+    // above for how this differs from the other reference-odds maps.
+    if (bet365LiveMap.has(m.id)) m.bet365_live_odds = bet365LiveMap.get(m.id);
     // Alias for consumers that expect this field name (e.g. telegram/
     // notify.js's L123 reads match.bet365_odds from its own livescore.js —
     // unrelated to this function, but kept consistent).
@@ -504,97 +557,99 @@ function parseArgValue(s) {
 }
 
 /**
- * Parse all `match2text += getData2(...)` calls.
+ * Parse all `match2text += getData2(...)` calls (plain Bet365/Pinnacle/Sbobet
+ * feeds — a fixed pre-match line, frozen at kickoff). The "Bet365 Live" feed
+ * uses a differently-shaped `getData2none(...)` call instead — see
+ * parseGetData2NoneCalls below.
  * Returns array of { matchId, odds }.
  */
-/**
- * Parse "ah_hc,ah_ho_tl_c,tl_o|..." encoded string from getData1/getData2none args[3].
- * Confirmed format across all observed matches:
- *   "ah_hc,ah_ho_tl_c,tl_o|<direction codes>"
- */
-function parseEncodedOdds(encoded) {
-  if (!encoded || typeof encoded !== 'string') return {};
-  const core  = encoded.split('|')[0];
-  const parts = core.split('_');
-  if (parts.length < 2) return {};
-  const ah = parts[0].split(',').map(parseFloat);
-  const tl = parts[1].split(',').map(parseFloat);
-  return {
-    ah_hc: isNaN(ah[0]) ? null : ah[0],
-    ah_ho: isNaN(ah[1]) ? null : ah[1],
-    tl_c:  isNaN(tl[0]) ? null : tl[0],
-    tl_o:  isNaN(tl[1]) ? null : tl[1],
-  };
-}
-
 function parseGetData2Calls(jsText) {
-  // Match getData2 and any variant (getData2none, getData2live, etc.)
-  const re = /\bmatch2text\s*\+=\s*getData2\w*\s*\(/g;
+  const re = /\bmatch2text\s*\+=\s*getData2\s*\(/g;
   const results = [];
   let m;
 
+  const pf = v => {
+    const n = (typeof v === 'number') ? v : parseFloat(v);
+    return isNaN(n) ? null : n;
+  };
+
   while ((m = re.exec(jsText)) !== null) {
     const args = extractCallArgs(jsText, m.index + m[0].length);
+    if (args.length < 31) continue;
+    const matchId = args[4];
+    if (typeof matchId !== 'string' || matchId.length < 20) continue;
 
-    const pf = v => {
-      const n = (typeof v === 'number') ? v : parseFloat(v);
-      return isNaN(n) ? null : n;
-    };
+    results.push({
+      matchId,
+      odds: {
+        ah_hc: pf(args[5]),
+        ah_ho: pf(args[6]),
+        ho_c:  pf(args[11]),
+        ho_o:  pf(args[12]),
+        ao_c:  pf(args[16]),
+        ao_o:  pf(args[17]),
+        tl_c:  pf(args[21]),
+        tl_o:  pf(args[22]),
+        ov_c:  pf(args[24]),
+        ov_o:  pf(args[25]),
+        un_c:  pf(args[29]),
+        un_o:  pf(args[30]),
+      },
+    });
+  }
 
-    // Detect format:
-    // Normal (getData2):     [..., encodedStr, matchId, ah_hc, ah_ho, ...]   matchId at [4]
-    // Variant (getData2none): [..., encodedStr, 'R', matchId, 'U', ah_hc, ah_ho, ...]  matchId at [5]
-    //
-    // For the variant, args after ah_ho use an interleaved string-code format that differs
-    // from getData2 — we cannot apply a simple offset. Instead we extract ah_hc/ah_ho from
-    // args[7]/[8] and tl_c/tl_o from the encoded string in args[3].
-    if (typeof args[4] === 'string' && args[4].length >= 20) {
-      // ── Normal getData2 ──────────────────────────────────────────────────
-      if (args.length < 31) continue;
-      const matchId = args[4];
-      results.push({
-        matchId,
-        odds: {
-          ah_hc: pf(args[5]),
-          ah_ho: pf(args[6]),
-          ho_c:  pf(args[11]),
-          ho_o:  pf(args[12]),
-          ao_c:  pf(args[16]),
-          ao_o:  pf(args[17]),
-          tl_c:  pf(args[21]),
-          tl_o:  pf(args[22]),
-          ov_c:  pf(args[24]),
-          ov_o:  pf(args[25]),
-          un_c:  pf(args[29]),
-          un_o:  pf(args[30]),
-        },
-      });
-    } else if (typeof args[5] === 'string' && args[5].length >= 20) {
-      // ── Variant getData2none: 'R' at [4], matchId at [5], 'U' at [6] ───
-      // ah_hc=[7], ah_ho=[8] confirmed. Remaining odds use interleaved codes —
-      // parse tl_c/tl_o from the encoded string in args[3] instead.
-      if (args.length < 9) continue;
-      const matchId = args[5];
-      const enc     = parseEncodedOdds(args[3]);
-      results.push({
-        matchId,
-        odds: {
-          ah_hc: pf(args[7]) ?? enc.ah_hc,
-          ah_ho: pf(args[8]) ?? enc.ah_ho,
-          ho_c:  null,
-          ho_o:  null,
-          ao_c:  null,
-          ao_o:  null,
-          tl_c:  enc.tl_c,
-          tl_o:  enc.tl_o,
-          ov_c:  null,
-          ov_o:  null,
-          un_c:  null,
-          un_o:  null,
-        },
-      });
-    }
-    // else: can't locate matchId — skip
+  return results;
+}
+
+/**
+ * Parse `match2text += getData2none(...)` calls — the "Bet365 Live" feed
+ * (BET365_LIVE_HASH), a distinct #book_filter option from plain Bet365.
+ *
+ * Confirmed argument indices (2026-09-06, by diffing this feed against plain
+ * getData2 for the same match at minute 6 of play — every "open"-position
+ * value below matched plain Bet365's "close" value exactly, confirming
+ * "open" here is the frozen pre-match closing line and "close" is the real,
+ * already-moved live price):
+ *   [5]=matchId
+ *   [7]=live ah_hc    [8]=static ah_hc (== plain Bet365 close, unused here)
+ *   [11]=live ho_c    [13]=static ho_c
+ *   [15]=live tl_c    [16]=static tl_c
+ *   [19]=live ov_c    [21]=static ov_c
+ *   [27]=live ah_ac   [28]=static ah_ac
+ *   [31]=live ao_c    [33]=static ao_c
+ *   [36]=live un_c    [38]=static un_c
+ *   [45]=live 1X2 home  [47]=live 1X2 draw  [49]=live 1X2 away
+ *     ([46]/[48]/[50] are the matching static/pre-match 1X2 odds)
+ * Only the live ("close") position is extracted — the static position is
+ * redundant with plain Bet365's own `odds` field already parsed elsewhere.
+ */
+function parseGetData2NoneCalls(jsText) {
+  const re = /\bmatch2text\s*\+=\s*getData2none\s*\(/g;
+  const results = [];
+  let m;
+  const pf = v => { const n = (typeof v === 'number') ? v : parseFloat(v); return isNaN(n) ? null : n; };
+
+  while ((m = re.exec(jsText)) !== null) {
+    const args = extractCallArgs(jsText, m.index + m[0].length);
+    if (args.length < 51) continue;
+    const matchId = typeof args[5] === 'string' ? args[5] : null;
+    if (!matchId) continue;
+
+    results.push({
+      matchId,
+      live_odds: {
+        ah_hc: pf(args[7]),
+        ah_ac: pf(args[27]),
+        ho_c:  pf(args[11]),
+        ao_c:  pf(args[31]),
+        tl_c:  pf(args[15]),
+        ov_c:  pf(args[19]),
+        un_c:  pf(args[36]),
+        x2_h:  pf(args[45]),
+        x2_x:  pf(args[47]),
+        x2_a:  pf(args[49]),
+      },
+    });
   }
 
   return results;

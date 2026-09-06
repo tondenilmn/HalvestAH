@@ -782,6 +782,15 @@ function renderBetPickBlock(bet, qualifies, oddsField = 'mo') {
       <span class="${bet.lo >= bet.bl ? 'prob-edge pos' : 'prob-edge neg'}">
         ${bet.lo >= bet.bl ? `✓ lo clears baseline (${(bet.lo - bet.bl).toFixed(1)}pp)` : `✗ lo doesn't clear baseline (${(bet.lo - bet.bl).toFixed(1)}pp) — likely noise at this n`}
       </span>
+    </div>` : ''}
+    ${bet.liveMktOdds != null ? `
+    <div class="mkt-calibration mkt-calibration-live">
+      <span class="mkt-label">vs LIVE odds (Bet365 Live)</span>
+      <span class="${bet.liveMktEdge >= 0 ? 'mkt-edge-pos' : 'mkt-edge-neg'}">${bet.liveMktEdge >= 0 ? '+' : ''}${bet.liveMktEdge.toFixed(1)}pp</span>
+      <span class="mkt-sub">live odds ${bet.liveMktOdds.toFixed(2)} · implied ${bet.liveMktImplied.toFixed(1)}%</span>
+    </div>` : bet.liveMktLineMoved ? `
+    <div class="mkt-calibration mkt-calibration-live mkt-calibration-stale">
+      <span class="mkt-sub">Live AH line moved to ${bet.liveMktLiveLine.toFixed(2)} (was ${bet.liveMktClosingLine.toFixed(2)}) — no longer directly comparable</span>
     </div>` : ''}`;
 }
 
@@ -4185,6 +4194,17 @@ function buildBetCol(bet, passes, title, subtitle, rank, colId, minN) {
         <span class="mkt-sub">mkt implied ${bet.mkt_bl.toFixed(1)}% · avg odds ${bet.mkt_avg_odds}</span>
       </div>`;
     })() : ''}
+    ${bet.liveMktOdds != null ? (() => {
+      const leCls = bet.liveMktEdge >= 0 ? 'mkt-edge-pos' : 'mkt-edge-neg';
+      const leSign = bet.liveMktEdge >= 0 ? '+' : '';
+      return `<div class="mkt-calibration mkt-calibration-live">
+        <span class="mkt-label">vs LIVE odds (Bet365 Live)</span>
+        <span class="${leCls}">${leSign}${bet.liveMktEdge.toFixed(1)}pp</span>
+        <span class="mkt-sub">live odds ${bet.liveMktOdds.toFixed(2)} · implied ${bet.liveMktImplied.toFixed(1)}%</span>
+      </div>`;
+    })() : bet.liveMktLineMoved ? `<div class="mkt-calibration mkt-calibration-live mkt-calibration-stale">
+        <span class="mkt-sub">Live AH line has moved to ${bet.liveMktLiveLine.toFixed(2)} (was ${bet.liveMktClosingLine.toFixed(2)}) — no longer directly comparable</span>
+      </div>` : ''}
     ${renderOddsKellyWidget(`${rank}-${colId}`)}
     ${matchesHtml}
   </div>`;
@@ -4827,11 +4847,76 @@ function analyzeLiveMatch(match, minute) {
     }
   }
 
+  // Attach the real current Bet365 Live market price (see liveMarketPriceForBet)
+  // to every bet array that can end up on screen — Opportunities feed, per-match
+  // card, and the detail modal all read from one of these four.
+  for (const arr of [preBets, preBetsQual, gsBets, gsBetsQual]) {
+    attachLiveMarketOdds(arr, match, cfg);
+  }
+
   const htScore = anchor ? { home: anchor.home, away: anchor.away } : null;
   return {
     match, minute, cfg, status: 'ok', anchorStatus, leagueTier, cfg_n: cfgRows.length,
     preBets, preBetsQual, htBets, liveBets, gsBets, gsBetsQual, gsForTrace, htScore,
   };
+}
+
+// Live-market comparison (Bet365 Live feed) — only for the bet types with a
+// directly quotable current price: AH cover (fav/dog) and 1X2 FT. Total Line
+// bets (over/underXFT) are deliberately excluded — the live feed's Total
+// Line floats continuously with match state and rarely sits on our fixed
+// thresholds (2.5/3.5/etc.), so there's no honest way to price them from it.
+//
+// AH cover/dog is gated on the live AH line still matching the line our
+// probability was actually computed for (cfg.fav_line, the pre-match closing
+// line) — the line itself keeps moving live as the match plays out, and
+// covering a different line is a different bet with a different true
+// probability, not something bet.lo can be compared against directly. Uses
+// the same LINE_THRESH tolerance (0.12) the rest of the app matches AH lines
+// with. 1X2 has no such line to drift, so it's never gated.
+function liveMarketPriceForBet(betKey, match, cfg) {
+  const live = match?.bet365_live_odds;
+  if (!live || !cfg) return null;
+
+  if (betKey === 'ahCover' || betKey === 'dogCover') {
+    const favLineLive = cfg.fav_side === 'HOME' ? live.ah_hc : live.ah_ac;
+    const favOddsLive = cfg.fav_side === 'HOME' ? live.ho_c  : live.ao_c;
+    const dogOddsLive = cfg.fav_side === 'HOME' ? live.ao_c  : live.ho_c;
+    if (favLineLive == null) return null;
+    const lineMoved = Math.abs(Math.abs(favLineLive) - parseFloat(cfg.fav_line)) > LINE_THRESH;
+    if (lineMoved) return { unavailable: true, liveLine: Math.abs(favLineLive) };
+    const odds = betKey === 'ahCover' ? favOddsLive : dogOddsLive;
+    return (odds != null && odds > 1) ? { odds } : null;
+  }
+
+  if (betKey === 'homeWinsFT') return (live.x2_h != null && live.x2_h > 1) ? { odds: live.x2_h } : null;
+  if (betKey === 'awayWinsFT') return (live.x2_a != null && live.x2_a > 1) ? { odds: live.x2_a } : null;
+  if (betKey === 'drawFT')     return (live.x2_x != null && live.x2_x > 1) ? { odds: live.x2_x } : null;
+
+  return null;
+}
+
+// Mutates each bet in `bets` in place, adding liveMktOdds/liveMktImplied/
+// liveMktEdge (or liveMktLineMoved) when a real current market price applies.
+// liveMktEdge uses bet.lo (the Wilson CI lower bound), not the raw point
+// estimate bet.p — same discipline as mo_lo/kellyLine elsewhere in this app,
+// so a thin-sample bet doesn't look falsely valuable against a real price.
+function attachLiveMarketOdds(bets, match, cfg) {
+  if (!bets) return bets;
+  for (const b of bets) {
+    const info = liveMarketPriceForBet(b.k, match, cfg);
+    if (!info) continue;
+    if (info.unavailable) {
+      b.liveMktLineMoved = true;
+      b.liveMktLiveLine = info.liveLine;
+      b.liveMktClosingLine = parseFloat(cfg.fav_line);
+    } else {
+      b.liveMktOdds = info.odds;
+      b.liveMktImplied = 100 / info.odds;
+      b.liveMktEdge = b.lo - b.liveMktImplied;
+    }
+  }
+  return bets;
 }
 
 // NOTE (Phase 0 audit item 0.1): for a _liveDecayed bet, b.z is the stale

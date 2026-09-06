@@ -732,6 +732,12 @@ select.gs-select {
 .mkt-edge-neg { color: #e05c5c; font-weight: bold; }
 .mkt-sub { color: var(--dim); margin-left: auto; font-size: 10px; }
 
+/* Live-market comparison (Bet365 Live) — distinct accent from the
+   historical Pinnacle-average calibration row above, since this one is a
+   genuinely live, currently-gettable price rather than a backtest stat. */
+.mkt-calibration-live { border-left: 2px solid #e05c5c; }
+.mkt-calibration-stale { background: rgba(255,255,255,0.02); opacity: .75; }
+
 /* Matches toggle */
 .matches-toggle {
   background: transparent; border: none; color: var(--dim);
