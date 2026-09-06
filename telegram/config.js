@@ -463,6 +463,18 @@ module.exports = {
   // scanning it every SCAN_INTERVAL_MINUTES (and it costs OPENLINE_WINDOW_DAYS+1
   // extra HTTP round-trips to botbot3.space each time it runs).
   OPENLINE_SCAN_INTERVAL_MINUTES: parseInt(process.env.OPENLINE_SCAN_INTERVAL_MINUTES || '120', 10),
+  // The alert itself only FIRES once a match is this many days from kickoff
+  // (added 2026-09-06, user request) — separate from OPENLINE_WINDOW_DAYS
+  // above, which is just how far out the scan looks to capture the true
+  // opening snapshot (see notify.js's _openlineOpening store). Firing at
+  // first sight (which could be a full OPENLINE_WINDOW_DAYS away) used the
+  // same early, largely unbettable snapshot both to pick the bucket AND to
+  // price/gate the bet; now the bucket/bet pick still uses the ORIGINAL
+  // opening odds (first seen, whichever day that was), but the price actually
+  // checked against bet.mo_lo — and shown in the alert — is whatever Bet365 is
+  // CURRENTLY quoting once the match reaches this window.
+  OPENLINE_FIRE_MIN_DAYS: parseFloat(process.env.OPENLINE_FIRE_MIN_DAYS || '6'),
+  OPENLINE_FIRE_MAX_DAYS: parseFloat(process.env.OPENLINE_FIRE_MAX_DAYS || '7'),
 
   // ════════════════════════════════════════════════════════════════════════════
   // STRATEGY CROSSDOG — back the dog when Sbobet's line disagrees (added 2026-09-05)

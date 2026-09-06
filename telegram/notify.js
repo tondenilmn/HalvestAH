@@ -11,6 +11,7 @@
 //   node notify.js --verbose — verbose logging (skip reasons)
 
 const path = require('path');
+const fs = require('fs');
 const http = require('http');
 const cron = require('node-cron');
 const cfg  = require('./config');
@@ -624,13 +625,53 @@ async function runStrategyCrossDog(match, ctx) {
   });
 }
 
-// ── Strategy OPENLINE — bet the opening 1X2 price, week-out ──────────────────
+// ── Strategy OPENLINE — opening-signal pick, priced at the current price ────
 // See config.js's OPENLINE_* block for the full validation story. Candidate
 // set is fixed to homeWinsFT/awayWinsFT only (drawFT and O/U showed no
 // consistent edge in the backtests this is based on). Cross-fit at alert
 // time (row.fold A/B, price the pick with the OTHER fold) — this is what was
 // actually walk-forward validated; a plain single-pool estimate (like L123's
 // layer1Live) was not.
+// Revised 2026-09-06 (user request): the historical bucket/bet is still
+// chosen from the TRUE opening odds (first ever seen for the match, stored in
+// _openlineOpening below), but the alert only fires — and the price it
+// actually checks/shows — once the match is OPENLINE_FIRE_MIN..MAX_DAYS from
+// kickoff, using whatever Bet365 is CURRENTLY quoting on asianbetsoccer.com
+// at that point, not the stale opening price a match first appears with days
+// earlier.
+// ── OPENLINE opening-odds snapshot store ────────────────────────────────────
+// Persisted to disk (survives Railway restarts/redeploys) because the TRUE
+// opening line is recorded the first time a match enters the
+// OPENLINE_WINDOW_DAYS scan window — which can be several days before the
+// match actually reaches OPENLINE_FIRE_MIN..MAX_DAYS out, the point where the
+// alert is allowed to fire. The bucket/bet pick uses this stored opening
+// snapshot; the price checked/shown at fire time uses that scan's freshly
+// fetched CURRENT Bet365 odds instead (see runStrategyOpenline below).
+const OPENLINE_STORE_FILE = path.join(__dirname, 'data', 'openline_opening.json');
+
+function loadOpenlineOpening() {
+  try { return JSON.parse(fs.readFileSync(OPENLINE_STORE_FILE, 'utf8')); } catch { return {}; }
+}
+function saveOpenlineOpening(store) {
+  try {
+    fs.mkdirSync(path.dirname(OPENLINE_STORE_FILE), { recursive: true });
+    fs.writeFileSync(OPENLINE_STORE_FILE, JSON.stringify(store, null, 2));
+  } catch (e) { console.error(`OpenLine: failed to persist opening-odds store: ${e.message}`); }
+}
+let _openlineOpening = loadOpenlineOpening();
+
+// Drop stored snapshots for matches that have already kicked off (or long
+// since fired/deduped) so the store doesn't grow forever with dead entries.
+function pruneOpenlineOpening() {
+  const now = Date.now();
+  let changed = false;
+  for (const [matchId, entry] of Object.entries(_openlineOpening)) {
+    const kt = entry.kickoff_time ? new Date(entry.kickoff_time).getTime() : NaN;
+    if (isNaN(kt) || kt < now) { delete _openlineOpening[matchId]; changed = true; }
+  }
+  if (changed) saveOpenlineOpening(_openlineOpening);
+}
+
 const OPENLINE_BETS = BETS.filter(b => b.k === 'homeWinsFT' || b.k === 'awayWinsFT');
 
 function openlineQualifies(b) {
@@ -670,7 +711,7 @@ function openlineBet(favLine, favSide, favOo, tlO) {
 const openlineDedup = new Dedup(14 * 24 * 60 * 60 * 1000); // 14 days — longer than OPENLINE_WINDOW_DAYS so a match can't re-alert just by staying in the scan window
 
 async function runStrategyOpenline(match, ctx) {
-  const { matchId, label, tier, liveMin } = ctx;
+  const { matchId, label, tier, liveMin, toKickoff } = ctx;
 
   if (!cfg.OPENLINE_ENABLED) return;
   if (!tierAllowed(tier, cfg.OPENLINE_TIER)) { flogv(liveMin, label, 'OPENLINE', `SKIP: tier=${tier} not in ${cfg.OPENLINE_TIER}`); return; }
@@ -678,26 +719,63 @@ async function runStrategyOpenline(match, ctx) {
 
   const odds = match.bet365_odds;
   if (!odds) { flogv(liveMin, label, 'OPENLINE', 'SKIP: no Bet365 odds'); return; }
-  const x2 = match.x2_odds;
-  if (!x2 || (x2.home_o == null && x2.away_o == null)) { flogv(liveMin, label, 'OPENLINE', 'SKIP: no 1X2 opening odds'); return; }
 
   const matchCfg = buildCfgFromMatch(odds, {});
   if (!matchCfg) { flogv(liveMin, label, 'OPENLINE', 'SKIP: AH odds incomplete'); return; }
 
-  const favLine = matchCfg.signals.favLine;
-  const favSide = matchCfg.signals.favSide;
-  const favOo   = favSide === 'HOME' ? odds.ho_o : odds.ao_o;
-  const tlO     = odds.tl_o;
+  // Record the TRUE opening snapshot the first time this match is ever seen —
+  // whichever day of the OPENLINE_WINDOW_DAYS scan that happens to be — since
+  // this may be days before the fire window below. Never overwritten once set.
+  if (!_openlineOpening[matchId]) {
+    _openlineOpening[matchId] = {
+      favLine: matchCfg.signals.favLine,
+      favSide: matchCfg.signals.favSide,
+      favOo:   matchCfg.signals.favSide === 'HOME' ? odds.ho_o : odds.ao_o,
+      tlO:     odds.tl_o,
+      capturedAt: new Date().toISOString(),
+      kickoff_time: match.kickoff_time || null,
+    };
+    saveOpenlineOpening(_openlineOpening);
+  }
 
-  const bet = openlineBet(favLine, favSide, favOo, tlO);
+  // Only actually fire once the match is OPENLINE_FIRE_MIN..MAX_DAYS from
+  // kickoff (user request, 2026-09-06) — firing at first sight used a price
+  // that's realistically not still bettable by the time anyone could act on
+  // the alert. toKickoff is in minutes (matchContext).
+  if (toKickoff == null) { flogv(liveMin, label, 'OPENLINE', 'SKIP: no kickoff_time'); return; }
+  const daysToKickoff = toKickoff / (24 * 60);
+  if (daysToKickoff > cfg.OPENLINE_FIRE_MAX_DAYS || daysToKickoff < cfg.OPENLINE_FIRE_MIN_DAYS) {
+    flogv(liveMin, label, 'OPENLINE', `SKIP: ${daysToKickoff.toFixed(1)} days to kickoff, outside fire window ${cfg.OPENLINE_FIRE_MIN_DAYS}-${cfg.OPENLINE_FIRE_MAX_DAYS}`);
+    return;
+  }
+
+  const x2 = match.x2_odds;
+  if (!x2 || (x2.home_o == null && x2.away_o == null)) { flogv(liveMin, label, 'OPENLINE', 'SKIP: no current 1X2 odds'); return; }
+
+  // Bucket/bet pick is driven by the STORED opening snapshot (falls back to
+  // this scan's own AH signals if a match somehow never got captured earlier —
+  // shouldn't normally happen since capture above always runs first).
+  const opening = _openlineOpening[matchId] || {
+    favLine: matchCfg.signals.favLine,
+    favSide: matchCfg.signals.favSide,
+    favOo:   matchCfg.signals.favSide === 'HOME' ? odds.ho_o : odds.ao_o,
+    tlO:     odds.tl_o,
+  };
+  const favLine = opening.favLine;
+  const favSide = opening.favSide;
+
+  const bet = openlineBet(favLine, favSide, opening.favOo, opening.tlO);
   if (!bet) { flogv(liveMin, label, 'OPENLINE', 'SKIP: no qualifying homeWinsFT/awayWinsFT pick'); return; }
 
+  // The price actually checked/shown is whatever Bet365/asianbetsoccer is
+  // CURRENTLY quoting at fire time (this scan) — not the opening price used
+  // only to pick the bucket above.
   const marketOdds = bet.k === 'homeWinsFT' ? x2.home_o : x2.away_o;
-  if (marketOdds == null) { flogv(liveMin, label, 'OPENLINE', `SKIP: no opening price for ${bet.k}`); return; }
+  if (marketOdds == null) { flogv(liveMin, label, 'OPENLINE', `SKIP: no current price for ${bet.k}`); return; }
   // Gate on the conservative CI-lower min odds (bet.mo_lo), not the
   // winner's-curse-prone fair odds (bet.mo) — this is also what kellyLine()
   // sizes against, so the displayed target and the Kelly verdict always agree.
-  if (marketOdds < bet.mo_lo) { flogv(liveMin, label, 'OPENLINE', `SKIP: opening price @${marketOdds.toFixed(2)} below conservative min @${bet.mo_lo} for ${bet.k}`); return; }
+  if (marketOdds < bet.mo_lo) { flogv(liveMin, label, 'OPENLINE', `SKIP: current price @${marketOdds.toFixed(2)} below conservative min @${bet.mo_lo} for ${bet.k}`); return; }
 
   const dedupKey = `${matchId}:openline:${bet.k}`;
   if (openlineDedup.has(dedupKey)) { flogv(liveMin, label, 'OPENLINE', 'SKIP: already notified'); return; }
@@ -708,20 +786,22 @@ async function runStrategyOpenline(match, ctx) {
   const betLabel = bet.k === 'homeWinsFT' ? 'Home wins FT' : 'Away wins FT';
   const kellyLn = kellyLine(marketOdds, bet.lo, 2);
   const msg = buildMessage(
-    'OPENLINE — opening price value',
+    'OPENLINE — opening-signal value',
     match,
-    `Kickoff ${kickoffStr}`,
+    `Kickoff ${kickoffStr} (${daysToKickoff.toFixed(1)}d)`,
     [
       `🏷 ${esc(betLabel)}`,
-      `📊 ${bet.p.toFixed(1)}% historically (n=${bet.n}, baseline ${bet.bl.toFixed(1)}%)`,
+      `📊 ${bet.p.toFixed(1)}% historically (n=${bet.n}, baseline ${bet.bl.toFixed(1)}%) — bucketed on opening odds`,
       `🎯 Conservative min odds: @${bet.mo_lo}`,
-      `📖 Opening price found: @${marketOdds.toFixed(2)}${marketOdds >= bet.mo_lo ? ' ✅' : ''}`,
+      `📖 Current Bet365 price: @${marketOdds.toFixed(2)}${marketOdds >= bet.mo_lo ? ' ✅' : ''}`,
       ...(kellyLn ? [kellyLn] : []),
     ]
   );
   await sendTelegram(msg);
   openlineDedup.mark(dedupKey);
-  flog(liveMin, label, 'OPENLINE', `ALERT: ${bet.k} n=${bet.n} z=${bet.z.toFixed(2)} edge=${(bet.lo - bet.bl).toFixed(1)}pp opening=@${marketOdds.toFixed(2)} mo_lo=@${bet.mo_lo} tier=${tier}`);
+  delete _openlineOpening[matchId];
+  saveOpenlineOpening(_openlineOpening);
+  flog(liveMin, label, 'OPENLINE', `ALERT: ${bet.k} n=${bet.n} z=${bet.z.toFixed(2)} edge=${(bet.lo - bet.bl).toFixed(1)}pp current=@${marketOdds.toFixed(2)} mo_lo=@${bet.mo_lo} tier=${tier} daysToKickoff=${daysToKickoff.toFixed(1)}`);
 
   if (verifiedGoodPrice(marketOdds, bet.mo_lo)) {
     recordAlert({
@@ -729,14 +809,14 @@ async function runStrategyOpenline(match, ctx) {
       league: match.league, tier,
       fixtureId: null,
       betKey: bet.k, betLabel,
-      favSide, favLine, tlLine: tlO,
+      favSide, favLine, tlLine: opening.tlO,
       priceAtAlert: marketOdds,
       mo: bet.mo, mo_lo: bet.mo_lo,
       strategy: 'OPENLINE', venue: 'soft', minute: null,
       state: { score: null, redCards: 0, half: null },
     });
   } else {
-    flogv(liveMin, label, 'OPENLINE', 'Not recorded to track record — opening price does not clear the conservative min-odds.');
+    flogv(liveMin, label, 'OPENLINE', 'Not recorded to track record — current price does not clear the conservative min-odds.');
   }
 }
 
@@ -757,6 +837,7 @@ async function runOpenlineScan() {
     const ctx = matchContext(match);
     await runStrategyOpenline(match, ctx);
   }
+  pruneOpenlineOpening();
   console.log(`OpenLine scan done — ${matches.length} matches checked.`);
 }
 
@@ -2646,7 +2727,7 @@ async function main() {
   const focusSurvivorCounts = Object.entries(focusSelect.loadConfigs().results || {}).map(([k, v]) => `${k}=${v.length}`).join(' ') || 'none loaded';
   console.log(`Strategy FOCUS [${on(cfg.FOCUS_ENABLED)}]: 1T/2T O/U 0.5/1.5, cells fixed offline by focus_config_search.js  fire=1H@${cfg.FOCUS_PRE_WINDOW_MIN}min pre-kickoff / 2H@HT window ${HT_SNAPSHOT_WINDOW[0]}'-${HT_SNAPSHOT_WINDOW[1]}'  minLiveN≥${cfg.FOCUS_MIN_LIVE_N}  survivingCells: ${focusSurvivorCounts}`);
   console.log(`Strategy LIVEWATCH [${on(cfg.LIVEWATCH_ENABLED)}][${cfg.LIVEWATCH_TIER}]: live probability threshold watch (UNVALIDATED)  fire=CI-lower live_p≥${cfg.LIVEWATCH_THRESHOLD_PCT}% AND edge≥${cfg.LIVEWATCH_MIN_EDGE}pp vs baseline  1H-over=${cfg.LIVEWATCH_TRIGGER_WINDOW_1H_OVER[0]}'-${cfg.LIVEWATCH_TRIGGER_WINDOW_1H_OVER[1]}'  1H-under=${cfg.LIVEWATCH_TRIGGER_WINDOW_1H_UNDER[0]}'-${cfg.LIVEWATCH_TRIGGER_WINDOW_1H_UNDER[1]}'  2H-over=${cfg.LIVEWATCH_TRIGGER_WINDOW_2H_OVER[0]}'-${cfg.LIVEWATCH_TRIGGER_WINDOW_2H_OVER[1]}'  2H-under=${cfg.LIVEWATCH_TRIGGER_WINDOW_2H_UNDER[0]}'-${cfg.LIVEWATCH_TRIGGER_WINDOW_2H_UNDER[1]}'  minN≥${cfg.LIVEWATCH_MIN_N}  keys=${cfg.LIVEWATCH_KEYS.join(',')}`);
-  console.log(`Strategy OPENLINE [${on(cfg.OPENLINE_ENABLED)}][${cfg.OPENLINE_TIER}]: bet the OPENING 1X2 price (homeWinsFT/awayWinsFT only)  fire=day0-day${cfg.OPENLINE_WINDOW_DAYS} scan every ${cfg.OPENLINE_SCAN_INTERVAL_MINUTES}min  n≥${cfg.OPENLINE_MIN_N} z≥${cfg.OPENLINE_MIN_Z} edge≥${cfg.OPENLINE_MIN_EDGE}pp`);
+  console.log(`Strategy OPENLINE [${on(cfg.OPENLINE_ENABLED)}][${cfg.OPENLINE_TIER}]: pick bucketed on OPENING odds (homeWinsFT/awayWinsFT only), priced at CURRENT Bet365  scan=day0-day${cfg.OPENLINE_WINDOW_DAYS} every ${cfg.OPENLINE_SCAN_INTERVAL_MINUTES}min  fire=${cfg.OPENLINE_FIRE_MIN_DAYS}-${cfg.OPENLINE_FIRE_MAX_DAYS}d pre-kickoff  n≥${cfg.OPENLINE_MIN_N} z≥${cfg.OPENLINE_MIN_Z} edge≥${cfg.OPENLINE_MIN_EDGE}pp`);
   console.log(`Strategy CROSSDOG [${on(cfg.CROSSDOG_ENABLED)}][${cfg.CROSSDOG_TIER}]: back the dog when Sbobet's line disagrees (dogCover only)  fire=${cfg.CROSSDOG_WINDOW_MIN}min pre-kickoff window  gateMinN≥${cfg.CROSSDOG_GATE_MIN_N}  cells loaded: ${Object.keys(_crossdogCells.cells || {}).length} (generated ${_crossdogCells.generatedAt || 'never — run crossdog_config_search.js'})`);
   console.log(`Global tier default: ${cfg.LEAGUE_TIER}`);
 
