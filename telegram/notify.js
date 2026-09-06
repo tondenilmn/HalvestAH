@@ -29,7 +29,7 @@ const {
   pct,
   wilsonCI,
 } = require('./engine');
-const { fetchLiveMatches, fetchNextMatches, fetchOpenlineMatches, fetchSbobetMatches, refreshHashes, getCurrentHashes, checkStaleHashHeuristic } = require('./livescore');
+const { fetchLiveMatches, fetchNextMatches, fetchOpenlineMatches, fetchSbobetMatches, refreshHashes, getCurrentHashes, checkStaleHashHeuristic, checkBet365LiveHash } = require('./livescore');
 const { verifyBet365Price } = require('./apifootball');
 const crossdogLib = require('./crossdog_lib');
 const { recordAlert, settlePendingAlerts, buildDigestMessage, loadState, saveState } = require('./track_record');
@@ -2406,15 +2406,45 @@ async function runStrategyLiveWatch(match, ctx) {
   }
 }
 
-// ── Hash-failure alert (once per failed hash value) ──────────────────────────
-const _hashAlerted = new Set();
+// ── Hash-failure alert (fires once when a bookmaker's hash starts failing,
+// then once more when it recovers — not a repeating reminder) ─────────────
+const _hashCurrentlyFailed = new Set(); // bookmaker names currently in a failed state
 async function notifyHashFailed(bookmaker, shortHash) {
-  const key = `${bookmaker}:${shortHash}`;
-  if (_hashAlerted.has(key)) return;
-  _hashAlerted.add(key);
-  const msg = `⚠️ <b>${esc(bookmaker)} hash invalid</b>\n\nThe bookmaker hash <code>${esc(shortHash)}…</code> returned 404.\nUpdate <code>${esc(bookmaker === 'Pinnacle' ? 'PINNACLE_HASH' : bookmaker === 'Bet365' ? 'BET365_HASH' : 'SBOBET_HASH')}</code> in <code>livescore.js</code>.`;
+  if (_hashCurrentlyFailed.has(bookmaker)) return;
+  _hashCurrentlyFailed.add(bookmaker);
+  const envVar = { Pinnacle: 'PINNACLE_HASH', Bet365: 'BET365_HASH', 'Bet365 Live': 'BET365_LIVE_HASH', Sbobet: 'SBOBET_HASH' }[bookmaker] || 'BET365_HASH';
+  // "Bet365" is a substring of the "Bet365 Live" option label too, so a plain
+  // find-in-page for "Bet365" would land on the wrong <option> for that one —
+  // 'Bet365<' pins it to the option whose label ends right there.
+  const findText = { Bet365: 'Bet365<' }[bookmaker] || bookmaker;
+  // Full manual-recovery steps inlined (2026-09-06) — auto-discovery is
+  // fighting a real anti-bot product now (see livescore.js's
+  // BROWSER_HARD_BLOCK_COOLDOWN_MS comment) and can stay stuck for hours, so
+  // a manual hash paste is the accepted steady-state fix, not a rare
+  // fallback. Deliberately phone-doable — no DevTools/Network-tab step,
+  // since that's not realistically available without a laptop: the hash
+  // sits directly in the page's HTML as
+  // <option value="40-char-hex">Bet365</option> inside #book_filter, so
+  // "view-source:" + the browser's own Find-in-page does the same job as
+  // inspecting a network request would.
+  const msg = `⚠️ <b>${esc(bookmaker)} hash invalid</b>\n\n`
+    + `The bookmaker hash <code>${esc(shortHash)}…</code> returned 404 — auto-discovery may take a while (or not succeed at all right now, see below).\n\n`
+    + `<b>To fix manually (works from your phone too):</b>\n`
+    + `1. Go to <code>view-source:https://www.asianbetsoccer.com/it/livescore.html</code>\n`
+    + `2. Find-in-page for "${esc(findText)}"\n`
+    + `3. Copy the 40-char hex from <code>value="..."</code> right before it\n`
+    + `4. Set it as <code>${esc(envVar)}</code> in Railway's project → Variables (railway.app works on mobile)\n`
+    + `5. Redeploy if it doesn't restart automatically\n\n`
+    + `You'll get a ✅ recovered message once it's working again — no need to check back manually.`;
   console.log(`Hash alert: ${bookmaker} hash ${shortHash} is invalid — sending Telegram notification`);
   await sendTelegram(msg);
+}
+
+async function notifyHashRecovered(bookmaker) {
+  if (!_hashCurrentlyFailed.has(bookmaker)) return;
+  _hashCurrentlyFailed.delete(bookmaker);
+  console.log(`Hash alert: ${bookmaker} hash recovered — sending Telegram notification`);
+  await sendTelegram(`✅ <b>${esc(bookmaker)} hash recovered</b>\n\nAuto-discovery found a working hash — matches are flowing again.`);
 }
 
 // ── Match fetcher ─────────────────────────────────────────────────────────────
@@ -2465,7 +2495,7 @@ function attachSbobetOdds(bet365Matches, sbobetMatches) {
 }
 
 async function fetchMatches() {
-  let [liveResult, nextResult, sbobetResult] = await Promise.all([fetchLiveMatches(), fetchNextMatches(), fetchSbobetMatches()]);
+  let [liveResult, nextResult, sbobetResult, bet365LiveCheck] = await Promise.all([fetchLiveMatches(), fetchNextMatches(), fetchSbobetMatches(), checkBet365LiveHash()]);
 
   // Stale-hash heuristic (see livescore.js's checkStaleHashHeuristic header
   // comment): botbot3.space can serve HTTP 200-but-empty for a rotated-out
@@ -2480,7 +2510,11 @@ async function fetchMatches() {
 
   if (liveResult.bet365HashFailed) await notifyHashFailed('Bet365', (liveResult.bet365Hash || '????????').slice(0, 8));
   else if (nextResult.bet365HashFailed) await notifyHashFailed('Bet365', (nextResult.bet365Hash || '????????').slice(0, 8));
+  else await notifyHashRecovered('Bet365');
   if (sbobetResult.sbobetHashFailed) await notifyHashFailed('Sbobet', (sbobetResult.sbobetHash || '????????').slice(0, 8));
+  else await notifyHashRecovered('Sbobet');
+  if (bet365LiveCheck.hashInvalid) await notifyHashFailed('Bet365 Live', (bet365LiveCheck.hash || '????????').slice(0, 8));
+  else await notifyHashRecovered('Bet365 Live');
 
   const merged = new Map();
   for (const m of nextResult.matches) if (m.id) merged.set(m.id, m);

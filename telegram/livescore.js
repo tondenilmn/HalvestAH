@@ -381,7 +381,28 @@ async function fetchAllBookHashesDirect() {
 // Lazily required so a deploy without the `playwright` package (e.g. running
 // notify.js locally without it installed) doesn't crash — this path just
 // silently unavailable in that case, same as HASH_RELAY_URL being unset.
+// Cooldown after a CONFIRMED hard block (real "Robot Challenge Screen"
+// captcha, not the soft self-resolving "checking your browser…" interstitial
+// the wait-loop below already handles) — added 2026-09-06 after confirming
+// via Railway logs that this screen doesn't resolve no matter how long you
+// wait or how well the fingerprint is masked; it's an IP-reputation gate that
+// only lifts on its own after a while (or if Railway's egress IP changes),
+// not something retrying faster/harder can influence. Without this, every
+// ~2-minute scan cycle during a multi-hour block was launching a full
+// Chromium instance just to get challenged again — wasted Railway compute for
+// no chance of success. `refreshHashes()` (the daily cron + stale-hash
+// heuristic) can still force a real attempt through by calling this directly,
+// but the routine per-404 auto-discovery path backs off during the cooldown.
+const BROWSER_HARD_BLOCK_COOLDOWN_MS = 20 * 60 * 1000; // 20 min
+let _browserHardBlockedUntil = 0;
+
 async function fetchAllBookHashesViaBrowser() {
+  if (Date.now() < _browserHardBlockedUntil) {
+    const mins = Math.ceil((_browserHardBlockedUntil - Date.now()) / 60000);
+    console.log(`  Browser fallback: skipping — hit a confirmed Robot Challenge Screen recently, cooling down for ${mins} more min.`);
+    return { pinnacle: null, bet365: null, bet365live: null, sbobet: null };
+  }
+
   let chromium;
   try {
     ({ chromium } = require('playwright'));
@@ -448,7 +469,16 @@ async function fetchAllBookHashesViaBrowser() {
       for (let waited = 0; waited < 15000 && page.url().includes('sgcaptcha'); waited += 500) {
         await page.waitForTimeout(500);
       }
-      if (!page.url().includes('sgcaptcha')) await page.waitForTimeout(2000); // let the real page settle
+      if (!page.url().includes('sgcaptcha')) {
+        await page.waitForTimeout(2000); // let the real page settle
+      } else {
+        // Still on sgcaptcha after 15s — this is the hard "Robot Challenge
+        // Screen" captcha (confirmed via page title elsewhere), not a
+        // self-resolving JS check. No point retrying every scan cycle until
+        // the IP-reputation block lifts on its own.
+        _browserHardBlockedUntil = Date.now() + BROWSER_HARD_BLOCK_COOLDOWN_MS;
+        console.log(`  Browser fallback: sgcaptcha did not resolve — confirmed hard block, cooling down for ${BROWSER_HARD_BLOCK_COOLDOWN_MS / 60000} min.`);
+      }
     } else {
       await page.waitForTimeout(3000);
     }
@@ -606,6 +636,26 @@ async function fetchBet365LiveHash() {
 async function fetchSbobetHash() {
   const { sbobet } = await fetchAllBookHashes();
   return sbobet;
+}
+
+// Bet365 Live isn't otherwise fetched by this Telegram bot at all — it's
+// consumed only by the web UI's Cloudflare Function (live in-play market
+// comparison) — but it rotates independently of BET365_HASH/SBOBET_HASH and
+// had no failure signal of its own until now. This lightweight check exists
+// purely to drive the same manual-hash-paste alert for it, mirroring
+// fetchLiveMatches's own 404 -> rediscover -> retry shape but discarding the
+// parsed matches (nothing here needs them).
+async function checkBet365LiveHash() {
+  const timestamp = Date.now();
+  let { hashInvalid } = await tryCombo(BET365_LIVE_HASH, GS_PRIMARY, timestamp);
+  if (hashInvalid) {
+    const discovered = await fetchBet365LiveHash();
+    if (discovered && discovered !== BET365_LIVE_HASH) {
+      BET365_LIVE_HASH = discovered;
+      ({ hashInvalid } = await tryCombo(BET365_LIVE_HASH, GS_PRIMARY, timestamp));
+    }
+  }
+  return { hashInvalid, hash: BET365_LIVE_HASH };
 }
 
 // Bet365 is the primary (and only) source: it carries both the match list
@@ -888,4 +938,4 @@ function getCurrentHashes() {
 }
 
 // module.exports = { fetchLiveMatches, fetchNextMatches, fetchNextMatchesAllDays, refreshHashes };
-module.exports = { fetchLiveMatches, fetchNextMatches, fetchOpenlineMatches, fetchSbobetMatches, refreshHashes, getCurrentHashes, checkStaleHashHeuristic };
+module.exports = { fetchLiveMatches, fetchNextMatches, fetchOpenlineMatches, fetchSbobetMatches, refreshHashes, getCurrentHashes, checkStaleHashHeuristic, checkBet365LiveHash };
