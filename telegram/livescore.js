@@ -458,6 +458,50 @@ async function refreshHashes() {
   return { pinnacle: PINNACLE_HASH, bet365: BET365_HASH, sbobet: SBOBET_HASH };
 }
 
+// ── Stale-hash heuristic (added 2026-09-06) ───────────────────────────────
+// botbot3.space often keeps serving HTTP 200 with an empty payload (0
+// getData2 calls — logged as "OK but 0 getData2 calls") for a rotated-out
+// hash for hours before it finally starts 404ing it. Every rediscovery
+// trigger above (`hashInvalid`) is gated strictly on a real 404, so during
+// that window each scan just quietly logs "no matches" and does nothing —
+// this was the root cause behind auto-discovery taking hours to catch a
+// daily hash rotation instead of minutes.
+//
+// fetchNextMatches's upcoming-fixtures listing (day0, every league
+// worldwide) coming back genuinely empty is a much stronger stale-hash
+// signal than fetchLiveMatches being empty — zero live matches anywhere is a
+// normal quiet period, but zero *upcoming* fixtures anywhere in the world
+// for several consecutive scans essentially never happens with a healthy
+// hash. So: track consecutive scans where fetchNextMatches came back
+// OK-but-empty (not a real 404 — that path already rediscovers on its own)
+// and force a full fetchAllBookHashes() rediscovery once the streak crosses
+// a threshold, rather than waiting for botbot3.space to eventually 404.
+const NEXTGAME_EMPTY_STREAK_THRESHOLD = 3; // consecutive scans (~6 min at the default 2-min interval)
+let _nextgameEmptyStreak = 0;
+
+// Call once per scan with whether fetchNextMatches came back OK-but-empty
+// this cycle. Returns true if it forced a rediscovery that actually changed
+// BET365_HASH (caller should re-fetch this same cycle to recover sooner).
+async function checkStaleHashHeuristic(nextMatchesEmptyNotFailed) {
+  if (!nextMatchesEmptyNotFailed) {
+    _nextgameEmptyStreak = 0;
+    return false;
+  }
+  _nextgameEmptyStreak++;
+  if (_nextgameEmptyStreak < NEXTGAME_EMPTY_STREAK_THRESHOLD) return false;
+
+  console.log(`Hashes: ${_nextgameEmptyStreak} consecutive scans with zero upcoming fixtures (HTTP 200 but empty) — suspected stale hash, forcing rediscovery…`);
+  _nextgameEmptyStreak = 0; // give the (possibly new) hash a fresh streak to prove itself before forcing again
+  const before = BET365_HASH;
+  await refreshHashes();
+  if (BET365_HASH !== before) {
+    console.log(`Hashes: stale-hash heuristic found a new Bet365 hash ${before.slice(0,8)}… → ${BET365_HASH.slice(0,8)}…`);
+    return true;
+  }
+  console.log('Hashes: stale-hash heuristic triggered but rediscovery found no new hash — will re-check after another streak.');
+  return false;
+}
+
 // Keep fetchPinnacleHash as a lightweight alias used by the 404 fallback path
 async function fetchPinnacleHash() {
   const { pinnacle } = await fetchAllBookHashes();
@@ -754,4 +798,4 @@ function getCurrentHashes() {
 }
 
 // module.exports = { fetchLiveMatches, fetchNextMatches, fetchNextMatchesAllDays, refreshHashes };
-module.exports = { fetchLiveMatches, fetchNextMatches, fetchOpenlineMatches, fetchSbobetMatches, refreshHashes, getCurrentHashes };
+module.exports = { fetchLiveMatches, fetchNextMatches, fetchOpenlineMatches, fetchSbobetMatches, refreshHashes, getCurrentHashes, checkStaleHashHeuristic };

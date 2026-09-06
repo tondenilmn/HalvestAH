@@ -29,7 +29,7 @@ const {
   pct,
   wilsonCI,
 } = require('./engine');
-const { fetchLiveMatches, fetchNextMatches, fetchOpenlineMatches, fetchSbobetMatches, refreshHashes, getCurrentHashes } = require('./livescore');
+const { fetchLiveMatches, fetchNextMatches, fetchOpenlineMatches, fetchSbobetMatches, refreshHashes, getCurrentHashes, checkStaleHashHeuristic } = require('./livescore');
 const { verifyBet365Price } = require('./apifootball');
 const crossdogLib = require('./crossdog_lib');
 const { recordAlert, settlePendingAlerts, buildDigestMessage, loadState, saveState } = require('./track_record');
@@ -2465,7 +2465,19 @@ function attachSbobetOdds(bet365Matches, sbobetMatches) {
 }
 
 async function fetchMatches() {
-  const [liveResult, nextResult, sbobetResult] = await Promise.all([fetchLiveMatches(), fetchNextMatches(), fetchSbobetMatches()]);
+  let [liveResult, nextResult, sbobetResult] = await Promise.all([fetchLiveMatches(), fetchNextMatches(), fetchSbobetMatches()]);
+
+  // Stale-hash heuristic (see livescore.js's checkStaleHashHeuristic header
+  // comment): botbot3.space can serve HTTP 200-but-empty for a rotated-out
+  // hash for hours before it starts 404ing, which is the only trigger the
+  // fetch* functions above rediscover on by themselves. Catches that gap
+  // early using "zero upcoming fixtures worldwide" as the stale-hash signal.
+  const nextEmptyNotFailed = nextResult.matches.length === 0 && !nextResult.bet365HashFailed;
+  if (await checkStaleHashHeuristic(nextEmptyNotFailed)) {
+    console.log('  Retrying this scan with the newly discovered hash…');
+    [liveResult, nextResult] = await Promise.all([fetchLiveMatches(), fetchNextMatches()]);
+  }
+
   if (liveResult.bet365HashFailed) await notifyHashFailed('Bet365', (liveResult.bet365Hash || '????????').slice(0, 8));
   else if (nextResult.bet365HashFailed) await notifyHashFailed('Bet365', (nextResult.bet365Hash || '????????').slice(0, 8));
   if (sbobetResult.sbobetHashFailed) await notifyHashFailed('Sbobet', (sbobetResult.sbobetHash || '????????').slice(0, 8));
