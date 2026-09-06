@@ -15,9 +15,17 @@
 // seed — a manual stopgap you can set in the Railway dashboard without a
 // redeploy when both auto-discovery paths are stuck (paste the fresh hash
 // from a local `node -e "require('./livescore').refreshHashes().then(console.log)"` run).
-let PINNACLE_HASH = process.env.PINNACLE_HASH || '30e528c380c96b362ffacdc66b2808c8ad59ce9e';
-let BET365_HASH   = process.env.BET365_HASH   || '553c7f0fdbb889a93c9a85abaa1639de76943277';
-let SBOBET_HASH   = process.env.SBOBET_HASH   || 'f1bd8f485d42c4e9700599b0db02cd537a78801f';
+let PINNACLE_HASH   = process.env.PINNACLE_HASH   || '30e528c380c96b362ffacdc66b2808c8ad59ce9e';
+let BET365_HASH     = process.env.BET365_HASH     || '553c7f0fdbb889a93c9a85abaa1639de76943277';
+// "Bet365 Live" — a separate #book_filter option from plain Bet365, whose
+// odds are the actual current/moving live price rather than the frozen
+// pre-match close (see functions/api/livescore.js's own BET365_LIVE_HASH
+// comment for the full investigation). Discovered/refreshed the same way as
+// the other three hashes below and relayed via getCurrentHashes()'s /hashes
+// endpoint so Cloudflare's edge (blocked from discovering it directly by
+// asianbetsoccer's WAF) can pick it up too.
+let BET365_LIVE_HASH = process.env.BET365_LIVE_HASH || '56f7105ddda384f0955acb8ffe874c8b61daec49';
+let SBOBET_HASH     = process.env.SBOBET_HASH     || 'f1bd8f485d42c4e9700599b0db02cd537a78801f';
 const GS_PRIMARY    = 'Q';
 const GS_CANDIDATES = ['Q', '1', '2', '3', 'AH', 'S', 'EU', 'A', 'ah', 's', '4', '5', '10', '6', '7', '8', 'B', 'F'];
 
@@ -247,14 +255,16 @@ async function tryCombo(hash, gS, timestamp) {
 }
 
 // Book name patterns for #book_filter option matching (case-insensitive).
-// Anchored exact-match — the page also lists a separate "Bet365 Live" option
-// whose hash serves a different feed (0 odds rows on the livegame endpoint);
-// a loose /bet\s*365/i match would collide with it and silently overwrite
-// the correct hash with a broken one since the loop below takes the last match.
+// Anchored exact-match — "Bet365 Live" is a real, separately useful feed
+// (see BET365_LIVE_HASH above, not "0 odds rows" as originally assumed
+// here), but a loose /bet\s*365/i match would still collide with it and
+// silently overwrite the plain-Bet365 hash since the loop below takes the
+// last match, so both patterns stay anchored and distinct.
 const BOOK_PATTERNS = {
-  pinnacle: /^pinnacle$/i,
-  bet365:   /^bet\s*365$/i,
-  sbobet:   /^sbo\s*bet$/i,
+  pinnacle:   /^pinnacle$/i,
+  bet365:     /^bet\s*365$/i,
+  bet365live: /^bet\s*365\s*live$/i,
+  sbobet:     /^sbo\s*bet$/i,
 };
 
 /**
@@ -289,33 +299,34 @@ const LIVESCORE_HEADER_SETS = [
 const HASH_RELAY_URL = process.env.HASH_RELAY_URL || process.env.DATA_URL || null;
 
 async function fetchHashesViaRelay() {
-  if (!HASH_RELAY_URL) return { pinnacle: null, bet365: null, sbobet: null };
+  if (!HASH_RELAY_URL) return { pinnacle: null, bet365: null, bet365live: null, sbobet: null };
   const url = `${HASH_RELAY_URL.replace(/\/$/, '')}/api/livescore`;
   try {
     const resp = await fetch(url);
     if (!resp.ok) {
       console.log(`  relay ${url} → HTTP ${resp.status}`);
-      return { pinnacle: null, bet365: null, sbobet: null };
+      return { pinnacle: null, bet365: null, bet365live: null, sbobet: null };
     }
     const json = await resp.json();
     const isHash = v => typeof v === 'string' && /^[a-f0-9]{40}$/i.test(v);
     const result = {
-      bet365:   isHash(json.book)          ? json.book          : null,
-      pinnacle: isHash(json.pinnacle_book) ? json.pinnacle_book : null,
-      sbobet:   isHash(json.sbobet_book)   ? json.sbobet_book   : null,
+      bet365:     isHash(json.book)            ? json.book            : null,
+      bet365live: isHash(json.bet365live_book) ? json.bet365live_book : null,
+      pinnacle:   isHash(json.pinnacle_book)   ? json.pinnacle_book   : null,
+      sbobet:     isHash(json.sbobet_book)     ? json.sbobet_book     : null,
     };
-    console.log(`  relay → bet365=${result.bet365?.slice(0,8) ?? '—'}… pinnacle=${result.pinnacle?.slice(0,8) ?? '—'}… sbobet=${result.sbobet?.slice(0,8) ?? '—'}…`);
+    console.log(`  relay → bet365=${result.bet365?.slice(0,8) ?? '—'}… bet365live=${result.bet365live?.slice(0,8) ?? '—'}… pinnacle=${result.pinnacle?.slice(0,8) ?? '—'}… sbobet=${result.sbobet?.slice(0,8) ?? '—'}…`);
     return result;
   } catch (e) {
     console.log(`  relay fetch threw: ${e.message}`);
-    return { pinnacle: null, bet365: null, sbobet: null };
+    return { pinnacle: null, bet365: null, bet365live: null, sbobet: null };
   }
 }
 
 // Shared between the plain-fetch path and the headless-browser path below —
 // both end up with the same rendered/raw HTML, just fetched a different way.
 function parseBookHashesFromHtml(html) {
-  const result = { pinnacle: null, bet365: null, sbobet: null };
+  const result = { pinnacle: null, bet365: null, bet365live: null, sbobet: null };
   const optRe = /value="([a-f0-9]{40})"[^>]*>\s*([^<]+)/gi;
   let m;
   while ((m = optRe.exec(html)) !== null) {
@@ -323,6 +334,7 @@ function parseBookHashesFromHtml(html) {
     const label = rawLabel.trim();
     if (!result.pinnacle && BOOK_PATTERNS.pinnacle.test(label)) result.pinnacle = hash;
     else if (!result.bet365 && BOOK_PATTERNS.bet365.test(label)) result.bet365   = hash;
+    else if (!result.bet365live && BOOK_PATTERNS.bet365live.test(label)) result.bet365live = hash;
     else if (!result.sbobet && BOOK_PATTERNS.sbobet.test(label)) result.sbobet   = hash;
   }
 
@@ -342,7 +354,7 @@ async function fetchAllBookHashesDirect() {
       if (resp.ok) break;
       console.log(`  livescore.html → HTTP ${resp.status} (UA "${headers['User-Agent'].slice(0, 20)}…") — trying next header set`);
     }
-    if (!resp.ok) return { pinnacle: null, bet365: null, sbobet: null };
+    if (!resp.ok) return { pinnacle: null, bet365: null, bet365live: null, sbobet: null };
     const html = await resp.text();
     const result = parseBookHashesFromHtml(html);
 
@@ -353,7 +365,7 @@ async function fetchAllBookHashesDirect() {
     // HTTP error status) with no log line at all, making a Railway-specific
     // failure indistinguishable from "site returned no matches" in logs.
     console.log(`  livescore.html fetch threw: ${e.message}`);
-    return { pinnacle: null, bet365: null, sbobet: null };
+    return { pinnacle: null, bet365: null, bet365live: null, sbobet: null };
   }
 }
 
@@ -375,7 +387,7 @@ async function fetchAllBookHashesViaBrowser() {
     ({ chromium } = require('playwright'));
   } catch {
     console.log('  Browser fallback: `playwright` not installed — skipping.');
-    return { pinnacle: null, bet365: null, sbobet: null };
+    return { pinnacle: null, bet365: null, bet365live: null, sbobet: null };
   }
 
   let browser;
@@ -394,11 +406,11 @@ async function fetchAllBookHashesViaBrowser() {
     await page.waitForTimeout(3000);
     const html = await page.content();
     const result = parseBookHashesFromHtml(html);
-    console.log(`  Browser fallback → bet365=${result.bet365?.slice(0,8) ?? '—'}… pinnacle=${result.pinnacle?.slice(0,8) ?? '—'}… sbobet=${result.sbobet?.slice(0,8) ?? '—'}…`);
+    console.log(`  Browser fallback → bet365=${result.bet365?.slice(0,8) ?? '—'}… bet365live=${result.bet365live?.slice(0,8) ?? '—'}… pinnacle=${result.pinnacle?.slice(0,8) ?? '—'}… sbobet=${result.sbobet?.slice(0,8) ?? '—'}…`);
     return result;
   } catch (e) {
     console.log(`  Browser fallback threw: ${e.message}`);
-    return { pinnacle: null, bet365: null, sbobet: null };
+    return { pinnacle: null, bet365: null, bet365live: null, sbobet: null };
   } finally {
     if (browser) await browser.close().catch(() => {});
   }
@@ -414,11 +426,11 @@ async function fetchAllBookHashesViaBrowser() {
  */
 async function fetchAllBookHashes() {
   const direct = await fetchAllBookHashesDirect();
-  if (direct.pinnacle || direct.bet365 || direct.sbobet) return direct;
+  if (direct.pinnacle || direct.bet365 || direct.bet365live || direct.sbobet) return direct;
 
   console.log('  Direct scrape returned nothing — trying headless browser…');
   const viaBrowser = await fetchAllBookHashesViaBrowser();
-  if (viaBrowser.pinnacle || viaBrowser.bet365 || viaBrowser.sbobet) return viaBrowser;
+  if (viaBrowser.pinnacle || viaBrowser.bet365 || viaBrowser.bet365live || viaBrowser.sbobet) return viaBrowser;
 
   if (!HASH_RELAY_URL) {
     console.log('  Browser fallback returned nothing and HASH_RELAY_URL/DATA_URL not set — no fallback available.');
@@ -448,14 +460,15 @@ async function fetchAllBookHashes() {
  */
 async function refreshHashes() {
   console.log('Hashes: refreshing from asianbetsoccer…');
-  const { pinnacle, bet365, sbobet } = await fetchAllBookHashes();
+  const { pinnacle, bet365, bet365live, sbobet } = await fetchAllBookHashes();
 
   let changed = 0;
-  if (pinnacle && pinnacle !== PINNACLE_HASH) { console.log(`  Pinnacle: ${PINNACLE_HASH.slice(0,8)}… → ${pinnacle.slice(0,8)}…`); PINNACLE_HASH = pinnacle; changed++; }
-  if (bet365   && bet365   !== BET365_HASH)   { console.log(`  Bet365:   ${BET365_HASH.slice(0,8)}… → ${bet365.slice(0,8)}…`);   BET365_HASH   = bet365;   changed++; }
-  if (sbobet   && sbobet   !== SBOBET_HASH)   { console.log(`  Sbobet:   ${SBOBET_HASH.slice(0,8)}… → ${sbobet.slice(0,8)}…`);   SBOBET_HASH   = sbobet;   changed++; }
+  if (pinnacle   && pinnacle   !== PINNACLE_HASH)   { console.log(`  Pinnacle:    ${PINNACLE_HASH.slice(0,8)}… → ${pinnacle.slice(0,8)}…`);   PINNACLE_HASH   = pinnacle;   changed++; }
+  if (bet365     && bet365     !== BET365_HASH)     { console.log(`  Bet365:      ${BET365_HASH.slice(0,8)}… → ${bet365.slice(0,8)}…`);       BET365_HASH     = bet365;     changed++; }
+  if (bet365live && bet365live !== BET365_LIVE_HASH) { console.log(`  Bet365 Live: ${BET365_LIVE_HASH.slice(0,8)}… → ${bet365live.slice(0,8)}…`); BET365_LIVE_HASH = bet365live; changed++; }
+  if (sbobet     && sbobet     !== SBOBET_HASH)     { console.log(`  Sbobet:      ${SBOBET_HASH.slice(0,8)}… → ${sbobet.slice(0,8)}…`);       SBOBET_HASH     = sbobet;     changed++; }
   if (changed === 0) console.log('  All hashes still current.');
-  return { pinnacle: PINNACLE_HASH, bet365: BET365_HASH, sbobet: SBOBET_HASH };
+  return { pinnacle: PINNACLE_HASH, bet365: BET365_HASH, bet365live: BET365_LIVE_HASH, sbobet: SBOBET_HASH };
 }
 
 // ── Stale-hash heuristic (added 2026-09-06) ───────────────────────────────
@@ -511,6 +524,11 @@ async function fetchPinnacleHash() {
 async function fetchBet365Hash() {
   const { bet365 } = await fetchAllBookHashes();
   return bet365;
+}
+
+async function fetchBet365LiveHash() {
+  const { bet365live } = await fetchAllBookHashes();
+  return bet365live;
 }
 
 async function fetchSbobetHash() {
@@ -794,7 +812,7 @@ async function fetchOpenlineMatches(maxDay = 9) {
 // HTTP endpoint so the Cloudflare Pages Function can relay through Railway
 // when its own direct discovery is blocked (see functions/api/livescore.js).
 function getCurrentHashes() {
-  return { pinnacle: PINNACLE_HASH, bet365: BET365_HASH, sbobet: SBOBET_HASH };
+  return { pinnacle: PINNACLE_HASH, bet365: BET365_HASH, bet365live: BET365_LIVE_HASH, sbobet: SBOBET_HASH };
 }
 
 // module.exports = { fetchLiveMatches, fetchNextMatches, fetchNextMatchesAllDays, refreshHashes };

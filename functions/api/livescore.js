@@ -159,10 +159,9 @@ async function fetchBet365LiveHash() { return (await fetchAllBookHashes()).bet36
 // Railway, a different network not subject to that block) exposes its own
 // last-discovered hash via GET /hashes — relay through that instead. Set
 // RAILWAY_RELAY_URL to the Railway service's public URL to enable.
-// bet365live has no relay field yet (telegram/notify.js's /hashes endpoint
-// doesn't discover or expose it) — always comes back null from this path;
-// only direct discovery (fetchAllBookHashes) or a BET365_LIVE_HASH env var
-// override can refresh it for now.
+// telegram/notify.js's /hashes endpoint (Railway, not subject to the WAF
+// block Cloudflare's edge hits) also discovers/exposes bet365live_hash — see
+// that file's getCurrentHashes()/startHashRelayServer.
 async function fetchHashesViaRailwayRelay(railwayRelayUrl, diag = null) {
   if (!railwayRelayUrl) return { pinnacle: null, bet365: null, bet365live: null, sbobet: null };
   const url = `${railwayRelayUrl.replace(/\/$/, '')}/hashes`;
@@ -173,10 +172,10 @@ async function fetchHashesViaRailwayRelay(railwayRelayUrl, diag = null) {
     const json = await resp.json();
     const isHash = v => typeof v === 'string' && /^[a-f0-9]{40}$/i.test(v);
     return {
-      pinnacle:   isHash(json.pinnacle_hash) ? json.pinnacle_hash : null,
-      bet365:     isHash(json.bet365_hash)   ? json.bet365_hash   : null,
-      bet365live: null,
-      sbobet:     isHash(json.sbobet_hash)   ? json.sbobet_hash   : null,
+      pinnacle:   isHash(json.pinnacle_hash)   ? json.pinnacle_hash   : null,
+      bet365:     isHash(json.bet365_hash)     ? json.bet365_hash     : null,
+      bet365live: isHash(json.bet365live_hash) ? json.bet365live_hash : null,
+      sbobet:     isHash(json.sbobet_hash)     ? json.sbobet_hash     : null,
     };
   } catch (e) {
     if (diag) diag.railwayRelay = { url, error: e.message };
@@ -438,9 +437,10 @@ export async function onRequest(context) {
         // livescore.js falling back to this endpoint) sees a response with
         // no hash fields at all and can't tell this apart from "nothing
         // known", even when one of the three books is still valid.
-        book:          BET365_HASH,
-        pinnacle_book: PINNACLE_HASH,
-        sbobet_book:   SBOBET_HASH,
+        book:            BET365_HASH,
+        bet365live_book: BET365_LIVE_HASH,
+        pinnacle_book:   PINNACLE_HASH,
+        sbobet_book:     SBOBET_HASH,
       }),
       { headers: cors }
     );
@@ -475,13 +475,14 @@ export async function onRequest(context) {
 
   return new Response(
     JSON.stringify({
-      matches:      liveResult.matches,
-      next_matches: nextMatches,
-      gS:           GS_PRIMARY,
-      book:         BET365_HASH,
-      pinnacle_book: PINNACLE_HASH,
-      sbobet_book:  SBOBET_HASH,
-      method:       liveResult.method,
+      matches:         liveResult.matches,
+      next_matches:    nextMatches,
+      gS:              GS_PRIMARY,
+      book:            BET365_HASH,
+      bet365live_book: BET365_LIVE_HASH,
+      pinnacle_book:   PINNACLE_HASH,
+      sbobet_book:     SBOBET_HASH,
+      method:          liveResult.method,
     }),
     { headers: cors }
   );

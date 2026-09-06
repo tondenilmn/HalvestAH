@@ -2584,9 +2584,9 @@ function startHashRelayServer() {
   }
   const server = http.createServer((req, res) => {
     if (req.url === '/hashes') {
-      const { pinnacle, bet365, sbobet } = getCurrentHashes();
+      const { pinnacle, bet365, bet365live, sbobet } = getCurrentHashes();
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ pinnacle_hash: pinnacle, bet365_hash: bet365, sbobet_hash: sbobet }));
+      res.end(JSON.stringify({ pinnacle_hash: pinnacle, bet365_hash: bet365, bet365live_hash: bet365live, sbobet_hash: sbobet }));
       return;
     }
     res.writeHead(200, { 'Content-Type': 'text/plain' });
