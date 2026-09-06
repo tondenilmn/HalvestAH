@@ -393,13 +393,19 @@ async function fetchAllBookHashesViaBrowser() {
   let browser;
   try {
     // --disable-blink-features=AutomationControlled + the addInitScript below
-    // mask the two most common automation tells (navigator.webdriver and the
-    // Runtime.Enable CDP flag) that bot-management WAFs (Cloudflare/Akamai-
-    // style) specifically fingerprint — stock Playwright without these was
-    // observed (2026-09-06 Railway logs) coming back with all three hashes
-    // null on every attempt, no exception thrown, which is consistent with
-    // silently being served the same JS-challenge page a plain fetch() gets
-    // rather than the real HTML.
+    // mask the common automation tells (navigator.webdriver, empty
+    // navigator.plugins/languages, missing window.chrome, the headless
+    // WebGL renderer string) that bot-management WAFs fingerprint.
+    // Confirmed 2026-09-06 via the diagnostic logging below: asianbetsoccer
+    // was actually redirecting the headless session to a real interstitial —
+    // https://www.asianbetsoccer.com/.well-known/sgcaptcha/?r=...&y=ipc:...
+    // ("Robot Challenge Screen") — not silently returning an empty/blocked
+    // page. A flat 3s wait never gave that challenge a chance to resolve and
+    // redirect back, so the browser fallback always failed. Now: broader
+    // fingerprint masking to reduce the odds of being challenged at all, and
+    // if challenged anyway, poll for navigation away from sgcaptcha for up to
+    // 15s before giving up (a "checking your browser…" interstitial normally
+    // self-redirects once its own JS/PoW check passes, given long enough).
     browser = await chromium.launch({
       headless: true,
       args: ['--no-sandbox', '--disable-blink-features=AutomationControlled'],
@@ -411,14 +417,41 @@ async function fetchAllBookHashesViaBrowser() {
     });
     await page.addInitScript(() => {
       Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+      Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
+      Object.defineProperty(navigator, 'languages', { get: () => ['it-IT', 'it', 'en-US', 'en'] });
+      window.chrome = window.chrome || { runtime: {} };
+      const origQuery = window.navigator.permissions && window.navigator.permissions.query;
+      if (origQuery) {
+        window.navigator.permissions.query = (params) =>
+          params.name === 'notifications'
+            ? Promise.resolve({ state: Notification.permission })
+            : origQuery(params);
+      }
+      const getParameter = WebGLRenderingContext.prototype.getParameter;
+      WebGLRenderingContext.prototype.getParameter = function (parameter) {
+        if (parameter === 37445) return 'Intel Inc.';               // UNMASKED_VENDOR_WEBGL
+        if (parameter === 37446) return 'Intel Iris OpenGL Engine';  // UNMASKED_RENDERER_WEBGL
+        return getParameter.call(this, parameter);
+      };
     });
     await page.goto('https://www.asianbetsoccer.com/it/livescore.html', {
       waitUntil: 'domcontentloaded',
       timeout: 20000,
     });
     // Give any JS challenge/redirect a moment to resolve and the odds table's
-    // script to populate #book_filter before reading the DOM.
-    await page.waitForTimeout(3000);
+    // script to populate #book_filter before reading the DOM. If we landed on
+    // the sgcaptcha interstitial specifically, wait longer for it to
+    // self-redirect (poll every 500ms up to 15s) rather than giving up after
+    // one fixed 3s wait.
+    if (page.url().includes('sgcaptcha')) {
+      console.log('  Browser fallback: hit sgcaptcha interstitial — waiting up to 15s for it to resolve…');
+      for (let waited = 0; waited < 15000 && page.url().includes('sgcaptcha'); waited += 500) {
+        await page.waitForTimeout(500);
+      }
+      if (!page.url().includes('sgcaptcha')) await page.waitForTimeout(2000); // let the real page settle
+    } else {
+      await page.waitForTimeout(3000);
+    }
     const html = await page.content();
     const result = parseBookHashesFromHtml(html);
     console.log(`  Browser fallback → bet365=${result.bet365?.slice(0,8) ?? '—'}… bet365live=${result.bet365live?.slice(0,8) ?? '—'}… pinnacle=${result.pinnacle?.slice(0,8) ?? '—'}… sbobet=${result.sbobet?.slice(0,8) ?? '—'}…`);
