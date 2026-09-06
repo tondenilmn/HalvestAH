@@ -392,10 +392,25 @@ async function fetchAllBookHashesViaBrowser() {
 
   let browser;
   try {
-    browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
+    // --disable-blink-features=AutomationControlled + the addInitScript below
+    // mask the two most common automation tells (navigator.webdriver and the
+    // Runtime.Enable CDP flag) that bot-management WAFs (Cloudflare/Akamai-
+    // style) specifically fingerprint — stock Playwright without these was
+    // observed (2026-09-06 Railway logs) coming back with all three hashes
+    // null on every attempt, no exception thrown, which is consistent with
+    // silently being served the same JS-challenge page a plain fetch() gets
+    // rather than the real HTML.
+    browser = await chromium.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-blink-features=AutomationControlled'],
+    });
     const page = await browser.newPage({
       userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
       locale: 'it-IT',
+      viewport: { width: 1366, height: 768 },
+    });
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
     });
     await page.goto('https://www.asianbetsoccer.com/it/livescore.html', {
       waitUntil: 'domcontentloaded',
@@ -407,6 +422,14 @@ async function fetchAllBookHashesViaBrowser() {
     const html = await page.content();
     const result = parseBookHashesFromHtml(html);
     console.log(`  Browser fallback → bet365=${result.bet365?.slice(0,8) ?? '—'}… bet365live=${result.bet365live?.slice(0,8) ?? '—'}… pinnacle=${result.pinnacle?.slice(0,8) ?? '—'}… sbobet=${result.sbobet?.slice(0,8) ?? '—'}…`);
+    // Diagnostics for when it still comes back empty — was previously
+    // impossible to tell a WAF challenge page from a real page whose
+    // #book_filter markup changed, since both look identical (all-null, no
+    // exception) in the log.
+    if (!result.pinnacle && !result.bet365 && !result.bet365live && !result.sbobet) {
+      const title = await page.title().catch(() => '?');
+      console.log(`  Browser fallback: empty result — page title="${title}", html=${html.length} bytes, url=${page.url()}`);
+    }
     return result;
   } catch (e) {
     console.log(`  Browser fallback threw: ${e.message}`);
@@ -424,7 +447,7 @@ async function fetchAllBookHashesViaBrowser() {
  * function's header comment for why the plain-fetch path alone stopped being
  * enough.
  */
-async function fetchAllBookHashes() {
+async function fetchAllBookHashesUncached() {
   const direct = await fetchAllBookHashesDirect();
   if (direct.pinnacle || direct.bet365 || direct.bet365live || direct.sbobet) return direct;
 
@@ -438,6 +461,22 @@ async function fetchAllBookHashes() {
   }
   console.log('  Direct scrape returned nothing — trying Cloudflare relay…');
   return fetchHashesViaRelay();
+}
+
+// Single-flight guard (added 2026-09-06) — fetchLiveMatches, fetchNextMatches
+// and fetchSbobetMatches each independently call into fetchAllBookHashes()
+// when their own hash 404s, and since they all run concurrently via
+// Promise.all in notify.js's fetchMatches(), a single scan cycle was
+// launching up to 3 separate headless Chromium instances at once (confirmed
+// in Railway logs 2026-09-06 — interleaved "Browser fallback" lines per
+// cycle). That's needless resource contention on a small container and looks
+// more bot-like to a fingerprinting WAF than one clean request. Concurrent
+// callers now share a single in-flight discovery attempt instead.
+let _inFlightHashFetch = null;
+async function fetchAllBookHashes() {
+  if (_inFlightHashFetch) return _inFlightHashFetch;
+  _inFlightHashFetch = fetchAllBookHashesUncached().finally(() => { _inFlightHashFetch = null; });
+  return _inFlightHashFetch;
 }
 
 /**
