@@ -325,7 +325,9 @@ function apiFootballVerdictLine(marketLabel, minOdds, apiFootballCheck) {
 // price to size against or the CI-lower-bound edge doesn't clear this price
 // (can happen even when the price "clears the target," since mo_lo is a
 // break-even floor, not the price Kelly needs to show a positive edge).
-function kellyLine(price, loPct) {
+// fraction: divisor applied to full Kelly (4 = quarter-Kelly, the default
+// used by every strategy except OPENLINE, which asks for 2 = half-Kelly).
+function kellyLine(price, loPct, fraction = 4) {
   if (price == null || loPct == null) return null;
   const b = price - 1;
   if (b <= 0) return null;
@@ -335,7 +337,8 @@ function kellyLine(price, loPct) {
     return `💰 Kelly: no edge at this price on the conservative (CI-lower) ${loPct.toFixed(0)}% estimate — sizing not advised.`;
   }
   const full = f * 100;
-  return `💰 Kelly stake (¼): ${(full / 4).toFixed(1)}% of bankroll — based on CI-lower ${loPct.toFixed(0)}% @ ${price.toFixed(2)}`;
+  const fracLabel = fraction === 2 ? '½' : fraction === 4 ? '¼' : `1/${fraction}`;
+  return `💰 Kelly stake (${fracLabel}): ${(full / fraction).toFixed(1)}% of bankroll — based on CI-lower ${loPct.toFixed(0)}% @ ${price.toFixed(2)}`;
 }
 
 // Standalone probability line, always shown (unlike kellyLine, which only
@@ -691,7 +694,10 @@ async function runStrategyOpenline(match, ctx) {
 
   const marketOdds = bet.k === 'homeWinsFT' ? x2.home_o : x2.away_o;
   if (marketOdds == null) { flogv(liveMin, label, 'OPENLINE', `SKIP: no opening price for ${bet.k}`); return; }
-  if (marketOdds < bet.mo) { flogv(liveMin, label, 'OPENLINE', `SKIP: opening price @${marketOdds.toFixed(2)} below fair min @${bet.mo} for ${bet.k}`); return; }
+  // Gate on the conservative CI-lower min odds (bet.mo_lo), not the
+  // winner's-curse-prone fair odds (bet.mo) — this is also what kellyLine()
+  // sizes against, so the displayed target and the Kelly verdict always agree.
+  if (marketOdds < bet.mo_lo) { flogv(liveMin, label, 'OPENLINE', `SKIP: opening price @${marketOdds.toFixed(2)} below conservative min @${bet.mo_lo} for ${bet.k}`); return; }
 
   const dedupKey = `${matchId}:openline:${bet.k}`;
   if (openlineDedup.has(dedupKey)) { flogv(liveMin, label, 'OPENLINE', 'SKIP: already notified'); return; }
@@ -700,7 +706,7 @@ async function runStrategyOpenline(match, ctx) {
     ? new Date(match.kickoff_time).toLocaleString('it-IT', { timeZone: cfg.DISPLAY_TZ, weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
     : '—';
   const betLabel = bet.k === 'homeWinsFT' ? 'Home wins FT' : 'Away wins FT';
-  const kellyLn = kellyLine(marketOdds, bet.lo);
+  const kellyLn = kellyLine(marketOdds, bet.lo, 2);
   const msg = buildMessage(
     'OPENLINE — opening price value',
     match,
@@ -708,14 +714,14 @@ async function runStrategyOpenline(match, ctx) {
     [
       `🏷 ${esc(betLabel)}`,
       `📊 ${bet.p.toFixed(1)}% historically (n=${bet.n}, baseline ${bet.bl.toFixed(1)}%)`,
-      `🎯 Fair min odds: @${bet.mo}`,
-      `📖 Opening price found: @${marketOdds.toFixed(2)}${marketOdds >= bet.mo ? ' ✅' : ''}`,
+      `🎯 Conservative min odds: @${bet.mo_lo}`,
+      `📖 Opening price found: @${marketOdds.toFixed(2)}${marketOdds >= bet.mo_lo ? ' ✅' : ''}`,
       ...(kellyLn ? [kellyLn] : []),
     ]
   );
   await sendTelegram(msg);
   openlineDedup.mark(dedupKey);
-  flog(liveMin, label, 'OPENLINE', `ALERT: ${bet.k} n=${bet.n} z=${bet.z.toFixed(2)} edge=${(bet.lo - bet.bl).toFixed(1)}pp opening=@${marketOdds.toFixed(2)} mo=@${bet.mo} tier=${tier}`);
+  flog(liveMin, label, 'OPENLINE', `ALERT: ${bet.k} n=${bet.n} z=${bet.z.toFixed(2)} edge=${(bet.lo - bet.bl).toFixed(1)}pp opening=@${marketOdds.toFixed(2)} mo_lo=@${bet.mo_lo} tier=${tier}`);
 
   if (verifiedGoodPrice(marketOdds, bet.mo_lo)) {
     recordAlert({
