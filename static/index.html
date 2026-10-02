@@ -24,7 +24,8 @@
 
   <!-- ── Tabs ──────────────────────────────────────────── -->
   <div class="tabs top-tabs">
-    <button class="tab-btn active" id="tabbtn-dashboard" onclick="switchTab('dashboard')">📅 DASHBOARD</button>
+    <button class="tab-btn active" id="tabbtn-match" onclick="switchTab('match')">🎯 MATCH</button>
+    <button class="tab-btn" id="tabbtn-dashboard" onclick="switchTab('dashboard')">📅 DASHBOARD</button>
     <button class="tab-btn" id="tabbtn-live" onclick="switchTab('live')">🔴 LIVE GAMES</button>
     <button class="tab-btn" id="tabbtn-manual" onclick="switchTab('manual')">✏️ MANUAL</button>
   </div>
@@ -70,8 +71,42 @@
         <div id="recency-note" class="tier-breakdown"></div>
       </div>
 
+      <!-- ── MATCH tab controls ───────────────────────────── -->
+      <div class="tab-pane active" id="tab-match-controls">
+        <div class="card">
+          <div class="card-title">MATCH LINK</div>
+          <div class="url-import-col">
+            <input id="mt-url" type="text" class="url-import-input"
+                   placeholder="Paste asianbetsoccer.com match link…"
+                   onkeydown="if(event.key==='Enter')importMatchTab()"
+                   onpaste="setTimeout(()=>importMatchTab(),0)">
+            <button id="mt-import-btn" class="run-btn url-import-btn" onclick="importMatchTab()">Load</button>
+            <button id="mt-refresh-btn" class="run-btn run-btn-secondary url-refresh-btn" onclick="refreshMatchTab()"
+                    style="display:none" title="Re-fetch the latest prices">↻ Refresh</button>
+          </div>
+          <div id="mt-status" class="url-import-status"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">VALUE SETTINGS</div>
+          <label class="mt-field"><span>Bet at</span>
+            <select id="mt-bet" class="disc-select" onchange="setMatchPref('betBook', this.value); renderMatchControls()"><option value="bet365">Bet365</option></select></label>
+          <label class="mt-field"><span>Fair price from</span>
+            <select id="mt-ref" class="disc-select" onchange="setMatchPref('refPref', this.value)"><option value="auto">Auto (Sbobet → Crown → avg)</option></select></label>
+          <label class="mt-field"><span>Min edge</span>
+            <select id="mt-thr" class="disc-select" onchange="setMatchPref('threshold', this.value)">
+              <option value="2">2% (more bets)</option><option value="3">3% (backtested, early)</option><option value="5">5% (near kick-off)</option><option value="7">7%</option>
+            </select></label>
+          <label class="mt-field"><span>Stake sizing</span>
+            <select id="mt-kelly" class="disc-select" onchange="setMatchPref('kellyFrac', this.value)">
+              <option value="0.125">⅛ Kelly</option><option value="0.25">¼ Kelly</option><option value="0.5">½ Kelly</option>
+            </select></label>
+          <label class="mt-field"><span>Bankroll €</span>
+            <input id="mt-bank" type="number" min="0" step="10" class="mt-input" placeholder="optional" onchange="setMatchPref('bankroll', this.value)"></label>
+        </div>
+      </div><!-- /tab-match-controls -->
+
       <!-- ── DASHBOARD tab controls ──────────────────────── -->
-      <div class="tab-pane active" id="tab-dashboard-controls">
+      <div class="tab-pane" id="tab-dashboard-controls">
         <div class="run-btn-group">
           <button class="run-btn" onclick="runDailyDashboard()">📅 DAILY DASHBOARD</button>
         </div>
@@ -372,7 +407,16 @@
 
     <!-- ── RIGHT PANEL ──────────────────────────────────── -->
     <div class="right-panel">
-      <div class="tab-pane active" id="right-dashboard">
+      <div class="tab-pane active" id="right-match">
+        <div class="placeholder">
+          <div class="icon">🎯</div>
+          <p><strong style="color:var(--bright)">Paste an asianbetsoccer match link</strong><br>
+          to get match info, every book's prices and movement,<br>
+          <span style="color:var(--green)">Bet365 vs Sbobet value</span>, fair prices for every market,<br>
+          and the historical similar-matches analysis.</p>
+        </div>
+      </div>
+      <div class="tab-pane" id="right-dashboard">
         <div class="placeholder">
           <div class="icon">📅</div>
           <p><strong style="color:var(--bright)">Click</strong><br>
@@ -404,6 +448,8 @@
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5/papaparse.min.js"></script>
 <script src="./live_model.js"></script>
 <script src="./live_lambda_solver.js"></script>
+<script src="./fair_model.js"></script>
 <script src="./app.js"></script>
+<script src="./match.js"></script>
 </body>
 </html>

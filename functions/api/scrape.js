@@ -206,5 +206,95 @@ function parseMatchData(jsText) {
     result.bet365 = parseBookmakerGroup(groups[bet365Idx]);
   }
 
+  // Step 5 (MATCH tab): every listed bookmaker's AH/TL/O-U + 1X2, keyed by
+  // a normalised name (bet365, sbobet, crown, 188bet, 12bet, 18bet, avg…),
+  // plus the match header (league, teams, minute/kickoff, score, cards,
+  // corners). Additive — the fields above are unchanged for the Manual tab.
+  const x12 = parse1x2ByBook(tm1Html);
+  result.books = {};
+  bookmakers.forEach((name, i) => {
+    const key = bookKey(name);
+    const odds = i < groups.length ? parseBookmakerGroup(groups[i]) : null;
+    result.books[key] = Object.assign({ name }, odds || {}, { x12: x12[i] || null });
+  });
+  result.match = parseMatchHeader(tm1Html);
+
   return result;
+}
+
+function bookKey(name) {
+  const n = name.toLowerCase();
+  if (n.startsWith('avg')) return 'avg';
+  return n.replace(/[^a-z0-9]/g, '');
+}
+
+/* ── 1X2 per bookmaker, from tablematch1 ─────────────────────────────── */
+// Each book is two consecutive <tr class='bnfs'> rows: the first carries the
+// book name + current 1/X/2 (cell classes f-red/f-blue mark movement), the
+// second the opening 1/X/2 — same current-then-opening order as tablematch2.
+function parse1x2ByBook(tm1Html) {
+  const rows = [...tm1Html.matchAll(/<tr class='bnfs'>(.*?)<\/tr>/g)].map(m => m[1]);
+  const out = [];
+  for (let i = 0; i + 1 < rows.length; i += 2) {
+    if (!/class='bnfsd'/.test(rows[i])) { i--; continue; } // resync if a row is missing
+    const cur = [...rows[i].matchAll(/<td class='(?:f-red|f-blue|)'>([^<]*)<\/td>/g)].map(m => pf(m[1]));
+    const open = parseTds(rows[i + 1]).map(pf);
+    out.push({
+      h_c: cur[0] ?? null, d_c: cur[1] ?? null, a_c: cur[2] ?? null,
+      h_o: open[0] ?? null, d_o: open[1] ?? null, a_o: open[2] ?? null,
+    });
+  }
+  return out;
+}
+
+/* ── Match header, from tablematch1 ──────────────────────────────────── */
+// <tr><td colspan='9'>League</td></tr>
+// <tr class='live'><td>H</td><td class='name'><span class='yellowcard'>1</span>Home</td>
+//     <td id='timeval' value=23'></td><td>0</td><td class='info'>ht</td><td>0 - 1</td></tr>
+// <tr class='live'><td>A</td><td class='name'>Away</td><td>1</td><td class='info'>ck</td><td class='corner'>0 - 3</td></tr>
+// Pre-match pages may use a different row class and no score — every field
+// is optional and parsed independently.
+function parseMatchHeader(tm1Html) {
+  const out = { league: null, home: null, away: null, status: null, minute: null, kickoff: null,
+                score: null, htScore: null, corners: null, cards: { home: {}, away: {} } };
+  const lg = tm1Html.match(/<tr><td colspan='9'>([^<]+)<\/td><\/tr>/);
+  if (lg) out.league = lg[1].trim();
+
+  const rowOf = side => (tm1Html.match(new RegExp(`<tr[^>]*><td>${side}<\\/td>(.*?)<\\/tr>`)) || [])[1] || '';
+  const hRow = rowOf('H'), aRow = rowOf('A');
+  const nameOf = row => {
+    const m = row.match(/<td class='name'[^>]*>(.*?)<\/td>/);
+    return m ? m[1].replace(/<span[^>]*>[^<]*<\/span>/g, '').replace(/<[^>]+>/g, '').trim() : null;
+  };
+  const cardsOf = row => {
+    const c = {};
+    for (const m of row.matchAll(/<span class='(yellowcard|redcard)'>(\d+)<\/span>/g)) c[m[1] === 'redcard' ? 'red' : 'yellow'] = +m[2];
+    return c;
+  };
+  out.home = nameOf(hRow); out.away = nameOf(aRow);
+  out.cards = { home: cardsOf(hRow), away: cardsOf(aRow) };
+
+  const tv = tm1Html.match(/id='timeval'\s+value=([^>]*?)>/);
+  if (tv) {
+    const v = tv[1].replace(/\\?'$/, '').replace(/^['"]|['"]$/g, '').trim();
+    if (/^HT$/i.test(v)) { out.status = 'HT'; out.minute = 45; }
+    else if (/^FT$/i.test(v)) { out.status = 'FT'; out.minute = 90; }
+    else if (/^\d+(\+\d+)?'?$/.test(v)) { out.status = 'LIVE'; out.minute = parseInt(v, 10); }
+    else if (v) { out.status = 'PRE'; out.kickoff = v; }
+  }
+
+  // Goals: the first plain <td colspan='2'>N</td> after the time cell / name.
+  const goalOf = row => { const m = row.match(/<td colspan='2'>(\d+)<\/td>/); return m ? +m[1] : null; };
+  const hg = goalOf(hRow), ag = goalOf(aRow);
+  const ht = hRow.match(/<td class='info'>ht<\/td><td[^>]*>(\d+)\s*-\s*(\d+)<\/td>/);
+  if (ht) out.htScore = { home: +ht[1], away: +ht[2] };
+  // A finished match goes back to showing the kick-off time in timeval, and
+  // its H/A rows lose class='live' — but it keeps the HT and final score.
+  const isLiveRow = /<tr class='live'><td>H<\/td>/.test(tm1Html);
+  if (out.status === 'PRE' && out.htScore && !isLiveRow) out.status = 'FT';
+  if (out.status && out.status !== 'PRE' && hg != null && ag != null) out.score = { home: hg, away: ag };
+  const ck = aRow.match(/<td class='corner'>(\d+)\s*-\s*(\d+)<\/td>/);
+  if (ck) out.corners = { home: +ck[1], away: +ck[2] };
+  if (!out.status) out.status = out.score ? 'LIVE' : 'PRE';
+  return out;
 }

@@ -4498,8 +4498,8 @@ function renderMatchResults({ cfg_n, allBets, allBetsQual, bets, gsAllBets, gsAl
 /* ════════════════════════════════════════════════════════════
    TABS
    ════════════════════════════════════════════════════════════ */
-const TABS = ['dashboard', 'live', 'manual'];
-let _activeTab = 'dashboard';
+const TABS = ['match', 'dashboard', 'live', 'manual'];
+let _activeTab = 'match';
 
 function switchTab(name) {
   if (!TABS.includes(name)) return;

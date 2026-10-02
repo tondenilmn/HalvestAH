@@ -39,6 +39,8 @@ functions/
 static/
   index.html              # App shell
   app.js                  # All logic: CSV processing, engine, UI (~2500 lines)
+  fair_model.js           # Scoreline model: reference book's AH+TL prices → λ home/away → fair odds for every market (browser + Node)
+  match.js                # 🎯 MATCH tab: paste an asianbetsoccer link → overview, Bet365-vs-Sbobet value, fair prices, historical
   style.css               # Dark theme
   data/
     manifest.json         # Auto-generated — do not edit by hand
@@ -244,9 +246,25 @@ Score is only extracted for live matches (those with a minute field); upcoming m
 
 **Debug endpoint:** `GET /api/livescore?debug=1` — returns `match_count`, `matches_preview` (all matches), `getData1_parsed` (every getDatalive1 call as a clean arg array) for diagnosing format changes.
 
+## Match Tab (`static/match.js` + `static/fair_model.js`, added 2026-10-02)
+
+The default tab. Paste an asianbetsoccer match link → `/api/scrape` → one page with four views:
+- **Overview** — header (league, teams, cards, kick-off countdown / live minute / FT, score, HT, corners, expected goals), Bet365 opening→current movement cards (1X2, AH line+price, TL, Over price), a plain-language movement read with the measured residual effects (see below), and an all-books price table (best price on Bet365's line highlighted).
+- **Value** — Bet365 current price vs the reference book's de-vigged fair price: edge %, advised min odds (`fair × (1 + threshold)`), fractional-Kelly stake. Reference = Sbobet when listed (Auto falls back to Crown → market avg, labelled **not backtested**). Same-line AH/O-U rows use the reference book's own de-vigged price ("direct" — the backtested comparison); different-line rows and **all 1X2 rows** use `fair_model.js` fitted to the reference book's AH+TL (tagged `model`). Also shows the opening-vs-opening gap as context.
+- **Fair prices** — `FairModel.markets()` for every market (1X2, DC, DNB, BTTS, totals ladder, AH ladder, team totals, specials, correct score, 1H/2H), with Bet365's price + edge where it quotes that exact market. Once the match is live, an **In-play from now** section (another goal, next goal, final result/totals from the current score, uniform remaining-goal share — a coarse model, not `computeLiveOdd`).
+- **Historical** — `openMatchInManual()` pre-fills the Manual tab via `fillFromScraped` and runs `analyzeMatch()` (the existing similar-matches engine).
+
+**Evidence behind the Value view (CrossBooks backtest, 14 months, AH+O/U, same line):** Bet365 OPENING ≥3% above Sbobet OPENING de-vigged fair → n=8,671, ROI +4.8%, 13/14 months positive (≥5%: +6.4%, 12/14). The same picks at Bet365's CLOSING price → −3.6% (the edge is the price, not the side; Bet365 moves toward Sbobet's opening ~77-81% of the time when they disagree). Bet365 current vs Sbobet's OLD opening → −4.5% (always compare same-moment prices). Closing vs closing: ≥3% → +2.4% (8/14), ≥5% → +6.2% (10/14), AH-only ≥5% → +9.3% (12/14). Sbobet-vs-Pinnacle gaps don't pay (Sbobet is itself sharp). **1X2 is not validated:** Bet365 1X2 vs model fair from Sbobet AH+TL gave closing ≥3% → +1.3% (8/14); the opening result (+13.6% on 26k bets, ~1 in 10 flagged) is implausibly good — most likely the Bet365 1X2 and Sbobet AH openings were captured at different times. Unverifiable until both books are recorded at the same timestamps.
+
+**`fair_model.js`:** fits total goals μ and supremacy s by alternating bisection so the model reproduces the reference book's de-vigged AH-home and Over prices (quarter lines settled exactly via `outcomeDist`/`fairOddsFromDist`); Dixon-Coles `rho = −0.06`; 1H uses λ × 0.445 (dataset 1H goal share 44.6%). Calibrated on 21k Bet365 rows: model vs actual home/draw/away 43.8/23.7/32.4% vs 44.2/23.4/32.4%, BTTS 52.8 vs 52.7%, Over 1.5 77.5 vs 76.4%, Over 3.5 33.6 vs 33.6%; model draw within 0.3pp of Bet365's own de-vigged 1X2.
+
+**Movement read effects** (Bet365 dataset, ~250k matches, residual goals vs matches with the same closing line/price): TL dropped ≥0.5 → +0.043 FT goals and +0.046 2H goals (z≈3); Over shortened on an unchanged line → +0.045 goals, lengthened → −0.037; favourite's line grew → favourite's 2H margin −0.02 to −0.03; TL rose 0.25 → −0.019 1H goals. All ≈1pp — context, never a bet on their own.
+
+**Scrape extension:** `functions/api/scrape.js` now also returns `books` (every listed book keyed `bet365`/`sbobet`/`crown`/`188bet`/`12bet`/`18bet`/`avg`, each with AH/TL/O-U current+opening and `x12` 1X2 current+opening from tablematch1's two `bnfs` rows) and `match` (`parseMatchHeader`). Existing top-level fields are unchanged for the Manual tab. Sbobet is listed on roughly 40% of match pages sampled (2026-10-02) — Bet365 and Crown on nearly all. **For matches in play, the match page carries the PRE-MATCH opening/closing prices, not live odds** (a 0-3 match at 81' still showed its kick-off AH line) — the UI says so. A finished match's `timeval` reverts to the kick-off ISO time and its rows lose `class='live'`; `parseMatchHeader` treats ISO time + HT score + no live row as `FT`.
+
 ## Web UI Tabs (`static/index.html` + `static/app.js`)
 
-The UI is three tabs — Dashboard, Live Games, Manual — switched via `switchTab(name)`, which toggles `.active` on the matching tab button, left-panel control pane (`#tab-{name}-controls`), and right-panel content pane (`#right-{name}`). The DB loader card (`#db-card`) sits above the tab-specific controls and is shared by all three tabs. `_activeTab` tracks the current tab; entering `'live'` starts polling (`startLivePolling()`), leaving it stops it (`stopLivePolling()`).
+The UI is four tabs — Match (default, see above), Dashboard, Live Games, Manual — switched via `switchTab(name)`, which toggles `.active` on the matching tab button, left-panel control pane (`#tab-{name}-controls`), and right-panel content pane (`#right-{name}`). The DB loader card (`#db-card`) sits above the tab-specific controls and is shared by all three tabs. `_activeTab` tracks the current tab; entering `'live'` starts polling (`startLivePolling()`), leaving it stops it (`stopLivePolling()`).
 
 - **Dashboard** (`runDailyDashboard()` → `renderDailyDashboard()`, unchanged from before the tab split) — pre-match fixture scan on opening odds, see below.
 - **Manual** (`analyzeMatch()` → `renderMatchResults()`, unchanged) — manual odds entry / URL import, full pre-match + in-play analysis.
