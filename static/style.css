@@ -1628,14 +1628,14 @@ select.gs-select {
 .mt-two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
 
 .mt-move { background: var(--bg1); border: 1px solid var(--border); border-left: 3px solid var(--border); border-radius: var(--radius-md); padding: 10px 12px; min-width: 0; }
-.mt-move.down { border-left-color: var(--green); }
-.mt-move.up { border-left-color: var(--red); }
+.mt-move.down { border-left-color: var(--red); }
+.mt-move.up { border-left-color: var(--blue); }
 .mt-move-val { font-size: 17px; color: var(--dim); display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; }
 .mt-move-val b { color: var(--bright); }
 .mt-arrow { font-size: 11px; }
 .mt-delta { font-size: 11px; font-weight: 700; padding: 1px 6px; border-radius: 4px; margin-left: auto; background: var(--bg3); color: var(--dim); }
-.mt-delta.down { background: rgba(0,229,170,0.14); color: var(--green); }
-.mt-delta.up { background: rgba(255,77,94,0.14); color: var(--red); }
+.mt-delta.down { background: rgba(255,77,94,0.14); color: var(--red); }
+.mt-delta.up { background: rgba(26,159,255,0.14); color: var(--blue); }
 .mt-read { background: var(--bg1); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 10px 12px; font-size: 13px; margin: 4px 0 6px; }
 .mt-notes { margin: 6px 0 0 18px; font-size: 12px; color: var(--bright); line-height: 1.55; }
 .mt-notes li { margin-bottom: 3px; }
@@ -1651,8 +1651,8 @@ select.gs-select {
 .mt-best { color: var(--green); font-weight: 700; }
 .mt-bookname { font-weight: 600; color: var(--bright); }
 .mt-mini { display: block; font-size: 9px; color: var(--dim); }
-.mt-mini.down { color: var(--green); }
-.mt-mini.up { color: var(--red); }
+.mt-mini.down { color: var(--red); }
+.mt-mini.up { color: var(--blue); }
 .mt-tag { display: inline-block; font-size: 9px; font-weight: 700; letter-spacing: 0.05em; padding: 1px 5px; border-radius: 3px; margin-left: 4px; vertical-align: middle; }
 .mt-tag.bet { background: var(--blue); color: #fff; }
 .mt-tag.ref { background: var(--green); color: #04140f; }
@@ -1698,6 +1698,7 @@ select.gs-select {
 }
 
 /* ── SCANNER tab (static/scan.js) ─────────────────────────── */
+/* Odds movement colours (here and MATCH tab): shortening = red, lengthening = blue. */
 .sc-row { cursor: pointer; }
 .sc-row:hover td { background: var(--bg3); }
 .sc-match { font-weight: 600; color: var(--bright); white-space: normal; min-width: 160px; }

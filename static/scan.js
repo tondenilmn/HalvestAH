@@ -102,7 +102,7 @@ function buildScanRows(matches) {
       if (!(price > 1) || !(fair > 1)) return;
       const edge = price / fair - 1;
       rows.push({
-        m, ko, tier, market, side, label, line, price, fair, edge, p: 1 / fair,
+        m, ko, tier, market, side, label, line, price, fair, edge, p: 1 / fair, openPrice,
         unmoved: marketUnmoved(b, s, market),
         openEdge: openPrice > 1 && openFair > 1 ? openPrice / openFair - 1 : null,
       });
@@ -166,7 +166,7 @@ function renderScanRow(r, i, hit) {
     <td><div class="sc-match">${mtEsc(r.m.home_team)} <span class="mt-dim">v</span> ${mtEsc(r.m.away_team)}</div>
         <div class="mt-mini">${mtEsc(r.m.league)} <span class="sc-tier ${r.tier.toLowerCase()}">${r.tier}</span></div></td>
     <td class="mt-strong">${r.market === 'OU' ? 'O/U' : 'AH'} · ${mtEsc(r.label)}${suspect ? ' <span class="mt-tag model" title="Edge this large is usually a stale or mistyped price on one book — check both books before betting.">verify</span>' : ''}</td>
-    <td class="num mt-strong">${fOdd(r.price)}</td>
+    <td class="num mt-strong">${fOdd(r.price)}${r.openPrice > 1 && Math.abs(r.price - r.openPrice) > 0.001 ? `<span class="mt-mini ${r.price < r.openPrice ? 'down' : 'up'}" title="Bet365 opening price">${r.price < r.openPrice ? '▼' : '▲'}${fOdd(r.openPrice)}</span>` : ''}</td>
     <td class="num">${fOdd(r.fair)}</td>
     <td class="num mt-edge">${fSigned(r.edge * 100)}%</td>
     <td class="num">${fOdd(r.fair * (1 + _sc.threshold / 100))}</td>
