@@ -283,10 +283,132 @@
     return Math.max(0, f * fraction);
   }
 
+  /* ── in-play: goal timing + score state ─────────────────────────────── */
+  // Same empirical curves app.js's computeLiveOdd uses (keep in sync):
+  // goals_time2, 12 leagues × 3 seasons, 27,321 goals. Within-half intensity
+  // by 15-minute band (mean 1.0), plus stoppage-time mass calibrated so its
+  // share of each half's goals matches the real share scored in added time
+  // (1H 5.81% → 2.40 "minutes" of end-of-half intensity, 2H 12.32% → 5.07),
+  // consumed over the average real stoppage length (2.65' / 3.72').
+  const GOAL_TIMING = {
+    1: { curve: [[0, 15, 0.907], [15, 30, 0.937], [30, 45, 1.156]], it: 2.40, stop: 2.65 },
+    2: { curve: [[0, 15, 0.879], [15, 30, 0.874], [30, 45, 1.247]], it: 5.07, stop: 3.72 },
+  };
+  // Score-state effect on the rest of the 2nd half, keyed by the current
+  // favourite-minus-underdog margin (same tables as app.js):
+  //   FAV/DOG — this app's dataset, HT margin → 2H scoring by side;
+  //   TOTAL   — goals_time2, current margin → rest-of-2H total (the leader's
+  //             rise and the trailer's fall nearly cancel: +2.3% / +3.5%).
+  // A single score grid needs ONE pair of multipliers, so FAV/DOG set the
+  // split between the sides and TOTAL sets the overall level. No modifier
+  // in the 1st half — never measured within a half (computeLive1HOdd agrees).
+  const FAV_SCORE_MOD = { '-2': 1.08, '-1': 1.08, '0': 1.00, '1': 1.09, '2': 1.45 };
+  const DOG_SCORE_MOD = { '-2': 1.32, '-1': 1.09, '0': 1.00, '1': 1.06, '2': 1.04 };
+  const TOTAL_SCORE_MOD = { '-2': 1.035, '-1': 1.023, '0': 1.00, '1': 1.023, '2': 1.035 };
+  const marginBucket = d => d <= -2 ? '-2' : d >= 2 ? '2' : String(d);
+
+  function curveIntegral(curve, from, to) {
+    let s = 0;
+    for (const [a, b, m] of curve) s += Math.max(0, Math.min(b, to) - Math.max(a, from)) * m;
+    return s;
+  }
+  // Share of one half's goal mass still to come after `elapsed` minutes of
+  // that half (0-45) and `extra` minutes into its stoppage time.
+  function halfRemaining(half, elapsed, extra = 0) {
+    const { curve, it, stop } = GOAL_TIMING[half];
+    const end = curve[curve.length - 1][2];
+    const total = curveIntegral(curve, 0, 45) + end * it;
+    const e = Math.max(0, Math.min(45, elapsed));
+    const rem = curveIntegral(curve, e, 45) + end * it * Math.max(0, 1 - extra / stop);
+    return rem / total;
+  }
+  // Remaining share of each half for a match state:
+  //   { status: 'PRE'|'LIVE'|'HT'|'FT', minute: match minute, stoppage: bool }
+  // An unknown amount of added time ("45'+") is taken as half the average.
+  function remainingByHalf({ status, minute, stoppage } = {}) {
+    if (status === 'FT') return { r1: 0, r2: 0, half: null };
+    if (status === 'HT') return { r1: 0, r2: 1, half: 'HT' };
+    if (status !== 'LIVE' || !Number.isFinite(minute)) return { r1: 1, r2: 1, half: null };
+    if (minute <= 45) {
+      const extra = stoppage ? GOAL_TIMING[1].stop / 2 : 0;
+      return { r1: halfRemaining(1, minute, extra), r2: 1, half: 1 };
+    }
+    const extra = stoppage && minute >= 90 ? GOAL_TIMING[2].stop / 2 : 0;
+    return { r1: 0, r2: halfRemaining(2, minute - 45, extra), half: 2 };
+  }
+
+  // Expected goals still to come for each side, from pre-match λ (fitted to
+  // the reference book) + match state + current score.
+  function liveLambdas(lh, la, state, { firstHalfShare = FIRST_HALF_SHARE } = {}) {
+    const { r1, r2, half } = remainingByHalf(state);
+    const s1 = firstHalfShare, s2 = 1 - firstHalfShare;
+    const h1 = { h: lh * s1 * r1, a: la * s1 * r1 };
+    const h2 = { h: lh * s2 * r2, a: la * s2 * r2 };
+    let mod = null;
+    const sc = state.score;
+    if ((half === 2 || half === 'HT') && sc && (h2.h + h2.a) > 0) {
+      const favHome = lh >= la;
+      const bucket = marginBucket(favHome ? sc.home - sc.away : sc.away - sc.home);
+      const mf = FAV_SCORE_MOD[bucket], md = DOG_SCORE_MOD[bucket];
+      const mh = favHome ? mf : md, ma = favHome ? md : mf;
+      const k = TOTAL_SCORE_MOD[bucket] * (h2.h + h2.a) / (h2.h * mh + h2.a * ma);
+      h2.h *= mh * k; h2.a *= ma * k;
+      mod = { bucket, favHome, home: mh * k, away: ma * k, total: TOTAL_SCORE_MOD[bucket] };
+    }
+    return { lh: h1.h + h2.h, la: h1.a + h2.a, h1, h2, r1, r2, half, mod };
+  }
+
+  // In-play market sheet. Final-score markets add the current score to the
+  // remaining-goals grid. Conventions match how Asian books (and Bet365's
+  // "Asian" in-play lines on asianbetsoccer) quote in play — checked
+  // 2026-10-03 on the live feed: the goal line is on the FULL-MATCH total
+  // (a 1-0 match at 18' is quoted ~3.0), the Asian handicap on goals FROM
+  // NOW (a side 1-0 up at 33' at 1.12 to win was only −0.75).
+  function liveMarkets(lh, la, state) {
+    const L = liveLambdas(lh, la, state);
+    const P = scoreGrid(L.lh, L.la, 0);
+    const h0 = state.score?.home ?? 0, a0 = state.score?.away ?? 0, g0 = h0 + a0;
+    const S = f => sumGrid(P, f);
+    const out = { live: L, grid: P, score: { home: h0, away: a0 } };
+    const pH = S((h, a) => h0 + h > a0 + a), pD = S((h, a) => h0 + h === a0 + a), pA = 1 - pH - pD;
+    out.result = [mk('Home', pH, { key: '1' }), mk('Draw', pD, { key: 'X' }), mk('Away', pA, { key: '2' })];
+    out.doubleChance = [mk('Home or Draw (1X)', pH + pD), mk('Home or Away (12)', pH + pA), mk('Draw or Away (X2)', pD + pA)];
+    const none = P[0][0];
+    const shareH = (L.lh + L.la) > 0 ? L.lh / (L.lh + L.la) : 0.5;
+    out.nextGoal = [mk('Next goal: Home', (1 - none) * shareH), mk('No more goals', none), mk('Next goal: Away', (1 - none) * (1 - shareH))];
+    const lines = [...new Set([...TOTAL_LINES, g0 + 0.5, g0 + 1.5, g0 + 2.5])].filter(t => t > g0).sort((x, y) => x - y).slice(0, 8);
+    out.totals = lines.map(line => ({
+      line,
+      over: mkDist(`Over ${line}`, outcomeDist(P, (h, a) => g0 + h + a, -line)),
+      under: mkDist(`Under ${line}`, outcomeDist(P, (h, a) => -(g0 + h + a), line)),
+    }));
+    out.ah = AH_LINES.map(line => ({ // remaining-goals basis
+      line,
+      home: mkDist(`Home ${fmtLine(line)}`, ahDist(P, line, 'home')),
+      away: mkDist(`Away ${fmtLine(-line)}`, ahDist(P, line, 'away')),
+    }));
+    const btts = (h0 > 0 && a0 > 0) ? 1 : S((h, a) => h0 + h > 0 && a0 + a > 0);
+    out.btts = [mk('BTTS Yes', btts), mk('BTTS No', 1 - btts)];
+    out.specials = [mk('Home scores again', 1 - S(h => h === 0)), mk('Away scores again', 1 - S((h, a) => a === 0))];
+    // Rest of the current half.
+    if (L.half === 1) {
+      const P1 = scoreGrid(L.h1.h, L.h1.a, 0);
+      out.restOfHalf = { label: '1st half', goal: 1 - P1[0][0],
+        totals: [g0 + 0.5, g0 + 1.5].map(line => mkDist(`1H Over ${line}`, outcomeDist(P1, (h, a) => g0 + h + a, -line))) };
+    } else if (L.half === 2 || L.half === 'HT') {
+      const P2 = scoreGrid(L.h2.h, L.h2.a, 0);
+      const ht = state.htScore, g2 = L.half === 'HT' ? 0 : ht ? g0 - ht.home - ht.away : null;
+      out.restOfHalf = { label: '2nd half', goal: 1 - P2[0][0],
+        totals: g2 == null ? [] : [0.5, 1.5, 2.5].filter(t => t > g2).map(line => mkDist(`2H Over ${line}`, outcomeDist(P2, (h, a) => g2 + h + a, -line))) };
+    }
+    return out;
+  }
+
   const api = {
-    DEFAULT_RHO, FIRST_HALF_SHARE, AH_LINES, TOTAL_LINES,
+    DEFAULT_RHO, FIRST_HALF_SHARE, AH_LINES, TOTAL_LINES, GOAL_TIMING,
     devig, scoreGrid, splitLine, outcomeDist, fairOddsFromDist, probFromOdds,
     ahDist, ouDist, teamTotalDist, solve, solveFrom1x2, markets, priceAH, priceOU,
+    halfRemaining, remainingByHalf, liveLambdas, liveMarkets,
     kelly, fmtLine,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

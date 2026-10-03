@@ -1696,3 +1696,17 @@ select.gs-select {
   .mt-grid3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .mt-view-btn { flex: 1 1 45%; padding: 8px 6px; }
 }
+
+/* ── SCANNER tab (static/scan.js) ─────────────────────────── */
+.sc-row { cursor: pointer; }
+.sc-row:hover td { background: var(--bg3); }
+.sc-match { font-weight: 600; color: var(--bright); white-space: normal; min-width: 160px; }
+.sc-table td { vertical-align: top; }
+.sc-tier { font-size: 9px; font-weight: 700; letter-spacing: 0.05em; padding: 0 4px; border-radius: 3px; background: var(--bg3); color: var(--dim); }
+.sc-tier.top { color: var(--green); }
+.sc-tier.major { color: var(--blue); }
+.sc-bucket { display: inline-block; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 3px; white-space: nowrap; cursor: help; }
+.sc-bucket.open { background: rgba(0,229,170,0.16); color: var(--green); border: 1px solid rgba(0,229,170,0.45); }
+.sc-bucket.moved { background: rgba(26,159,255,0.14); color: var(--blue); border: 1px solid rgba(26,159,255,0.45); }
+.sc-bucket.moved-thin { background: var(--bg3); color: var(--dim); border: 1px solid var(--border); }
+.mt-banner.live { background: rgba(255,77,94,0.08); border: 1px solid rgba(255,77,94,0.45); color: var(--bright); }

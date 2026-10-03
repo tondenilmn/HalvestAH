@@ -25,6 +25,7 @@
   <!-- ── Tabs ──────────────────────────────────────────── -->
   <div class="tabs top-tabs">
     <button class="tab-btn active" id="tabbtn-match" onclick="switchTab('match')">🎯 MATCH</button>
+    <button class="tab-btn" id="tabbtn-scan" onclick="switchTab('scan')">🔎 SCANNER</button>
     <button class="tab-btn" id="tabbtn-dashboard" onclick="switchTab('dashboard')">📅 DASHBOARD</button>
     <button class="tab-btn" id="tabbtn-live" onclick="switchTab('live')">🔴 LIVE GAMES</button>
     <button class="tab-btn" id="tabbtn-manual" onclick="switchTab('manual')">✏️ MANUAL</button>
@@ -104,6 +105,44 @@
             <input id="mt-bank" type="number" min="0" step="10" class="mt-input" placeholder="optional" onchange="setMatchPref('bankroll', this.value)"></label>
         </div>
       </div><!-- /tab-match-controls -->
+
+      <!-- ── SCANNER tab controls ─────────────────────────── -->
+      <div class="tab-pane" id="tab-scan-controls">
+        <div class="card">
+          <div class="card-title">UPCOMING FIXTURES</div>
+          <button id="sc-run-btn" class="run-btn" onclick="runScan()">🔎 Scan the next 7 days</button>
+          <div id="sc-status" class="url-import-status"></div>
+          <div class="mt-sub">Bet365 vs Sbobet, current prices, same AH / goals line. Rescan before betting — Bet365 usually corrects toward Sbobet.</div>
+        </div>
+        <div class="card">
+          <div class="card-title">FILTERS</div>
+          <label class="mt-field"><span>Min edge</span>
+            <select id="sc-thr" class="disc-select" onchange="setScanPref('threshold', this.value)">
+              <option value="2">2% (more bets)</option><option value="3">3% (backtested)</option><option value="5">5% (stronger)</option><option value="7">7%</option>
+            </select></label>
+          <label class="mt-field"><span>Kick-off within</span>
+            <select id="sc-hours" class="disc-select" onchange="setScanPref('hours', this.value)">
+              <option value="24">24 hours</option><option value="48">48 hours</option><option value="72">3 days</option><option value="168">7 days</option>
+            </select></label>
+          <label class="mt-field"><span>Market</span>
+            <select id="sc-market" class="disc-select" onchange="setScanPref('market', this.value)">
+              <option value="ALL">AH + O/U</option><option value="AH">Asian handicap</option><option value="OU">Over / Under</option>
+            </select></label>
+          <label class="mt-field"><span>League tier</span>
+            <select id="sc-tier" class="disc-select" onchange="setScanPref('tier', this.value)">
+              <option value="ALL">All</option><option value="TOP">Top 5 + UEFA</option><option value="MAJOR">Major</option><option value="OTHER">Other</option>
+            </select></label>
+          <label class="mt-field"><span>Prices</span>
+            <select id="sc-state" class="disc-select" onchange="setScanPref('state', this.value)">
+              <option value="ALL">Any</option><option value="OPEN">Still at opening only</option>
+            </select></label>
+          <label class="mt-field"><span>Sort by</span>
+            <select id="sc-sort" class="disc-select" onchange="setScanPref('sort', this.value)">
+              <option value="edge">Edge</option><option value="kickoff">Kick-off</option>
+            </select></label>
+          <div class="mt-sub">Stake sizing and bankroll come from the MATCH tab's value settings.</div>
+        </div>
+      </div><!-- /tab-scan-controls -->
 
       <!-- ── DASHBOARD tab controls ──────────────────────── -->
       <div class="tab-pane" id="tab-dashboard-controls">
@@ -416,6 +455,14 @@
           and the historical similar-matches analysis.</p>
         </div>
       </div>
+      <div class="tab-pane" id="right-scan">
+        <div class="placeholder">
+          <div class="icon">🔎</div>
+          <p><strong style="color:var(--bright)">Scanner</strong><br>
+          Every fixture for the next 7 days, Bet365 vs Sbobet's fair price.<br>
+          <span style="color:var(--green)">Bets where Bet365 pays above fair</span> are flagged.</p>
+        </div>
+      </div>
       <div class="tab-pane" id="right-dashboard">
         <div class="placeholder">
           <div class="icon">📅</div>
@@ -451,5 +498,6 @@
 <script src="./fair_model.js"></script>
 <script src="./app.js"></script>
 <script src="./match.js"></script>
+<script src="./scan.js"></script>
 </body>
 </html>

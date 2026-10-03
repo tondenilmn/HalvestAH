@@ -279,7 +279,8 @@ function parseMatchHeader(tm1Html) {
     const v = tv[1].replace(/\\?'$/, '').replace(/^['"]|['"]$/g, '').trim();
     if (/^HT$/i.test(v)) { out.status = 'HT'; out.minute = 45; }
     else if (/^FT$/i.test(v)) { out.status = 'FT'; out.minute = 90; }
-    else if (/^\d+(\+\d+)?'?$/.test(v)) { out.status = 'LIVE'; out.minute = parseInt(v, 10); }
+    // Live minute: "67'", "67", or in added time "45'+" / "90'+" / "45+2'".
+    else if (/^\d+'?(\+\d*)?'?$/.test(v)) { out.status = 'LIVE'; out.minute = parseInt(v, 10); out.stoppage = v.includes('+'); }
     else if (v) { out.status = 'PRE'; out.kickoff = v; }
   }
 

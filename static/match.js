@@ -42,7 +42,11 @@ const _mt = {
   kellyFrac: 0.25,
   bankroll: null,
   loading: false,
+  live: null,          // last /api/livematch response + fetchedAt (in-play only)
 };
+const MT_LIVE_POLL_MS = 60000;
+const MT_LIVE_SUSPECT_EDGE = 0.15; // live model gaps above this get no stake
+let _mtLiveTimer = null;
 
 (function loadMatchPrefs() {
   try {
@@ -92,12 +96,14 @@ async function importMatchTab(urlArg) {
     const data = await resp.json();
     if (data.error) throw new Error(data.error);
     if (!data.books) throw new Error('The scrape function is an older version without per-book data — redeploy functions/api/scrape.js.');
+    if (_mt.url !== url) _mt.live = null;
     _mt.url = url; _mt.data = data; _mt.fetchedAt = new Date();
     const n = Object.keys(data.books).length;
     if (status) { status.textContent = `✓ ${data.match?.home || 'Match'} v ${data.match?.away || ''} — ${n} books`; status.className = 'url-import-status ok'; }
     document.getElementById('mt-refresh-btn')?.style.removeProperty('display');
     renderMatchControls();
     renderMatchTab();
+    syncLivePolling();
   } catch (e) {
     if (status) { status.textContent = '✗ ' + e.message; status.className = 'url-import-status error'; }
   } finally {
@@ -222,36 +228,78 @@ function movementRead(b) {
   return { text: parts.join(' · '), notes };
 }
 
-/* ── in-play from-now model ───────────────────────────────────────────── */
-// Share of a match's expected goals still to come after `minute`, assuming
-// 44.6% of goals in the 1H (dataset) spread evenly over 45 + ~2.4' stoppage
-// and the rest over 45 + ~5.1' (stoppage shares calibrated in app.js's
-// _IT_1H/_IT_2H). A coarse uniform-intensity version of computeLiveOdd's curve.
-function remainingShare(minute, status) {
-  const s1 = FairModel.FIRST_HALF_SHARE, s2 = 1 - s1;
-  if (status === 'HT') return s2;
-  if (minute == null) return 1;
-  if (minute <= 45) return s1 * Math.max(0, 1 - minute / 47.4) + s2;
-  return s2 * Math.max(0.01, 1 - (minute - 45) / 50.1);
+/* ── in-play ──────────────────────────────────────────────────────────── */
+// The match page only has pre-match prices; /api/livematch adds the live
+// minute/score/HT and Bet365's current in-play prices. Polled every minute
+// while the match is (or should be) in play and the MATCH tab is open.
+function matchId(url) { const m = (url || '').match(/[?&]id=([a-f0-9]+)/i); return m ? m[1].toLowerCase() : null; }
+
+function shouldPollLive() {
+  const m = _mt.data?.match;
+  if (!m || m.status === 'FT') return false;
+  if (m.status === 'LIVE' || m.status === 'HT') return true;
+  const ko = m.kickoff ? new Date(m.kickoff).getTime() : NaN;
+  return Number.isFinite(ko) && ko - Date.now() < 10 * 60000 && Date.now() - ko < 3 * 3600e3;
+}
+function syncLivePolling() {
+  clearInterval(_mtLiveTimer); _mtLiveTimer = null;
+  if (!shouldPollLive()) return;
+  pollMatchLive();
+  _mtLiveTimer = setInterval(() => {
+    if (typeof _activeTab !== 'undefined' && _activeTab !== 'match') return;
+    if (!shouldPollLive()) { clearInterval(_mtLiveTimer); _mtLiveTimer = null; return; }
+    pollMatchLive();
+  }, MT_LIVE_POLL_MS);
+}
+async function pollMatchLive() {
+  const id = matchId(_mt.url); if (!id) return;
+  try {
+    const resp = await fetch('/api/livematch?id=' + id);
+    const data = await resp.json();
+    if (matchId(_mt.url) !== id) return; // another match was loaded meanwhile
+    const wasLive = !!_mt.live?.minute;
+    _mt.live = Object.assign(data, { fetchedAt: new Date() });
+    // Dropped off the live feed after being live → finished; re-read the page for the FT state.
+    if (wasLive && !data.found) { refreshMatchTab(); return; }
+    renderMatchTab();
+  } catch (_) { /* keep the last good state; the next tick retries */ }
 }
 
-function fromNowMarkets(fit, match) {
-  if (!fit || !match?.score) return null;
-  const share = remainingShare(match.minute, match.status);
-  const lh = fit.lh * share, la = fit.la * share;
-  const P = FairModel.scoreGrid(lh, la, 0);
-  const h0 = match.score.home, a0 = match.score.away, g0 = h0 + a0;
-  const S = f => { let s = 0; for (let h = 0; h < P.length; h++) for (let a = 0; a < P[h].length; a++) if (f(h, a)) s += P[h][a]; return s; };
-  const res = [
-    { label: 'Home wins', p: S((h, a) => h0 + h > a0 + a) },
-    { label: 'Draw', p: S((h, a) => h0 + h === a0 + a) },
-    { label: 'Away wins', p: S((h, a) => h0 + h < a0 + a) },
-  ];
-  const anotherGoal = 1 - P[0][0];
-  const totals = [g0 + 0.5, g0 + 1.5, g0 + 2.5].map(line => ({ line, p: S((h, a) => g0 + h + a > line) }));
-  const pNextHome = (lh + la) > 0 ? anotherGoal * lh / (lh + la) : 0;
-  return { share, lh, la, res, anotherGoal, totals, nextHome: pNextHome, nextAway: anotherGoal - pNextHome,
-           btts: (h0 > 0 && a0 > 0) ? 1 : S((h, a) => h0 + h > 0 && a0 + a > 0) };
+// Current match state, preferring the live feed over the (slower) page.
+function matchState() {
+  const m = _mt.data?.match || {};
+  const L = _mt.live?.found ? _mt.live : null;
+  if (L?.minute) {
+    const ht = L.minute === 'HT';
+    return { status: ht ? 'HT' : 'LIVE', minute: ht ? 45 : parseInt(L.minute, 10), stoppage: !ht && L.minute.includes('+'),
+             minuteText: ht ? 'HT' : L.minute.replace(/'?\+$/, "'+"), score: L.score || m.score, htScore: L.htScore || m.htScore };
+  }
+  return { status: m.status, minute: m.minute, stoppage: !!m.stoppage,
+           minuteText: m.minute != null ? `${m.minute}'${m.stoppage ? '+' : ''}` : null,
+           score: m.score, htScore: m.htScore };
+}
+
+// Bet365 in-play price vs the live model fair price (pre-match λ from the
+// reference book → goal-timing decay + score state). Not backtested.
+function buildLiveValueRows(lm, odds) {
+  if (!lm || !odds) return [];
+  const rows = [];
+  const g0 = lm.score.home + lm.score.away;
+  const push = (market, label, price, fair) => {
+    if (!(price > 1) || !(fair > 1) || !isFinite(fair)) return;
+    const p = 1 / fair;
+    rows.push({ market, label, price, fair, p, method: 'model', edge: price / fair - 1, minOdds: fair * (1 + _mt.threshold / 100), kelly: FairModel.kelly(p, price, _mt.kellyFrac) });
+  };
+  ['x2_h', 'x2_x', 'x2_a'].forEach((k, i) => push('1X2', ['Home win', 'Draw', 'Away win'][i], odds[k], lm.result[i].fair));
+  if (num(odds.ah_hc) != null) {
+    push('AH', `Home ${fLine(odds.ah_hc)} (from now)`, odds.ho_c, FairModel.fairOddsFromDist(FairModel.ahDist(lm.grid, odds.ah_hc, 'home')));
+    push('AH', `Away ${fLine(-odds.ah_hc)} (from now)`, odds.ao_c, FairModel.fairOddsFromDist(FairModel.ahDist(lm.grid, odds.ah_hc, 'away')));
+  }
+  if (num(odds.tl_c) != null && odds.tl_c > g0) {
+    push('OU', `Over ${odds.tl_c}`, odds.ov_c, FairModel.fairOddsFromDist(FairModel.outcomeDist(lm.grid, (h, a) => g0 + h + a, -odds.tl_c)));
+    push('OU', `Under ${odds.tl_c}`, odds.un_c, FairModel.fairOddsFromDist(FairModel.outcomeDist(lm.grid, (h, a) => -(g0 + h + a), odds.tl_c)));
+  }
+  return rows.sort((a, b) => b.edge - a.edge);
 }
 
 /* ══ RENDER ═══════════════════════════════════════════════════════════ */
@@ -284,7 +332,10 @@ function renderMatchTab() {
   const ref = refKey ? books[refKey] : null;
   const refFit = fitBook(ref, 'c');
   const betFit = fitBook(bet, 'c');
-  const ctx = { d, m, books, bet, refKey, ref, refFit, betFit, live: m.status === 'LIVE' || m.status === 'HT', finished: m.status === 'FT' };
+  const st = matchState();
+  const live = st.status === 'LIVE' || st.status === 'HT';
+  const lm = live && refFit ? FairModel.liveMarkets(refFit.fit.lh, refFit.fit.la, st) : null;
+  const ctx = { d, m, st, lm, books, bet, refKey, ref, refFit, betFit, live, finished: st.status === 'FT' };
 
   const views = [
     ['overview', '📋 Overview'], ['value', '💰 Value'], ['fair', '🎲 Fair prices'], ['historical', '📚 Historical'],
@@ -302,13 +353,14 @@ function renderMatchTab() {
     </div>`;
 }
 
-function renderMatchHeader({ m, refKey, refFit, live, finished }) {
-  const statusTxt = m.status === 'HT' ? 'Half-time'
-    : m.status === 'LIVE' ? `LIVE ${m.minute ?? ''}'`
-    : m.status === 'FT' ? 'Full-time'
+function renderMatchHeader({ m, st, lm, refKey, refFit, live, finished }) {
+  const statusTxt = st.status === 'HT' ? 'Half-time'
+    : st.status === 'LIVE' ? `LIVE ${st.minuteText ?? ''}`
+    : st.status === 'FT' ? 'Full-time'
     : (m.kickoff ? fmtKickoff(m.kickoff) : 'Pre-match');
-  const score = m.score ? `${m.score.home} - ${m.score.away}` : '–';
-  const ht = m.htScore ? `${m.htScore.home} - ${m.htScore.away}` : '–';
+  const score = st.score ? `${st.score.home} - ${st.score.away}` : '–';
+  const ht = st.htScore ? `${st.htScore.home} - ${st.htScore.away}` : '–';
+  const L = _mt.live;
   const cards = side => {
     const c = m.cards?.[side] || {};
     return `${c.yellow ? `<span class="mt-card y">${c.yellow}</span>` : ''}${c.red ? `<span class="mt-card r">${c.red}</span>` : ''}`;
@@ -324,10 +376,15 @@ function renderMatchHeader({ m, refKey, refFit, live, finished }) {
       <div class="mt-hcard"><div class="mt-hlabel">STATUS</div><div class="mt-hval ${live ? 'mt-live' : ''}">${statusTxt}</div></div>
       <div class="mt-hcard"><div class="mt-hlabel">SCORE / HT</div><div class="mt-hval num">${score} <span class="mt-dim">/ ${ht}</span></div>
         ${m.corners ? `<div class="mt-sub">corners ${m.corners.home} - ${m.corners.away}</div>` : ''}</div>
-      <div class="mt-hcard"><div class="mt-hlabel">EXPECTED GOALS (${mtEsc(refKey ? bookLabel(refKey) : '—')})</div><div class="mt-hval num">${xg}</div>
-        ${refFit ? `<div class="mt-sub">total ${refFit.fit.mu.toFixed(2)}</div>` : ''}</div>
+      <div class="mt-hcard"><div class="mt-hlabel">${lm ? 'GOALS STILL TO COME' : 'EXPECTED GOALS'} (${mtEsc(refKey ? bookLabel(refKey) : '—')})</div>
+        <div class="mt-hval num">${lm ? `${lm.live.lh.toFixed(2)} – ${lm.live.la.toFixed(2)}` : xg}</div>
+        ${refFit ? `<div class="mt-sub">${lm ? `pre-match ${xg}` : `total ${refFit.fit.mu.toFixed(2)}`}</div>` : ''}</div>
     </div>
-    ${live || finished ? `<div class="mt-banner warn">⏱ This match is ${finished ? 'over' : 'in play'} — asianbetsoccer's match page shows the <b>pre-match</b> opening and closing prices, not live odds. Value/Fair use those pre-match prices; the <b>In-play from now</b> section under Fair prices is a model estimate.</div>` : ''}`;
+    ${live ? `<div class="mt-banner live">🔴 In play — minute, score and Bet365's in-play prices refresh every minute${L?.fetchedAt ? ` (last ${L.fetchedAt.toLocaleTimeString()})` : ''}.
+      Live fair prices = pre-match strength (${mtEsc(refKey ? bookLabel(refKey) : 'reference')}) decayed by the real goal-timing curve and score state — a model, not backtested.
+      ${(m.cards?.home?.red || m.cards?.away?.red) ? '<b>A red card has been shown — the model does not adjust for it.</b>' : ''}
+      ${L && L.found && !L.live_odds ? '<br>Bet365 in-play prices aren&#39;t available for this match right now.' : ''}${(L?.notes || []).map(n => `<br>${mtEsc(n)}`).join('')}</div>`
+      : finished ? `<div class="mt-banner warn">⏱ This match is over — the prices below are the pre-match opening/closing prices.</div>` : ''}`;
 }
 
 // "Sat 03 Oct 02:30 · in 3h 10m" in the viewer's local time.
@@ -424,7 +481,7 @@ function renderBooksTable(books, refKey) {
 }
 
 /* ── VALUE ────────────────────────────────────────────────────────────── */
-function renderMtValue({ bet, ref, refKey, refFit, live, finished }) {
+function renderMtValue({ bet, ref, refKey, refFit, live, finished, lm }) {
   if (!bet) return `<div class="mt-banner warn">${mtEsc(bookLabel(_mt.betBook))} isn't listed for this match — nothing to compare.</div>`;
   if (!ref || !refFit) return `<div class="mt-banner warn">No reference book with usable prices for this match (Sbobet isn't listed). Pick another reference in the left panel, or skip this match — without a sharp reference there's no measured edge (Bet365 alone averages −4.5% ROI).</div>`;
 
@@ -441,7 +498,7 @@ function renderMtValue({ bet, ref, refKey, refFit, live, finished }) {
     const stake = hit && r.kelly > 0 ? (bank ? `€${(bank * r.kelly).toFixed(2)}` : fPct(r.kelly, 2)) : '—';
     return `<tr class="${cls}">
       <td>${r.market === 'OU' ? 'O/U' : r.market}</td>
-      <td class="mt-strong">${mtEsc(r.label)}${r.method === 'model' ? ' <span class="mt-tag model" title="Fair price converted through the scoreline model (different line on the two books, or a 1X2 market). Not validated like the same-line AH/O-U comparison.">model</span>' : ''}</td>
+      <td class="mt-strong">${mtEsc(r.label)}${r.method === 'model' ? ' <span class="mt-tag model" title="Fair price converted through the scoreline model (different line on the two books, or a 1X2 market). Not validated like the same-line AH/O-U comparison.">model</span>' : ''}${r.suspect ? ` <span class="mt-tag model" title="${mtEsc(r.suspect)}">verify</span>` : ''}</td>
       <td class="num mt-strong">${fOdd(r.price)}</td>
       <td class="num">${fOdd(r.fair)}</td>
       <td class="num">${fPct(r.p)}</td>
@@ -457,9 +514,27 @@ function renderMtValue({ bet, ref, refKey, refFit, live, finished }) {
       `<span class="mt-chip ${r.edge * 100 >= _mt.threshold ? 'hit' : r.edge > 0 ? 'pos' : ''}">${mtEsc(r.label)} @ ${fOdd(r.price)} <b>${fSigned(r.edge * 100)}%</b></span>`).join('') || '<span class="mt-dim">no same-line opening prices to compare</span>'}</div>
     <div class="mt-sub">Shows whether this match opened with a gap. You can only bet the <b>current</b> price — the table above is what matters now.</div>` : '';
 
+  // A big live gap is far more often the model missing something the market
+  // knows (a red card, an injury, one side dominating) than real value — no
+  // stake for those, and a 'verify' tag.
+  const redCard = !!(_mt.data?.match?.cards?.home?.red || _mt.data?.match?.cards?.away?.red);
+  const liveRows = (live && lm && _mt.live?.live_odds ? buildLiveValueRows(lm, _mt.live.live_odds) : []).map(r =>
+    redCard || r.edge >= MT_LIVE_SUSPECT_EDGE
+      ? Object.assign(r, { kelly: 0, suspect: redCard ? 'A red card has been shown — the model still uses pre-match strength.' : 'Gap this large usually means the model is missing match information the market has.' })
+      : r);
+  const liveHtml = liveRows.length ? `
+    <div class="mt-section-title">IN PLAY NOW <span class="mt-dim">— Bet365 live price vs live model fair · not backtested</span></div>
+    <div class="mt-table-wrap"><table class="mt-table mt-value-table">
+      <thead><tr><th>Mkt</th><th>Bet</th><th>Bet365 live</th><th>Fair (model)</th><th>Prob</th><th>Edge</th><th>Min odds</th><th>Stake</th></tr></thead>
+      <tbody>${liveRows.map(rowHtml).join('')}</tbody>
+    </table></div>
+    <div class="mt-sub">In-play Asian handicap counts goals from now; the goal line is on the full-match total. This comparison has no backtest — treat an edge here as a pointer, not a signal.</div>
+    <div class="mt-section-title" style="margin-top:22px">PRE-MATCH <span class="mt-dim">— Bet365 vs ${mtEsc(bookLabel(refKey))} at kick-off</span></div>` : '';
+
   return `
+    ${liveHtml}
     ${!validated ? `<div class="mt-banner warn">Reference = <b>${mtEsc(bookLabel(refKey))}</b>, which has <b>not been backtested</b> as a fair-price reference (only Sbobet has). Treat these edges as indicative.</div>` : ''}
-    ${live || finished ? `<div class="mt-banner warn">Pre-match prices only — this shows how the gap stood at kick-off, not a bet available now.</div>` : ''}
+    ${live || finished ? `<div class="mt-banner warn">Pre-match prices — how the gap stood at kick-off, not a bet available now.</div>` : ''}
     <div class="mt-value-summary ${flagged.length ? 'hit' : ''}">
       ${flagged.length
         ? `<div class="mt-big">💰 ${flagged.length} value bet${flagged.length > 1 ? 's' : ''} ≥ ${_mt.threshold}%</div>
@@ -484,7 +559,7 @@ function renderMtValue({ bet, ref, refKey, refFit, live, finished }) {
 }
 
 /* ── FAIR PRICES ──────────────────────────────────────────────────────── */
-function renderMtFair({ m, bet, refKey, refFit, live }) {
+function renderMtFair({ st, lm, bet, refKey, refFit, live }) {
   if (!refFit) return `<div class="mt-banner warn">No book with usable AH/TL or 1X2 prices to fit the model.</div>`;
   const mk = refFit.markets;
   const betPrice = (kind, line, side) => {
@@ -517,20 +592,11 @@ function renderMtFair({ m, bet, refKey, refFit, live }) {
   const tt = mk.teamTotals.map(t => t.lines.map(l => tile(l.over.label, l.over.p, l.over.fair)).join('')).join('');
   const cs = mk.correctScore.map(c => `<div class="mt-cs"><span class="num">${c.h}-${c.a}</span><b class="num">${fPct(c.p, 1)}</b><span class="mt-dim num">${fOdd(c.fair)}</span></div>`).join('');
   const fh = mk.firstHalf, sh = mk.secondHalf;
-  const fromNow = (live && m.score) ? fromNowMarkets(refFit.fit, m) : null;
+  const inPlay = lm ? renderMtInPlay(lm, st, tile) : '';
 
   return `
     <div class="mt-sub" style="margin-bottom:10px">Fitted to <b>${mtEsc(bookLabel(refKey))}</b>'s current AH + Total Line prices (margin removed) → expected goals <b class="num">${refFit.fit.lh.toFixed(2)}</b> home, <b class="num">${refFit.fit.la.toFixed(2)}</b> away. Checked on 21k past matches: 1X2, BTTS and totals land within ~1pp of actual results. Where ${mtEsc(bookLabel(_mt.betBook))} quotes the market, its price and edge are shown.</div>
-    ${fromNow ? `
-    <div class="mt-section-title">IN-PLAY FROM NOW <span class="mt-dim">— ${m.status === 'HT' ? 'half-time' : m.minute + "'"}, score ${m.score.home}-${m.score.away} · model estimate (uniform scoring rate, pre-match strength)</span></div>
-    <div class="mt-grid4">
-      ${tile('Another goal', fromNow.anotherGoal, 1 / fromNow.anotherGoal)}
-      ${tile('Next goal: Home', fromNow.nextHome, 1 / fromNow.nextHome)}
-      ${tile('Next goal: Away', fromNow.nextAway, 1 / fromNow.nextAway)}
-      ${tile('BTTS (final)', fromNow.btts, 1 / fromNow.btts)}
-    </div>
-    <div class="mt-grid3">${fromNow.res.map(r => tile('Final: ' + r.label, r.p, 1 / r.p)).join('')}</div>
-    <div class="mt-grid3">${fromNow.totals.map(t => tile(`Final Over ${t.line}`, t.p, 1 / t.p)).join('')}</div>` : ''}
+    ${inPlay}
     <div class="mt-section-title">RESULT</div>
     <div class="mt-grid3">${res}</div>
     <div class="mt-grid3">${mk.doubleChance.map(r => tile(r.label, r.p, r.fair)).join('')}</div>
@@ -552,6 +618,46 @@ function renderMtFair({ m, bet, refKey, refFit, live }) {
     <div class="mt-grid3">${sh.totals.map(t => tile(t.over.label, t.over.p, t.over.fair)).join('')}</div>
     <div class="mt-section-title">CORRECT SCORE <span class="mt-dim">top 12</span></div>
     <div class="mt-cs-grid">${cs}</div>`;
+}
+
+// In-play section of the Fair prices view (FairModel.liveMarkets).
+function renderMtInPlay(lm, st, tile) {
+  const odds = _mt.live?.live_odds || null;
+  const g0 = lm.score.home + lm.score.away;
+  const L = lm.live;
+  const when = st.status === 'HT' ? 'half-time' : st.minuteText;
+  const r = L.half === 1 ? L.r1 : L.r2;
+  const modTxt = L.mod && L.mod.bucket !== '0'
+    ? ` Score state (${L.mod.favHome ? 'home' : 'away'} favourite ${+L.mod.bucket > 0 ? 'leading' : 'trailing'}): rest-of-2H scoring home ×${L.mod.home.toFixed(2)}, away ×${L.mod.away.toFixed(2)}.` : '';
+  const liveTotals = lm.totals.map(t => {
+    const b = odds && sameLine(odds.tl_c, t.line);
+    return `<tr class="${b ? 'mt-row-bet' : ''}"><td class="num">${t.line}</td><td class="num">${fPct(t.over.p, 0)}</td><td class="num">${fOdd(t.over.fair)}</td><td class="num">${b ? fOdd(odds.ov_c) : ''}</td><td class="num">${fPct(t.under.p, 0)}</td><td class="num">${fOdd(t.under.fair)}</td><td class="num">${b ? fOdd(odds.un_c) : ''}</td></tr>`;
+  }).join('');
+  const center = odds && num(odds.ah_hc) != null ? odds.ah_hc : 0;
+  const liveAh = lm.ah.filter(a => Math.abs(a.line - center) <= 0.76).map(a => {
+    const b = odds && sameLine(odds.ah_hc, a.line);
+    return `<tr class="${b ? 'mt-row-bet' : ''}"><td class="num">${fLine(a.line)}</td><td class="num">${fPct(a.home.p, 0)}</td><td class="num">${fOdd(a.home.fair)}</td><td class="num">${b ? fOdd(odds.ho_c) : ''}</td><td class="num">${fLine(-a.line)}</td><td class="num">${fPct(a.away.p, 0)}</td><td class="num">${fOdd(a.away.fair)}</td><td class="num">${b ? fOdd(odds.ao_c) : ''}</td></tr>`;
+  }).join('');
+  const x = odds ? [odds.x2_h, odds.x2_x, odds.x2_a] : [];
+  const roh = lm.restOfHalf;
+  return `
+    <div class="mt-section-title">IN PLAY · ${mtEsc(when || '')} · ${lm.score.home}-${lm.score.away} <span class="mt-dim">— live model; Bet365 live prices where quoted</span></div>
+    <div class="mt-sub" style="margin-bottom:8px">${fPct(r, 0)} of the ${L.half === 1 ? '1st' : '2nd'}-half goal expectation still to come (real goal-timing curve incl. added time) → <b class="num">${L.lh.toFixed(2)}</b> home, <b class="num">${L.la.toFixed(2)}</b> away goals expected from here.${modTxt}</div>
+    <div class="mt-grid3">${lm.result.map((o, i) => tile('Final: ' + o.label, o.p, o.fair, x[i])).join('')}</div>
+    <div class="mt-grid3">${lm.nextGoal.map(o => tile(o.label, o.p, o.fair)).join('')}</div>
+    <div class="mt-grid4">
+      ${tile('BTTS (final)', lm.btts[0].p, lm.btts[0].fair)}
+      ${lm.specials.map(o => tile(o.label, o.p, o.fair)).join('')}
+      ${roh ? tile(`Goal in rest of ${roh.label}`, roh.goal, 1 / roh.goal) : ''}
+    </div>
+    ${roh && roh.totals.length ? `<div class="mt-grid3">${roh.totals.map(t => tile(t.label, t.p, t.fair)).join('')}</div>` : ''}
+    <div class="mt-two">
+      <div><div class="mt-section-title">FINAL TOTAL <span class="mt-dim">(now ${g0})</span></div>
+        <div class="mt-table-wrap"><table class="mt-table"><thead><tr><th>Line</th><th>Over</th><th>Fair</th><th>B365</th><th>Under</th><th>Fair</th><th>B365</th></tr></thead><tbody>${liveTotals}</tbody></table></div></div>
+      <div><div class="mt-section-title">ASIAN HANDICAP <span class="mt-dim">(goals from now)</span></div>
+        <div class="mt-table-wrap"><table class="mt-table"><thead><tr><th>Home</th><th>P</th><th>Fair</th><th>B</th><th>Away</th><th>P</th><th>Fair</th><th>B</th></tr></thead><tbody>${liveAh}</tbody></table></div></div>
+    </div>
+    <div class="mt-section-title" style="margin-top:22px">PRE-MATCH FAIR PRICES <span class="mt-dim">— as at kick-off</span></div>`;
 }
 
 /* ── HISTORICAL (existing Manual analysis) ────────────────────────────── */

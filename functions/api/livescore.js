@@ -957,3 +957,19 @@ function parseLivegameTables(tm1Html, tm2Html) {
 
   return matches;
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+ * Shared with functions/api/upcoming.js (the SCANNER tab's fixture feed) and
+ * functions/api/livematch.js (the MATCH tab's in-play refresh) —
+ * same botbot3.space file format, parsers and hash discovery, just the
+ * tablenext/dayN tables instead of livegame. Only onRequest* exports are
+ * treated as route handlers by Pages, so these are plain module exports.
+ * ══════════════════════════════════════════════════════════════════════════ */
+export function currentHashes() {
+  return { bet365: BET365_HASH, sbobet: SBOBET_HASH, bet365live: BET365_LIVE_HASH };
+}
+export {
+  GS_PRIMARY, makeBotbotHeaders, parseGetData2Calls, parseGetDatanext1Calls,
+  mergeMatchData, fetchAllBookHashes, fetchHashesViaRailwayRelay,
+  parseGetData1Calls, parseGetData2NoneCalls,
+};
