@@ -24,7 +24,7 @@ let BET365_HASH     = process.env.BET365_HASH     || 'f5ed2c2c4e313f4b30dba3b1e4
 // the other three hashes below and relayed via getCurrentHashes()'s /hashes
 // endpoint so Cloudflare's edge (blocked from discovering it directly by
 // asianbetsoccer's WAF) can pick it up too.
-let BET365_LIVE_HASH = process.env.BET365_LIVE_HASH || '56f7105ddda384f0955acb8ffe874c8b61daec49';
+let BET365_LIVE_HASH = process.env.BET365_LIVE_HASH || 'd343cddad34991b84229d7637c966ce71bbfe335';
 let SBOBET_HASH     = process.env.SBOBET_HASH     || 'fd03ebecbb06f1888b32c02f06b6d161729b910f';
 const GS_PRIMARY    = 'Q';
 const GS_CANDIDATES = ['Q', '1', '2', '3', 'AH', 'S', 'EU', 'A', 'ah', 's', '4', '5', '10', '6', '7', '8', 'B', 'F'];
