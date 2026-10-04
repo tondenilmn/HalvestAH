@@ -269,7 +269,7 @@ async function pollMatchLive() {
     data = Object.assign({}, _mt.live, { live_odds: null, live_source: null, notes: ['The live feed could not be reached — showing the last minute/score.'] });
   }
   data.live_source = data.live_odds ? 'asianbetsoccer' : null;
-  if (!data.live_odds) await addSofascoreOdds(data);
+  await Promise.all([data.live_odds ? null : addSofascoreOdds(data), addPinnacleMatch(data)]);
   if (matchId(_mt.url) !== id) return;
   _mt.live = Object.assign(data, { fetchedAt: new Date() });
   renderMatchTab();
@@ -304,6 +304,19 @@ async function addSofascoreOdds(data) {
   } catch (e) {
     data.notes = [...(data.notes || []), `Sofascore fallback failed: ${e.message}`];
   }
+}
+// Pinnacle's live sheet for this match (pinnacle.js / /api/pinnacle), the
+// sharp reference for the In-play value table.
+async function addPinnacleMatch(data) {
+  if (typeof Pinn === 'undefined') return;
+  const st = matchState();
+  if (!(st.status === 'LIVE' || st.status === 'HT' || data.minute)) return;
+  try {
+    const d = await Pinn.get();
+    if (d.error) { data.pinError = d.error; return; }
+    const m = _mt.data?.match || {};
+    data.pin = Pinn.find(d.matches, m.home, m.away, data.score || st.score || null);
+  } catch (e) { data.pinError = e.message; }
 }
 // Label for whichever feed the Bet365 live prices came from.
 function liveSourceTag() {
@@ -570,12 +583,31 @@ function renderMtValue({ bet, ref, refKey, refFit, live, finished, lm }) {
     redCard || r.edge >= MT_LIVE_SUSPECT_EDGE
       ? Object.assign(r, { kelly: 0, suspect: redCard ? 'A red card has been shown — the model still uses pre-match strength.' : 'Gap this large usually means the model is missing match information the market has.' })
       : r);
-  const liveHtml = liveRows.length ? `
-    <div class="mt-section-title">IN PLAY NOW${liveSourceTag()} <span class="mt-dim">— Bet365 live price vs live model fair · not backtested</span></div>
+  // Pinnacle's live price on the same line, de-vigged — the sharp-book check.
+  // A red card is in Pinnacle's price, so it doesn't void these rows; a huge
+  // gap is still usually one price lagging the other.
+  const pm = _mt.live?.pin || null;
+  const pinRows = (live && pm && _mt.live?.live_odds && typeof buildPinnacleRows === 'function' ? buildPinnacleRows(_mt.live.live_odds, pm) : []).map(r =>
+    r.edge >= MT_LIVE_SUSPECT_EDGE ? Object.assign(r, { kelly: 0, suspect: 'Gap this large usually means one of the two prices is lagging — check both before betting.' }) : r);
+  const modelTable = liveRows.length ? `
     <div class="mt-table-wrap"><table class="mt-table mt-value-table">
       <thead><tr><th>Mkt</th><th>Bet</th><th>Bet365 live</th><th>Fair (model)</th><th>Prob</th><th>Edge</th><th>Min odds</th><th>Stake</th></tr></thead>
       <tbody>${liveRows.map(rowHtml).join('')}</tbody>
+    </table></div>` : '';
+  const pinNote = live && _mt.live?.live_odds && !pinRows.length
+    ? `<div class="mt-sub">${pm ? 'Pinnacle has this match but not on the same lines as Bet365 right now.' : _mt.live?.pinError ? `Pinnacle: ${mtEsc(_mt.live.pinError)}` : 'Pinnacle doesn\'t list this match live — comparing with the model only.'}</div>` : '';
+  const liveHtml = pinRows.length ? `
+    <div class="mt-section-title">IN PLAY NOW${liveSourceTag()} <span class="mt-dim">— Bet365 live vs Pinnacle live (margin removed, same line) · not backtested</span></div>
+    <div class="mt-table-wrap"><table class="mt-table mt-value-table">
+      <thead><tr><th>Mkt</th><th>Bet</th><th>Bet365 live</th><th>Fair (Pinnacle)</th><th>Prob</th><th>Edge</th><th>Min odds</th><th>Stake</th></tr></thead>
+      <tbody>${pinRows.map(rowHtml).join('')}</tbody>
     </table></div>
+    <div class="mt-sub">Pinnacle ${mtEsc(pm.home)} v ${mtEsc(pm.away)}${pm.score?.home != null ? ` (${pm.score.home}-${pm.score.away})` : ''}. Both books: handicap counts goals from now, goal line on the full-match total. Same-moment comparison against the sharpest book — the in-play version of the pre-match check that backtested, but not itself backtested.</div>
+    ${modelTable ? `<details class="mt-details"><summary>vs the live model (${liveRows.length} rows)</summary>${modelTable}</details>` : ''}
+    <div class="mt-section-title" style="margin-top:22px">PRE-MATCH <span class="mt-dim">— Bet365 vs ${mtEsc(bookLabel(refKey))} at kick-off</span></div>`
+    : liveRows.length ? `
+    <div class="mt-section-title">IN PLAY NOW${liveSourceTag()} <span class="mt-dim">— Bet365 live price vs live model fair · not backtested</span></div>
+    ${modelTable}${pinNote}
     <div class="mt-sub">In-play Asian handicap counts goals from now; the goal line is on the full-match total. This comparison has no backtest — treat an edge here as a pointer, not a signal.</div>
     <div class="mt-section-title" style="margin-top:22px">PRE-MATCH <span class="mt-dim">— Bet365 vs ${mtEsc(bookLabel(refKey))} at kick-off</span></div>` : '';
 

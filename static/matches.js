@@ -38,7 +38,7 @@ const _ml = {
   rank: 'best',      // best | probable | profitable
   minOdds: 1.3,      // picks below this price are skipped (near-certain outcomes)
   tier: 'ALL',       // ALL | TOP | MAJOR | OTHER
-  ref: 'ANY',        // ANY | SBOBET (only matches with a Sbobet reference)
+  ref: 'ANY',        // ANY | PINNACLE (only picks priced against Pinnacle live) | SBOBET (model fitted to Sbobet)
   leagues: [],       // selected league names; empty = all (list rebuilt from the live matches)
   leagueSearch: '',  // text filter for the league checklist (not saved)
   sort: 'minute',    // minute (most elapsed first) | pick
@@ -76,16 +76,22 @@ async function runMatchesScan() {
   if (btn) btn.disabled = true;
   if (status && !_ml.data) { status.textContent = 'Fetching live matches…'; status.className = 'url-import-status loading'; }
   try {
-    const resp = await fetch('/api/livescore');
-    const data = await resp.json();
+    // Pinnacle's live sheet is fetched alongside; a failure there only means
+    // every match falls back to the model.
+    const [data, pin] = await Promise.all([
+      fetch('/api/livescore').then(r => r.json()),
+      typeof Pinn !== 'undefined' ? Pinn.get().catch(e => ({ matches: [], error: e.message })) : Promise.resolve({ matches: [] }),
+    ]);
     const live = (data.matches || []).filter(m => m.minute);
     if (!live.length && data.note) throw new Error(data.note);
     _ml.data = data;
-    _ml.items = live.map(analyzeListMatch);
+    _ml.pin = pin;
+    _ml.items = live.map(m => analyzeListMatch(m, pin.matches || []));
     _ml.fetchedAt = new Date();
     if (status) {
       const priced = _ml.items.filter(it => it.rows.length).length;
-      status.textContent = `✓ ${live.length} live matches · ${priced} with Bet365 in-play prices`;
+      const vsPin = _ml.items.filter(it => it.basis === 'pinnacle').length;
+      status.textContent = `✓ ${live.length} live matches · ${priced} with Bet365 in-play prices · ${vsPin} vs Pinnacle${pin.error ? ' (Pinnacle unavailable)' : ''}`;
       status.className = 'url-import-status ok';
     }
     renderMatchesList();
@@ -117,10 +123,10 @@ function listMatchState(m) {
   };
 }
 
-function analyzeListMatch(m) {
+function analyzeListMatch(m, pinMatches = []) {
   const st = listMatchState(m);
   const tier = typeof classifyLeague === 'function' ? classifyLeague(m.league) : 'OTHER';
-  const item = { m, st, tier, refKey: null, fit: null, lm: null, rows: [], pick: null, why: null };
+  const item = { m, st, tier, refKey: null, fit: null, lm: null, rows: [], pick: null, why: null, basis: null, pm: null };
   if (!st.score || !Number.isFinite(st.minute)) { item.why = 'no score / minute in the feed'; return item; }
 
   // Sbobet is the only backtested reference; Bet365's own pre-match close
@@ -132,7 +138,12 @@ function analyzeListMatch(m) {
   item.lm = FairModel.liveMarkets(item.fit.fit.lh, item.fit.fit.la, st);
   item.model = modelCandidates(item.lm);
   if (m.bet365_live_odds) {
-    item.rows = buildLiveValueRows(item.lm, m.bet365_live_odds).map(r =>
+    // Pinnacle live on the same line when it has the match (the sharp-book
+    // check), else the model. Either way huge gaps are never picked.
+    item.pm = typeof Pinn !== 'undefined' ? Pinn.find(pinMatches, m.home_team, m.away_team, st.score) : null;
+    const pinRows = item.pm ? buildPinnacleRows(m.bet365_live_odds, item.pm) : [];
+    item.basis = pinRows.length ? 'pinnacle' : 'model';
+    item.rows = (pinRows.length ? pinRows : buildLiveValueRows(item.lm, m.bet365_live_odds)).map(r =>
       r.edge >= MT_LIVE_SUSPECT_EDGE ? Object.assign(r, { kelly: 0, suspect: true }) : r);
   }
   item.why = m.bet365_live_odds ? 'Bet365 in-play markets suspended' : 'no Bet365 in-play price';
@@ -197,7 +208,8 @@ function renderMatchesRow(it, i) {
   const hit = r && !r.modelOnly && r.edge >= thr;
   const sc = st.score ? `${st.score.home}-${st.score.away}` : '—';
   const stake = hit && r.kelly > 0 ? (_mt.bankroll ? `€${(_mt.bankroll * r.kelly).toFixed(2)}` : fPct(r.kelly, 2)) : '—';
-  const refTag = it.refKey === 'sbobet' ? '<span class="sc-bucket open" title="Model fitted to Sbobet\'s pre-match prices (the backtested reference book).">Sbobet</span>'
+  const refTag = it.basis === 'pinnacle' && r && !r.modelOnly ? `<span class="sc-bucket open" title="Fair = Pinnacle's live price on the same line, margin removed (${mtEsc(it.pm?.home || '')} v ${mtEsc(it.pm?.away || '')}).">Pinnacle</span>`
+    : it.refKey === 'sbobet' ? '<span class="sc-bucket open" title="Model fitted to Sbobet\'s pre-match prices (the backtested reference book).">Sbobet</span>'
     : it.refKey === 'bet365' ? '<span class="sc-bucket moved-thin" title="Sbobet not listed — model fitted to Bet365\'s own pre-match close, so the edge only measures how far the live price strays from that.">Bet365 pre</span>' : '';
   const betCells = r?.modelOnly ? `
     <td class="mt-strong ml-pick">${mtEsc(r.label)} <span class="mt-tag model" title="${mtEsc(it.why)} — the model's likeliest outcome, with its fair odds. No price to compare, so no edge or stake.">model only</span></td>
@@ -231,7 +243,7 @@ function renderMatchesList() {
   if (!el || !_ml.data) return;
   renderLeagueOptions();
   const items = _ml.items.filter(it =>
-    (_ml.tier === 'ALL' || it.tier === _ml.tier) && (_ml.ref === 'ANY' || it.refKey === 'sbobet')
+    (_ml.tier === 'ALL' || it.tier === _ml.tier) && (_ml.ref === 'ANY' || (_ml.ref === 'PINNACLE' ? it.basis === 'pinnacle' : it.refKey === 'sbobet'))
     && (!_ml.leagues.length || _ml.leagues.includes(it.m.league)));
   // Elapsed time: 45'+ sits after 45', HT after that, 90'+ last.
   const minuteOf = it => it.st.status === 'HT' ? 45.5
@@ -261,13 +273,13 @@ function renderMatchesList() {
     </div>
     ${notes.map(n => `<div class="mt-banner warn">${mtEsc(n)}</div>`).join('')}
     ${items.length ? `<div class="mt-table-wrap"><table class="mt-table sc-table ml-table">
-      <thead><tr><th>Min</th><th>Score</th><th>Match</th><th>Pick</th><th>Bet365 live</th><th>Fair (model)</th><th>Prob</th><th>Edge</th><th>Min odds</th><th>Stake</th><th>Ref</th></tr></thead>
+      <thead><tr><th>Min</th><th>Score</th><th>Match</th><th>Pick</th><th>Bet365 live</th><th>Fair</th><th>Prob</th><th>Edge</th><th>Min odds</th><th>Stake</th><th>Ref</th></tr></thead>
       <tbody>${items.map(renderMatchesRow).join('')}</tbody>
     </table></div>` : '<div class="placeholder"><p>No live matches match these filters right now.</p></div>'}
-    <div class="mt-sub" style="margin-top:10px">Fair = live scoreline model (pre-match strength from the reference book, real goal-timing curve, score state) · Edge = Bet365 live price ÷ fair − 1 · Min odds = fair × ${(1 + _mt.threshold / 100).toFixed(2)} · Stake = ${({ 0.125: '⅛', 0.25: '¼', 0.5: '½' })[_mt.kellyFrac] || _mt.kellyFrac} Kelly${_mt.bankroll ? ` of €${_mt.bankroll}` : ' (% of bankroll)'} — threshold, Kelly and bankroll come from the MATCH tab's settings. In-play AH counts goals from now; the goal line is on the full-match total. Click a match for the full page (it also checks red cards).</div>
+    <div class="mt-sub" style="margin-top:10px">Fair = Pinnacle's live price on the same line with its margin removed (<span class="sc-bucket open">Pinnacle</span> — the sharp-book check), else the live scoreline model (pre-match strength, real goal-timing curve, score state) · Edge = Bet365 live price ÷ fair − 1 · Min odds = fair × ${(1 + _mt.threshold / 100).toFixed(2)} · Stake = ${({ 0.125: '⅛', 0.25: '¼', 0.5: '½' })[_mt.kellyFrac] || _mt.kellyFrac} Kelly${_mt.bankroll ? ` of €${_mt.bankroll}` : ' (% of bankroll)'} — threshold, Kelly and bankroll come from the MATCH tab's settings. In-play AH counts goals from now; the goal line is on the full-match total. Click a match for the full page (it also checks red cards).</div>
     <details class="mt-details"><summary>Read before betting</summary>
       <ul class="mt-notes">
-        <li><b>Not backtested.</b> The in-play model-vs-Bet365 comparison has no validation behind it — treat a pick as a pointer to look at, not a signal.</li>
+        <li><b>Not backtested.</b> Neither in-play comparison has validation behind it — there's no in-play price history to test on. Against Pinnacle it's the same idea as the pre-match Bet365-vs-Sbobet check that did backtest (same line, same moment, sharp book); against the model it's a much weaker pointer.</li>
         <li>Gaps ≥ ${(MT_LIVE_SUSPECT_EDGE * 100).toFixed(0)}% are never picked: a gap that big almost always means the model is missing something the market knows (a red card, an injury, one side dominating).</li>
         <li>Without Sbobet the model is fitted to Bet365's own pre-match close (<span class="sc-bucket moved-thin">Bet365 pre</span>) — the edge then only says the live price has strayed from what Bet365 itself implied at kick-off.</li>
         <li><span class="mt-tag model">model only</span> rows have no Bet365 live price: the pick is the model's likeliest outcome at fair odds ≥ the min-odds floor, and "Min odds" is the price you'd want before betting it.</li>

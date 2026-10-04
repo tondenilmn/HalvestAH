@@ -144,7 +144,7 @@
           </details>
           <label class="mt-field"><span>Reference</span>
             <select id="ml-ref" class="disc-select" onchange="setMatchesPref('ref', this.value)">
-              <option value="ANY">Sbobet, else Bet365 pre-match</option><option value="SBOBET">Sbobet only (backtested book)</option>
+              <option value="ANY">Pinnacle live, else model</option><option value="PINNACLE">Pinnacle live only (sharp book)</option><option value="SBOBET">Model fitted to Sbobet only</option>
             </select></label>
           <label class="mt-field"><span>Sort by</span>
             <select id="ml-sort" class="disc-select" onchange="setMatchesPref('sort', this.value)">
@@ -555,6 +555,7 @@
 <script src="./app.js"></script>
 <script src="./sofascore.js"></script>
 <script src="./match.js"></script>
+<script src="./pinnacle.js"></script>
 <script src="./scan.js"></script>
 <script src="./matches.js"></script>
 <script src="./feeds.js"></script>
