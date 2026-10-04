@@ -129,13 +129,17 @@
             <select id="ml-tier" class="disc-select" onchange="setMatchesPref('tier', this.value)">
               <option value="ALL">All</option><option value="TOP">Top 5 + UEFA</option><option value="MAJOR">Major</option><option value="OTHER">Other</option>
             </select></label>
+          <label class="mt-field"><span>League</span>
+            <select id="ml-league" class="disc-select" onchange="setMatchesPref('league', this.value)">
+              <option value="ALL">All leagues</option>
+            </select></label>
           <label class="mt-field"><span>Reference</span>
             <select id="ml-ref" class="disc-select" onchange="setMatchesPref('ref', this.value)">
               <option value="ANY">Sbobet, else Bet365 pre-match</option><option value="SBOBET">Sbobet only (backtested book)</option>
             </select></label>
           <label class="mt-field"><span>Sort by</span>
             <select id="ml-sort" class="disc-select" onchange="setMatchesPref('sort', this.value)">
-              <option value="pick">Pick</option><option value="minute">Minute</option>
+              <option value="minute">Time elapsed (latest first)</option><option value="pick">Pick</option>
             </select></label>
           <div class="mt-sub">Edge threshold, Kelly fraction and bankroll come from the MATCH tab's value settings.</div>
         </div>

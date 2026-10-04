@@ -27,7 +27,7 @@
    MT_LIVE_SUSPECT_EDGE), app.js (switchTab, classifyLeague, _activeTab).
    ══════════════════════════════════════════════════════════════════════ */
 
-const ML_PREF_KEY = 'halvest_matches_prefs';
+const ML_PREF_KEY = 'halvest_matches_prefs_v2'; // v2: default sort became elapsed time
 const ML_POLL_MS = 60000;
 
 const _ml = {
@@ -39,7 +39,8 @@ const _ml = {
   minOdds: 1.3,      // picks below this price are skipped (near-certain outcomes)
   tier: 'ALL',       // ALL | TOP | MAJOR | OTHER
   ref: 'ANY',        // ANY | SBOBET (only matches with a Sbobet reference)
-  sort: 'pick',      // pick | minute
+  league: 'ALL',     // ALL | one league name (options rebuilt from the live list)
+  sort: 'minute',    // minute (most elapsed first) | pick
 };
 let _mlTimer = null;
 let _mlVisible = []; // items currently rendered, indexed by openLiveListMatch
@@ -47,15 +48,15 @@ let _mlVisible = []; // items currently rendered, indexed by openLiveListMatch
 (function loadMatchesPrefs() {
   try {
     const p = JSON.parse(localStorage.getItem(ML_PREF_KEY) || '{}');
-    for (const k of ['rank', 'minOdds', 'tier', 'ref', 'sort']) if (p[k] != null) _ml[k] = p[k];
+    for (const k of ['rank', 'minOdds', 'tier', 'league', 'ref', 'sort']) if (p[k] != null) _ml[k] = p[k];
   } catch (_) { /* storage unavailable — defaults are fine */ }
 })();
 function setMatchesPref(key, value) {
   if (key === 'minOdds') value = parseFloat(value);
   _ml[key] = value;
   try {
-    const { rank, minOdds, tier, ref, sort } = _ml;
-    localStorage.setItem(ML_PREF_KEY, JSON.stringify({ rank, minOdds, tier, ref, sort }));
+    const { rank, minOdds, tier, league, ref, sort } = _ml;
+    localStorage.setItem(ML_PREF_KEY, JSON.stringify({ rank, minOdds, tier, league, ref, sort }));
   } catch (_) {}
   if (key === 'rank' || key === 'minOdds') _ml.items.forEach(it => { if (it.lm) it.pick = pickLiveBet(it); });
   renderMatchesList();
@@ -222,9 +223,13 @@ function renderMatchesRow(it, i) {
 function renderMatchesList() {
   const el = document.getElementById('right-matches');
   if (!el || !_ml.data) return;
+  renderLeagueOptions();
   const items = _ml.items.filter(it =>
-    (_ml.tier === 'ALL' || it.tier === _ml.tier) && (_ml.ref === 'ANY' || it.refKey === 'sbobet'));
-  const minuteOf = it => it.st.status === 'HT' ? 45.5 : (Number.isFinite(it.st.minute) ? it.st.minute : -1);
+    (_ml.tier === 'ALL' || it.tier === _ml.tier) && (_ml.ref === 'ANY' || it.refKey === 'sbobet')
+    && (_ml.league === 'ALL' || it.m.league === _ml.league));
+  // Elapsed time: 45'+ sits after 45', HT after that, 90'+ last.
+  const minuteOf = it => it.st.status === 'HT' ? 45.5
+    : Number.isFinite(it.st.minute) ? it.st.minute + (it.st.stoppage ? 0.2 : 0) : -1;
   items.sort(_ml.sort === 'minute'
     ? (a, b) => minuteOf(b) - minuteOf(a)
     : (a, b) => pickScore(b) - pickScore(a) || minuteOf(b) - minuteOf(a));
@@ -233,7 +238,8 @@ function renderMatchesList() {
   const thr = _mt.threshold / 100;
   const value = items.filter(it => it.pick && !it.pick.modelOnly && it.pick.edge >= thr);
   const rankLabel = { best: 'best bet (Kelly)', probable: 'most probable bet', profitable: 'most profitable bet (edge)' }[_ml.rank];
-  const top = items[0]?.pick ? items[0] : null;
+  // Headline = best pick in the filtered list, whatever the row order.
+  const top = items.reduce((a, b) => (b.pick && (!a || pickScore(b) > pickScore(a)) ? b : a), null);
   const notes = [];
   if (_ml.data.matches?.length && !_ml.items.some(it => it.m.bet365_live_odds)) notes.push('No Bet365 in-play prices in the feed — the "Bet365 Live" hash is probably stale (set BET365_LIVE_HASH or RAILWAY_RELAY_URL). Without them each match shows the model\'s likeliest outcome and its fair odds ("model only") — no edge can be measured.');
 
@@ -245,7 +251,7 @@ function renderMatchesList() {
       ${top ? `<div>Top ${mtEsc(rankLabel)}: <b>${mtEsc(top.m.home_team)} v ${mtEsc(top.m.away_team)}</b> (${mtEsc(top.st.minuteText)}, ${top.st.score.home}-${top.st.score.away}) — <b>${mtEsc(top.pick.label)}</b> ${top.pick.modelOnly
         ? `model ${fPct(top.pick.p, 0)}, fair ${fOdd(top.pick.fair)} <span class="mt-dim">(no live price)</span>`
         : `@ ${fOdd(top.pick.price)}, model ${fPct(top.pick.p, 0)}, edge <b>${fSigned(top.pick.edge * 100)}%</b>`}</div>` : ''}
-      <div class="mt-dim">Ranked by ${mtEsc(rankLabel)} · updated ${_ml.fetchedAt ? _ml.fetchedAt.toLocaleTimeString() : ''} · refreshes every minute while this tab is open</div>
+      <div class="mt-dim">Pick per match: ${mtEsc(rankLabel)} · sorted by ${_ml.sort === 'minute' ? 'time elapsed' : 'pick'}${_ml.league !== 'ALL' ? ` · ${mtEsc(_ml.league)}` : ''} · updated ${_ml.fetchedAt ? _ml.fetchedAt.toLocaleTimeString() : ''} · refreshes every minute while this tab is open</div>
     </div>
     ${notes.map(n => `<div class="mt-banner warn">${mtEsc(n)}</div>`).join('')}
     ${items.length ? `<div class="mt-table-wrap"><table class="mt-table sc-table ml-table">
@@ -264,6 +270,26 @@ function renderMatchesList() {
     </details>`;
 }
 
+// League dropdown: every league in the current live list (within the tier
+// filter), with match counts. A saved league that has no live match right
+// now stays selectable so the choice isn't silently lost between refreshes.
+function renderLeagueOptions() {
+  const sel = document.getElementById('ml-league');
+  if (!sel) return;
+  const counts = new Map();
+  for (const it of _ml.items) {
+    if (_ml.tier !== 'ALL' && it.tier !== _ml.tier) continue;
+    const lg = it.m.league || '';
+    if (lg) counts.set(lg, (counts.get(lg) || 0) + 1);
+  }
+  const leagues = [...counts.keys()].sort((a, b) => a.localeCompare(b));
+  if (_ml.league !== 'ALL' && !counts.has(_ml.league)) leagues.unshift(_ml.league);
+  const total = [...counts.values()].reduce((a, b) => a + b, 0);
+  sel.innerHTML = `<option value="ALL">All leagues (${total})</option>` + leagues.map(lg =>
+    `<option value="${mtEsc(lg)}"${lg === _ml.league ? ' selected' : ''}>${mtEsc(lg)} (${counts.get(lg) || 'none live now'})</option>`).join('');
+  sel.value = _ml.league;
+}
+
 function openLiveListMatch(i) {
   const it = _mlVisible[i];
   if (!it?.m?.url) return;
@@ -273,6 +299,6 @@ function openLiveListMatch(i) {
 
 document.addEventListener('DOMContentLoaded', () => {
   const set = (id, v) => { const el = document.getElementById(id); if (el && v != null) el.value = String(v); };
-  set('ml-rank', _ml.rank); set('ml-minodds', _ml.minOdds); set('ml-tier', _ml.tier);
+  set('ml-rank', _ml.rank); set('ml-minodds', _ml.minOdds); set('ml-tier', _ml.tier); set('ml-league', _ml.league);
   set('ml-ref', _ml.ref); set('ml-sort', _ml.sort);
 });
