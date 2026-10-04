@@ -39,7 +39,8 @@ const _ml = {
   minOdds: 1.3,      // picks below this price are skipped (near-certain outcomes)
   tier: 'ALL',       // ALL | TOP | MAJOR | OTHER
   ref: 'ANY',        // ANY | SBOBET (only matches with a Sbobet reference)
-  league: 'ALL',     // ALL | one league name (options rebuilt from the live list)
+  leagues: [],       // selected league names; empty = all (list rebuilt from the live matches)
+  leagueSearch: '',  // text filter for the league checklist (not saved)
   sort: 'minute',    // minute (most elapsed first) | pick
 };
 let _mlTimer = null;
@@ -48,16 +49,20 @@ let _mlVisible = []; // items currently rendered, indexed by openLiveListMatch
 (function loadMatchesPrefs() {
   try {
     const p = JSON.parse(localStorage.getItem(ML_PREF_KEY) || '{}');
-    for (const k of ['rank', 'minOdds', 'tier', 'league', 'ref', 'sort']) if (p[k] != null) _ml[k] = p[k];
+    for (const k of ['rank', 'minOdds', 'tier', 'leagues', 'ref', 'sort']) if (p[k] != null) _ml[k] = p[k];
+    if (!Array.isArray(_ml.leagues)) _ml.leagues = [];
   } catch (_) { /* storage unavailable — defaults are fine */ }
 })();
+function saveMatchesPrefs() {
+  try {
+    const { rank, minOdds, tier, leagues, ref, sort } = _ml;
+    localStorage.setItem(ML_PREF_KEY, JSON.stringify({ rank, minOdds, tier, leagues, ref, sort }));
+  } catch (_) {}
+}
 function setMatchesPref(key, value) {
   if (key === 'minOdds') value = parseFloat(value);
   _ml[key] = value;
-  try {
-    const { rank, minOdds, tier, league, ref, sort } = _ml;
-    localStorage.setItem(ML_PREF_KEY, JSON.stringify({ rank, minOdds, tier, league, ref, sort }));
-  } catch (_) {}
+  saveMatchesPrefs();
   if (key === 'rank' || key === 'minOdds') _ml.items.forEach(it => { if (it.lm) it.pick = pickLiveBet(it); });
   renderMatchesList();
 }
@@ -226,7 +231,7 @@ function renderMatchesList() {
   renderLeagueOptions();
   const items = _ml.items.filter(it =>
     (_ml.tier === 'ALL' || it.tier === _ml.tier) && (_ml.ref === 'ANY' || it.refKey === 'sbobet')
-    && (_ml.league === 'ALL' || it.m.league === _ml.league));
+    && (!_ml.leagues.length || _ml.leagues.includes(it.m.league)));
   // Elapsed time: 45'+ sits after 45', HT after that, 90'+ last.
   const minuteOf = it => it.st.status === 'HT' ? 45.5
     : Number.isFinite(it.st.minute) ? it.st.minute + (it.st.stoppage ? 0.2 : 0) : -1;
@@ -251,7 +256,7 @@ function renderMatchesList() {
       ${top ? `<div>Top ${mtEsc(rankLabel)}: <b>${mtEsc(top.m.home_team)} v ${mtEsc(top.m.away_team)}</b> (${mtEsc(top.st.minuteText)}, ${top.st.score.home}-${top.st.score.away}) — <b>${mtEsc(top.pick.label)}</b> ${top.pick.modelOnly
         ? `model ${fPct(top.pick.p, 0)}, fair ${fOdd(top.pick.fair)} <span class="mt-dim">(no live price)</span>`
         : `@ ${fOdd(top.pick.price)}, model ${fPct(top.pick.p, 0)}, edge <b>${fSigned(top.pick.edge * 100)}%</b>`}</div>` : ''}
-      <div class="mt-dim">Pick per match: ${mtEsc(rankLabel)} · sorted by ${_ml.sort === 'minute' ? 'time elapsed' : 'pick'}${_ml.league !== 'ALL' ? ` · ${mtEsc(_ml.league)}` : ''} · updated ${_ml.fetchedAt ? _ml.fetchedAt.toLocaleTimeString() : ''} · refreshes every minute while this tab is open</div>
+      <div class="mt-dim">Pick per match: ${mtEsc(rankLabel)} · sorted by ${_ml.sort === 'minute' ? 'time elapsed' : 'pick'}${_ml.leagues.length ? ` · ${_ml.leagues.length === 1 ? mtEsc(_ml.leagues[0]) : _ml.leagues.length + ' leagues'}` : ''} · updated ${_ml.fetchedAt ? _ml.fetchedAt.toLocaleTimeString() : ''} · refreshes every minute while this tab is open</div>
     </div>
     ${notes.map(n => `<div class="mt-banner warn">${mtEsc(n)}</div>`).join('')}
     ${items.length ? `<div class="mt-table-wrap"><table class="mt-table sc-table ml-table">
@@ -270,25 +275,51 @@ function renderMatchesList() {
     </details>`;
 }
 
-// League dropdown: every league in the current live list (within the tier
-// filter), with match counts. A saved league that has no live match right
-// now stays selectable so the choice isn't silently lost between refreshes.
+// League checklist: every league in the current live list (within the tier
+// filter) with its match count; tick any number of them, none = all. A ticked
+// league with no live match right now stays listed (at the top) so the choice
+// isn't silently lost between refreshes. Only the list body is rebuilt on each
+// refresh, so the open/closed state and the search box survive it.
+let _mlLeagueList = []; // names in the order rendered, indexed by the checkboxes
+
 function renderLeagueOptions() {
-  const sel = document.getElementById('ml-league');
-  if (!sel) return;
+  const box = document.getElementById('ml-league-list');
+  const sum = document.getElementById('ml-league-summary');
+  if (!box) return;
   const counts = new Map();
   for (const it of _ml.items) {
     if (_ml.tier !== 'ALL' && it.tier !== _ml.tier) continue;
     const lg = it.m.league || '';
     if (lg) counts.set(lg, (counts.get(lg) || 0) + 1);
   }
-  const leagues = [...counts.keys()].sort((a, b) => a.localeCompare(b));
-  if (_ml.league !== 'ALL' && !counts.has(_ml.league)) leagues.unshift(_ml.league);
-  const total = [...counts.values()].reduce((a, b) => a + b, 0);
-  sel.innerHTML = `<option value="ALL">All leagues (${total})</option>` + leagues.map(lg =>
-    `<option value="${mtEsc(lg)}"${lg === _ml.league ? ' selected' : ''}>${mtEsc(lg)} (${counts.get(lg) || 'none live now'})</option>`).join('');
-  sel.value = _ml.league;
+  const sel = new Set(_ml.leagues);
+  const q = _ml.leagueSearch.trim().toLowerCase();
+  const byName = (a, b) => a.localeCompare(b);
+  const live = [...counts.keys()].sort(byName);
+  // Ticked leagues first, then the rest; the search narrows only the unticked ones.
+  _mlLeagueList = [
+    ..._ml.leagues.slice().sort(byName),
+    ...live.filter(lg => !sel.has(lg) && (!q || lg.toLowerCase().includes(q))),
+  ];
+  box.innerHTML = _mlLeagueList.length ? _mlLeagueList.map((lg, i) => `
+    <label class="ml-lg${sel.has(lg) ? ' on' : ''}"><input type="checkbox" data-i="${i}"${sel.has(lg) ? ' checked' : ''} onchange="toggleMatchesLeague(this)">
+      <span>${mtEsc(lg)}</span><b>${counts.get(lg) || '0'}</b></label>`).join('')
+    : `<div class="mt-dim">${q ? 'No live league matches that search.' : 'No live matches yet.'}</div>`;
+  if (sum) sum.textContent = _ml.leagues.length
+    ? (_ml.leagues.length === 1 ? _ml.leagues[0] : `${_ml.leagues.length} leagues selected`)
+    : `All leagues (${counts.size})`;
+  const clr = document.getElementById('ml-league-clear');
+  if (clr) clr.style.display = _ml.leagues.length ? '' : 'none';
 }
+function toggleMatchesLeague(cb) {
+  const lg = _mlLeagueList[+cb.dataset.i];
+  if (lg == null) return;
+  _ml.leagues = cb.checked ? [...new Set([..._ml.leagues, lg])] : _ml.leagues.filter(x => x !== lg);
+  saveMatchesPrefs();
+  renderMatchesList();
+}
+function clearMatchesLeagues() { _ml.leagues = []; saveMatchesPrefs(); renderMatchesList(); }
+function searchMatchesLeagues(v) { _ml.leagueSearch = v || ''; renderLeagueOptions(); }
 
 function openLiveListMatch(i) {
   const it = _mlVisible[i];
@@ -299,6 +330,6 @@ function openLiveListMatch(i) {
 
 document.addEventListener('DOMContentLoaded', () => {
   const set = (id, v) => { const el = document.getElementById(id); if (el && v != null) el.value = String(v); };
-  set('ml-rank', _ml.rank); set('ml-minodds', _ml.minOdds); set('ml-tier', _ml.tier); set('ml-league', _ml.league);
+  set('ml-rank', _ml.rank); set('ml-minodds', _ml.minOdds); set('ml-tier', _ml.tier);
   set('ml-ref', _ml.ref); set('ml-sort', _ml.sort);
 });

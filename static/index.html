@@ -129,10 +129,14 @@
             <select id="ml-tier" class="disc-select" onchange="setMatchesPref('tier', this.value)">
               <option value="ALL">All</option><option value="TOP">Top 5 + UEFA</option><option value="MAJOR">Major</option><option value="OTHER">Other</option>
             </select></label>
-          <label class="mt-field"><span>League</span>
-            <select id="ml-league" class="disc-select" onchange="setMatchesPref('league', this.value)">
-              <option value="ALL">All leagues</option>
-            </select></label>
+          <details class="ml-leagues">
+            <summary><span>League</span><b id="ml-league-summary">All leagues</b></summary>
+            <div class="ml-lg-tools">
+              <input id="ml-league-search" type="search" class="mt-input" placeholder="Search leagues…" oninput="searchMatchesLeagues(this.value)">
+              <button id="ml-league-clear" class="ml-lg-clear" onclick="clearMatchesLeagues()" style="display:none">Clear</button>
+            </div>
+            <div id="ml-league-list" class="ml-lg-list"><div class="mt-dim">No live matches yet.</div></div>
+          </details>
           <label class="mt-field"><span>Reference</span>
             <select id="ml-ref" class="disc-select" onchange="setMatchesPref('ref', this.value)">
               <option value="ANY">Sbobet, else Bet365 pre-match</option><option value="SBOBET">Sbobet only (backtested book)</option>
