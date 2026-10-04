@@ -16,7 +16,7 @@
 // redeploy when both auto-discovery paths are stuck (paste the fresh hash
 // from a local `node -e "require('./livescore').refreshHashes().then(console.log)"` run).
 let PINNACLE_HASH   = process.env.PINNACLE_HASH   || '30e528c380c96b362ffacdc66b2808c8ad59ce9e';
-let BET365_HASH     = process.env.BET365_HASH     || '553c7f0fdbb889a93c9a85abaa1639de76943277';
+let BET365_HASH     = process.env.BET365_HASH     || 'f5ed2c2c4e313f4b30dba3b1e45c78d069b1aae9';
 // "Bet365 Live" — a separate #book_filter option from plain Bet365, whose
 // odds are the actual current/moving live price rather than the frozen
 // pre-match close (see functions/api/livescore.js's own BET365_LIVE_HASH
