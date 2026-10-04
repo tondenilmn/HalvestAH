@@ -76,10 +76,10 @@ telegram/
                           # price that clears the target fair odds (verifiedGoodPrice()) — an alert
                           # that fires with no verifiable or sub-target price is still sent to
                           # Telegram but deliberately excluded here. Settles logged alerts once the
-                          # match finishes (via api-football) and sends a daily Telegram scorecard
-                          # (hit rate + ROI@price shown at alert time) — closes the loop on whether
-                          # live, genuinely bettable alerts actually work, not just historical
-                          # backtests. Persists to telegram/data/ (gitignored).
+                          # match finishes (via api-football). The daily Telegram scorecard
+                          # ("L123 Track Record") was removed 2026-10-04 at the user's request —
+                          # buildDigestMessage() still exists for a manual check. Persists to
+                          # telegram/data/ (gitignored).
   focus_lib.js            # Shared library for the FOCUS strategy (PLAN_FOCUS_BETS.md) — loads/merges
                           # CrossBooks/{Bet365,Sbobet}_Data_months, defines the 7 in-scope 1T/2T
                           # Over/Under 0.5/1.5 keys, a model-implied price + walk-forward-safe

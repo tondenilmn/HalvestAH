@@ -34,7 +34,7 @@ const { fetchLiveMatches, fetchNextMatches, fetchOpenlineMatches, fetchSbobetMat
 const priceGap = require('./pricegap');
 const { verifyBet365Price } = require('./apifootball');
 const crossdogLib = require('./crossdog_lib');
-const { recordAlert, settlePendingAlerts, buildDigestMessage, loadState, saveState } = require('./track_record');
+const { recordAlert, settlePendingAlerts } = require('./track_record');
 const { computeLiveOdd, computeLive1HOdd, computeLiveResult2H, computeLiveBtts2H, _2hResultField, _2H_RESULT_KEYS, mcLiveLo, mcLiveHi } = require('./live_odds');
 const focusLib = require('./focus_lib');
 const focusSelect = require('./focus_select');
@@ -2716,27 +2716,16 @@ async function runScan() {
   console.log(`Scan done — ${matches.length} matches · ${inWindowCount} pre-match · ${_scanAlerts} alert(s) sent.`);
 }
 
-// ── Track record: settle finished matches + send a daily scorecard ───────────
+// ── Track record: settle finished matches (no Telegram message) ──────────────
+// The daily "L123 Track Record" scorecard message was removed 2026-10-04 at the
+// user's request; alerts are still logged and settled silently, so
+// track_record.js's buildDigestMessage() can still be run by hand.
 async function runSettlementCheck() {
   try {
     const { checked, settled } = await settlePendingAlerts(cfg.APIFOOTBALL_KEY);
     if (checked) console.log(`[track_record] Checked ${checked} pending alert(s), settled ${settled}.`);
   } catch (e) {
     console.error(`[track_record] Settlement check failed: ${e.message}`);
-  }
-}
-
-async function maybeSendDailyDigest() {
-  const today = new Date().toISOString().slice(0, 10);
-  const state = loadState();
-  if (state.lastDigestDate === today) return; // already sent today
-  try {
-    const msg = buildDigestMessage(7);
-    await sendTelegram(msg);
-    saveState({ ...state, lastDigestDate: today });
-    console.log('[track_record] Daily digest sent.');
-  } catch (e) {
-    console.error(`[track_record] Digest send failed: ${e.message}`);
   }
 }
 
@@ -2807,10 +2796,9 @@ async function main() {
   // Refresh hashes daily at 06:00 UTC (hashes rotate ~once/day)
   cron.schedule('0 6 * * *', () => refreshHashes().catch(e => console.error('Hash refresh error:', e)));
   // Track record: check for newly-finished matches every 30 min (cheap —
-  // zero API calls once nothing outstanding is old enough to check), and
-  // send a scorecard digest once/day if APIFOOTBALL_KEY is configured.
+  // zero API calls once nothing outstanding is old enough to check). No
+  // scorecard message is sent any more (removed 2026-10-04).
   cron.schedule('*/30 * * * *', runSettlementCheck);
-  cron.schedule('0 8 * * *', maybeSendDailyDigest);
   // OpenLine's own coarser cadence — see config.js's OPENLINE_SCAN_INTERVAL_MINUTES.
   // node-cron's minute field only goes 0-59, so `*/N` is invalid once N>=60
   // (the default is 120) — express whole-hour intervals via the hour field.
