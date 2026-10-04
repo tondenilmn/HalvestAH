@@ -30,7 +30,7 @@ const {
   pct,
   wilsonCI,
 } = require('./engine');
-const { fetchLiveMatches, fetchNextMatches, fetchOpenlineMatches, fetchSbobetMatches, fetchSbobetDays, refreshHashes, getCurrentHashes, checkStaleHashHeuristic, checkBet365LiveHash } = require('./livescore');
+const { fetchLiveMatches, fetchNextMatches, fetchOpenlineMatches, fetchSbobetMatches, fetchTablenextDays, refreshHashes, getCurrentHashes, checkStaleHashHeuristic, checkBet365LiveHash } = require('./livescore');
 const priceGap = require('./pricegap');
 const { verifyBet365Price } = require('./apifootball');
 const crossdogLib = require('./crossdog_lib');
@@ -844,40 +844,59 @@ async function runOpenlineScan() {
 
 // ── Strategy PRICEGAP — pre-match Bet365 ≥ X% above Sbobet fair, same line ─
 // The web app's SCANNER tab as an alert (see telegram/pricegap.js and
-// config.js's PRICEGAP_* block). Own scan loop: Bet365 + Sbobet tablenext
-// day0..day1, paired by match id (shared between the two books' files).
+// config.js's PRICEGAP_* block). Two scopes on their own crons:
+//   near — kick-off within PRICEGAP_NEAR_HOURS (tablenext day0..day1), every minute by default;
+//   far  — kick-off after that up to PRICEGAP_FAR_DAYS (day1..dayN), every 15 min by default.
+// Bet365 + Sbobet fixtures are paired by match id (shared between the books' files).
 const priceGapDedup = new Dedup(24 * 60 * 60 * 1000);
+const PRICEGAP_LOG_DIR = path.join(__dirname, 'data', 'pricegap');
+const _priceGapRunning = { near: false, far: false };
 
-async function runPriceGapScan() {
-  if (!cfg.PRICEGAP_ENABLED) return;
-  const maxDay = Math.max(0, Math.ceil(cfg.PRICEGAP_WINDOW_HOURS / 24));
-  let b365, sbo;
+async function runPriceGapScan(scope = 'near') {
+  if (!cfg.PRICEGAP_ENABLED || _priceGapRunning[scope]) return;
+  _priceGapRunning[scope] = true;
   try {
-    [b365, sbo] = await Promise.all([fetchOpenlineMatches(maxDay), fetchSbobetDays(maxDay)]);
-  } catch (e) { console.error(`PriceGap fetch failed: ${e.message}`); return; }
-  const sboById = new Map(sbo.matches.filter(m => m.id).map(m => [m.id, m]));
-  let compared = 0, alerts = 0;
-  for (const match of b365.matches) {
-    const s = match.id && sboById.get(match.id);
-    if (!s) continue;
-    const ctx = matchContext(match);
-    if (ctx.liveMin != null || ctx.toKickoff == null || ctx.toKickoff <= 0 || ctx.toKickoff > cfg.PRICEGAP_WINDOW_HOURS * 60) continue;
-    if (!tierAllowed(ctx.tier, cfg.PRICEGAP_TIER)) continue;
-    compared++;
-    const gaps = priceGap.qualifyingGaps(
-      priceGap.findGaps(match.odds, s.odds, { home: match.home_team, away: match.away_team }),
-      cfg.PRICEGAP_MIN_EDGE_PCT, cfg.PRICEGAP_MAX_EDGE_PCT,
-    ).filter(r => !priceGapDedup.has(`${match.id}:${r.market}:${r.side}:${r.line}`));
-    if (!gaps.length) continue;
-    for (const r of gaps) priceGapDedup.mark(`${match.id}:${r.market}:${r.side}:${r.line}`);
-    flog(null, ctx.label, 'PRICEGAP', gaps.map(r => `${r.label} @${r.price} fair ${r.fair.toFixed(2)} +${(r.edge * 100).toFixed(1)}%`).join(' | '));
-    await sendTelegram(priceGap.formatAlert(match, gaps, ctx.toKickoff, esc, {
-      threshold: cfg.PRICEGAP_MIN_EDGE_PCT, kellyFraction: cfg.PRICEGAP_KELLY_FRACTION,
-      bankroll: cfg.PRICEGAP_BANKROLL, appUrl: cfg.APP_URL,
-    }));
-    alerts++;
+    const nearMin = cfg.PRICEGAP_NEAR_HOURS * 60;
+    const [fromDay, toDay, koMin, koMax] = scope === 'near'
+      ? [0, Math.max(0, Math.ceil(cfg.PRICEGAP_NEAR_HOURS / 24)), 0, nearMin]
+      : [Math.max(1, Math.floor(cfg.PRICEGAP_NEAR_HOURS / 24)), cfg.PRICEGAP_FAR_DAYS, nearMin, (cfg.PRICEGAP_FAR_DAYS + 1) * 1440];
+    let b365, sbo;
+    try {
+      [b365, sbo] = await Promise.all([fetchTablenextDays('bet365', fromDay, toDay), fetchTablenextDays('sbobet', fromDay, toDay)]);
+    } catch (e) { console.error(`PriceGap(${scope}) fetch failed: ${e.message}`); return; }
+    const sboById = new Map(sbo.matches.filter(m => m.id).map(m => [m.id, m]));
+    const now = Date.now();
+    let compared = 0, alerts = 0;
+    const record = [];
+    for (const match of b365.matches) {
+      const s = match.id && sboById.get(match.id);
+      if (!s) continue;
+      const ctx = matchContext(match);
+      if (ctx.liveMin != null || ctx.toKickoff == null || ctx.toKickoff <= koMin || ctx.toKickoff > koMax) continue;
+      if (!tierAllowed(ctx.tier, cfg.PRICEGAP_TIER)) continue;
+      const rows = priceGap.findGaps(match.odds, s.odds, { home: match.home_team, away: match.away_team });
+      compared += rows.length;
+      if (cfg.PRICEGAP_RECORD) for (const r of rows) if (r.edge * 100 >= cfg.PRICEGAP_RECORD_MIN_PCT) record.push(priceGap.recordRow(match, r, ctx.toKickoff));
+      const gaps = priceGap.qualifyingGaps(rows, cfg.PRICEGAP_MIN_EDGE_PCT, cfg.PRICEGAP_MAX_EDGE_PCT)
+        .filter(r => !priceGapDedup.has(`${match.id}:${r.market}:${r.side}:${r.line}`));
+      if (!gaps.length) continue;
+      for (const r of gaps) priceGapDedup.mark(`${match.id}:${r.market}:${r.side}:${r.line}`);
+      flog(null, ctx.label, 'PRICEGAP', gaps.map(r => `${r.label} @${r.price} fair ${r.fair.toFixed(2)} +${(r.edge * 100).toFixed(1)}%`).join(' | '));
+      await sendTelegram(priceGap.formatAlert(match, gaps, ctx.toKickoff, esc, {
+        threshold: cfg.PRICEGAP_MIN_EDGE_PCT, kellyFraction: cfg.PRICEGAP_KELLY_FRACTION,
+        bankroll: cfg.PRICEGAP_BANKROLL, appUrl: cfg.APP_URL,
+      }));
+      alerts++;
+    }
+    // Heartbeat + gap rows, so pricegap_report.js can tell "gap closed" (absent
+    // from a scan that covered it) from "not scanned".
+    if (cfg.PRICEGAP_RECORD) {
+      priceGap.appendRecord(PRICEGAP_LOG_DIR, now, { t: now, scope, koMin, koMax, compared, ok: !b365.hashFailed && !sbo.hashFailed && b365.matches.length > 0 }, record);
+    }
+    console.log(`PriceGap(${scope}) — ${b365.matches.length} Bet365 / ${sbo.matches.length} Sbobet fixtures, ${compared} compared, ${record.length} gap(s) ≥${cfg.PRICEGAP_RECORD_MIN_PCT}%, ${alerts} alert(s)${b365.hashFailed || sbo.hashFailed ? ' (a hash failed — check FEEDS)' : ''}.`);
+  } finally {
+    _priceGapRunning[scope] = false;
   }
-  console.log(`PriceGap scan done — ${b365.matches.length} Bet365 / ${sbo.matches.length} Sbobet fixtures, ${compared} compared, ${alerts} alert(s)${b365.bet365HashFailed || sbo.sbobetHashFailed ? ' (a hash failed — check FEEDS)' : ''}.`);
 }
 
 // ── Strategy DASHBOARD — cross-fit opening-odds pick ─────────────────────────
@@ -2768,7 +2787,7 @@ async function main() {
   console.log(`Strategy LIVEWATCH [${on(cfg.LIVEWATCH_ENABLED)}][${cfg.LIVEWATCH_TIER}]: live probability threshold watch (UNVALIDATED)  fire=CI-lower live_p≥${cfg.LIVEWATCH_THRESHOLD_PCT}% AND edge≥${cfg.LIVEWATCH_MIN_EDGE}pp vs baseline  1H-over=${cfg.LIVEWATCH_TRIGGER_WINDOW_1H_OVER[0]}'-${cfg.LIVEWATCH_TRIGGER_WINDOW_1H_OVER[1]}'  1H-under=${cfg.LIVEWATCH_TRIGGER_WINDOW_1H_UNDER[0]}'-${cfg.LIVEWATCH_TRIGGER_WINDOW_1H_UNDER[1]}'  2H-over=${cfg.LIVEWATCH_TRIGGER_WINDOW_2H_OVER[0]}'-${cfg.LIVEWATCH_TRIGGER_WINDOW_2H_OVER[1]}'  2H-under=${cfg.LIVEWATCH_TRIGGER_WINDOW_2H_UNDER[0]}'-${cfg.LIVEWATCH_TRIGGER_WINDOW_2H_UNDER[1]}'  minN≥${cfg.LIVEWATCH_MIN_N}  keys=${cfg.LIVEWATCH_KEYS.join(',')}`);
   console.log(`Strategy OPENLINE [${on(cfg.OPENLINE_ENABLED)}][${cfg.OPENLINE_TIER}]: pick bucketed on OPENING odds (homeWinsFT/awayWinsFT only), priced at CURRENT Bet365  scan=day0-day${cfg.OPENLINE_WINDOW_DAYS} every ${cfg.OPENLINE_SCAN_INTERVAL_MINUTES}min  fire=${cfg.OPENLINE_FIRE_MIN_DAYS}-${cfg.OPENLINE_FIRE_MAX_DAYS}d pre-kickoff  n≥${cfg.OPENLINE_MIN_N} z≥${cfg.OPENLINE_MIN_Z} edge≥${cfg.OPENLINE_MIN_EDGE}pp`);
   console.log(`Strategy CROSSDOG [${on(cfg.CROSSDOG_ENABLED)}][${cfg.CROSSDOG_TIER}]: back the dog when Sbobet's line disagrees (dogCover only)  fire=${cfg.CROSSDOG_WINDOW_MIN}min pre-kickoff window  gateMinN≥${cfg.CROSSDOG_GATE_MIN_N}  cells loaded: ${Object.keys(_crossdogCells.cells || {}).length} (generated ${_crossdogCells.generatedAt || 'never — run crossdog_config_search.js'})`);
-  console.log(`Strategy PRICEGAP [${on(cfg.PRICEGAP_ENABLED)}][${cfg.PRICEGAP_TIER}]: pre-match Bet365 ≥${cfg.PRICEGAP_MIN_EDGE_PCT}% (and <${cfg.PRICEGAP_MAX_EDGE_PCT}%) above Sbobet fair, same AH/O-U line  window=${cfg.PRICEGAP_WINDOW_HOURS}h  every ${cfg.PRICEGAP_SCAN_INTERVAL_MINUTES}min`);
+  console.log(`Strategy PRICEGAP [${on(cfg.PRICEGAP_ENABLED)}][${cfg.PRICEGAP_TIER}]: pre-match Bet365 ≥${cfg.PRICEGAP_MIN_EDGE_PCT}% (and <${cfg.PRICEGAP_MAX_EDGE_PCT}%) above Sbobet fair, same AH/O-U line  near=<${cfg.PRICEGAP_NEAR_HOURS}h every ${cfg.PRICEGAP_SCAN_INTERVAL_MINUTES}min  far=to day${cfg.PRICEGAP_FAR_DAYS} every ${cfg.PRICEGAP_FAR_SCAN_INTERVAL_MINUTES}min  record=${cfg.PRICEGAP_RECORD ? `≥${cfg.PRICEGAP_RECORD_MIN_PCT}%` : 'off'}`);
   console.log(`Global tier default: ${cfg.LEAGUE_TIER}`);
 
   // Refresh all book hashes at startup
@@ -2777,7 +2796,8 @@ async function main() {
   if (once) {
     await runScan();
     await runOpenlineScan();
-    await runPriceGapScan();
+    await runPriceGapScan('near');
+    await runPriceGapScan('far');
     process.exit(0);
   }
 
@@ -2798,11 +2818,12 @@ async function main() {
   const olCron = (olInterval % 60 === 0) ? `0 */${olInterval / 60} * * *` : `*/${olInterval} * * * *`;
   await runOpenlineScan();
   cron.schedule(olCron, () => runOpenlineScan().catch(e => console.error('OpenLine scan error:', e)));
-  // PriceGap's own cadence — see config.js's PRICEGAP_SCAN_INTERVAL_MINUTES.
-  const pgInterval = cfg.PRICEGAP_SCAN_INTERVAL_MINUTES;
-  const pgCron = (pgInterval % 60 === 0) ? `0 */${pgInterval / 60} * * *` : `*/${pgInterval} * * * *`;
-  await runPriceGapScan();
-  cron.schedule(pgCron, () => runPriceGapScan().catch(e => console.error('PriceGap scan error:', e)));
+  // PriceGap's own cadences — near (default every minute) and far (every 15 min).
+  const everyMin = n => (n % 60 === 0) ? `0 */${n / 60} * * *` : (n <= 1 ? '* * * * *' : `*/${n} * * * *`);
+  await runPriceGapScan('near');
+  await runPriceGapScan('far');
+  cron.schedule(everyMin(cfg.PRICEGAP_SCAN_INTERVAL_MINUTES), () => runPriceGapScan('near').catch(e => console.error('PriceGap near scan error:', e)));
+  cron.schedule(everyMin(cfg.PRICEGAP_FAR_SCAN_INTERVAL_MINUTES), () => runPriceGapScan('far').catch(e => console.error('PriceGap far scan error:', e)));
 }
 
 main().catch(e => { console.error(e); process.exit(1); });

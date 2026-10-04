@@ -543,11 +543,25 @@ module.exports = {
   PRICEGAP_MIN_EDGE_PCT:     parseFloat(process.env.PRICEGAP_MIN_EDGE_PCT || '5'),
   PRICEGAP_MAX_EDGE_PCT:     parseFloat(process.env.PRICEGAP_MAX_EDGE_PCT || '15'),
   PRICEGAP_TIER:             process.env.PRICEGAP_TIER || 'ALL',
-  // Only fixtures kicking off within this many hours (tablenext day0..day1 is scanned).
-  PRICEGAP_WINDOW_HOURS:     parseFloat(process.env.PRICEGAP_WINDOW_HOURS || '24'),
-  // Bet365 corrects toward Sbobet within minutes-hours, so scan often; costs
-  // 4 botbot3 requests (2 books × day0/day1) per run.
-  PRICEGAP_SCAN_INTERVAL_MINUTES: parseInt(process.env.PRICEGAP_SCAN_INTERVAL_MINUTES || '10', 10),
+  // Two scans with their own cadence (2026-10-04: botbot3 refreshes its
+  // tablenext files about once a minute — measured over 11 fetches 30 s apart,
+  // changes on every other fetch — so scanning faster than 1 min gains nothing):
+  //   NEAR — kick-off within PRICEGAP_NEAR_HOURS (days 0-1), every
+  //          PRICEGAP_SCAN_INTERVAL_MINUTES (4 files per run);
+  //   FAR  — kick-off after that, up to PRICEGAP_FAR_DAYS (days 1..N), every
+  //          PRICEGAP_FAR_SCAN_INTERVAL_MINUTES (2 × N files per run) — where
+  //          the opening prices (the strongest backtest bucket) appear.
+  // The cadences are a judgement call (load on botbot3 vs speed), not measured
+  // gap lifetimes — the gap recorder (PRICEGAP_RECORD) collects the data to set them.
+  PRICEGAP_NEAR_HOURS:       parseFloat(process.env.PRICEGAP_NEAR_HOURS || process.env.PRICEGAP_WINDOW_HOURS || '24'),
+  PRICEGAP_SCAN_INTERVAL_MINUTES: parseInt(process.env.PRICEGAP_SCAN_INTERVAL_MINUTES || '1', 10),
+  PRICEGAP_FAR_DAYS:         parseInt(process.env.PRICEGAP_FAR_DAYS || '7', 10),
+  PRICEGAP_FAR_SCAN_INTERVAL_MINUTES: parseInt(process.env.PRICEGAP_FAR_SCAN_INTERVAL_MINUTES || '15', 10),
+  // Gap recorder: every same-line side with edge ≥ PRICEGAP_RECORD_MIN_PCT is
+  // appended (with a per-scan heartbeat) to telegram/data/pricegap/YYYY-MM-DD.jsonl,
+  // so pricegap_report.js can measure how long gaps last by time to kick-off.
+  PRICEGAP_RECORD:           process.env.PRICEGAP_RECORD !== 'false',
+  PRICEGAP_RECORD_MIN_PCT:   parseFloat(process.env.PRICEGAP_RECORD_MIN_PCT || '2'),
   PRICEGAP_KELLY_FRACTION:   parseFloat(process.env.PRICEGAP_KELLY_FRACTION || '0.25'),
   PRICEGAP_BANKROLL:         parseFloat(process.env.PRICEGAP_BANKROLL || '0') || null,
   // Optional link to the web app in each alert (e.g. https://<project>.pages.dev).

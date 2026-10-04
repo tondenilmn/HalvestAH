@@ -121,4 +121,28 @@ function formatAlert(match, gaps, toKickoffMin, esc, opts = {}) {
   return lines.join('\n');
 }
 
-module.exports = { devig2, marketUnmoved, kelly, findGaps, bucketOf, qualifyingGaps, formatAlert, sameLine };
+// ── Gap recorder ─────────────────────────────────────────────────────────────
+// One JSONL file per UTC day under `dir`: a heartbeat line per scan
+// ({hb:{t, scope, koMin, koMax, compared, ok}}) followed by one line per
+// recorded gap side. pricegap_report.js turns these into gap lifetimes.
+const fs = require('fs');
+const path = require('path');
+
+function recordRow(match, r, toKickoffMin) {
+  return { id: match.id, k: `${r.market}:${r.side}:${r.line}`, ko: Math.round(toKickoffMin),
+           p: r.price, f: +r.fair.toFixed(3), e: +(r.edge * 100).toFixed(2), u: r.unmoved ? 1 : 0,
+           lg: match.league || '', m: `${match.home_team} v ${match.away_team}` };
+}
+
+function appendRecord(dir, t, heartbeat, rows) {
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+    const file = path.join(dir, new Date(t).toISOString().slice(0, 10) + '.jsonl');
+    const lines = [JSON.stringify({ hb: heartbeat }), ...rows.map(r => JSON.stringify({ t, ...r }))];
+    fs.appendFileSync(file, lines.join('\n') + '\n');
+  } catch (e) {
+    console.error(`PriceGap recorder: ${e.message}`);
+  }
+}
+
+module.exports = { devig2, marketUnmoved, kelly, findGaps, bucketOf, qualifyingGaps, formatAlert, sameLine, recordRow, appendRecord };
