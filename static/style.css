@@ -1711,3 +1711,20 @@ select.gs-select {
 .sc-bucket.moved { background: rgba(26,159,255,0.14); color: var(--blue); border: 1px solid rgba(26,159,255,0.45); }
 .sc-bucket.moved-thin { background: var(--bg3); color: var(--dim); border: 1px solid var(--border); }
 .mt-banner.live { background: rgba(255,77,94,0.08); border: 1px solid rgba(255,77,94,0.45); color: var(--bright); }
+
+/* ── MATCHES tab (static/matches.js) ──────────────────────── */
+.ml-min { display: inline-block; font-weight: 700; color: var(--red); white-space: nowrap; }
+.ml-score { font-weight: 700; color: var(--bright); white-space: nowrap; }
+/* Phones: one card per match — time/score/teams, then the pick, then labelled numbers. */
+@media (max-width: 700px) {
+  .ml-table thead { display: none; }
+  .ml-table, .ml-table tbody { display: block; }
+  .ml-table tr { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; padding: 10px 8px; border-bottom: 1px solid var(--border); }
+  .ml-table td { display: block; padding: 0; border: none; white-space: normal; }
+  .ml-table td.ml-match { flex: 1 1 60%; }
+  .ml-table td.ml-match .sc-match { min-width: 0; }
+  .ml-table td.ml-pick { flex: 1 1 100%; }
+  .ml-table td.ml-ref { margin-left: auto; }
+  .ml-table td[data-l]::before { content: attr(data-l) " "; font-size: 9px; color: var(--dim); font-weight: 400; }
+  .ml-table td.ml-sm-hide { display: none; }
+}

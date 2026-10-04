@@ -25,6 +25,7 @@
   <!-- ── Tabs ──────────────────────────────────────────── -->
   <div class="tabs top-tabs">
     <button class="tab-btn active" id="tabbtn-match" onclick="switchTab('match')">🎯 MATCH</button>
+    <button class="tab-btn" id="tabbtn-matches" onclick="switchTab('matches')">📡 MATCHES</button>
     <button class="tab-btn" id="tabbtn-scan" onclick="switchTab('scan')">🔎 SCANNER</button>
     <button class="tab-btn" id="tabbtn-dashboard" onclick="switchTab('dashboard')">📅 DASHBOARD</button>
     <button class="tab-btn" id="tabbtn-live" onclick="switchTab('live')">🔴 LIVE GAMES</button>
@@ -105,6 +106,40 @@
             <input id="mt-bank" type="number" min="0" step="10" class="mt-input" placeholder="optional" onchange="setMatchPref('bankroll', this.value)"></label>
         </div>
       </div><!-- /tab-match-controls -->
+
+      <!-- ── MATCHES tab controls ─────────────────────────── -->
+      <div class="tab-pane" id="tab-matches-controls">
+        <div class="card">
+          <div class="card-title">LIVE MATCHES</div>
+          <button id="ml-run-btn" class="run-btn" onclick="runMatchesScan()">📡 Refresh now</button>
+          <div id="ml-status" class="url-import-status"></div>
+          <div class="mt-sub">Every match in play, with its best Bet365 in-play bet vs the live model. Refreshes every minute while this tab is open. Click a match for the full page.</div>
+        </div>
+        <div class="card">
+          <div class="card-title">PICK &amp; FILTERS</div>
+          <label class="mt-field"><span>Rank by</span>
+            <select id="ml-rank" class="disc-select" onchange="setMatchesPref('rank', this.value)">
+              <option value="best">Best bet (Kelly)</option><option value="probable">Most probable</option><option value="profitable">Most profitable (edge)</option>
+            </select></label>
+          <label class="mt-field"><span>Min odds</span>
+            <select id="ml-minodds" class="disc-select" onchange="setMatchesPref('minOdds', this.value)">
+              <option value="1.01">Any</option><option value="1.2">1.20</option><option value="1.3">1.30</option><option value="1.5">1.50</option><option value="1.8">1.80</option>
+            </select></label>
+          <label class="mt-field"><span>League tier</span>
+            <select id="ml-tier" class="disc-select" onchange="setMatchesPref('tier', this.value)">
+              <option value="ALL">All</option><option value="TOP">Top 5 + UEFA</option><option value="MAJOR">Major</option><option value="OTHER">Other</option>
+            </select></label>
+          <label class="mt-field"><span>Reference</span>
+            <select id="ml-ref" class="disc-select" onchange="setMatchesPref('ref', this.value)">
+              <option value="ANY">Sbobet, else Bet365 pre-match</option><option value="SBOBET">Sbobet only (backtested book)</option>
+            </select></label>
+          <label class="mt-field"><span>Sort by</span>
+            <select id="ml-sort" class="disc-select" onchange="setMatchesPref('sort', this.value)">
+              <option value="pick">Pick</option><option value="minute">Minute</option>
+            </select></label>
+          <div class="mt-sub">Edge threshold, Kelly fraction and bankroll come from the MATCH tab's value settings.</div>
+        </div>
+      </div><!-- /tab-matches-controls -->
 
       <!-- ── SCANNER tab controls ─────────────────────────── -->
       <div class="tab-pane" id="tab-scan-controls">
@@ -455,6 +490,14 @@
           and the historical similar-matches analysis.</p>
         </div>
       </div>
+      <div class="tab-pane" id="right-matches">
+        <div class="placeholder">
+          <div class="icon">📡</div>
+          <p><strong style="color:var(--bright)">Live matches</strong><br>
+          Every match in play right now, each with its best bet.<br>
+          <span style="color:var(--green)">Click a match</span> for the full match page.</p>
+        </div>
+      </div>
       <div class="tab-pane" id="right-scan">
         <div class="placeholder">
           <div class="icon">🔎</div>
@@ -499,5 +542,6 @@
 <script src="./app.js"></script>
 <script src="./match.js"></script>
 <script src="./scan.js"></script>
+<script src="./matches.js"></script>
 </body>
 </html>

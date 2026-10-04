@@ -4498,7 +4498,7 @@ function renderMatchResults({ cfg_n, allBets, allBetsQual, bets, gsAllBets, gsAl
 /* ════════════════════════════════════════════════════════════
    TABS
    ════════════════════════════════════════════════════════════ */
-const TABS = ['match', 'scan', 'dashboard', 'live', 'manual'];
+const TABS = ['match', 'matches', 'scan', 'dashboard', 'live', 'manual'];
 let _activeTab = 'match';
 
 function switchTab(name) {
@@ -4513,6 +4513,8 @@ function switchTab(name) {
   else stopLivePolling();
   // Scanner: first visit fetches the week's fixtures; after that the user rescans.
   if (name === 'scan' && typeof runScan === 'function' && !_sc.data && !_sc.loading) runScan();
+  // Matches: live list, refreshed every minute while the tab is open.
+  if (typeof startMatchesPolling === 'function') { if (name === 'matches') startMatchesPolling(); else stopMatchesPolling(); }
 }
 
 /* ════════════════════════════════════════════════════════════
