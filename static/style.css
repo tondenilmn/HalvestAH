@@ -1741,3 +1741,22 @@ select.gs-select {
 .ml-lg span { flex: 1; color: var(--text, var(--bright)); }
 .ml-lg b { font-size: 10px; color: var(--dim); font-weight: 600; }
 .ml-lg.on span { color: var(--green); font-weight: 600; }
+
+/* ── FEEDS card (static/feeds.js) ─────────────────────────── */
+.fd-card > summary { cursor: pointer; list-style: none; display: flex; justify-content: space-between; align-items: center; }
+.fd-card > summary::-webkit-details-marker { display: none; }
+.fd-summary { font-size: 10px; font-weight: 700; letter-spacing: 0.04em; }
+.fd-summary.ok { color: var(--green); }
+.fd-summary.bad { color: var(--red); }
+.fd-row { display: grid; grid-template-columns: 12px auto 1fr; gap: 2px 8px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
+.fd-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--dim); }
+.fd-dot.ok { background: var(--green); }
+.fd-dot.bad { background: var(--red); }
+.fd-dot.warn { background: #f5b301; }
+.fd-name { font-weight: 700; color: var(--bright); }
+.fd-hash { font-family: monospace; color: var(--dim); text-align: right; }
+.fd-detail { grid-column: 2 / -1; font-size: 11px; color: var(--text); }
+.fd-form { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.fd-form code { font-size: 10px; }
+.fd-actions { display: flex; gap: 6px; }
+.fd-actions .run-btn { flex: 1; margin: 0; }

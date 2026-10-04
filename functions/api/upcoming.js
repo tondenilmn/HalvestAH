@@ -23,26 +23,19 @@
  *     days, counts: { bet365: [perDay], sbobet: [perDay] }, hashes, notes: [] }
  */
 import {
-  GS_PRIMARY, makeBotbotHeaders, parseGetData2Calls, parseGetDatanext1Calls,
-  mergeMatchData, fetchAllBookHashes, fetchHashesViaRailwayRelay, currentHashes,
+  parseGetData2Calls, parseGetDatanext1Calls, mergeMatchData,
+  resolveHashes, healHashes, fetchBotbotFile, botbotUrl,
 } from './livescore.js';
 
 const MAX_DAY = 7;
 
-// Hashes discovered by an earlier request in this isolate — botbot3 rotates
-// them daily, and env vars are only a manual stopgap.
-let _discovered = { bet365: null, sbobet: null };
-
+// One tablenext/dayN file. A rotated hash 404s or (for hours first) answers
+// 200 with no rows — `empty` flags the latter after fetchBotbotFile's retry.
 async function fetchDay(hash, day, ts) {
-  const url = `https://botbot3.space/tables/v4/${GS_PRIMARY}/tablenext/day${day}/${hash}.js?date=${ts}&_=${ts + 1}`;
-  try {
-    const resp = await fetch(url, { headers: makeBotbotHeaders(GS_PRIMARY, hash) });
-    if (!resp.ok) return { status: resp.status, matches: [] };
-    const js = await resp.text();
-    return { status: 200, matches: mergeMatchData(parseGetData2Calls(js), parseGetDatanext1Calls(js)) };
-  } catch (e) {
-    return { status: 0, error: e.message, matches: [] };
-  }
+  const r = await fetchBotbotFile(botbotUrl(`tablenext/day${day}`, hash, ts), hash);
+  if (r.status !== 200) return { status: r.status, error: r.error, matches: [] };
+  const matches = mergeMatchData(parseGetData2Calls(r.text), parseGetDatanext1Calls(r.text));
+  return { status: 200, matches, empty: matches.length === 0 };
 }
 
 export async function onRequest(context) {
@@ -57,45 +50,38 @@ export async function onRequest(context) {
   const env = context.env || {};
   const reqUrl = new URL(context.request.url);
   const days = Math.max(0, Math.min(MAX_DAY, parseInt(reqUrl.searchParams.get('days') ?? MAX_DAY, 10) || 0));
-  const defaults = currentHashes();
-  const hashes = {
-    bet365: _discovered.bet365 || env.BET365_HASH || defaults.bet365,
-    sbobet: _discovered.sbobet || env.SBOBET_HASH || defaults.sbobet,
-  };
+  const { hashes } = await resolveHashes(env); // KV (pasted in the app) > env > constant
   const notes = [];
   const ts = Date.now();
 
   // day0 first for both books — it validates the hashes before spending
-  // subrequests on the other days.
+  // subrequests on the other days. Every league worldwide has fixtures today,
+  // so an empty day0 means a stale hash just as surely as a 404.
   let [b0, s0] = await Promise.all([fetchDay(hashes.bet365, 0, ts), fetchDay(hashes.sbobet, 0, ts)]);
-  if (b0.status === 404 || s0.status === 404) {
-    // Direct discovery is usually WAF-blocked from Cloudflare's edge; the
-    // Railway relay (telegram/notify.js GET /hashes) is the path that works.
-    let found = await fetchAllBookHashes();
-    if (!found.bet365 && !found.sbobet) found = await fetchHashesViaRailwayRelay(env.RAILWAY_RELAY_URL || null);
-    if (b0.status === 404 && found.bet365 && found.bet365 !== hashes.bet365) {
-      hashes.bet365 = _discovered.bet365 = found.bet365;
-      b0 = await fetchDay(hashes.bet365, 0, ts);
-      notes.push('Bet365 hash rotated — rediscovered');
-    }
-    if (s0.status === 404 && found.sbobet && found.sbobet !== hashes.sbobet) {
-      hashes.sbobet = _discovered.sbobet = found.sbobet;
-      s0 = await fetchDay(hashes.sbobet, 0, ts);
-      notes.push('Sbobet hash rotated — rediscovered');
-    }
+  const bad = r => r.status === 404 || r.empty;
+  const failing = {};
+  if (bad(b0)) failing.bet365 = hashes.bet365;
+  if (bad(s0)) failing.sbobet = hashes.sbobet;
+  if (Object.keys(failing).length) {
+    const healed = await healHashes(env, failing, async (_, h) => {
+      const r = await fetchDay(h, 0, ts);
+      return r.status === 200 && !r.empty ? r : null;
+    });
+    if (healed.bet365) { hashes.bet365 = healed.bet365.hash; b0 = healed.bet365.result; notes.push('Bet365 hash rotated — rediscovered and saved'); }
+    if (healed.sbobet) { hashes.sbobet = healed.sbobet.hash; s0 = healed.sbobet.result; notes.push('Sbobet hash rotated — rediscovered and saved'); }
   }
-  if (b0.status !== 200) {
+  if (b0.status !== 200 || b0.empty) {
     return new Response(JSON.stringify({
       matches: [], days, hashes,
-      error: `Bet365 fixture list unavailable (HTTP ${b0.status}${b0.error ? ' ' + b0.error : ''}) — the Bet365 hash is probably stale. Set BET365_HASH or RAILWAY_RELAY_URL.`,
+      error: `Bet365 fixture list unavailable (${b0.empty ? 'empty' : 'HTTP ' + b0.status}${b0.error ? ' ' + b0.error : ''}) — either botbot3 is in one of its short blackouts (retry in a minute) or the Bet365 hash is stale: the MATCHES tab's Feeds card checks and fixes it.`,
     }), { headers: cors });
   }
-  if (s0.status !== 200) notes.push(`Sbobet fixture list unavailable (HTTP ${s0.status}) — the Sbobet hash is probably stale, so nothing can be compared. Set SBOBET_HASH or RAILWAY_RELAY_URL.`);
+  if (s0.status !== 200 || s0.empty) notes.push(`Sbobet fixture list unavailable (${s0.empty ? 'empty' : 'HTTP ' + s0.status}) — the Sbobet hash is probably stale, so nothing can be compared. Paste a fresh one in the MATCHES tab's Feeds card.`);
 
   const rest = [];
   for (let d = 1; d <= days; d++) {
     rest.push(fetchDay(hashes.bet365, d, ts));
-    rest.push(s0.status === 200 ? fetchDay(hashes.sbobet, d, ts) : Promise.resolve({ status: 0, matches: [] }));
+    rest.push(s0.status === 200 && !s0.empty ? fetchDay(hashes.sbobet, d, ts) : Promise.resolve({ status: 0, matches: [] }));
   }
   const restRes = await Promise.all(rest);
   const bDays = [b0, ...restRes.filter((_, i) => i % 2 === 0)];

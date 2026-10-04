@@ -51,7 +51,7 @@ let SBOBET_HASH   = 'fd03ebecbb06f1888b32c02f06b6d161729b910f'; // overridden at
 // in-play price, not a second closing snapshot. Used as the live market
 // price to compare our own model probability against for in-play value
 // detection (api-football isn't usable for this yet — see PRODUCT context).
-let BET365_LIVE_HASH = '56f7105ddda384f0955acb8ffe874c8b61daec49'; // overridden at runtime from context.env
+let BET365_LIVE_HASH = 'd343cddad34991b84229d7637c966ce71bbfe335'; // overridden at runtime from context.env
 // gS candidates — 'Q' is the confirmed primary value; rest are fallbacks.
 // Auto-discovery (fetchAllBookHashes) is tried before the sweep when the primary hash fails.
 // Worst-case subrequest budget: 1 (fast path) + 1 (page fetch) + 1 (Q+discovered) + 18 (sweep) = 21, well under 50.
@@ -189,12 +189,10 @@ async function fetchHashesViaRailwayRelay(railwayRelayUrl, diag = null) {
  */
 async function fetchLiveOddsMap(hash, timestamp) {
   if (!hash) return new Map();
-  const url = `https://botbot3.space/tables/v4/${GS_PRIMARY}/livegame/${hash}.js?date=${timestamp}&_=${timestamp + 1}`;
   try {
-    const resp = await fetch(url, { headers: makeBotbotHeaders(GS_PRIMARY, hash) });
-    if (!resp.ok) return new Map();
-    const jsText   = await resp.text();
-    const oddsRows = parseGetData2Calls(jsText);
+    const r = await fetchBotbotFile(botbotUrl('livegame', hash, timestamp), hash);
+    if (r.status !== 200) return new Map();
+    const oddsRows = parseGetData2Calls(r.text);
     const map = new Map();
     for (const row of oddsRows) {
       if (row.matchId) map.set(row.matchId, row.odds);
@@ -212,12 +210,10 @@ async function fetchLiveOddsMap(hash, timestamp) {
  */
 async function fetchBet365LiveMarketMap(hash, timestamp) {
   if (!hash) return new Map();
-  const url = `https://botbot3.space/tables/v4/${GS_PRIMARY}/livegame/${hash}.js?date=${timestamp}&_=${timestamp + 1}`;
   try {
-    const resp = await fetch(url, { headers: makeBotbotHeaders(GS_PRIMARY, hash) });
-    if (!resp.ok) return new Map();
-    const jsText = await resp.text();
-    const rows   = parseGetData2NoneCalls(jsText);
+    const r = await fetchBotbotFile(botbotUrl('livegame', hash, timestamp), hash, /getData2none\s*\(/);
+    if (r.status !== 200) return new Map();
+    const rows   = parseGetData2NoneCalls(r.text);
     const map    = new Map();
     for (const row of rows) map.set(row.matchId, row.live_odds);
     return map;
@@ -239,11 +235,127 @@ function makeBotbotHeaders(gS, book) {
   };
 }
 
+/* ══════════════════════════════════════════════════════════════════════════
+ * Hash store — where every function gets its book hashes from.
+ *
+ * Priority: KV (HASHES_KV binding, key "hashes") > env var > constant above.
+ * KV holds whatever was last pasted in the app (POST /api/hashes, validated
+ * against botbot3 before saving) or last auto-discovered by any function, each
+ * with a timestamp, so a fix made from a phone takes effect on the next
+ * request with no dashboard edit or redeploy. Without the binding everything
+ * works as before (env > constant) — just without persistence.
+ *
+ * KV value: { bet365: {hash, at, by}, bet365live: {…}, sbobet: {…} }
+ * ══════════════════════════════════════════════════════════════════════════ */
+const STORE_BOOKS = ['bet365', 'bet365live', 'sbobet'];
+const DEFAULT_HASHES = { bet365: BET365_HASH, bet365live: BET365_LIVE_HASH, sbobet: SBOBET_HASH, pinnacle: PINNACLE_HASH };
+const ENV_KEYS = { bet365: 'BET365_HASH', bet365live: 'BET365_LIVE_HASH', sbobet: 'SBOBET_HASH', pinnacle: 'PINNACLE_HASH' };
+const isHash40 = v => typeof v === 'string' && /^[a-f0-9]{40}$/i.test(v);
+
+async function readStoredHashes(env) {
+  const kv = env?.HASHES_KV;
+  if (!kv) return {};
+  try { return (await kv.get('hashes', 'json')) || {}; } catch { return {}; }
+}
+
+// { hashes: {bet365, bet365live, sbobet, pinnacle}, source: {book: 'kv'|'env'|'default'}, stored }
+async function resolveHashes(env) {
+  const stored = await readStoredHashes(env);
+  const hashes = {}, source = {};
+  for (const book of Object.keys(DEFAULT_HASHES)) {
+    const kvHash = stored[book]?.hash, envHash = env?.[ENV_KEYS[book]];
+    if (isHash40(kvHash)) { hashes[book] = kvHash.toLowerCase(); source[book] = 'kv'; }
+    else if (isHash40(envHash)) { hashes[book] = envHash.toLowerCase(); source[book] = 'env'; }
+    else { hashes[book] = DEFAULT_HASHES[book]; source[book] = 'default'; }
+  }
+  return { hashes, source, stored, kv: !!env?.HASHES_KV };
+}
+
+// Merge { book: hash } into KV. No-op without the binding. Never throws.
+async function saveHashes(env, updates, by = 'auto') {
+  const kv = env?.HASHES_KV;
+  if (!kv) return false;
+  try {
+    const cur = (await kv.get('hashes', 'json')) || {};
+    let changed = false;
+    for (const [book, hash] of Object.entries(updates)) {
+      if (!STORE_BOOKS.includes(book) || !isHash40(hash) || cur[book]?.hash === hash.toLowerCase()) continue;
+      cur[book] = { hash: hash.toLowerCase(), at: Date.now(), by };
+      changed = true;
+    }
+    if (changed) await kv.put('hashes', JSON.stringify(cur));
+    return changed;
+  } catch { return false; }
+}
+
+// Hashes found by discovery earlier in this isolate — tried as a retry when
+// the resolved hash fails, never ahead of it (it used to win over env, so a
+// stale discovered hash could mask a fresh manual one until a redeploy).
+const _isolateFound = {};
+function rememberFound(book, hash) { if (isHash40(hash)) _isolateFound[book] = hash.toLowerCase(); }
+function isolateFound(book) { return _isolateFound[book] || null; }
+
+// One botbot3 fetch. The feed intermittently answers 200 with an empty
+// table (seen 2026-10-04: a few seconds of the cookie-notice shell, then
+// full data again) — when the body has none of the expected calls, wait a
+// moment and fetch once more before reporting it empty.
+// → { status, text, empty }
+async function fetchBotbotFile(url, hash, marker = /\bmatch2text\s*\+=/) {
+  const once = async () => {
+    try {
+      const resp = await fetch(url, { headers: makeBotbotHeaders(GS_PRIMARY, hash) });
+      const text = resp.ok ? await resp.text() : '';
+      return { status: resp.status, text, empty: resp.ok && !marker.test(text) };
+    } catch (e) {
+      return { status: 0, text: '', empty: false, error: e.message };
+    }
+  };
+  let r = await once();
+  if (r.empty) {
+    await new Promise(res => setTimeout(res, 1200));
+    r = await once();
+  }
+  return r;
+}
+// Replace failing hashes: { book: currentHash } → for each book try the hash
+// this isolate found earlier, then one discovery round (direct page fetch,
+// else the Railway relay). `test(book, hash)` returns a truthy result when the
+// hash works. Working replacements are saved to KV. → { book: {hash, result} }
+async function healHashes(env, failing, test) {
+  const out = {};
+  let found = null;
+  for (const [book, cur] of Object.entries(failing)) {
+    const tried = new Set([cur]);
+    const tryHash = async h => {
+      if (!h || tried.has(h)) return false;
+      tried.add(h);
+      const r = await test(book, h);
+      if (r) out[book] = { hash: h, result: r };
+      return !!r;
+    };
+    if (await tryHash(isolateFound(book))) continue;
+    if (!found) {
+      found = await fetchAllBookHashes();
+      if (!STORE_BOOKS.some(b => found[b])) found = await fetchHashesViaRailwayRelay(env?.RAILWAY_RELAY_URL || null);
+    }
+    await tryHash(found[book]);
+  }
+  const fixed = Object.fromEntries(Object.entries(out).map(([b, v]) => [b, v.hash]));
+  for (const [b, h] of Object.entries(fixed)) rememberFound(b, h);
+  if (Object.keys(fixed).length) await saveHashes(env, fixed, 'auto');
+  return out;
+}
+const botbotUrl = (kind, hash, ts = Date.now()) =>
+  `https://botbot3.space/tables/v4/${GS_PRIMARY}/${kind}/${hash}.js?date=${ts}&_=${ts + 1}`;
+
 export async function onRequest(context) {
-  if (context.env?.PINNACLE_HASH)   PINNACLE_HASH   = context.env.PINNACLE_HASH;
-  if (context.env?.BET365_HASH)     BET365_HASH     = context.env.BET365_HASH;
-  if (context.env?.BET365_LIVE_HASH) BET365_LIVE_HASH = context.env.BET365_LIVE_HASH;
-  if (context.env?.SBOBET_HASH)     SBOBET_HASH     = context.env.SBOBET_HASH;
+  // Reset every request from the store (KV > env > constant) — the module
+  // globals below used to keep a discovered hash for the isolate's lifetime.
+  const resolved = await resolveHashes(context.env);
+  PINNACLE_HASH    = resolved.hashes.pinnacle;
+  BET365_HASH      = resolved.hashes.bet365;
+  BET365_LIVE_HASH = resolved.hashes.bet365live;
+  SBOBET_HASH      = resolved.hashes.sbobet;
   const RAILWAY_RELAY_URL = context.env?.RAILWAY_RELAY_URL || null;
 
   const cors = {
@@ -353,19 +465,12 @@ export async function onRequest(context) {
    * Updates lastError on failure.
    */
   async function tryComboData(hash, gS) {
-    const dataUrl = `https://botbot3.space/tables/v4/${gS}/livegame/${hash}.js?date=${timestamp}&_=${timestamp + 1}`;
-    let jsText;
-    try {
-      const resp = await fetch(dataUrl, { headers: makeBotbotHeaders(gS, hash) });
-      if (!resp.ok) {
-        lastError = `HTTP ${resp.status} (gS=${gS}, book=${hash.slice(0, 8)}…)`;
-        return null;
-      }
-      jsText = await resp.text();
-    } catch (e) {
-      lastError = e.message;
+    const r = await fetchBotbotFile(botbotUrl('livegame', hash, timestamp), hash);
+    if (r.status !== 200) {
+      lastError = r.error || `HTTP ${r.status} (gS=${gS}, book=${hash.slice(0, 8)}…)`;
       return null;
     }
+    const jsText = r.text;
 
     const oddsRows = parseGetData2Calls(jsText);
 
@@ -393,13 +498,9 @@ export async function onRequest(context) {
    * Returns match array on success, null on failure.
    */
   async function tryNextComboData(hash, gS) {
-    const url = `https://botbot3.space/tables/v4/${gS}/tablenext/day0/${hash}.js?date=${timestamp}&_=${timestamp + 1}`;
-    let jsText;
-    try {
-      const resp = await fetch(url, { headers: makeBotbotHeaders(gS, hash) });
-      if (!resp.ok) return null;
-      jsText = await resp.text();
-    } catch { return null; }
+    const r = await fetchBotbotFile(botbotUrl('tablenext/day0', hash, timestamp), hash);
+    if (r.status !== 200) return null;
+    const jsText = r.text;
 
     const oddsRows = parseGetData2Calls(jsText);
     if (oddsRows.length === 0) return null;
@@ -413,6 +514,15 @@ export async function onRequest(context) {
   // Pinnacle-primary design which needed a separate secondary-odds fetch.
   let liveResult = await tryComboData(BET365_HASH, GS_PRIMARY);
 
+  // A hash found by discovery earlier in this isolate, if the stored one fails.
+  if (!liveResult && isolateFound('bet365') && isolateFound('bet365') !== BET365_HASH) {
+    const prev = BET365_HASH;
+    BET365_HASH = isolateFound('bet365');
+    liveResult = await tryComboData(BET365_HASH, GS_PRIMARY);
+    if (liveResult) await saveHashes(context.env, { bet365: BET365_HASH }, 'auto');
+    else BET365_HASH = prev;
+  }
+
   if (!liveResult && lastError.includes('404')) {
     // Direct discovery from Cloudflare's edge is blocked by asianbetsoccer's
     // WAF (confirmed 2026-08-24 — 202 bot-challenge on every attempt), so
@@ -424,6 +534,7 @@ export async function onRequest(context) {
       BET365_HASH = discovered;
       lastError = '';
       liveResult = await tryComboData(BET365_HASH, GS_PRIMARY);
+      if (liveResult) { rememberFound('bet365', BET365_HASH); await saveHashes(context.env, { bet365: BET365_HASH }, 'auto'); }
     }
   }
 
@@ -450,12 +561,23 @@ export async function onRequest(context) {
   // Pinnacle/Sbobet are best-effort only now — fetchLiveOddsMap silently
   // returns an empty map on any failure, so a delisted/stale Pinnacle hash
   // just means no reference odds for that book, not a broken response.
-  const [nextMatches, pinnacleMap, sboMap, bet365LiveMap] = await Promise.all([
+  let [nextMatches, pinnacleMap, sboMap, bet365LiveMap] = await Promise.all([
     tryNextComboData(BET365_HASH, GS_PRIMARY).then(r => r ?? []),
     fetchLiveOddsMap(PINNACLE_HASH, timestamp),
     fetchLiveOddsMap(SBOBET_HASH, timestamp),
     fetchBet365LiveMarketMap(BET365_LIVE_HASH, timestamp),
   ]);
+
+  // Live matches on Bet365 but nothing at all from the Bet365 Live feed →
+  // that hash is stale (it answers 200-empty for hours before it 404s).
+  const nLive = liveResult.matches.filter(m => m.minute).length;
+  if (nLive >= 3 && bet365LiveMap.size === 0) {
+    const healed = await healHashes(context.env, { bet365live: BET365_LIVE_HASH }, async (_, h) => {
+      const map = await fetchBet365LiveMarketMap(h, timestamp);
+      return map.size ? map : null;
+    });
+    if (healed.bet365live) { BET365_LIVE_HASH = healed.bet365live.hash; bet365LiveMap = healed.bet365live.result; }
+  }
 
   // Attach reference odds to each Bet365 match by shared matchId
   for (const m of liveResult.matches) {
@@ -965,11 +1087,9 @@ function parseLivegameTables(tm1Html, tm2Html) {
  * tablenext/dayN tables instead of livegame. Only onRequest* exports are
  * treated as route handlers by Pages, so these are plain module exports.
  * ══════════════════════════════════════════════════════════════════════════ */
-export function currentHashes() {
-  return { bet365: BET365_HASH, sbobet: SBOBET_HASH, bet365live: BET365_LIVE_HASH };
-}
 export {
   GS_PRIMARY, makeBotbotHeaders, parseGetData2Calls, parseGetDatanext1Calls,
   mergeMatchData, fetchAllBookHashes, fetchHashesViaRailwayRelay,
   parseGetData1Calls, parseGetData2NoneCalls,
+  resolveHashes, saveHashes, healHashes, rememberFound, isolateFound, fetchBotbotFile, botbotUrl, isHash40, STORE_BOOKS,
 };

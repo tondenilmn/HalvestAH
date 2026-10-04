@@ -109,6 +109,11 @@
 
       <!-- ── MATCHES tab controls ─────────────────────────── -->
       <div class="tab-pane" id="tab-matches-controls">
+        <details class="card fd-card" id="fd-card">
+          <summary class="card-title">FEEDS <span id="fd-summary" class="fd-summary"></span></summary>
+          <div id="fd-body"><div class="mt-dim">Not checked yet.</div></div>
+          <div id="fd-msg" class="url-import-status"></div>
+        </details>
         <div class="card">
           <div class="card-title">LIVE MATCHES</div>
           <button id="ml-run-btn" class="run-btn" onclick="runMatchesScan()">📡 Refresh now</button>
@@ -551,5 +556,6 @@
 <script src="./match.js"></script>
 <script src="./scan.js"></script>
 <script src="./matches.js"></script>
+<script src="./feeds.js"></script>
 </body>
 </html>

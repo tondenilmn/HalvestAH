@@ -18,21 +18,14 @@
  * 2 subrequests normally, a few more when a hash has rotated.
  */
 import {
-  GS_PRIMARY, makeBotbotHeaders, parseGetData1Calls, parseGetData2NoneCalls,
-  fetchAllBookHashes, fetchHashesViaRailwayRelay, currentHashes,
+  parseGetData1Calls, parseGetData2NoneCalls,
+  resolveHashes, healHashes, fetchBotbotFile, botbotUrl,
 } from './livescore.js';
 
-let _discovered = { bet365: null, bet365live: null };
-
-async function fetchLivegame(hash, ts) {
-  const url = `https://botbot3.space/tables/v4/${GS_PRIMARY}/livegame/${hash}.js?date=${ts}&_=${ts + 1}`;
-  try {
-    const resp = await fetch(url, { headers: makeBotbotHeaders(GS_PRIMARY, hash) });
-    return { status: resp.status, text: resp.ok ? await resp.text() : '' };
-  } catch (e) {
-    return { status: 0, text: '', error: e.message };
-  }
+async function fetchLivegame(hash, ts, marker) {
+  return fetchBotbotFile(botbotUrl('livegame', hash, ts), hash, marker);
 }
+const LIVE_MARKER = /getData2none\s*\(/;
 
 const parseScore = s => {
   const m = typeof s === 'string' && s.match(/^(\d+)-(\d+)$/);
@@ -53,11 +46,7 @@ export async function onRequest(context) {
   if (!/^[a-f0-9]{20,}$/.test(id)) {
     return new Response(JSON.stringify({ found: false, error: 'Missing or invalid ?id=' }), { status: 400, headers: cors });
   }
-  const defaults = currentHashes();
-  const hashes = {
-    bet365:     _discovered.bet365     || env.BET365_HASH      || defaults.bet365,
-    bet365live: _discovered.bet365live || env.BET365_LIVE_HASH || defaults.bet365live,
-  };
+  const { hashes } = await resolveHashes(env); // KV (pasted in the app) > env > constant
   const notes = [];
   const ts = Date.now();
 
@@ -65,29 +54,27 @@ export async function onRequest(context) {
     meta: b.status === 200 ? parseGetData1Calls(b.text).find(m => m.matchId === id) : null,
     liveRows: l.status === 200 ? parseGetData2NoneCalls(l.text) : [],
   });
-  let [b, l] = await Promise.all([fetchLivegame(hashes.bet365, ts), fetchLivegame(hashes.bet365live, ts)]);
+  let [b, l] = await Promise.all([fetchLivegame(hashes.bet365, ts), fetchLivegame(hashes.bet365live, ts, LIVE_MARKER)]);
   let r = read(b, l);
 
   // A rotated hash either 404s or keeps answering 200 with an empty table
   // for a while (see telegram/livescore.js's stale-hash heuristic) — treat
   // "no live rows at all" the same as a 404.
-  const b365Stale = b.status === 404;
-  const liveStale = l.status === 404 || (l.status === 200 && r.liveRows.length === 0);
-  if (b365Stale || liveStale) {
-    let found = await fetchAllBookHashes();
-    if (!found.bet365 && !found.bet365live) found = await fetchHashesViaRailwayRelay(env.RAILWAY_RELAY_URL || null);
-    if (b365Stale && found.bet365 && found.bet365 !== hashes.bet365) {
-      hashes.bet365 = _discovered.bet365 = found.bet365;
-      b = await fetchLivegame(hashes.bet365, ts);
-    }
-    if (liveStale && found.bet365live && found.bet365live !== hashes.bet365live) {
-      hashes.bet365live = _discovered.bet365live = found.bet365live;
-      l = await fetchLivegame(hashes.bet365live, ts);
-    }
+  const failing = {};
+  if (b.status === 404) failing.bet365 = hashes.bet365;
+  if (l.status === 404 || (l.status === 200 && r.liveRows.length === 0)) failing.bet365live = hashes.bet365live;
+  if (Object.keys(failing).length) {
+    const healed = await healHashes(env, failing, async (book, h) => {
+      const f = await fetchLivegame(h, ts, book === 'bet365live' ? LIVE_MARKER : undefined);
+      if (f.status !== 200) return null;
+      return book === 'bet365live' ? (parseGetData2NoneCalls(f.text).length ? f : null) : f;
+    });
+    if (healed.bet365) { hashes.bet365 = healed.bet365.hash; b = healed.bet365.result; }
+    if (healed.bet365live) { hashes.bet365live = healed.bet365live.hash; l = healed.bet365live.result; }
     r = read(b, l);
   }
   if (b.status !== 200) notes.push(`Bet365 live feed unavailable (HTTP ${b.status}) — minute/score come from the match page only.`);
-  if (!r.liveRows.length) notes.push('Bet365 in-play prices unavailable (Bet365 Live hash stale?) — set BET365_LIVE_HASH or RAILWAY_RELAY_URL.');
+  if (!r.liveRows.length) notes.push('Bet365 in-play prices unavailable (Bet365 Live hash stale?) — paste a fresh one in the MATCHES tab\'s Feeds card.');
 
   const liveRow = r.liveRows.find(x => x.matchId === id);
   // 0 = not offered right now (suspended market).

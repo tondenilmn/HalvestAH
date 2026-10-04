@@ -182,6 +182,7 @@ const pickScore = it => !it.pick ? -Infinity
 function startMatchesPolling() {
   stopMatchesPolling();
   runMatchesScan();
+  if (typeof loadFeedStatus === 'function' && !_fd.data) loadFeedStatus();
   _mlTimer = setInterval(() => {
     if (typeof _activeTab !== 'undefined' && _activeTab !== 'matches') { stopMatchesPolling(); return; }
     runMatchesScan();
@@ -246,7 +247,7 @@ function renderMatchesList() {
   // Headline = best pick in the filtered list, whatever the row order.
   const top = items.reduce((a, b) => (b.pick && (!a || pickScore(b) > pickScore(a)) ? b : a), null);
   const notes = [];
-  if (_ml.data.matches?.length && !_ml.items.some(it => it.m.bet365_live_odds)) notes.push('No Bet365 in-play prices in the feed — the "Bet365 Live" hash is probably stale (set BET365_LIVE_HASH or RAILWAY_RELAY_URL). Without them each match shows the model\'s likeliest outcome and its fair odds ("model only") — no edge can be measured.');
+  if (_ml.data.matches?.length && !_ml.items.some(it => it.m.bet365_live_odds)) notes.push('No Bet365 in-play prices in the feed — the "Bet365 Live" hash is probably stale: open FEEDS (top of the left panel) to check and replace it. Without them each match shows the model\'s likeliest outcome and its fair odds ("model only") — no edge can be measured.');
 
   el.innerHTML = `
     <div class="mt-value-summary ${value.length ? 'hit' : ''}">

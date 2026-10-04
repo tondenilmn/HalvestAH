@@ -39,6 +39,7 @@ functions/
                           # (also exports its parsers + hash discovery for upcoming.js / livematch.js)
     upcoming.js           # GET /api/upcoming[?days=0-7] — every fixture today…+7d, Bet365 + Sbobet AH/TL current+opening, paired by id (SCANNER tab)
     livematch.js          # GET /api/livematch?id=<hex> — one in-play match: minute, score, HT, Bet365 in-play prices (MATCH tab live refresh)
+    hashes.js             # GET/POST /api/hashes — feed health per book hash + validated save to KV (HASHES_KV); the app's FEEDS card
 static/
   index.html              # App shell
   app.js                  # All logic: CSV processing, engine, UI (~2500 lines)
@@ -46,6 +47,7 @@ static/
   match.js                # 🎯 MATCH tab: paste an asianbetsoccer link → overview, Bet365-vs-Sbobet value, fair prices, historical (+ live mode)
   scan.js                 # 🔎 SCANNER tab: all upcoming fixtures, flags Bet365 ≥ X% above Sbobet's de-vigged fair (same line, current prices)
   matches.js              # 📡 MATCHES tab: every live match with its best in-play bet (Bet365 live vs live model); click → MATCH tab
+  feeds.js                # FEEDS card (MATCHES tab): which book hashes work, paste-to-replace a stale one (POST /api/hashes)
   style.css               # Dark theme
   data/
     manifest.json         # Auto-generated — do not edit by hand
@@ -193,6 +195,16 @@ Rows are tagged `TOP` / `MAJOR` / `OTHER` at load time via `_T1_RULES` / `_T2_KE
 4. `cfg.tl_o` (opening TL exact match ±0.13)
 
 `over_move` and `under_move` are tracked per row and filterable independently.
+
+## Hash Store & FEEDS Card (`functions/api/hashes.js`, `static/feeds.js`, added 2026-10-04)
+
+Every function (`livescore.js`, `upcoming.js`, `livematch.js`, `hashes.js`) gets its three book hashes — Bet365, Sbobet, Bet365 Live — from `resolveHashes(env)` in `livescore.js`: **KV (`HASHES_KV` binding, key `hashes`) > env var > constant**, re-resolved on every request. KV holds whatever was last pasted in the app or last auto-discovered, each with `{hash, at, by}`. The one-time setup is a KV namespace bound to the Pages project as `HASHES_KV`; without it everything works as before (env > constant), just without saving.
+
+- **FEEDS card** (top of the MATCHES tab's left panel, opens itself when a feed is broken): `GET /api/hashes` probes each hash's livegame file and reports ok / stale / wrong / unverified, plus where the hash comes from. A definitely-stale feed gets one discovery round (`healHashes`) and a working replacement is saved. The paste box `POST /api/hashes {book, url}` extracts the 40-hex hash and only saves it if it is the right kind of feed with data; `HASH_ADMIN_KEY` env var, if set, must be sent as `key`.
+- **Telling the feeds apart** (checked 2026-10-04): Bet365/Sbobet livegame files are mostly `getData2` rows with a handful of `getData2none`; Bet365 Live is `getData2none` only (and its `tablenext` 404s). So `getData2none` rows alone do NOT identify the Live feed.
+- **Blackouts:** botbot3 intermittently serves every feed as the empty cookie-notice shell (~3.3 KB, no rows) for ~30-60 s — indistinguishable from a rotated hash by content. `fetchBotbotFile` retries an empty answer once after 1.2 s; `hashes.js` only calls an empty feed stale when another feed has data at the same moment (and Bet365 Live only when ≥3 matches are in play), and refuses to save during a blackout.
+- **Self-heal:** `healHashes(env, {book: currentHash}, test)` tries the hash this isolate found earlier, then one discovery round (direct page fetch, else Railway relay), and saves a working replacement to KV — used by `upcoming.js` (empty/404 day0), `livematch.js`, `livescore.js` (Bet365 404, and Bet365 Live empty while ≥3 matches are live) and `GET /api/hashes`. An isolate-discovered hash is only ever a retry, never ahead of the resolved one (it used to beat env vars until a redeploy). Direct discovery from Cloudflare's edge is still WAF-blocked; from other networks the bare `Mozilla/5.0` UA gets through (2026-10-04, after a 403 on the full UA).
+- Railway's `telegram/livescore.js` relays through `/api/livescore`'s `book`/`sbobet_book`/`bet365live_book` fields when its own discovery fails, so a hash pasted in the app reaches the notifier too.
 
 ## The Livescore Function (`functions/api/livescore.js`)
 
