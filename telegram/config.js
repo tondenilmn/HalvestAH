@@ -456,29 +456,27 @@ module.exports = {
   OPENLINE_MIN_N:       parseInt(process.env.OPENLINE_MIN_N   || '15',  10),
   OPENLINE_MIN_Z:       parseFloat(process.env.OPENLINE_MIN_Z || '1.5'),
   OPENLINE_MIN_EDGE:    parseFloat(process.env.OPENLINE_MIN_EDGE || '0'),
-  // How many days ahead to scan (tablenext is day-indexed, day0=today). Wider
-  // than exactly 7 so a league posting its line a bit earlier/later than a
-  // week is still caught — the match-id dedup below makes re-seeing the same
-  // match on multiple days harmless.
-  OPENLINE_WINDOW_DAYS: parseInt(process.env.OPENLINE_WINDOW_DAYS || '9', 10),
+  // How many days ahead to scan (tablenext is day-indexed, day0=today).
+  // asianbetsoccer's next-games list stops at day7 (day8+ are empty, checked
+  // 2026-10-04), so 7 = everything there is.
+  OPENLINE_WINDOW_DAYS: parseInt(process.env.OPENLINE_WINDOW_DAYS || '7', 10),
   // Same cadence as PRICEGAP's far scan (PRICEGAP_FAR_SCAN_INTERVAL_MINUTES,
-  // also days 1-7). Was 120 while the alert fired at first sight; since it
-  // checks Bet365's CURRENT price once the match is 6-7 days out, a long gap
-  // between scans just means a staler price by the time it alerts. Each run
-  // costs OPENLINE_WINDOW_DAYS+1 fetches from botbot3.space.
+  // also days 1-7). Each run costs OPENLINE_WINDOW_DAYS+1 fetches from botbot3.
   OPENLINE_SCAN_INTERVAL_MINUTES: parseInt(process.env.OPENLINE_SCAN_INTERVAL_MINUTES || '15', 10),
-  // The alert itself only FIRES once a match is this many days from kickoff
-  // (added 2026-09-06, user request) — separate from OPENLINE_WINDOW_DAYS
-  // above, which is just how far out the scan looks to capture the true
-  // opening snapshot (see notify.js's _openlineOpening store). Firing at
-  // first sight (which could be a full OPENLINE_WINDOW_DAYS away) used the
-  // same early, largely unbettable snapshot both to pick the bucket AND to
-  // price/gate the bet; now the bucket/bet pick still uses the ORIGINAL
-  // opening odds (first seen, whichever day that was), but the price actually
-  // checked against bet.mo_lo — and shown in the alert — is whatever Bet365 is
-  // CURRENTLY quoting once the match reaches this window.
-  OPENLINE_FIRE_MIN_DAYS: parseFloat(process.env.OPENLINE_FIRE_MIN_DAYS || '6'),
-  OPENLINE_FIRE_MAX_DAYS: parseFloat(process.env.OPENLINE_FIRE_MAX_DAYS || '7'),
+  // FIRST SIGHT (2026-10-04, replacing the 6-7-days-out fire window of
+  // 2026-09-06): each match is decided ONCE, the first scan its Bet365 AH +
+  // 1X2 prices are listed, at any distance from kick-off — alert if the pick
+  // qualifies and the CURRENT price clears mo_lo, otherwise never. Why: the
+  // edge lives in the early price. Same picks over 19 months, gated on mo_lo:
+  // at the OPENING price +25.2% / lock-box +33.8% ROI (19/19 months); at the
+  // CLOSING price −5.9% / −23.5% (7/19), and still losing when the closing
+  // price hadn't dropped below opening. So no re-checking toward kick-off.
+  // The fire window was only needed because the alert used to show the
+  // opening price as "current" (fixed 2026-10-04).
+  // After a restart that lost the decision store (no Railway volume), a match
+  // can't be told apart from a new listing — on the process's FIRST scan only,
+  // undecided matches closer than this many days are marked decided silently.
+  OPENLINE_RESTART_MIN_DAYS: parseFloat(process.env.OPENLINE_RESTART_MIN_DAYS || '6'),
 
   // ════════════════════════════════════════════════════════════════════════════
   // STRATEGY CROSSDOG — back the dog when Sbobet's line disagrees (added 2026-09-05)
