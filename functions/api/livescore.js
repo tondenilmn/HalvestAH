@@ -41,7 +41,7 @@
 // odds source (silently empty if it fails, same as SBOBET_HASH).
 let PINNACLE_HASH = '30e528c380c96b362ffacdc66b2808c8ad59ce9e'; // overridden at runtime from context.env
 let BET365_HASH   = '553c7f0fdbb889a93c9a85abaa1639de76943277'; // overridden at runtime from context.env
-let SBOBET_HASH   = 'f1bd8f485d42c4e9700599b0db02cd537a78801f'; // overridden at runtime from context.env
+let SBOBET_HASH   = 'fd03ebecbb06f1888b32c02f06b6d161729b910f'; // overridden at runtime from context.env
 // "Bet365 Live" — a separate #book_filter option from plain Bet365 (see
 // BOOK_PATTERNS comment below). Confirmed 2026-09-06 by diffing this feed
 // against plain Bet365 for the same match 6 minutes into play: its "open"
