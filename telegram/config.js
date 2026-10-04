@@ -535,6 +535,10 @@ module.exports = {
   // dog_oc price actually on offer (liveOddsForBet — the exact same live
   // feed field L123 already reads, zero extra API cost).
   // ════════════════════════════════════════════════════════════════════════════
+  // How often to adopt hashes pasted in the web app's FEEDS card
+  // (GET <HASH_RELAY_URL or DATA_URL>/api/hashes?raw=1). 1-59.
+  HASH_SYNC_MINUTES:         Math.min(59, Math.max(1, parseInt(process.env.HASH_SYNC_MINUTES || '5', 10))),
+
   // ── Strategy PRICEGAP — pre-match Bet365 ≥ X% above Sbobet fair (same line) ─
   // The web app's SCANNER tab as a Telegram alert (telegram/pricegap.js):
   // Bet365's CURRENT AH / goals O-U price vs Sbobet's CURRENT de-vigged price

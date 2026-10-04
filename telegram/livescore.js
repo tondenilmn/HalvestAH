@@ -26,6 +26,8 @@ let BET365_HASH     = process.env.BET365_HASH     || 'f5ed2c2c4e313f4b30dba3b1e4
 // asianbetsoccer's WAF) can pick it up too.
 let BET365_LIVE_HASH = process.env.BET365_LIVE_HASH || 'd343cddad34991b84229d7637c966ce71bbfe335';
 let SBOBET_HASH     = process.env.SBOBET_HASH     || 'fd03ebecbb06f1888b32c02f06b6d161729b910f';
+// Start-up values (constants / env vars) — anything the web app saved counts as newer than these (syncHashesFromApp).
+const _HASH_INIT = { bet365: BET365_HASH, bet365live: BET365_LIVE_HASH, sbobet: SBOBET_HASH };
 const GS_PRIMARY    = 'Q';
 const GS_CANDIDATES = ['Q', '1', '2', '3', 'AH', 'S', 'EU', 'A', 'ah', 's', '4', '5', '10', '6', '7', '8', 'B', 'F'];
 
@@ -957,9 +959,47 @@ async function fetchTablenextDays(book, fromDay = 0, toDay = 1) {
 // Current in-memory hashes with no network call — used by notify.js's /hashes
 // HTTP endpoint so the Cloudflare Pages Function can relay through Railway
 // when its own direct discovery is blocked (see functions/api/livescore.js).
+// ── Hash sync from the web app (added 2026-10-04) ─────────────────────────────
+// The web app's FEEDS card saves hashes pasted on the phone (checked against
+// botbot3 first) to Cloudflare KV. Every few minutes notify.js calls this to
+// read them (GET <HASH_RELAY_URL>/api/hashes?raw=1, no feed checks) and adopt
+// one when it was saved AFTER this process last changed that hash itself —
+// so a fix made in the app reaches Telegram within minutes, while an older
+// stored value can never undo a newer hash this bot found on its own.
+const _hashSeen = {}; // book → { hash, since }: when this process last saw its own value change
+function _noteLocal(book, hash) {
+  if (!_hashSeen[book]) _hashSeen[book] = { hash, since: hash === _HASH_INIT[book] ? 0 : Date.now() };
+  else if (_hashSeen[book].hash !== hash) _hashSeen[book] = { hash, since: Date.now() };
+}
+async function syncHashesFromApp() {
+  if (!HASH_RELAY_URL) return { adopted: [], error: 'HASH_RELAY_URL/DATA_URL not set' };
+  const current = { bet365: BET365_HASH, bet365live: BET365_LIVE_HASH, sbobet: SBOBET_HASH };
+  for (const [b, h] of Object.entries(current)) _noteLocal(b, h);
+  let json;
+  try {
+    const resp = await fetch(`${HASH_RELAY_URL.replace(/\/$/, '')}/api/hashes?raw=1`);
+    if (!resp.ok) return { adopted: [], error: `HTTP ${resp.status}` };
+    json = await resp.json();
+  } catch (e) { return { adopted: [], error: e.message }; }
+  const adopted = [];
+  for (const book of ['bet365', 'bet365live', 'sbobet']) {
+    const r = json?.books?.[book];
+    if (!r || r.source !== 'kv' || !/^[a-f0-9]{40}$/i.test(r.hash || '') || !r.at) continue;
+    const mine = _hashSeen[book];
+    if (r.hash === current[book] || r.at <= mine.since) continue;
+    if (book === 'bet365') BET365_HASH = r.hash;
+    else if (book === 'bet365live') BET365_LIVE_HASH = r.hash;
+    else SBOBET_HASH = r.hash;
+    console.log(`Hashes: adopted ${book} ${current[book].slice(0, 8)}… → ${r.hash.slice(0, 8)}… from the web app (saved ${new Date(r.at).toISOString()} by ${r.by || '?'})`);
+    _hashSeen[book] = { hash: r.hash, since: Date.now() };
+    adopted.push(book);
+  }
+  return { adopted };
+}
+
 function getCurrentHashes() {
   return { pinnacle: PINNACLE_HASH, bet365: BET365_HASH, bet365live: BET365_LIVE_HASH, sbobet: SBOBET_HASH };
 }
 
 // module.exports = { fetchLiveMatches, fetchNextMatches, fetchNextMatchesAllDays, refreshHashes };
-module.exports = { fetchLiveMatches, fetchNextMatches, fetchOpenlineMatches, fetchSbobetMatches, fetchTablenextDays, refreshHashes, getCurrentHashes, checkStaleHashHeuristic, checkBet365LiveHash };
+module.exports = { fetchLiveMatches, fetchNextMatches, fetchOpenlineMatches, fetchSbobetMatches, fetchTablenextDays, syncHashesFromApp, refreshHashes, getCurrentHashes, checkStaleHashHeuristic, checkBet365LiveHash };

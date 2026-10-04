@@ -6,6 +6,8 @@
  *          bet365live: { hash, source: 'kv'|'env'|'default', at, by,
  *          status: 'ok'|'stale'|'wrong'|'unverified', detail, healed? } } }
  *        A stale feed gets one discovery round; a working replacement is saved.
+ *   GET ?raw=1 → just the stored hashes { kv, books: { book: { hash, source, at, by } } },
+ *        no feed checks — polled by the Railway notifier (telegram/livescore.js syncHashesFromApp)
  *   POST { book: 'bet365'|'sbobet'|'bet365live', url | hash, key? }
  *        → checks the hash against botbot3 (right kind of feed, has data)
  *          and saves it to KV. The next request of every function uses it —
@@ -76,6 +78,19 @@ export async function onRequest(context) {
   if (request.method === 'OPTIONS') return new Response(null, { headers: cors });
   const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: cors });
   const ts = Date.now();
+
+  // ?raw=1 — the stored hashes only, no feed checks (1 KV read): what the
+  // Railway notifier polls every few minutes to pick up a hash pasted here.
+  if (request.method === 'GET' && new URL(request.url).searchParams.get('raw') === '1') {
+    const { hashes, source, stored, kv } = await resolveHashes(env);
+    const books = {};
+    for (const book of STORE_BOOKS) {
+      books[book] = { hash: hashes[book], source: source[book],
+        at: source[book] === 'kv' ? stored[book]?.at || null : null,
+        by: source[book] === 'kv' ? stored[book]?.by || null : null };
+    }
+    return json({ kv, books });
+  }
 
   if (request.method === 'GET') {
     const { hashes, source, stored, kv } = await resolveHashes(env);

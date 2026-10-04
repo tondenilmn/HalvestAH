@@ -30,7 +30,7 @@ const {
   pct,
   wilsonCI,
 } = require('./engine');
-const { fetchLiveMatches, fetchNextMatches, fetchOpenlineMatches, fetchSbobetMatches, fetchTablenextDays, refreshHashes, getCurrentHashes, checkStaleHashHeuristic, checkBet365LiveHash } = require('./livescore');
+const { fetchLiveMatches, fetchNextMatches, fetchOpenlineMatches, fetchSbobetMatches, fetchTablenextDays, syncHashesFromApp, refreshHashes, getCurrentHashes, checkStaleHashHeuristic, checkBet365LiveHash } = require('./livescore');
 const priceGap = require('./pricegap');
 const { verifyBet365Price } = require('./apifootball');
 const crossdogLib = require('./crossdog_lib');
@@ -2793,6 +2793,13 @@ async function main() {
   console.log(`Scheduler started — every ${cfg.SCAN_INTERVAL_MINUTES} min.`);
   await runScan();
   cron.schedule(`*/${cfg.SCAN_INTERVAL_MINUTES} * * * *`, runScan);
+  // Pick up hashes pasted in the web app's FEEDS card (see livescore.js's
+  // syncHashesFromApp) — every HASH_SYNC_MINUTES, cheap (one small GET).
+  const syncHashes = () => syncHashesFromApp()
+    .then(r => { if (r.error) console.log(`Hash sync from app skipped: ${r.error}`); })
+    .catch(e => console.error('Hash sync error:', e));
+  await syncHashes();
+  cron.schedule(`*/${cfg.HASH_SYNC_MINUTES} * * * *`, syncHashes);
   // Refresh hashes daily at 06:00 UTC (hashes rotate ~once/day)
   cron.schedule('0 6 * * *', () => refreshHashes().catch(e => console.error('Hash refresh error:', e)));
   // Track record: check for newly-finished matches every 30 min (cheap —
