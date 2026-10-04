@@ -253,16 +253,63 @@ function syncLivePolling() {
 }
 async function pollMatchLive() {
   const id = matchId(_mt.url); if (!id) return;
+  let data = null;
   try {
     const resp = await fetch('/api/livematch?id=' + id);
-    const data = await resp.json();
-    if (matchId(_mt.url) !== id) return; // another match was loaded meanwhile
-    const wasLive = !!_mt.live?.minute;
-    _mt.live = Object.assign(data, { fetchedAt: new Date() });
+    data = await resp.json();
+  } catch (_) { /* asianbetsoccer side failed — Sofascore below may still have prices */ }
+  if (matchId(_mt.url) !== id) return; // another match was loaded meanwhile
+  const wasLive = !!_mt.live?.minute;
+  if (data) {
     // Dropped off the live feed after being live → finished; re-read the page for the FT state.
-    if (wasLive && !data.found) { refreshMatchTab(); return; }
-    renderMatchTab();
-  } catch (_) { /* keep the last good state; the next tick retries */ }
+    if (wasLive && !data.found) { _mt.live = Object.assign(data, { fetchedAt: new Date() }); refreshMatchTab(); return; }
+  } else if (!_mt.live) {
+    data = { found: false, notes: ['The live feed could not be reached.'] };
+  } else {
+    data = Object.assign({}, _mt.live, { live_odds: null, live_source: null, notes: ['The live feed could not be reached — showing the last minute/score.'] });
+  }
+  data.live_source = data.live_odds ? 'asianbetsoccer' : null;
+  if (!data.live_odds) await addSofascoreOdds(data);
+  if (matchId(_mt.url) !== id) return;
+  _mt.live = Object.assign(data, { fetchedAt: new Date() });
+  renderMatchTab();
+}
+
+// Fallback for Bet365's in-play prices: Sofascore (bet365 is its odds
+// provider), fetched from this browser — see sofascore.js. The event is
+// looked up once per match, then reused.
+async function addSofascoreOdds(data) {
+  if (typeof Sofa === 'undefined') return;
+  const m = _mt.data?.match || {};
+  const st = matchState();
+  if (!(st.status === 'LIVE' || st.status === 'HT' || data.minute)) return;
+  try {
+    if (!_mt.sofa || _mt.sofa.url !== _mt.url) {
+      const score = data.score || st.score || null;
+      const ev = await Sofa.findLiveEvent(m.home, m.away, score);
+      _mt.sofa = { url: _mt.url, event: ev, tried: Date.now() };
+    } else if (!_mt.sofa.event && Date.now() - _mt.sofa.tried > 5 * 60000) {
+      _mt.sofa = null; return addSofascoreOdds(data); // not found earlier — look again every 5 min
+    }
+    const ev = _mt.sofa.event;
+    if (!ev) return;
+    const odds = await Sofa.liveOdds(ev.id);
+    if (!odds) return;
+    data.live_odds = odds;
+    data.live_source = 'sofascore';
+    data.sofaUrl = Sofa.eventUrl(ev);
+    data.sofaName = `${ev.homeTeam?.name} v ${ev.awayTeam?.name}`;
+    // The asianbetsoccer note about missing in-play prices no longer applies.
+    data.notes = (data.notes || []).filter(n => !/in-play prices unavailable/i.test(n));
+  } catch (e) {
+    data.notes = [...(data.notes || []), `Sofascore fallback failed: ${e.message}`];
+  }
+}
+// Label for whichever feed the Bet365 live prices came from.
+function liveSourceTag() {
+  const L = _mt.live;
+  if (L?.live_source !== 'sofascore') return '';
+  return ` <span class="mt-tag model" title="asianbetsoccer had no Bet365 in-play prices for this match — these are Bet365's, via Sofascore (${mtEsc(L.sofaName || '')}). Its goals market is the .5-line Match Goals, not the Asian goal line.">via Sofascore</span>`;
 }
 
 // Current match state, preferring the live feed over the (slower) page.
@@ -383,7 +430,8 @@ function renderMatchHeader({ m, st, lm, refKey, refFit, live, finished }) {
     ${live ? `<div class="mt-banner live">🔴 In play — minute, score and Bet365's in-play prices refresh every minute${L?.fetchedAt ? ` (last ${L.fetchedAt.toLocaleTimeString()})` : ''}.
       Live fair prices = pre-match strength (${mtEsc(refKey ? bookLabel(refKey) : 'reference')}) decayed by the real goal-timing curve and score state — a model, not backtested.
       ${(m.cards?.home?.red || m.cards?.away?.red) ? '<b>A red card has been shown — the model does not adjust for it.</b>' : ''}
-      ${L && L.found && !L.live_odds ? '<br>Bet365 in-play prices aren&#39;t available for this match right now.' : ''}${(L?.notes || []).map(n => `<br>${mtEsc(n)}`).join('')}</div>`
+      ${L && !L.live_odds ? '<br>Bet365 in-play prices aren&#39;t available for this match right now (asianbetsoccer and Sofascore both checked).' : ''}
+      ${L?.live_source === 'sofascore' ? `<br>Bet365 in-play prices via <a href="${mtEsc(L.sofaUrl || 'https://www.sofascore.com')}" target="_blank" rel="noopener">Sofascore</a> (${mtEsc(L.sofaName || '')}) — asianbetsoccer's Bet365 Live feed has nothing for this match.` : ''}${(L?.notes || []).map(n => `<br>${mtEsc(n)}`).join('')}</div>`
       : finished ? `<div class="mt-banner warn">⏱ This match is over — the prices below are the pre-match opening/closing prices.</div>` : ''}`;
 }
 
@@ -523,7 +571,7 @@ function renderMtValue({ bet, ref, refKey, refFit, live, finished, lm }) {
       ? Object.assign(r, { kelly: 0, suspect: redCard ? 'A red card has been shown — the model still uses pre-match strength.' : 'Gap this large usually means the model is missing match information the market has.' })
       : r);
   const liveHtml = liveRows.length ? `
-    <div class="mt-section-title">IN PLAY NOW <span class="mt-dim">— Bet365 live price vs live model fair · not backtested</span></div>
+    <div class="mt-section-title">IN PLAY NOW${liveSourceTag()} <span class="mt-dim">— Bet365 live price vs live model fair · not backtested</span></div>
     <div class="mt-table-wrap"><table class="mt-table mt-value-table">
       <thead><tr><th>Mkt</th><th>Bet</th><th>Bet365 live</th><th>Fair (model)</th><th>Prob</th><th>Edge</th><th>Min odds</th><th>Stake</th></tr></thead>
       <tbody>${liveRows.map(rowHtml).join('')}</tbody>
@@ -641,7 +689,7 @@ function renderMtInPlay(lm, st, tile) {
   const x = odds ? [odds.x2_h, odds.x2_x, odds.x2_a] : [];
   const roh = lm.restOfHalf;
   return `
-    <div class="mt-section-title">IN PLAY · ${mtEsc(when || '')} · ${lm.score.home}-${lm.score.away} <span class="mt-dim">— live model; Bet365 live prices where quoted</span></div>
+    <div class="mt-section-title">IN PLAY · ${mtEsc(when || '')} · ${lm.score.home}-${lm.score.away}${liveSourceTag()} <span class="mt-dim">— live model; Bet365 live prices where quoted</span></div>
     <div class="mt-sub" style="margin-bottom:8px">${fPct(r, 0)} of the ${L.half === 1 ? '1st' : '2nd'}-half goal expectation still to come (real goal-timing curve incl. added time) → <b class="num">${L.lh.toFixed(2)}</b> home, <b class="num">${L.la.toFixed(2)}</b> away goals expected from here.${modTxt}</div>
     <div class="mt-grid3">${lm.result.map((o, i) => tile('Final: ' + o.label, o.p, o.fair, x[i])).join('')}</div>
     <div class="mt-grid3">${lm.nextGoal.map(o => tile(o.label, o.p, o.fair)).join('')}</div>
