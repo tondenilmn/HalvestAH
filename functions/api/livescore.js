@@ -890,6 +890,14 @@ function parseMatch1HtmlForMeta(tm1Html) {
  * Parse all `match1text += getDatanext1(...)` calls from a tablenext JS file.
  * Returns upcoming match metadata (no score/minute — those are null for upcoming matches).
  *   [5]=matchId  [6]=leagueName  [7]=homeTeam  [8]=kickoffTimeUTC  [15]=awayTeam
+ *   [9..11]=1X2 home/draw/away CURRENT   [12..14]=1X2 home/draw/away OPENING
+ *
+ * The 1X2 args are a tablenext file's only source of match-winner odds —
+ * getData2 (parseGetData2Calls) carries AH/TL/O-U only — so they come out here
+ * as `x2` and ride through mergeMatchData onto `match.x2_odds`. Mirrors
+ * telegram/livescore.js's own parseGetDatanext1Calls (added there 2026-09-05
+ * for Strategy OPENLINE); ported to this side 2026-10-04 so the SCANNER tab
+ * can compare 1X2 the way it already compares AH and O/U.
  */
 function parseGetDatanext1Calls(jsText) {
   const re = /\bmatch1text\s*\+=\s*getDatanext1\s*\(/g;
@@ -897,12 +905,17 @@ function parseGetDatanext1Calls(jsText) {
   let m;
   while ((m = re.exec(jsText)) !== null) {
     const args        = extractCallArgs(jsText, m.index + m[0].length);
+    const pf          = v => { const n = typeof v === 'number' ? v : parseFloat(v); return isNaN(n) ? null : n; };
     const matchId     = (typeof args[5] === 'string' && /^[a-f0-9]{20,}$/i.test(args[5])) ? args[5] : null;
     const league      = typeof args[6]  === 'string' ? args[6]  : '';
     const homeTeam    = typeof args[7]  === 'string' ? args[7]  : '';
     const kickoffTime = typeof args[8]  === 'string' ? args[8]  : null;
     const awayTeam    = typeof args[15] === 'string' ? args[15] : '';
-    results.push({ matchId, homeTeam, awayTeam, league, minute: null, kickoffTime, score: null });
+    const x2 = args.length < 16 ? null : {
+      home_c: pf(args[9]),  draw_c: pf(args[10]), away_c: pf(args[11]),
+      home_o: pf(args[12]), draw_o: pf(args[13]), away_o: pf(args[14]),
+    };
+    results.push({ matchId, homeTeam, awayTeam, league, minute: null, kickoffTime, score: null, x2 });
   }
   return results;
 }
@@ -941,6 +954,7 @@ function mergeMatchData(oddsRows, metaRows) {
       kickoff_time: meta.kickoffTime || null,
       score:        meta.score       || null,
       ht_score:     meta.htScore     || null,
+      x2_odds:      meta.x2          || null,   // tablenext only — see parseGetDatanext1Calls
       odds,
     });
   }

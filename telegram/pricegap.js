@@ -11,6 +11,19 @@
  * (10/14), AH-only ≥5% → +9.3% (12/14). Bet365 moves toward Sbobet ~80% of
  * the time, so the alert is only worth something if acted on quickly.
  *
+ * 1X2 (added 2026-10-04, telegram/backtest_pricegap_1x2.js — 20 months of
+ * direct Bet365-vs-Sbobet 1X2, no model in between) is included on two
+ * conditions, both forced in code rather than left to config:
+ *   - only while BOTH books are still at their opening 1X2 price. Opening vs
+ *     opening ≥5% → +6.2% ROI, 17/20 months; the same picks at Bet365's
+ *     closing price → −9.0%, and closing vs closing → +0.1%. A moved 1X2
+ *     market has no evidence behind it (X12_OPEN_ONLY).
+ *   - power de-vig, never proportional — Sbobet's three-way margin is 12-14%
+ *     and proportional de-vig of a margin that size manufactures edges on
+ *     draws and dogs (see devigPower).
+ * Its floor is X12_MIN_EDGE_PCT (5), the one threshold the backtest measured,
+ * regardless of a lower PRICEGAP_MIN_EDGE_PCT.
+ *
  * Pure functions only (no network, no Telegram) so it can be tested without
  * requiring notify.js — see test_pricegap.js.
  */
@@ -23,6 +36,33 @@ function devig2(a, b) {
   if (!(a > 1) || !(b > 1)) return null;
   const pa = 1 / a, pb = 1 / b, s = pa + pb;
   return [s / pa, s / pb];
+}
+
+// Three-way margin removal (power): p_i = q_i^k with k solved so Σ p_i = 1.
+// For 1X2 only, and deliberately not devig2's proportional method — see the
+// header, and static/fair_model.js's devigPower (the same function, kept in
+// both places the way engine.js mirrors app.js).
+function devigPower(odds) {
+  if (!odds || odds.some(o => !(o > 1))) return null;
+  const q = odds.map(o => 1 / o);
+  const sum = k => q.reduce((a, x) => a + Math.pow(x, k), 0);
+  let lo = 0.5, hi = 1.5;
+  for (let i = 0; i < 60; i++) { const k = (lo + hi) / 2; if (sum(k) > 1) lo = k; else hi = k; }
+  const p = q.map(x => Math.pow(x, (lo + hi) / 2));
+  const t = p.reduce((a, b) => a + b, 0);
+  return p.map(x => t / x);   // fair decimal odds, same shape devig2 returns
+}
+
+// 1X2 gates — see the header. Not configurable: outside these the backtest
+// says there is nothing there.
+const X12_OPEN_ONLY = true;
+const X12_MIN_EDGE_PCT = 5;
+const X12_SIDES = [['home', 'home'], ['draw', 'Draw'], ['away', 'away']];
+
+// Both books still on their opening 1X2 price — the only bucket 1X2 pays in.
+function x12Unmoved(b, s) {
+  return [b, s].every(x => x && ['home', 'draw', 'away'].every(k =>
+    num(x[k + '_c']) != null && num(x[k + '_o']) != null && Math.abs(x[k + '_c'] - x[k + '_o']) < 0.001));
 }
 
 // Both books still on their opening line AND price for this market — the
@@ -47,7 +87,7 @@ const fmtLine = x => (x > 0 ? '+' : '') + (Math.abs(x) < 1e-9 ? '0' : x);
  * (ah_hc = home handicap, negative = home gives). `teams` = { home, away }.
  * Returns rows { market, side, label, line, price, fair, edge, p, openPrice, unmoved }.
  */
-function findGaps(b365, sbo, teams = {}) {
+function findGaps(b365, sbo, teams = {}, x12 = {}) {
   const rows = [];
   if (!b365 || !sbo) return rows;
   const add = (market, side, label, line, price, fair, openPrice) => {
@@ -69,12 +109,34 @@ function findGaps(b365, sbo, teams = {}) {
       add('OU', 'under', `Under ${b365.tl_c}`, b365.tl_c, b365.un_c, f[1], b365.un_o);
     }
   }
+  // 1X2 — the odds live on match.x2_odds, not match.odds (getDatanext1 vs
+  // getData2), so the caller passes them in as { b, s }.
+  const unmoved = x12Unmoved(x12.b, x12.s);
+  if (x12.b && x12.s && (unmoved || !X12_OPEN_ONLY)) {
+    const f = devigPower([x12.s.home_c, x12.s.draw_c, x12.s.away_c]);
+    if (f) {
+      X12_SIDES.forEach(([side, name], i) => {
+        const who = side === 'draw' ? 'Draw' : (teams[side] || name);
+        if (!(x12.b[side + '_c'] > 1) || !(f[i] > 1)) return;
+        rows.push({
+          market: 'X12', side, label: who, line: null,
+          price: x12.b[side + '_c'], fair: f[i], edge: x12.b[side + '_c'] / f[i] - 1,
+          p: 1 / f[i], openPrice: x12.b[side + '_o'], unmoved,
+        });
+      });
+    }
+  }
   return rows;
 }
 
 // Which backtest bucket the gap falls into, and what it measured there.
 function bucketOf(r) {
   const e = r.edge * 100;
+  if (r.market === 'X12') {
+    return r.unmoved
+      ? { name: 'at opening', note: '1X2 ≥5% at opening → +6.2% ROI, 17/20 months (−9.0% at closing prices — take it now)' }
+      : { name: 'moved', note: '1X2 after movement → +0.1% over 20 months — no edge' };
+  }
   if (r.unmoved) return { name: 'at opening', note: e >= 5 ? '≥5% at opening → +6.4% ROI, 12/14 months' : '≥3% at opening → +4.8% ROI, 13/14 months' };
   if (r.market === 'AH' && e >= 5) return { name: 'moved', note: 'AH ≥5% after movement → +9.3% ROI, 12/14 months' };
   if (e >= 5) return { name: 'moved', note: '≥5% after movement → +6.2% ROI, 10/14 months' };
@@ -84,34 +146,64 @@ function bucketOf(r) {
 // Gaps worth an alert: edge within [minEdge, maxEdge) — above maxEdge it is
 // almost always a stale or mistyped price, not value.
 function qualifyingGaps(rows, minEdgePct, maxEdgePct) {
-  return rows.filter(r => r.edge * 100 >= minEdgePct && r.edge * 100 < maxEdgePct).sort((a, b) => b.edge - a.edge);
+  return rows
+    .filter(r => r.edge * 100 >= Math.max(minEdgePct, r.market === 'X12' ? X12_MIN_EDGE_PCT : 0))
+    .filter(r => r.edge * 100 < maxEdgePct)
+    .sort((a, b) => b.edge - a.edge);
+}
+
+const MARKET_NAME = { AH: 'Asian handicap', OU: 'Goals over/under', X12: '1X2 (match result)' };
+
+// Kick-off as a date AND a time, in the reader's own timezone — a bet that
+// needs placing before kick-off is useless without the date.
+function kickoffLine(match, toKickoffMin, tz) {
+  const when = match.kickoff_time
+    ? new Date(match.kickoff_time).toLocaleString('it-IT', {
+        timeZone: tz || 'Europe/Rome', weekday: 'short',
+        day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
+      })
+    : null;
+  const inWhen = toKickoffMin == null ? null
+    : toKickoffMin < 90 ? `in ${Math.round(toKickoffMin)} min`
+    : toKickoffMin < 48 * 60 ? `in ${(toKickoffMin / 60).toFixed(1)} h`
+    : `in ${(toKickoffMin / 1440).toFixed(1)} days`;
+  if (!when && !inWhen) return null;
+  return `📅 ${when || '—'}${inWhen ? ` (${inWhen})` : ''}`;
 }
 
 /**
  * Telegram message (HTML). `esc` = the caller's HTML escaper; `toKickoffMin`
- * minutes to kick-off; `opts` = { threshold, kellyFraction, bankroll, appUrl }.
+ * minutes to kick-off; `opts` = { threshold, kellyFraction, bankroll, appUrl,
+ * displayTz }.
+ *
+ * Shape is deliberately one labelled line per thing the reader has to act on —
+ * what to bet, the price Bet365 is showing, and the price below which the bet
+ * is off — rather than a dense summary line (asked for 2026-10-04).
  */
 function formatAlert(match, gaps, toKickoffMin, esc, opts = {}) {
   const thr = opts.threshold ?? 5;
-  const ko = toKickoffMin == null ? '' : toKickoffMin < 90 ? `kick-off in ${Math.round(toKickoffMin)} min` : `kick-off in ${(toKickoffMin / 60).toFixed(1)} h`;
+  const ko = kickoffLine(match, toKickoffMin, opts.displayTz);
+  const kFrac = opts.kellyFraction ?? 0.25;
   const lines = [
-    `💰 <b>PRICE GAP</b> — Bet365 above Sbobet's fair price`,
+    `💰 <b>PRICE GAP</b> — Bet365 is paying more than Sbobet's fair price`,
     ``,
     `⚽ <b>${esc(match.home_team)} vs ${esc(match.away_team)}</b>`,
-    `🏆 ${esc(match.league) || '—'}${ko ? ` · ⏱ ${ko}` : ''}`,
+    `🏆 ${esc(match.league) || '—'}`,
+    ...(ko ? [ko] : []),
     ``,
   ];
   for (const r of gaps) {
     const b = bucketOf(r);
-    const minOdds = r.fair * (1 + thr / 100);
-    const k = kelly(r.p, r.price, opts.kellyFraction ?? 0.25);
+    const minOdds = r.fair * (1 + (r.market === 'X12' ? Math.max(thr, X12_MIN_EDGE_PCT) : thr) / 100);
+    const k = kelly(r.p, r.price, kFrac);
     const stake = opts.bankroll ? `€${(opts.bankroll * k).toFixed(2)}` : `${(k * 100).toFixed(2)}% of bankroll`;
     const moved = r.openPrice > 1 && Math.abs(r.price - r.openPrice) > 0.001 ? ` (opened ${r.openPrice.toFixed(2)})` : '';
     lines.push(
-      `${r.market === 'AH' ? 'Asian handicap' : 'Goals'} · <b>${esc(r.label)}</b>`,
-      `  Bet365 <b>${r.price.toFixed(2)}</b>${moved} · fair ${r.fair.toFixed(2)} · edge <b>+${(r.edge * 100).toFixed(1)}%</b>`,
-      `  ✅ Bet only at ≥ <b>${minOdds.toFixed(2)}</b> · stake ${stake} (${opts.kellyFraction === 0.125 ? '⅛' : opts.kellyFraction === 0.5 ? '½' : '¼'} Kelly)`,
-      `  📊 ${b.name}: ${b.note}`,
+      `🎯 <b>BET: ${esc(r.label)}</b> — ${MARKET_NAME[r.market] || r.market}`,
+      `   Bet365 price now: <b>${r.price.toFixed(2)}</b>${moved}`,
+      `   Minimum price: <b>${minOdds.toFixed(2)}</b> — below this, skip it`,
+      `   Fair price ${r.fair.toFixed(2)} · edge <b>+${(r.edge * 100).toFixed(1)}%</b> · stake ${stake} (${kFrac === 0.125 ? '⅛' : kFrac === 0.5 ? '½' : '¼'} Kelly)`,
+      `   📊 ${b.name}: ${b.note}`,
       ``,
     );
   }
@@ -145,4 +237,4 @@ function appendRecord(dir, t, heartbeat, rows) {
   }
 }
 
-module.exports = { devig2, marketUnmoved, kelly, findGaps, bucketOf, qualifyingGaps, formatAlert, sameLine, recordRow, appendRecord };
+module.exports = { devig2, devigPower, marketUnmoved, x12Unmoved, kelly, findGaps, bucketOf, qualifyingGaps, formatAlert, kickoffLine, sameLine, recordRow, appendRecord, X12_MIN_EDGE_PCT, X12_OPEN_ONLY };

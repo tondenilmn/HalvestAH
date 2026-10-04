@@ -549,6 +549,13 @@ module.exports = {
   PRICEGAP_MIN_EDGE_PCT:     parseFloat(process.env.PRICEGAP_MIN_EDGE_PCT || '5'),
   PRICEGAP_MAX_EDGE_PCT:     parseFloat(process.env.PRICEGAP_MAX_EDGE_PCT || '15'),
   PRICEGAP_TIER:             process.env.PRICEGAP_TIER || 'ALL',
+  // 1X2 gaps alongside AH / goals (added 2026-10-04,
+  // telegram/backtest_pricegap_1x2.js: 20 months direct Bet365-vs-Sbobet 1X2,
+  // opening vs opening ≥5% → +6.2% ROI, 17/20 months). The two conditions that
+  // make it pay — opening prices only, power de-vig — are enforced in
+  // pricegap.js, not here, because outside them the backtest found nothing
+  // (closing vs closing: +0.1%). This flag only turns the market on or off.
+  PRICEGAP_X12:              process.env.PRICEGAP_X12 !== 'false',
   // Two scans with their own cadence (2026-10-04: botbot3 refreshes its
   // tablenext files about once a minute — measured over 11 fetches 30 s apart,
   // changes on every other fetch — so scanning faster than 1 min gains nothing):

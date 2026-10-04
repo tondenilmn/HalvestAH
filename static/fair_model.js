@@ -33,11 +33,36 @@
 
   /* ── de-vig ─────────────────────────────────────────────────────────── */
   // Proportional normalisation: fair_i = 1 / ((1/o_i) / Σ 1/o_j).
+  // Right for the two-way markets (AH, O/U) this app compares: the books'
+  // margin there is ~5%, small enough that how it is split between the two
+  // sides barely moves the fair price.
   function devig(odds) {
     if (!odds || odds.some(o => !(o > 1))) return null;
     const inv = odds.map(o => 1 / o);
     const s = inv.reduce((a, b) => a + b, 0);
     return { fair: inv.map(x => s / x), margin: s - 1, probs: inv.map(x => x / s) };
+  }
+
+  // Power normalisation: p_i = q_i^k, k solved by bisection so Σ p_i = 1.
+  // Use this for 1X2 — NOT proportional. Sbobet's three-way margin is 12-14%
+  // (vs ~10% on Bet365's own 1X2, and ~5% for both on AH), and proportional
+  // de-vig splits a margin that size by over-stating longshot probability, so
+  // it shortens the fair price on draws and away dogs and manufactures edges
+  // there. Measured on 20 months of Bet365-vs-Sbobet 1X2
+  // (telegram/backtest_pricegap_1x2.js): proportional picks at a 29.9% hit
+  // rate and returns -7.6% closing / +1.9% opening, power picks at 39.3% and
+  // returns +0.1% closing / +6.2% opening (17/20 months positive). Shin lands
+  // between the two.
+  function devigPower(odds) {
+    if (!odds || odds.some(o => !(o > 1))) return null;
+    const q = odds.map(o => 1 / o);
+    const sum = k => q.reduce((a, x) => a + Math.pow(x, k), 0);
+    let lo = 0.5, hi = 1.5;
+    for (let i = 0; i < 60; i++) { const k = (lo + hi) / 2; if (sum(k) > 1) lo = k; else hi = k; }
+    const p = q.map(x => Math.pow(x, (lo + hi) / 2));
+    const t = p.reduce((a, b) => a + b, 0);
+    const probs = p.map(x => x / t);
+    return { fair: probs.map(x => 1 / x), margin: q.reduce((a, b) => a + b, 0) - 1, probs };
   }
 
   /* ── scoreline grid ─────────────────────────────────────────────────── */
@@ -406,7 +431,7 @@
 
   const api = {
     DEFAULT_RHO, FIRST_HALF_SHARE, AH_LINES, TOTAL_LINES, GOAL_TIMING,
-    devig, scoreGrid, splitLine, outcomeDist, fairOddsFromDist, probFromOdds,
+    devig, devigPower, scoreGrid, splitLine, outcomeDist, fairOddsFromDist, probFromOdds,
     ahDist, ouDist, teamTotalDist, solve, solveFrom1x2, markets, priceAH, priceOU,
     halfRemaining, remainingByHalf, liveLambdas, liveMarkets,
     kelly, fmtLine,

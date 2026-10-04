@@ -29,30 +29,75 @@ const moved = pg.findGaps({ ...b365, ho_o: 1.95 }, sbo)[0];
 assert.strictEqual(moved.unmoved, false);
 assert(/9\.3%/.test(pg.bucketOf(moved).note));
 
-// Message renders the min odds (fair × 1.05) and stake.
-const msg = pg.formatAlert({ home_team: 'Alpha', away_team: 'Beta', league: 'Test League', url: 'https://x/m' }, [home], 120, s => s, { threshold: 5, kellyFraction: 0.25 });
-assert(/≥ <b>2\.10<\/b>/.test(msg), 'min odds = 2.00 × 1.05 = 2.10');
-assert(/kick-off in 2\.0 h/.test(msg));
+// ── 1X2 ──────────────────────────────────────────────────────────────────────
+// Sbobet 2.30/3.40/3.00 power-de-vigged; Bet365 2.60 on the home side is well
+// above its fair price, the draw and away sides are not.
+const bX2 = { home_c: 2.60, draw_c: 3.30, away_c: 2.95, home_o: 2.60, draw_o: 3.30, away_o: 2.95 };
+const sX2 = { home_c: 2.30, draw_c: 3.40, away_c: 3.00, home_o: 2.30, draw_o: 3.40, away_o: 3.00 };
+const x2rows = pg.findGaps(b365, sbo, { home: 'Alpha', away: 'Beta' }, { b: bX2, s: sX2 })
+  .filter(r => r.market === 'X12');
+assert.strictEqual(x2rows.length, 3, 'all three 1X2 sides are priced');
+assert.strictEqual(x2rows[0].label, 'Alpha');
+assert.strictEqual(x2rows[1].label, 'Draw');
+assert(x2rows.every(r => r.unmoved), 'both books still at their opening 1X2');
+assert(x2rows[0].edge > x2rows[1].edge && x2rows[0].edge > x2rows[2].edge, 'the home side is the flagged one');
+// Power de-vig, not proportional: fair odds must be LONGER on the longshot
+// than proportional would make them (that is the whole point — see devigPower).
+const propFair = (() => { const q = [2.30, 3.40, 3.00].map(o => 1 / o), s = q.reduce((a, b) => a + b, 0); return q.map(x => s / x); })();
+const powFair = pg.devigPower([2.30, 3.40, 3.00]);
+assert(powFair[1] > propFair[1] && powFair[2] > propFair[2], 'power lengthens the fair price on draw/away');
+assert(powFair[0] < propFair[0], 'and shortens it on the favourite');
+
+// A moved 1X2 market is dropped entirely — its backtest bucket paid nothing.
+const movedX2 = pg.findGaps(b365, sbo, {}, { b: { ...bX2, home_o: 2.45 }, s: sX2 })
+  .filter(r => r.market === 'X12');
+assert.strictEqual(movedX2.length, 0, '1X2 is opening-prices-only (X12_OPEN_ONLY)');
+
+// 1X2 keeps its own 5% floor even when the caller asks for less.
+assert.deepStrictEqual(
+  pg.qualifyingGaps(x2rows, 2, 15).map(r => r.side), ['home'],
+  'a 2% threshold still cannot surface a sub-5% 1X2 gap');
+
+// ── message ──────────────────────────────────────────────────────────────────
+// Everything the reader has to act on is on its own labelled line.
+const msg = pg.formatAlert(
+  { home_team: 'Alpha', away_team: 'Beta', league: 'Test League', url: 'https://x/m',
+    kickoff_time: '2026-10-04T19:45:00Z' },
+  [home, x2rows[0]], 120, s => s,
+  { threshold: 5, kellyFraction: 0.25, bankroll: 1000, displayTz: 'Europe/Rome' });
+assert(/⚽ <b>Alpha vs Beta<\/b>/.test(msg), 'the match');
+assert(/🏆 Test League/.test(msg), 'the league');
+assert(/📅 .*04\/10.*21:45.*\(in 2\.0 h\)/.test(msg), 'date + local time + time to kick-off');
+assert(/🎯 <b>BET: Alpha -0\.25<\/b> — Asian handicap/.test(msg), 'what to bet');
+assert(/🎯 <b>BET: Alpha<\/b> — 1X2 \(match result\)/.test(msg), 'the 1X2 bet names the market');
+assert(/Bet365 price now: <b>2\.10<\/b>/.test(msg), 'the Bet365 price');
+assert(/Minimum price: <b>2\.10<\/b>/.test(msg), 'min odds = 2.00 × 1.05');
+assert(/stake €\d+\.\d\d \(¼ Kelly\)/.test(msg), 'the stake');
 console.log('pricegap: unit tests passed');
 
 if (process.argv.includes('--live')) {
   (async () => {
-    const { fetchOpenlineMatches, fetchSbobetDays } = require('./livescore');
-    const [b, s] = await Promise.all([fetchOpenlineMatches(1), fetchSbobetDays(1)]);
+    // Same fetch runPriceGapScan uses (fetchSbobetDays, named here before,
+    // has never existed — this path threw on every --live run until 2026-10-04).
+    const { fetchTablenextDays } = require('./livescore');
+    const [b, s] = await Promise.all([fetchTablenextDays('bet365', 0, 1), fetchTablenextDays('sbobet', 0, 1)]);
     const sById = new Map(s.matches.filter(m => m.id).map(m => [m.id, m]));
-    let paired = 0, compared = 0;
+    let paired = 0, compared = 0, x12Pairs = 0;
     const all = [];
     for (const m of b.matches) {
       const o = sById.get(m.id); if (!o) continue;
       paired++;
       const ko = m.kickoff_time ? (Date.parse(m.kickoff_time) - Date.now()) / 60000 : null;
       if (ko == null || ko <= 0 || ko > 24 * 60) continue;
-      const g = pg.findGaps(m.odds, o.odds, { home: m.home_team, away: m.away_team });
+      const g = pg.findGaps(m.odds, o.odds, { home: m.home_team, away: m.away_team },
+        { b: m.x2_odds, s: o.x2_odds });
       compared += g.length;
+      if (g.some(r => r.market === 'X12')) x12Pairs++;
       for (const r of pg.qualifyingGaps(g, 5, 15)) all.push({ m, r, ko });
     }
-    console.log(`live: ${b.matches.length} Bet365 / ${s.matches.length} Sbobet fixtures, ${paired} paired by id, ${compared} same-line comparisons, ${all.length} gaps ≥5% (<15%)`);
-    const first = all[0];
-    if (first) console.log('\n--- example alert ---\n' + pg.formatAlert(first.m, [first.r], first.ko, x => x, { threshold: 5, kellyFraction: 0.25 }).replace(/<[^>]+>/g, ''));
+    const byMarket = m => all.filter(x => x.r.market === m).length;
+    console.log(`live: ${b.matches.length} Bet365 / ${s.matches.length} Sbobet fixtures, ${paired} paired by id, ${compared} comparisons (${x12Pairs} with a comparable 1X2 — both books still at opening), ${all.length} gaps ≥5% (<15%): ${byMarket('AH')} AH, ${byMarket('OU')} O/U, ${byMarket('X12')} 1X2`);
+    const first = all.find(x => x.r.market === 'X12') || all[0];
+    if (first) console.log('\n--- example alert ---\n' + pg.formatAlert(first.m, [first.r], first.ko, x => x, { threshold: 5, kellyFraction: 0.25, displayTz: 'Europe/Rome' }).replace(/<[^>]+>/g, ''));
   })().catch(e => { console.error(e); process.exit(1); });
 }

@@ -3,7 +3,7 @@
  *
  * Every upcoming fixture asianbetsoccer lists (tablenext/day0 … day7 — day0 =
  * today, dayN = today+N; day8 404s, confirmed 2026-10-03) with Bet365's and
- * Sbobet's AH / Total Line prices, current + opening, paired by match id.
+ * Sbobet's AH / Total Line / 1X2 prices, current + opening, paired by match id.
  * Feeds the SCANNER tab (static/scan.js), which flags Bet365 prices above
  * Sbobet's de-vigged fair price.
  *
@@ -18,7 +18,8 @@
  *
  * Returns:
  *   { matches: [{ id, url, home_team, away_team, league, kickoff_time,
- *                 bet365: {ah_hc, ah_ho, ho_c, ho_o, ao_c, ao_o, tl_c, tl_o, ov_c, ov_o, un_c, un_o},
+ *                 bet365: {ah_hc, ah_ho, ho_c, ho_o, ao_c, ao_o, tl_c, tl_o, ov_c, ov_o, un_c, un_o,
+ *                          x12: {home_c, draw_c, away_c, home_o, draw_o, away_o} | null},
  *                 sbobet: {…same…} | null }],
  *     days, counts: { bet365: [perDay], sbobet: [perDay] }, hashes, notes: [] }
  */
@@ -87,8 +88,12 @@ export async function onRequest(context) {
   const bDays = [b0, ...restRes.filter((_, i) => i % 2 === 0)];
   const sDays = [s0, ...restRes.filter((_, i) => i % 2 === 1)];
 
+  // Each book's payload is its getData2 odds plus `x12` — the 1X2 prices
+  // getDatanext1 carries (current + opening). Kept nested rather than flattened
+  // so the AH/O-U field names stay exactly what every existing caller reads.
+  const bookOdds = m => ({ ...m.odds, x12: m.x2_odds || null });
   const sbo = new Map();
-  for (const r of sDays) for (const m of r.matches) if (m.id && !sbo.has(m.id)) sbo.set(m.id, m.odds);
+  for (const r of sDays) for (const m of r.matches) if (m.id && !sbo.has(m.id)) sbo.set(m.id, bookOdds(m));
   const seen = new Set();
   const matches = [];
   for (const r of bDays) for (const m of r.matches) {
@@ -97,7 +102,7 @@ export async function onRequest(context) {
     matches.push({
       id: m.id, url: m.url, home_team: m.home_team, away_team: m.away_team,
       league: m.league, kickoff_time: m.kickoff_time,
-      bet365: m.odds, sbobet: sbo.get(m.id) || null,
+      bet365: bookOdds(m), sbobet: sbo.get(m.id) || null,
     });
   }
 

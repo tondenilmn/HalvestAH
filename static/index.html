@@ -160,7 +160,7 @@
           <div class="card-title">UPCOMING FIXTURES</div>
           <button id="sc-run-btn" class="run-btn" onclick="runScan()">🔎 Scan the next 7 days</button>
           <div id="sc-status" class="url-import-status"></div>
-          <div class="mt-sub">Bet365 vs Sbobet, current prices, same AH / goals line. Rescan before betting — Bet365 usually corrects toward Sbobet.</div>
+          <div class="mt-sub">Bet365 vs Sbobet, current prices, same AH / goals line, plus 1X2 while both books are still at their opening price. Rescan before betting — Bet365 usually corrects toward Sbobet.</div>
         </div>
         <div class="card">
           <div class="card-title">FILTERS</div>
@@ -174,7 +174,7 @@
             </select></label>
           <label class="mt-field"><span>Market</span>
             <select id="sc-market" class="disc-select" onchange="setScanPref('market', this.value)">
-              <option value="ALL">AH + O/U</option><option value="AH">Asian handicap</option><option value="OU">Over / Under</option>
+              <option value="ALL">AH + O/U + 1X2</option><option value="AH">Asian handicap</option><option value="OU">Over / Under</option><option value="X12">1X2 (opening prices only)</option>
             </select></label>
           <label class="mt-field"><span>League tier</span>
             <select id="sc-tier" class="disc-select" onchange="setScanPref('tier', this.value)">

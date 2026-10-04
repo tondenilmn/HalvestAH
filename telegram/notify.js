@@ -885,7 +885,14 @@ async function runPriceGapScan(scope = 'near') {
       const ctx = matchContext(match);
       if (ctx.liveMin != null || ctx.toKickoff == null || ctx.toKickoff <= koMin || ctx.toKickoff > koMax) continue;
       if (!tierAllowed(ctx.tier, cfg.PRICEGAP_TIER)) continue;
-      const rows = priceGap.findGaps(match.odds, s.odds, { home: match.home_team, away: match.away_team });
+      // x2_odds (1X2) comes from getDatanext1, match.odds (AH/TL/O-U) from
+      // getData2 — two different rows of the same tablenext file, so they are
+      // passed separately. See pricegap.js's header for the 1X2 gates.
+      const rows = priceGap.findGaps(
+        match.odds, s.odds,
+        { home: match.home_team, away: match.away_team },
+        cfg.PRICEGAP_X12 ? { b: match.x2_odds, s: s.x2_odds } : {},
+      );
       compared += rows.length;
       if (cfg.PRICEGAP_RECORD) for (const r of rows) if (r.edge * 100 >= cfg.PRICEGAP_RECORD_MIN_PCT) record.push(priceGap.recordRow(match, r, ctx.toKickoff));
       const gaps = priceGap.qualifyingGaps(rows, cfg.PRICEGAP_MIN_EDGE_PCT, cfg.PRICEGAP_MAX_EDGE_PCT)
@@ -895,7 +902,7 @@ async function runPriceGapScan(scope = 'near') {
       flog(null, ctx.label, 'PRICEGAP', gaps.map(r => `${r.label} @${r.price} fair ${r.fair.toFixed(2)} +${(r.edge * 100).toFixed(1)}%`).join(' | '));
       await sendTelegram(priceGap.formatAlert(match, gaps, ctx.toKickoff, esc, {
         threshold: cfg.PRICEGAP_MIN_EDGE_PCT, kellyFraction: cfg.PRICEGAP_KELLY_FRACTION,
-        bankroll: cfg.PRICEGAP_BANKROLL, appUrl: cfg.APP_URL,
+        bankroll: cfg.PRICEGAP_BANKROLL, appUrl: cfg.APP_URL, displayTz: cfg.DISPLAY_TZ,
       }));
       alerts++;
     }
