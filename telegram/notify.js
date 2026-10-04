@@ -711,6 +711,17 @@ function openlineBet(favLine, favSide, favOo, tlO) {
 
 const openlineDedup = new Dedup(14 * 24 * 60 * 60 * 1000); // 14 days — longer than OPENLINE_WINDOW_DAYS so a match can't re-alert just by staying in the scan window
 
+// "Opened @3.05 → now @2.90 (−4.9%)" — the backtest priced this signal at the
+// OPENING price; the further the current price has fallen below it, the less
+// of the measured edge is left.
+function openingVsNowLine(openOdds, nowOdds) {
+  const ch = (nowOdds / openOdds - 1) * 100;
+  const tag = ch >= -0.5 ? '✅ at/above the opening price the backtest used'
+    : ch >= -5 ? '⚠️ below opening — thinner edge than backtested'
+    : '❌ well below opening — most of the backtested edge is gone';
+  return `📉 Bet365 opened @${openOdds.toFixed(2)} → now @${nowOdds.toFixed(2)} (${ch >= 0 ? '+' : ''}${ch.toFixed(1)}%) ${tag}`;
+}
+
 async function runStrategyOpenline(match, ctx) {
   const { matchId, label, tier, liveMin, toKickoff } = ctx;
 
@@ -751,7 +762,10 @@ async function runStrategyOpenline(match, ctx) {
   }
 
   const x2 = match.x2_odds;
-  if (!x2 || (x2.home_o == null && x2.away_o == null)) { flogv(liveMin, label, 'OPENLINE', 'SKIP: no current 1X2 odds'); return; }
+  // x2 *_c = Bet365's CURRENT 1X2 price, *_o = its OPENING price (checked
+  // against the match page's tablematch1 rows 2026-10-04 — until then this
+  // read *_o and called it "current").
+  if (!x2 || (x2.home_c == null && x2.away_c == null)) { flogv(liveMin, label, 'OPENLINE', 'SKIP: no current 1X2 odds'); return; }
 
   // Bucket/bet pick is driven by the STORED opening snapshot (falls back to
   // this scan's own AH signals if a match somehow never got captured earlier —
@@ -771,7 +785,8 @@ async function runStrategyOpenline(match, ctx) {
   // The price actually checked/shown is whatever Bet365/asianbetsoccer is
   // CURRENTLY quoting at fire time (this scan) — not the opening price used
   // only to pick the bucket above.
-  const marketOdds = bet.k === 'homeWinsFT' ? x2.home_o : x2.away_o;
+  const marketOdds = bet.k === 'homeWinsFT' ? x2.home_c : x2.away_c;
+  const openOdds   = bet.k === 'homeWinsFT' ? x2.home_o : x2.away_o;
   if (marketOdds == null) { flogv(liveMin, label, 'OPENLINE', `SKIP: no current price for ${bet.k}`); return; }
   // Gate on the conservative CI-lower min odds (bet.mo_lo), not the
   // winner's-curse-prone fair odds (bet.mo) — this is also what kellyLine()
@@ -795,6 +810,7 @@ async function runStrategyOpenline(match, ctx) {
       `📊 ${bet.p.toFixed(1)}% historically (n=${bet.n}, baseline ${bet.bl.toFixed(1)}%) — bucketed on opening odds`,
       `🎯 Conservative min odds: @${bet.mo_lo}`,
       `📖 Current Bet365 price: @${marketOdds.toFixed(2)}${marketOdds >= bet.mo_lo ? ' ✅' : ''}`,
+      ...(openOdds > 1 ? [openingVsNowLine(openOdds, marketOdds)] : []),
       ...(kellyLn ? [kellyLn] : []),
     ]
   );
