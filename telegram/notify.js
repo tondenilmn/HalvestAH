@@ -2824,7 +2824,7 @@ async function main() {
   cron.schedule('*/30 * * * *', runSettlementCheck);
   // OpenLine's own coarser cadence — see config.js's OPENLINE_SCAN_INTERVAL_MINUTES.
   // node-cron's minute field only goes 0-59, so `*/N` is invalid once N>=60
-  // (the default is 120) — express whole-hour intervals via the hour field.
+  // — express whole-hour intervals via the hour field.
   const olInterval = cfg.OPENLINE_SCAN_INTERVAL_MINUTES;
   const olCron = (olInterval % 60 === 0) ? `0 */${olInterval / 60} * * *` : `*/${olInterval} * * * *`;
   await runOpenlineScan();

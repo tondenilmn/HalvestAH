@@ -461,11 +461,12 @@ module.exports = {
   // week is still caught — the match-id dedup below makes re-seeing the same
   // match on multiple days harmless.
   OPENLINE_WINDOW_DAYS: parseInt(process.env.OPENLINE_WINDOW_DAYS || '9', 10),
-  // Coarse cadence — unlike the 2-min live scan, new matches only enter this
-  // week-out window a handful of times a day, so there's nothing to gain from
-  // scanning it every SCAN_INTERVAL_MINUTES (and it costs OPENLINE_WINDOW_DAYS+1
-  // extra HTTP round-trips to botbot3.space each time it runs).
-  OPENLINE_SCAN_INTERVAL_MINUTES: parseInt(process.env.OPENLINE_SCAN_INTERVAL_MINUTES || '120', 10),
+  // Same cadence as PRICEGAP's far scan (PRICEGAP_FAR_SCAN_INTERVAL_MINUTES,
+  // also days 1-7). Was 120 while the alert fired at first sight; since it
+  // checks Bet365's CURRENT price once the match is 6-7 days out, a long gap
+  // between scans just means a staler price by the time it alerts. Each run
+  // costs OPENLINE_WINDOW_DAYS+1 fetches from botbot3.space.
+  OPENLINE_SCAN_INTERVAL_MINUTES: parseInt(process.env.OPENLINE_SCAN_INTERVAL_MINUTES || '15', 10),
   // The alert itself only FIRES once a match is this many days from kickoff
   // (added 2026-09-06, user request) — separate from OPENLINE_WINDOW_DAYS
   // above, which is just how far out the scan looks to capture the true
