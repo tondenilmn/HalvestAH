@@ -433,7 +433,7 @@ Note this pre-match timing is a real shift from how L123 was originally walk-for
 
 | Setting | Value | Meaning |
 |---|---|---|
-| `L123_ENABLED` | `true` | Only active strategy |
+| `L123_ENABLED` | `false` | Switched off in code 2026-10-04 (user request) — the env var is ignored; restore `process.env.L123_ENABLED === 'true'` in config.js to bring it back |
 | `L123_TIER` | `TOP+MAJOR` | League tier filter (falls back to `LEAGUE_TIER`) |
 | `L123_MIN_N` | 30 | Min historical pool size per layer |
 | `L123_MIN_Z` | 1.8 | Min z-score per layer |
