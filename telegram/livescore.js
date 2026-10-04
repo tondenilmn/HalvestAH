@@ -930,6 +930,29 @@ async function fetchOpenlineMatches(maxDay = 9) {
   return { matches: allMatches, bet365HashFailed: hashFailed, bet365Hash: BET365_HASH };
 }
 
+// Sbobet's tablenext for day0..maxDay (Strategy PRICEGAP's second book).
+// Match ids are shared with Bet365's tablenext files (checked 2026-10-03 —
+// the web app's /api/upcoming joins the two books on them), so the caller
+// pairs fixtures by id.
+async function fetchSbobetDays(maxDay = 1) {
+  const timestamp = Date.now();
+  const seen = new Map();
+  let hashFailed = false;
+  for (let day = 0; day <= maxDay; day++) {
+    let { matches, hashInvalid } = await tryNextCombo(SBOBET_HASH, GS_PRIMARY, timestamp, day);
+    if (!matches && hashInvalid) {
+      const discovered = await fetchSbobetHash();
+      if (discovered && discovered !== SBOBET_HASH) {
+        SBOBET_HASH = discovered;
+        ({ matches, hashInvalid } = await tryNextCombo(SBOBET_HASH, GS_PRIMARY, timestamp, day));
+      }
+    }
+    if (!matches) { if (hashInvalid) hashFailed = true; continue; }
+    for (const m of matches) if (m.id) seen.set(m.id, m);
+  }
+  return { matches: [...seen.values()], sbobetHashFailed: hashFailed, sbobetHash: SBOBET_HASH };
+}
+
 // Current in-memory hashes with no network call — used by notify.js's /hashes
 // HTTP endpoint so the Cloudflare Pages Function can relay through Railway
 // when its own direct discovery is blocked (see functions/api/livescore.js).
@@ -938,4 +961,4 @@ function getCurrentHashes() {
 }
 
 // module.exports = { fetchLiveMatches, fetchNextMatches, fetchNextMatchesAllDays, refreshHashes };
-module.exports = { fetchLiveMatches, fetchNextMatches, fetchOpenlineMatches, fetchSbobetMatches, refreshHashes, getCurrentHashes, checkStaleHashHeuristic, checkBet365LiveHash };
+module.exports = { fetchLiveMatches, fetchNextMatches, fetchOpenlineMatches, fetchSbobetMatches, fetchSbobetDays, refreshHashes, getCurrentHashes, checkStaleHashHeuristic, checkBet365LiveHash };

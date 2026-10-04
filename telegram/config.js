@@ -532,6 +532,27 @@ module.exports = {
   // dog_oc price actually on offer (liveOddsForBet — the exact same live
   // feed field L123 already reads, zero extra API cost).
   // ════════════════════════════════════════════════════════════════════════════
+  // ── Strategy PRICEGAP — pre-match Bet365 ≥ X% above Sbobet fair (same line) ─
+  // The web app's SCANNER tab as a Telegram alert (telegram/pricegap.js):
+  // Bet365's CURRENT AH / goals O-U price vs Sbobet's CURRENT de-vigged price
+  // on the SAME line. Backtest (CrossBooks, 14 months): opening ≥5% → +6.4%
+  // ROI (12/14 months); after movement ≥5% → +6.2% (10/14), AH-only ≥5% →
+  // +9.3% (12/14). Edges at/above PRICEGAP_MAX_EDGE_PCT are skipped (almost
+  // always a stale price). One alert per match+market+side per 24h.
+  PRICEGAP_ENABLED:          process.env.PRICEGAP_ENABLED !== 'false',
+  PRICEGAP_MIN_EDGE_PCT:     parseFloat(process.env.PRICEGAP_MIN_EDGE_PCT || '5'),
+  PRICEGAP_MAX_EDGE_PCT:     parseFloat(process.env.PRICEGAP_MAX_EDGE_PCT || '15'),
+  PRICEGAP_TIER:             process.env.PRICEGAP_TIER || 'ALL',
+  // Only fixtures kicking off within this many hours (tablenext day0..day1 is scanned).
+  PRICEGAP_WINDOW_HOURS:     parseFloat(process.env.PRICEGAP_WINDOW_HOURS || '24'),
+  // Bet365 corrects toward Sbobet within minutes-hours, so scan often; costs
+  // 4 botbot3 requests (2 books × day0/day1) per run.
+  PRICEGAP_SCAN_INTERVAL_MINUTES: parseInt(process.env.PRICEGAP_SCAN_INTERVAL_MINUTES || '10', 10),
+  PRICEGAP_KELLY_FRACTION:   parseFloat(process.env.PRICEGAP_KELLY_FRACTION || '0.25'),
+  PRICEGAP_BANKROLL:         parseFloat(process.env.PRICEGAP_BANKROLL || '0') || null,
+  // Optional link to the web app in each alert (e.g. https://<project>.pages.dev).
+  APP_URL:                   process.env.APP_URL || '',
+
   CROSSDOG_ENABLED:     process.env.CROSSDOG_ENABLED !== 'false',
   CROSSDOG_TIER:        process.env.CROSSDOG_TIER || 'ALL',
   CROSSDOG_WINDOW_MIN:  parseInt(process.env.CROSSDOG_WINDOW_MIN || '10', 10), // same pre-kickoff window as L123 (PRE_MATCH_WINDOW_MIN)
