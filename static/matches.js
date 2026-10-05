@@ -84,6 +84,9 @@ async function runMatchesScan() {
     ]);
     const live = (data.matches || []).filter(m => m.minute);
     if (!live.length && data.note) throw new Error(data.note);
+    // Matches asianbetsoccer has no Bet365 in-play price for: Bet365's own
+    // prices via Sofascore, fetched from this browser (sofascore.js).
+    const viaSofa = await addSofascoreToList(live);
     _ml.data = data;
     _ml.pin = pin;
     // Pinnacle's prices come from a shared cache — only used while fresh.
@@ -97,7 +100,7 @@ async function runMatchesScan() {
       const priced = _ml.items.filter(it => it.rows.length).length;
       const vsPin = _ml.items.filter(it => it.basis === 'pinnacle').length;
       const fr = _ml.pinFresh;
-      status.textContent = `✓ ${live.length} live matches · ${priced} with Bet365 in-play prices · ${pin.error ? 'Pinnacle unavailable'
+      status.textContent = `✓ ${live.length} live matches · ${priced} with Bet365 in-play prices${viaSofa ? ` (${viaSofa} via Sofascore)` : ''} · ${pin.error ? 'Pinnacle unavailable'
         : fr.ok ? `${vsPin} vs Pinnacle (prices ${Pinn.fmtAge(fr.age)} old)` : `Pinnacle not used: ${fr.age != null ? `prices ${Pinn.fmtAge(fr.age)} old` : 'age unknown'}`}`;
       status.className = 'url-import-status ok';
     }
@@ -108,6 +111,37 @@ async function runMatchesScan() {
     _ml.loading = false;
     if (btn) btn.disabled = false;
   }
+}
+
+// Sofascore fallback for the list. One live-events request (cached 50 s in
+// sofascore.js) plus one odds request per match that needs it, 4 at a time,
+// at most ML_SOFA_MAX per refresh. A match not found on Sofascore is looked
+// up again after 5 min; if Sofascore refuses us, it is skipped for 10 min.
+const ML_SOFA_MAX = 30;
+const _mlSofa = { ev: new Map(), offUntil: 0 };
+async function addSofascoreToList(live) {
+  if (typeof Sofa === 'undefined' || Date.now() < _mlSofa.offUntil) return 0;
+  const need = live.filter(m => !m.bet365_live_odds && parseScoreStr(m.score)).slice(0, ML_SOFA_MAX);
+  let added = 0, i = 0, failed = 0;
+  const worker = async () => {
+    while (i < need.length) {
+      const m = need[i++];
+      const key = m.id || `${m.home_team}|${m.away_team}`;
+      try {
+        let c = _mlSofa.ev.get(key);
+        if (!c || (!c.ev && Date.now() - c.at > 5 * 60000)) {
+          c = { ev: await Sofa.findLiveEvent(m.home_team, m.away_team, parseScoreStr(m.score)), at: Date.now() };
+          _mlSofa.ev.set(key, c);
+        }
+        if (!c.ev) continue;
+        const odds = await Sofa.liveOdds(c.ev.id);
+        if (odds) { m.bet365_live_odds = odds; m.live_source = 'sofascore'; m.sofaName = `${c.ev.homeTeam?.name} v ${c.ev.awayTeam?.name}`; added++; }
+      } catch (_) { failed++; }
+    }
+  };
+  await Promise.all([worker(), worker(), worker(), worker()]);
+  if (failed && !added && failed >= Math.min(need.length, 4)) _mlSofa.offUntil = Date.now() + 10 * 60000;
+  return added;
 }
 
 const parseScoreStr = s => {
@@ -228,7 +262,7 @@ function renderMatchesRow(it, i) {
     <td class="num" data-l="Min odds">${fOdd(r.fair * (1 + _mt.threshold / 100))}</td>
     <td class="num ml-sm-hide" data-l="Stake">—</td>`
     : r ? `
-    <td class="mt-strong ml-pick">${r.market === 'OU' ? 'O/U' : r.market} · ${mtEsc(r.label)} ${typeof seenBadge === 'function' ? seenBadge(it, r) : ''}</td>
+    <td class="mt-strong ml-pick">${r.market === 'OU' ? 'O/U' : r.market} · ${mtEsc(r.label)} ${typeof seenBadge === 'function' ? seenBadge(it, r) : ''}${m.live_source === 'sofascore' ? ` <span class="mt-tag model" title="asianbetsoccer had no Bet365 in-play price for this match — these are Bet365's, via Sofascore (${mtEsc(m.sofaName || '')}). Its goals market is the .5-line Match Goals.">via Sofascore</span>` : ''}</td>
     <td class="num mt-strong" data-l="Bet365">${fOdd(r.price)}</td>
     <td class="num" data-l="Fair">${fOdd(r.fair)}</td>
     <td class="num" data-l="Prob">${fPct(r.p, 0)}</td>
