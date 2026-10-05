@@ -34,17 +34,35 @@ const LABEL = { bet365: 'Bet365', sbobet: 'Sbobet', bet365live: 'Bet365 Live' };
 // which looks exactly like botbot3's own brief blackouts (every feed empty for
 // ~30-60 s, seen several times 2026-10-04), so "empty" is only called stale
 // when another feed has data at the same moment.
+// The livegame file only lists matches in play or about to start, so with
+// nothing being played a pre-match book's file is empty or holds just a stray
+// getData2none row or two — which looks like the Live feed (seen 2026-10-05:
+// Bet365 = 0 getData2 / 1 none). So whenever there are no getData2 rows the
+// next-games list (tablenext day0, else day1) decides: a working Bet365 /
+// Sbobet hash fills it with upcoming fixtures, a rotated one leaves it empty
+// too, and the Bet365 Live hash has none (its tablenext 404s).
 async function probe(hash, ts) {
   const r = await fetchBotbotFile(botbotUrl('livegame', hash, ts), hash);
-  if (r.status !== 200) return { http: r.status, error: r.error, pre: 0, live: 0, inPlay: 0 };
-  return {
+  if (r.status !== 200) return { http: r.status, error: r.error, pre: 0, live: 0, inPlay: 0, next: 0 };
+  const p = {
     http: 200,
     pre: parseGetData2Calls(r.text).length,
     live: parseGetData2NoneCalls(r.text).length,
     inPlay: parseGetData1Calls(r.text).filter(m => m.minute).length,
+    next: 0,
   };
+  if (p.pre === 0) {
+    for (const day of [0, 1]) {
+      const n = await fetchBotbotFile(botbotUrl(`tablenext/day${day}`, hash, ts), hash);
+      if (n.status === 200) p.next = parseGetData2Calls(n.text).length;
+      if (p.next > 0) break;
+    }
+  }
+  return p;
 }
-const kindOf = p => p.http === 404 ? 'gone' : p.http !== 200 ? 'error' : p.pre > 0 ? 'prematch' : p.live > 0 ? 'live' : 'empty';
+const hasData = p => p.pre > 0 || p.live > 0 || p.next > 0;
+const kindOf = p => p.http === 404 ? 'gone' : p.http !== 200 ? 'error'
+  : p.pre > 0 ? 'prematch' : p.next > 0 ? 'upcoming' : p.live > 0 ? 'live' : 'empty';
 
 // Status of one book from its probe, given whether botbot3 is serving data
 // at all right now and how many matches Bet365 shows in play (the Live feed
@@ -61,6 +79,7 @@ function verdict(book, p, anyData, inPlay = null) {
   if (book === 'bet365live') return k === 'live'
     ? { status: 'ok', detail: `${p.live} live prices` }
     : { status: 'wrong', detail: 'this hash is a pre-match feed, not Bet365 Live' };
+  if (k === 'upcoming') return { status: 'ok', detail: `no match in play right now — ${p.next} upcoming fixtures in the next-games list` };
   return k === 'prematch'
     ? { status: 'ok', detail: `${p.pre} matches in the live/upcoming table` }
     : { status: 'wrong', detail: `this hash is the Bet365 Live feed, not ${LABEL[book]}` };
@@ -95,7 +114,7 @@ export async function onRequest(context) {
   if (request.method === 'GET') {
     const { hashes, source, stored, kv } = await resolveHashes(env);
     const probes = Object.fromEntries(await Promise.all(STORE_BOOKS.map(async b => [b, await probe(hashes[b], ts)])));
-    const anyData = Object.values(probes).some(p => p.pre > 0 || p.live > 0);
+    const anyData = Object.values(probes).some(hasData);
     const inPlay = probes.bet365.inPlay;
     const health = Object.fromEntries(STORE_BOOKS.map(b => [b, verdict(b, probes[b], anyData, inPlay)]));
 
@@ -148,7 +167,7 @@ export async function onRequest(context) {
   if (check.status === 'stale' && p.http === 200) {
     const { hashes } = await resolveHashes(env);
     const ref = await probe(hashes.bet365 === hash ? hashes.sbobet : hashes.bet365, ts);
-    check = verdict(book, p, ref.pre > 0 || ref.live > 0, ref.inPlay);
+    check = verdict(book, p, hasData(ref), ref.inPlay);
   }
   if (check.status === 'stale' || check.status === 'wrong') return json({ error: `Not saved — ${check.detail}.` }, 400);
   // A Live hash pasted when nothing is in play can't be checked — save it anyway.
