@@ -1760,3 +1760,28 @@ select.gs-select {
 .fd-form code { font-size: 10px; }
 .fd-actions { display: flex; gap: 6px; }
 .fd-actions .run-btn { flex: 1; margin: 0; }
+
+/* ── MATCHES tab: gap age badge + bet log (betlog.js) ───────────────── */
+.ml-seen { display: inline-block; font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 3px; margin-left: 4px; vertical-align: middle; cursor: help; white-space: nowrap; }
+.ml-seen.new { background: var(--bg3); color: var(--dim); border: 1px solid var(--border); }
+.ml-seen.held { background: rgba(0,229,170,0.16); color: var(--green); border: 1px solid rgba(0,229,170,0.45); }
+.ml-log-btn, .bl-act, .bl-del { font: inherit; font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 3px; border: 1px solid var(--border); background: var(--bg3); color: var(--bright); cursor: pointer; margin-left: 4px; white-space: nowrap; }
+.ml-log-btn:hover, .bl-act:hover { border-color: var(--blue); color: var(--blue); }
+.bl-del:hover { border-color: var(--red); color: var(--red); }
+.ml-logged { font-size: 10px; color: var(--green); margin-left: 4px; white-space: nowrap; }
+.bl-box .mt-table-wrap { margin-top: 8px; }
+.bl-table td { vertical-align: top; }
+.bl-v { font-size: 11px; max-width: 220px; white-space: normal; }
+.bl-v.good { color: var(--green); }
+.bl-v.bad { color: var(--yellow); }
+.bl-pos { color: var(--green); font-weight: 700; }
+.bl-neg { color: var(--red); font-weight: 700; }
+.bl-res { font: inherit; font-size: 11px; background: var(--bg3); color: var(--bright); border: 1px solid var(--border); border-radius: 3px; padding: 1px 3px; }
+@media (max-width: 700px) {
+  .bl-table thead { display: none; }
+  .bl-table, .bl-table tbody { display: block; }
+  .bl-table tr { display: flex; flex-wrap: wrap; gap: 4px 12px; padding: 8px 4px; border-bottom: 1px solid var(--border); }
+  .bl-table td { display: block; padding: 0; border: none; }
+  .bl-table td[data-l]::before { content: attr(data-l) " "; font-size: 9px; color: var(--dim); }
+  .bl-v { max-width: none; flex: 1 1 100%; }
+}

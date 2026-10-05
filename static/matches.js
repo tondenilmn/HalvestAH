@@ -88,6 +88,9 @@ async function runMatchesScan() {
     _ml.pin = pin;
     _ml.items = live.map(m => analyzeListMatch(m, pin.matches || []));
     _ml.fetchedAt = new Date();
+    // betlog.js: how long each gap has lasted, and follow-up of logged bets.
+    if (typeof mlTrackSeen === 'function') mlTrackSeen(_ml.items);
+    if (typeof blFollowUp === 'function') blFollowUp(_ml.items);
     if (status) {
       const priced = _ml.items.filter(it => it.rows.length).length;
       const vsPin = _ml.items.filter(it => it.basis === 'pinnacle').length;
@@ -220,7 +223,7 @@ function renderMatchesRow(it, i) {
     <td class="num" data-l="Min odds">${fOdd(r.fair * (1 + _mt.threshold / 100))}</td>
     <td class="num ml-sm-hide" data-l="Stake">—</td>`
     : r ? `
-    <td class="mt-strong ml-pick">${r.market === 'OU' ? 'O/U' : r.market} · ${mtEsc(r.label)}</td>
+    <td class="mt-strong ml-pick">${r.market === 'OU' ? 'O/U' : r.market} · ${mtEsc(r.label)} ${typeof seenBadge === 'function' ? seenBadge(it, r) : ''}</td>
     <td class="num mt-strong" data-l="Bet365">${fOdd(r.price)}</td>
     <td class="num" data-l="Fair">${fOdd(r.fair)}</td>
     <td class="num" data-l="Prob">${fPct(r.p, 0)}</td>
@@ -234,7 +237,10 @@ function renderMatchesRow(it, i) {
     <td class="ml-match"><div class="sc-match">${mtEsc(m.home_team)} <span class="mt-dim">v</span> ${mtEsc(m.away_team)}</div>
         <div class="mt-mini">${mtEsc(m.league)} <span class="sc-tier ${it.tier.toLowerCase()}">${it.tier}</span></div></td>
     ${betCells}
-    <td class="ml-ref">${refTag}</td>
+    <td class="ml-ref">${refTag}${r && !r.modelOnly && typeof logLiveBet === 'function'
+      ? (_bl.some(b => !b.result && b.key === gapKey(m, r))
+        ? '<span class="ml-logged" title="In the bet log below">✓ logged</span>'
+        : `<button class="ml-log-btn" title="Placed this bet? Log it to follow the price and settle it" onclick="event.stopPropagation(); logLiveBet(${i})">＋ log</button>`) : ''}</td>
   </tr>`;
 }
 
@@ -283,9 +289,11 @@ function renderMatchesList() {
         <li>Gaps ≥ ${(MT_LIVE_SUSPECT_EDGE * 100).toFixed(0)}% are never picked: a gap that big almost always means the model is missing something the market knows (a red card, an injury, one side dominating).</li>
         <li>Without Sbobet the model is fitted to Bet365's own pre-match close (<span class="sc-bucket moved-thin">Bet365 pre</span>) — the edge then only says the live price has strayed from what Bet365 itself implied at kick-off.</li>
         <li><span class="mt-tag model">model only</span> rows have no Bet365 live price: the pick is the model's likeliest outcome at fair odds ≥ the min-odds floor, and "Min odds" is the price you'd want before betting it.</li>
+        <li><span class="ml-seen new">new</span> = first refresh with this gap at or above the threshold; <span class="ml-seen held">seen N min</span> = still there on back-to-back refreshes. Most gaps vanish within a refresh (one book a minute behind) — wait for one that holds, then check Bet365's price.</li>
         <li>"Most probable" picks the outcome the model rates likeliest among Bet365's live prices at ≥ the min-odds floor — likely, not necessarily good value. Check the edge column.</li>
       </ul>
-    </details>`;
+    </details>
+    ${typeof renderBetLog === 'function' ? renderBetLog() : ''}`;
 }
 
 // League checklist: every league in the current live list (within the tier
