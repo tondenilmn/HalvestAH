@@ -40,7 +40,9 @@
  * Unknown parameters don't make a fresh copy (they get 204/403), so these
  * are the only addresses. Callers must treat old copies as stale — static/
  * pinnacle.js stops using Pinnacle above PINN_MAX_AGE_S.
- *   4 subrequests (2 market + 2 matchup variants; all 11 only if both fail).
+ *   4 subrequests (2 market + 2 matchup variants; all 11 only if both fail),
+ *   plus 1 to the Railway bot's warm copies when RAILWAY_RELAY_URL is set —
+ *   its lists are used whenever they are younger (telegram/pinnacle_relay.js).
  */
 
 const API = 'https://guest.api.arcadia.pinnacle.com/0.1';
@@ -75,6 +77,17 @@ const MATCHUP_PATHS = ['matchups/live?withSpecials=false', 'matchups/live', 'mat
 // list and scores, which the app checks against the live feed anyway).
 const MARKET_SLOT_S = 125;
 const MATCHUP_SLOT_S = 330;
+
+// The Railway bot's warm copies (GET <RAILWAY_RELAY_URL>/pinnacle), or null.
+async function fetchRelay(base) {
+  if (!base) return null;
+  try {
+    const r = await fetch(`${base.replace(/\/$/, '')}/pinnacle`, { signal: AbortSignal.timeout(5000) });
+    if (!r.ok) return null;
+    const d = await r.json();
+    return d.ok && Array.isArray(d.markets) && Array.isArray(d.matchups) && Number.isFinite(d.age?.markets) ? d : null;
+  } catch (_) { return null; }
+}
 
 async function fetchVariant(v, headers) {
   const { path, partial } = typeof v === 'string' ? { path: v, partial: false } : v;
@@ -123,14 +136,25 @@ export async function onRequest(context) {
   };
   let matchups, markets, age;
   try {
-    const [mk, mu] = await Promise.all([staggered(MARKET_PATHS, MARKET_SLOT_S, headers), staggered(MATCHUP_PATHS, MATCHUP_SLOT_S, headers)]);
-    if (!mk.ok || !mu.ok) return json({ matches: [], error: `Pinnacle answered HTTP ${mu.status}/${mk.status} — blocked from this network, or the guest key changed (set PINNACLE_GUEST_KEY).` });
-    markets = mk.data;
-    // Match list: the younger copy first, plus any match only the older one has.
+    const [mk, mu, relay] = await Promise.all([
+      staggered(MARKET_PATHS, MARKET_SLOT_S, headers),
+      staggered(MATCHUP_PATHS, MATCHUP_SLOT_S, headers),
+      fetchRelay(context.env?.RAILWAY_RELAY_URL),
+    ]);
+    // The Railway bot keeps its own copies warm around the clock
+    // (telegram/pinnacle_relay.js) — use its lists when they are younger.
+    const useRelay = relay && (!mk.ok || relay.age.markets < mk.age);
+    if (!useRelay && (!mk.ok || !mu.ok)) return json({ matches: [], error: `Pinnacle answered HTTP ${mu.status}/${mk.status} — blocked from this network, or the guest key changed (set PINNACLE_GUEST_KEY).` });
+    markets = useRelay ? relay.markets : mk.data;
+    // Match list: the younger copy first, plus any match only an older one has.
+    const lists = [...(mu.ok ? mu.copies.map(c => ({ age: c.age, data: c.data })) : []), ...(relay ? [{ age: relay.age.matchups ?? 9999, data: relay.matchups }] : [])]
+      .sort((x, y) => x.age - y.age);
     const seen = new Set();
     matchups = [];
-    for (const c of mu.copies) for (const g of c.data) if (!seen.has(g.id)) { seen.add(g.id); matchups.push(g); }
-    age = { markets: mk.age, matchups: mu.age, marketsPath: mk.path, copies: mk.copies.map(c => c.age), slot: mk.slot };
+    for (const c of lists) for (const g of c.data) if (!seen.has(g.id)) { seen.add(g.id); matchups.push(g); }
+    age = useRelay
+      ? { markets: relay.age.markets, matchups: lists[0]?.age ?? null, source: 'relay', own: mk.ok ? mk.age : null }
+      : { markets: mk.age, matchups: lists[0]?.age ?? null, source: 'direct', relay: relay ? relay.age.markets : null, marketsPath: mk.path, copies: mk.copies.map(c => c.age), slot: mk.slot };
   } catch (e) {
     return json({ matches: [], error: `Pinnacle unreachable: ${e.message}` });
   }

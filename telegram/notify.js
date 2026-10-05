@@ -32,6 +32,7 @@ const {
 } = require('./engine');
 const { fetchLiveMatches, fetchNextMatches, fetchOpenlineMatches, fetchSbobetMatches, fetchTablenextDays, syncHashesFromApp, refreshHashes, getCurrentHashes, checkStaleHashHeuristic, checkBet365LiveHash } = require('./livescore');
 const priceGap = require('./pricegap');
+const pinnRelay = require('./pinnacle_relay');
 const { verifyBet365Price } = require('./apifootball');
 const crossdogLib = require('./crossdog_lib');
 const { recordAlert, settlePendingAlerts } = require('./track_record');
@@ -2763,6 +2764,13 @@ function startHashRelayServer() {
     return;
   }
   const server = http.createServer((req, res) => {
+    if (req.url === '/pinnacle' || req.url.startsWith('/pinnacle?')) {
+      // Pinnacle's live lists kept warm by pinnacle_relay.js (read by the web
+      // app's functions/api/pinnacle.js).
+      res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+      res.end(JSON.stringify(cfg.PINNACLE_RELAY ? pinnRelay.relayPayload() : { ok: false, error: 'PINNACLE_RELAY off' }));
+      return;
+    }
     if (req.url === '/hashes') {
       const { pinnacle, bet365, bet365live, sbobet } = getCurrentHashes();
       res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -2773,7 +2781,7 @@ function startHashRelayServer() {
     res.end('ok');
   });
   server.listen(process.env.PORT, () => {
-    console.log(`Hash relay: listening on :${process.env.PORT} (GET /hashes)`);
+    console.log(`Hash relay: listening on :${process.env.PORT} (GET /hashes${cfg.PINNACLE_RELAY ? ', GET /pinnacle' : ''})`);
   });
 }
 
@@ -2818,6 +2826,12 @@ async function main() {
     .catch(e => console.error('Hash sync error:', e));
   await syncHashes();
   cron.schedule(`*/${cfg.HASH_SYNC_MINUTES} * * * *`, syncHashes);
+  // Keep Pinnacle's cached live lists warm for the web app (pinnacle_relay.js).
+  if (cfg.PINNACLE_RELAY && process.env.PORT) {
+    const pollPin = () => pinnRelay.pollPinnacle().catch(e => console.error('Pinnacle relay error:', e.message));
+    pollPin();
+    cron.schedule('* * * * *', pollPin);
+  }
   // Refresh hashes daily at 06:00 UTC (hashes rotate ~once/day)
   cron.schedule('0 6 * * *', () => refreshHashes().catch(e => console.error('Hash refresh error:', e)));
   // Track record: check for newly-finished matches every 30 min (cheap —

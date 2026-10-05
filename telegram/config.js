@@ -537,6 +537,11 @@ module.exports = {
   // How often to adopt hashes pasted in the web app's FEEDS card
   // (GET <HASH_RELAY_URL or DATA_URL>/api/hashes?raw=1). 1-59.
   HASH_SYNC_MINUTES:         Math.min(59, Math.max(1, parseInt(process.env.HASH_SYNC_MINUTES || '5', 10))),
+  // Keep Pinnacle's cached live lists warm from this server and serve them at
+  // GET /pinnacle on the relay server, so the web app's MATCHES tab has fresh
+  // Pinnacle prices without a ~15-min warm-up (telegram/pinnacle_relay.js).
+  // Polls every minute; needs Railway public networking (PORT), like /hashes.
+  PINNACLE_RELAY:            process.env.PINNACLE_RELAY !== 'false',
 
   // ── Strategy PRICEGAP — pre-match Bet365 ≥ X% above Sbobet fair (same line) ─
   // The web app's SCANNER tab as a Telegram alert (telegram/pricegap.js):
