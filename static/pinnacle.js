@@ -13,6 +13,12 @@
    fLine, sameLine, num), sofascore.js (Sofa.dice for team names).
    ══════════════════════════════════════════════════════════════════════ */
 
+// Pinnacle's guest API sits behind a shared CDN cache (copies up to ~15 min
+// old, not refreshed when prices move — see functions/api/pinnacle.js).
+// /api/pinnacle uses the youngest copy and reports its age; above this many
+// seconds the prices are not used at all (model instead).
+const PINN_MAX_AGE_S = 120;
+
 const Pinn = (() => {
   const TTL_MS = 25000;
   let cache = { at: 0, data: null, pending: null };
@@ -21,7 +27,7 @@ const Pinn = (() => {
     if (cache.data && Date.now() - cache.at < TTL_MS) return cache.data;
     if (cache.pending) return cache.pending;
     cache.pending = fetch('/api/pinnacle').then(r => r.json())
-      .then(d => { cache = { at: Date.now(), data: d, pending: null }; return d; })
+      .then(d => { d._recv = Date.now(); cache = { at: Date.now(), data: d, pending: null }; return d; })
       .catch(e => { cache.pending = null; throw e; });
     return cache.pending;
   }
@@ -36,13 +42,34 @@ const Pinn = (() => {
       const sh = sim(m.home, home), sa = sim(m.away, away);
       if (Math.min(sh, sa) < 0.4) continue;
       let s = (sh + sa) / 2;
-      if (score && m.score?.home != null) s += (m.score.home === score.home && m.score.away === score.away) ? 0.15 : -0.25;
+      // Different score = Pinnacle's copy is from before a goal (or another
+      // match): its prices can't be compared, so never match it.
+      if (score && m.score?.home != null) {
+        if (m.score.home !== score.home || m.score.away !== score.away) continue;
+        s += 0.15;
+      }
       if (!best || s > best.s) best = { m, s };
     }
     return best && best.s >= 0.7 ? best.m : null;
   }
 
-  return { get, find };
+  // How old the prices are now (copy age at fetch + time since), and
+  // whether that is fresh enough to use.
+  function ageOf(d) {
+    const a = d?.age?.markets;
+    if (!Number.isFinite(a)) return null;
+    return a + (d._recv ? (Date.now() - d._recv) / 1000 : 0);
+  }
+  function usable(d) {
+    if (!d || d.error) return { ok: false, age: null, why: d?.error || 'Pinnacle unavailable' };
+    const age = ageOf(d);
+    if (age == null) return { ok: false, age: null, why: 'Pinnacle prices of unknown age — not used' };
+    if (age > PINN_MAX_AGE_S) return { ok: false, age, why: `Pinnacle prices ${fmtAge(age)} old — not used (cached copy; over ${PINN_MAX_AGE_S / 60} min)` };
+    return { ok: true, age, why: null };
+  }
+  const fmtAge = s => (s < 90 ? `${Math.round(s)} s` : `${(s / 60).toFixed(s < 600 ? 1 : 0)} min`);
+
+  return { get, find, usable, ageOf, fmtAge };
 })();
 
 // Bet365 live price vs Pinnacle's de-vigged live price, same line only.

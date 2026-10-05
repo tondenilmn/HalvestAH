@@ -86,7 +86,9 @@ async function runMatchesScan() {
     if (!live.length && data.note) throw new Error(data.note);
     _ml.data = data;
     _ml.pin = pin;
-    _ml.items = live.map(m => analyzeListMatch(m, pin.matches || []));
+    // Pinnacle's prices come from a shared cache — only used while fresh.
+    _ml.pinFresh = typeof Pinn !== 'undefined' ? Pinn.usable(pin) : { ok: false, age: null, why: null };
+    _ml.items = live.map(m => analyzeListMatch(m, _ml.pinFresh.ok ? (pin.matches || []) : []));
     _ml.fetchedAt = new Date();
     // betlog.js: how long each gap has lasted, and follow-up of logged bets.
     if (typeof mlTrackSeen === 'function') mlTrackSeen(_ml.items);
@@ -94,7 +96,9 @@ async function runMatchesScan() {
     if (status) {
       const priced = _ml.items.filter(it => it.rows.length).length;
       const vsPin = _ml.items.filter(it => it.basis === 'pinnacle').length;
-      status.textContent = `✓ ${live.length} live matches · ${priced} with Bet365 in-play prices · ${vsPin} vs Pinnacle${pin.error ? ' (Pinnacle unavailable)' : ''}`;
+      const fr = _ml.pinFresh;
+      status.textContent = `✓ ${live.length} live matches · ${priced} with Bet365 in-play prices · ${pin.error ? 'Pinnacle unavailable'
+        : fr.ok ? `${vsPin} vs Pinnacle (prices ${Pinn.fmtAge(fr.age)} old)` : `Pinnacle not used: ${fr.age != null ? `prices ${Pinn.fmtAge(fr.age)} old` : 'age unknown'}`}`;
       status.className = 'url-import-status ok';
     }
     renderMatchesList();
@@ -211,7 +215,8 @@ function renderMatchesRow(it, i) {
   const hit = r && !r.modelOnly && r.edge >= thr;
   const sc = st.score ? `${st.score.home}-${st.score.away}` : '—';
   const stake = hit && r.kelly > 0 ? (_mt.bankroll ? `€${(_mt.bankroll * r.kelly).toFixed(2)}` : fPct(r.kelly, 2)) : '—';
-  const refTag = it.basis === 'pinnacle' && r && !r.modelOnly ? `<span class="sc-bucket open" title="Fair = Pinnacle's live price on the same line, margin removed (${mtEsc(it.pm?.home || '')} v ${mtEsc(it.pm?.away || '')}).">Pinnacle</span>`
+  const pinAge = _ml.pinFresh?.age;
+  const refTag = it.basis === 'pinnacle' && r && !r.modelOnly ? `<span class="sc-bucket open" title="Fair = Pinnacle's live price on the same line, margin removed (${mtEsc(it.pm?.home || '')} v ${mtEsc(it.pm?.away || '')}, same score). Pinnacle's prices come from a cached copy${Number.isFinite(pinAge) ? ` ${Pinn.fmtAge(pinAge)} old` : ''} — not used above ${PINN_MAX_AGE_S / 60} min.">Pinnacle${Number.isFinite(pinAge) ? ` · ${Pinn.fmtAge(pinAge)}` : ''}</span>`
     : it.refKey === 'sbobet' ? '<span class="sc-bucket open" title="Model fitted to Sbobet\'s pre-match prices (the backtested reference book).">Sbobet</span>'
     : it.refKey === 'bet365' ? '<span class="sc-bucket moved-thin" title="Sbobet not listed — model fitted to Bet365\'s own pre-match close, so the edge only measures how far the live price strays from that.">Bet365 pre</span>' : '';
   const betCells = r?.modelOnly ? `
@@ -265,6 +270,7 @@ function renderMatchesList() {
   // Headline = best pick in the filtered list, whatever the row order.
   const top = items.reduce((a, b) => (b.pick && (!a || pickScore(b) > pickScore(a)) ? b : a), null);
   const notes = [];
+  if (_ml.pinFresh && !_ml.pinFresh.ok && !_ml.pin?.error && _ml.pinFresh.why) notes.push(`${_ml.pinFresh.why}. Pinnacle's free feed is a shared copy refreshed only every ~15 min, so its prices are skipped until a fresher copy comes round — every pick below is against the model.`);
   if (_ml.data.matches?.length && !_ml.items.some(it => it.m.bet365_live_odds)) notes.push('No Bet365 in-play prices in the feed — the "Bet365 Live" hash is probably stale: open FEEDS (top of the left panel) to check and replace it. Without them each match shows the model\'s likeliest outcome and its fair odds ("model only") — no edge can be measured.');
 
   el.innerHTML = `

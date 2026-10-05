@@ -26,12 +26,60 @@
  *                 h1: { …same… } }],
  *     fetchedAt, notes }
  *   Prices are decimal; AH `line` is the HOME side's handicap (−0.25 = home gives 0.25).
- *   2 subrequests.
+ *   Also `age: { markets, matchups }` — seconds old of the copies used (see below).
+ *
+ * FRESHNESS (checked 2026-10-05): these endpoints sit behind a shared CDN
+ * cache (`Cache-Control: max-age≈900`, `cf-cache-status: HIT`) — each URL is
+ * one shared copy that is NOT refreshed when prices move: polled every 20 s
+ * for 3 minutes, a copy kept identical prices and market versions while its
+ * `Age` climbed 589 → 735 s, and missed a match that had kicked off after it
+ * was saved. Each valid query-string variant is its own copy with its own age
+ * (seen 23 s … 868 s at the same moment), so every variant below is fetched
+ * and the youngest copy of each list is used; `age` reports how old it is.
+ * Unknown parameters don't make a fresh copy (they get 204/403), so these
+ * are the only addresses. Callers must treat old copies as stale — static/
+ * pinnacle.js stops using Pinnacle above PINN_MAX_AGE_S.
+ *   11 subrequests.
  */
 
 const API = 'https://guest.api.arcadia.pinnacle.com/0.1';
 const GUEST_KEY = 'CmX2KcMrXuFmNg6YFbmTxE0y9CIrOi0R';
 const SOCCER = 29;
+
+// Every address that returns the live lists (see FRESHNESS above). Full
+// copies first; the primaryOnly=true ones lack alternate lines, so they are
+// only used when they are clearly the freshest (> 30 s younger).
+const MARKET_PATHS = [
+  'markets/live/straight?primaryOnly=false&withSpecials=false',
+  'markets/live/straight?withSpecials=false&primaryOnly=false',
+  'markets/live/straight?primaryOnly=false',
+  'markets/live/straight',
+  'markets/live/straight?withSpecials=false',
+  { path: 'markets/live/straight?primaryOnly=true', partial: true },
+  { path: 'markets/live/straight?primaryOnly=true&withSpecials=false', partial: true },
+  { path: 'markets/live/straight?withSpecials=false&primaryOnly=true', partial: true },
+];
+const MATCHUP_PATHS = ['matchups/live?withSpecials=false', 'matchups/live', 'matchups/live?withSpecials=true'];
+
+// Fetch every variant, keep the youngest usable copy (Age header; a MISS or
+// no Age = just fetched = 0 s).
+async function freshest(paths, headers) {
+  const res = await Promise.all(paths.map(async v => {
+    const { path, partial } = typeof v === 'string' ? { path: v, partial: false } : v;
+    try {
+      const r = await fetch(`${API}/sports/${SOCCER}/${path}`, { headers });
+      if (r.status !== 200) return { path, ok: false, status: r.status };
+      const data = await r.json();
+      if (!Array.isArray(data)) return { path, ok: false, status: r.status };
+      return { path, partial, ok: true, status: 200, data, age: parseInt(r.headers.get('age') || '0', 10) || 0 };
+    } catch (e) { return { path, ok: false, status: 0, error: e.message }; }
+  }));
+  const good = res.filter(r => r.ok);
+  if (!good.length) return { ok: false, status: res.map(r => r.status).join(',') };
+  const score = r => r.age + (r.partial ? 30 : 0);
+  const best = good.reduce((a, b) => (score(b) < score(a) ? b : a));
+  return { ...best, ages: good.map(r => r.age) };
+}
 
 const dec = p => (typeof p === 'number' && p !== 0) ? +(p > 0 ? 1 + p / 100 : 1 + 100 / -p).toFixed(3) : null;
 
@@ -52,14 +100,12 @@ export async function onRequest(context) {
     Origin: 'https://www.pinnacle.com',
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
   };
-  let matchups, markets;
+  let matchups, markets, age;
   try {
-    const [r1, r2] = await Promise.all([
-      fetch(`${API}/sports/${SOCCER}/matchups/live?withSpecials=false`, { headers }),
-      fetch(`${API}/sports/${SOCCER}/markets/live/straight?primaryOnly=false&withSpecials=false`, { headers }),
-    ]);
-    if (!r1.ok || !r2.ok) return json({ matches: [], error: `Pinnacle answered HTTP ${r1.status}/${r2.status} — blocked from this network, or the guest key changed (set PINNACLE_GUEST_KEY).` });
-    [matchups, markets] = await Promise.all([r1.json(), r2.json()]);
+    const [mk, mu] = await Promise.all([freshest(MARKET_PATHS, headers), freshest(MATCHUP_PATHS, headers)]);
+    if (!mk.ok || !mu.ok) return json({ matches: [], error: `Pinnacle answered HTTP ${mu.status}/${mk.status} — blocked from this network, or the guest key changed (set PINNACLE_GUEST_KEY).` });
+    matchups = mu.data; markets = mk.data;
+    age = { markets: mk.age, matchups: mu.age, marketsPath: mk.path, copies: mk.ages };
   } catch (e) {
     return json({ matches: [], error: `Pinnacle unreachable: ${e.message}` });
   }
@@ -113,5 +159,5 @@ export async function onRequest(context) {
       },
     });
   }
-  return json({ matches: [...best.values()].map(v => v.m), fetchedAt: new Date().toISOString(), notes: [] });
+  return json({ matches: [...best.values()].map(v => v.m), fetchedAt: new Date().toISOString(), age, notes: [] });
 }

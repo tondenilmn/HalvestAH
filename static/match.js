@@ -314,6 +314,9 @@ async function addPinnacleMatch(data) {
   try {
     const d = await Pinn.get();
     if (d.error) { data.pinError = d.error; return; }
+    const fr = Pinn.usable(d);
+    data.pinAge = fr.age;
+    if (!fr.ok) { data.pinError = fr.why; return; } // stale copy — model only
     const m = _mt.data?.match || {};
     data.pin = Pinn.find(d.matches, m.home, m.away, data.score || st.score || null);
   } catch (e) { data.pinError = e.message; }
@@ -595,14 +598,14 @@ function renderMtValue({ bet, ref, refKey, refFit, live, finished, lm }) {
       <tbody>${liveRows.map(rowHtml).join('')}</tbody>
     </table></div>` : '';
   const pinNote = live && _mt.live?.live_odds && !pinRows.length
-    ? `<div class="mt-sub">${pm ? 'Pinnacle has this match but not on the same lines as Bet365 right now.' : _mt.live?.pinError ? `Pinnacle: ${mtEsc(_mt.live.pinError)}` : 'Pinnacle doesn\'t list this match live — comparing with the model only.'}</div>` : '';
+    ? `<div class="mt-sub">${pm ? 'Pinnacle has this match but not on the same lines as Bet365 right now.' : _mt.live?.pinError ? `Pinnacle: ${mtEsc(_mt.live.pinError)}` : 'Pinnacle doesn\'t list this match live at the same score — comparing with the model only.'}</div>` : '';
   const liveHtml = pinRows.length ? `
     <div class="mt-section-title">IN PLAY NOW${liveSourceTag()} <span class="mt-dim">— Bet365 live vs Pinnacle live (margin removed, same line) · not backtested</span></div>
     <div class="mt-table-wrap"><table class="mt-table mt-value-table">
       <thead><tr><th>Mkt</th><th>Bet</th><th>Bet365 live</th><th>Fair (Pinnacle)</th><th>Prob</th><th>Edge</th><th>Min odds</th><th>Stake</th></tr></thead>
       <tbody>${pinRows.map(rowHtml).join('')}</tbody>
     </table></div>
-    <div class="mt-sub">Pinnacle ${mtEsc(pm.home)} v ${mtEsc(pm.away)}${pm.score?.home != null ? ` (${pm.score.home}-${pm.score.away})` : ''}. Both books: handicap counts goals from now, goal line on the full-match total. Same-moment comparison against the sharpest book — the in-play version of the pre-match check that backtested, but not itself backtested.</div>
+    <div class="mt-sub">Pinnacle ${mtEsc(pm.home)} v ${mtEsc(pm.away)}${pm.score?.home != null ? ` (${pm.score.home}-${pm.score.away})` : ''}${Number.isFinite(_mt.live?.pinAge) ? ` · Pinnacle prices <b>${Pinn.fmtAge(_mt.live.pinAge)} old</b> (cached; not used above ${PINN_MAX_AGE_S / 60} min)` : ''}. Both books: handicap counts goals from now, goal line on the full-match total. Same-moment comparison against the sharpest book — the in-play version of the pre-match check that backtested, but not itself backtested.</div>
     ${modelTable ? `<details class="mt-details"><summary>vs the live model (${liveRows.length} rows)</summary>${modelTable}</details>` : ''}
     <div class="mt-section-title" style="margin-top:22px">PRE-MATCH <span class="mt-dim">— Bet365 vs ${mtEsc(bookLabel(refKey))} at kick-off</span></div>`
     : liveRows.length ? `
