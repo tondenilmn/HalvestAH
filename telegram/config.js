@@ -582,6 +582,35 @@ module.exports = {
   PRICEGAP_RECORD_MIN_PCT:   parseFloat(process.env.PRICEGAP_RECORD_MIN_PCT || '2'),
   PRICEGAP_KELLY_FRACTION:   parseFloat(process.env.PRICEGAP_KELLY_FRACTION || '0.25'),
   PRICEGAP_BANKROLL:         parseFloat(process.env.PRICEGAP_BANKROLL || '0') || null,
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // STRATEGY LIVEGAP — Bet365 in-play ≥ X% above Pinnacle live, same line
+  // (telegram/livegap.js, notify.js's runLiveGapScan; added 2026-10-06).
+  // NOT BACKTESTED (no in-play price history) — the in-play analogue of the
+  // pre-match Bet365-vs-sharp-book check that did backtest. Every minute:
+  // Bet365 Live prices (asianbetsoccer) vs Pinnacle's live lists kept warm by
+  // pinnacle_relay.js. An alert needs ALL of: edge in [MIN, MAX), Pinnacle
+  // prices ≤ MAX_PIN_AGE_S old, the same score on both feeds, no goal / red
+  // card / first sighting in the last QUIET_MIN minutes, the gap present on
+  // MIN_SCANS consecutive scans (one minute apart), minute ≤ MAX_MINUTE.
+  // Recorder: every same-line row of matches with a gap ≥ RECORD_MIN_PCT
+  // (followed 15 min after the gap last showed) + the last score of those
+  // matches → telegram/data/livegap/YYYY-MM-DD.jsonl (needs a Railway volume
+  // to survive redeploys) — the evidence for whether these gaps pay.
+  LIVEGAP_ENABLED:           process.env.LIVEGAP_ENABLED !== 'false',
+  LIVEGAP_MIN_EDGE_PCT:      parseFloat(process.env.LIVEGAP_MIN_EDGE_PCT || '5'),
+  LIVEGAP_MAX_EDGE_PCT:      parseFloat(process.env.LIVEGAP_MAX_EDGE_PCT || '15'),
+  LIVEGAP_MAX_PIN_AGE_S:     parseFloat(process.env.LIVEGAP_MAX_PIN_AGE_S || '60'),
+  LIVEGAP_QUIET_MIN:         parseFloat(process.env.LIVEGAP_QUIET_MIN || '3'),
+  LIVEGAP_MIN_SCANS:         parseInt(process.env.LIVEGAP_MIN_SCANS || '2', 10),
+  LIVEGAP_MAX_MINUTE:        parseInt(process.env.LIVEGAP_MAX_MINUTE || '85', 10),
+  LIVEGAP_TIER:              process.env.LIVEGAP_TIER || 'ALL',
+  LIVEGAP_DEDUP_MIN:         parseInt(process.env.LIVEGAP_DEDUP_MIN || '30', 10),
+  // Smaller than PRICEGAP's ¼ Kelly — unvalidated.
+  LIVEGAP_KELLY_FRACTION:    parseFloat(process.env.LIVEGAP_KELLY_FRACTION || '0.125'),
+  LIVEGAP_BANKROLL:          parseFloat(process.env.LIVEGAP_BANKROLL || process.env.PRICEGAP_BANKROLL || '0') || null,
+  LIVEGAP_RECORD:            process.env.LIVEGAP_RECORD !== 'false',
+  LIVEGAP_RECORD_MIN_PCT:    parseFloat(process.env.LIVEGAP_RECORD_MIN_PCT || '3'),
   // Optional link to the web app in each alert (e.g. https://<project>.pages.dev).
   APP_URL:                   process.env.APP_URL || '',
 

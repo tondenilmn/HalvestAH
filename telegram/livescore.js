@@ -698,6 +698,42 @@ async function fetchLiveMatches() {
   return { matches, bet365HashFailed: false, bet365Hash: BET365_HASH };
 }
 
+// Bet365's in-play prices — the separate "Bet365 Live" feed (BET365_LIVE_HASH),
+// one getData2none row per match. Port of functions/api/livescore.js's
+// parseGetData2NoneCalls (same arg indices; keep in sync). In-play the
+// handicap counts goals from now, the goal line is on the full-match total.
+function parseGetData2NoneCalls(jsText) {
+  const re = /\bmatch2text\s*\+=\s*getData2none\s*\(/g;
+  const out = [];
+  let m;
+  const pf = v => { const n = typeof v === 'number' ? v : parseFloat(v); return isNaN(n) ? null : n; };
+  while ((m = re.exec(jsText)) !== null) {
+    const args = extractCallArgs(jsText, m.index + m[0].length);
+    if (args.length < 51 || typeof args[5] !== 'string') continue;
+    out.push({ matchId: args[5], live_odds: {
+      ah_hc: pf(args[7]), ho_c: pf(args[11]), ao_c: pf(args[31]),
+      tl_c: pf(args[15]), ov_c: pf(args[19]), un_c: pf(args[36]),
+      x2_h: pf(args[45]), x2_x: pf(args[47]), x2_a: pf(args[49]),
+    } });
+  }
+  return out;
+}
+
+// matchId → Bet365 live prices. Empty map on any failure (the caller just
+// has nothing to compare this round).
+async function fetchBet365LiveOddsMap() {
+  const ts = Date.now();
+  const url = `https://botbot3.space/tables/v4/${GS_PRIMARY}/livegame/${BET365_LIVE_HASH}.js?date=${ts}&_=${ts + 1}`;
+  try {
+    const resp = await fetch(url, { headers: makeBotbotHeaders(GS_PRIMARY, BET365_LIVE_HASH), signal: AbortSignal.timeout(20000) });
+    if (!resp.ok) return { map: new Map(), status: resp.status };
+    const rows = parseGetData2NoneCalls(await resp.text());
+    return { map: new Map(rows.map(r => [r.matchId, r.live_odds])), status: 200 };
+  } catch (e) {
+    return { map: new Map(), status: 0, error: e.message };
+  }
+}
+
 // Fetch Bet365 AH odds from a tablenext JS file and return { map, hashFailed }.
 // hashFailed = true only on HTTP 404 (stale hash), not on other errors.
 async function fetchBet365OddsMap(timestamp, day = 0) {
@@ -1002,4 +1038,4 @@ function getCurrentHashes() {
 }
 
 // module.exports = { fetchLiveMatches, fetchNextMatches, fetchNextMatchesAllDays, refreshHashes };
-module.exports = { fetchLiveMatches, fetchNextMatches, fetchOpenlineMatches, fetchSbobetMatches, fetchTablenextDays, syncHashesFromApp, refreshHashes, getCurrentHashes, checkStaleHashHeuristic, checkBet365LiveHash };
+module.exports = { fetchBet365LiveOddsMap, parseGetData2NoneCalls, fetchLiveMatches, fetchNextMatches, fetchOpenlineMatches, fetchSbobetMatches, fetchTablenextDays, syncHashesFromApp, refreshHashes, getCurrentHashes, checkStaleHashHeuristic, checkBet365LiveHash };
