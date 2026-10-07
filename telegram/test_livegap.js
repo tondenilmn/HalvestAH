@@ -79,14 +79,18 @@ assert(/quiet/.test(G.blockReason(over, s, 72, t, opts)), 'red card → quiet wi
 
 // ── Message
 const msg = G.formatAlert({ home_team: 'Alpha FC', away_team: 'Beta United', league: 'Test', score: '1-1' }, "63'", [over], 30, x => x, { threshold: 5, kellyFraction: 0.125 });
-assert(/LIVE GAP/.test(msg) && /Over 2\.5 goals \(FT total\)/.test(msg) && !/backtested/i.test(msg));
-assert(!/already scored/.test(msg), 'no separate settlement line');
-assert(new RegExp(`Min odds to bet: <b>${(over.fair * 1.05).toFixed(2)}</b>`).test(msg), 'min odds = fair × 1.05');
-assert(/🟢 Bet365 price: <b>2\.20<\/b>/.test(msg) && /Pinnacle price: 2\.00 \(2\.05 without margin\)/.test(msg), 'price lines');
-// little room → warning; AH wording
-const tight = G.formatAlert({ home_team: 'A', away_team: 'B', score: '1-0' }, "68'", [{ ...over, price: 1.9, fair: 1.8, pin: 1.67, edge: 1.9 / 1.8 - 1 }], 0, x => x, { threshold: 5 });
-assert(/\(0\.01 gap\)/.test(tight), 'gap to min odds shown');
-const ah = G.formatAlert({ home_team: 'A', away_team: 'B', score: '1-0' }, "68'", [{ key: 'AH|x', market: 'AH', side: 'away', line: 0.25, price: 2.0, fair: 1.88, pin: 1.84, edge: 2 / 1.88 - 1 }], 0, x => x, { threshold: 5 });
-assert(/B \+0\.25 Asian handicap \(from now\)/.test(ah));
+assert(/Alpha FC v Beta United/.test(msg) && /Over 2\.5 — Goal Line \(FT total\)/.test(msg) && !/backtested/i.test(msg));
+assert(new RegExp(`BET AT ${(over.fair * 1.05).toFixed(2)} OR HIGHER`).test(msg), 'min odds = fair × 1.05');
+assert(/now 2\.20 → room 0\.05/.test(msg), 'room to the minimum');
+assert(/📊 Bet365 2\.20 vs fair 2\.05 \(Pinnacle 2\.00\) → \+7\.4%/.test(msg), 'evidence line');
+assert(/Pinnacle fresh/.test(msg));
+const tight = G.formatAlert({ home_team: 'A', away_team: 'B', score: '1-0' }, "68'", [{ ...over, price: 1.9, fair: 1.8, pin: 1.67, edge: 1.9 / 1.8 - 1 }], 0, x => x, { threshold: 5, bankroll: 1000 });
+assert(/bet immediately, no room/.test(tight), 'no-room verdict');
+assert(/Stake €\d+\.\d\d \(\d\.\d\d%\)/.test(tight), 'stake in € with a bankroll');
+const two = G.formatAlert({ home_team: 'A', away_team: 'B', score: '1-0' }, "68'", [
+  { ...over, price: 1.9, fair: 1.8, pin: 1.67, edge: 1.9 / 1.8 - 1 },
+  { key: 'AH|x', market: 'AH', side: 'away', line: 0.25, price: 2.0, fair: 1.88, pin: 1.84, edge: 2 / 1.88 - 1 }], 0, x => x, { threshold: 5 });
+assert(two.indexOf('Asian Handicap (from now)') < two.indexOf('Goal Line'), 'biggest edge first');
+assert(/B \+0\.25 — Asian Handicap \(from now\)/.test(two));
 console.log('livegap: all tests passed');
-console.log('\n--- example alert ---\n' + msg.replace(/<[^>]+>/g, ''));
+console.log('\n--- example alert ---\n' + two.replace(/<[^>]+>/g, ''));

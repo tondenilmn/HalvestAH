@@ -190,39 +190,38 @@ function kelly(p, price, fraction) {
   return Math.max(0, (p * b - (1 - p)) / b) * fraction;
 }
 
-// What to bet, with how in-play settles it: O/U on the full-time total
-// (goals already scored count), Asian handicap on goals from now.
+// What to bet, named as Bet365's in-play markets are, with how it settles:
+// Goal Line on the full-time total (goals already scored count), Asian
+// Handicap on goals from now.
 function betText(r, match, teams) {
-  if (r.market === 'OU') return `${r.side === 'over' ? 'Over' : 'Under'} ${r.line} goals (FT total)`;
-  if (r.market === 'AH') return `${r.side === 'home' ? teams.home : teams.away} ${fmtLine(r.line)} Asian handicap (from now)`;
-  return `${r.side === 'draw' ? 'Draw' : `${r.side === 'home' ? teams.home : teams.away} to win`} (FT result)`;
+  if (r.market === 'OU') return `${r.side === 'over' ? 'Over' : 'Under'} ${r.line} — Goal Line (FT total)`;
+  if (r.market === 'AH') return `${r.side === 'home' ? teams.home : teams.away} ${fmtLine(r.line)} — Asian Handicap (from now)`;
+  return `${r.side === 'draw' ? 'Draw' : `${r.side === 'home' ? teams.home : teams.away} to win`} — Full Time Result`;
 }
 
+// Action first: match, then per bet what / minimum price / stake, then one
+// line of evidence. Biggest edge first.
 function formatAlert(match, minuteText, rows, pinAgeS, esc, opts = {}) {
   const thr = opts.threshold ?? 5;
   const teams = { home: match.home_team || 'Home', away: match.away_team || 'Away' };
   const lines = [
-    `⚡ <b>LIVE GAP</b> — Bet365 above Pinnacle`,
-    ``,
-    `⚽ <b>${esc(teams.home)} vs ${esc(teams.away)}</b>`,
-    `🏆 ${esc(match.league) || '—'}`,
-    `⏱ ${esc(minuteText || '')} · score ${esc(match.score || '—')}`,
+    `⚡ <b>${esc(teams.home)} v ${esc(teams.away)}</b>`,
+    `⏱ ${esc(minuteText || '')} · ${esc(match.score || '—')} · ${esc(match.league) || '—'}`,
   ];
-  for (const r of rows) {
+  for (const r of [...rows].sort((a, b) => b.edge - a.edge)) {
     const minOdds = r.fair * (1 + thr / 100);
+    const room = Math.max(0, r.price - minOdds);
     const k = kelly(1 / r.fair, r.price, opts.kellyFraction ?? 0.125);
-    const stake = opts.bankroll ? `€${(opts.bankroll * k).toFixed(2)}` : `${(k * 100).toFixed(2)}%`;
+    const pct = `${(k * 100).toFixed(2)}%`;
     lines.push(
       ``,
       `🎯 <b>${esc(betText(r, match, teams))}</b>`,
-      `🟢 Bet365 price: <b>${r.price.toFixed(2)}</b>`,
-      `🔵 Pinnacle price: ${r.pin.toFixed(2)} (${r.fair.toFixed(2)} without margin)`,
-      `📈 Edge: +${(r.edge * 100).toFixed(1)}%`,
-      `✅ Min odds to bet: <b>${minOdds.toFixed(2)}</b> (${Math.max(0, r.price - minOdds).toFixed(2)} gap)`,
-      `💰 Stake: ${stake}`,
+      `✅ <b>BET AT ${minOdds.toFixed(2)} OR HIGHER</b> · now ${r.price.toFixed(2)} → ${room < 0.03 ? '<b>bet immediately, no room</b>' : `room ${room.toFixed(2)}`}`,
+      `💰 Stake ${opts.bankroll ? `€${(opts.bankroll * k).toFixed(2)} (${pct})` : `${pct} of bankroll`}`,
+      `📊 Bet365 ${r.price.toFixed(2)} vs fair ${r.fair.toFixed(2)} (Pinnacle ${r.pin.toFixed(2)}) → +${(r.edge * 100).toFixed(1)}%`,
     );
   }
-  lines.push(``, `🕒 Gap held on at least 2 checks, a minute apart · Pinnacle prices ${Math.round(pinAgeS)} s old`);
+  lines.push(``, `🕒 Confirmed on 2 checks · Pinnacle ${pinAgeS <= 60 ? 'fresh' : `${Math.round(pinAgeS)} s old`}`);
   return lines.join('\n');
 }
 
