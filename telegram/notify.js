@@ -919,6 +919,9 @@ async function runLiveGapScan() {
       await sendTelegram(liveGap.formatAlert(match, match.minute ? String(match.minute).replace(/\\'/g, "'") : '', send, pinAgeS, esc,
         { threshold: cfg.LIVEGAP_MIN_EDGE_PCT, kellyFraction: cfg.LIVEGAP_KELLY_FRACTION, bankroll: cfg.LIVEGAP_BANKROLL }));
       alerts += send.length;
+      // Log what was sent, so livegap_report.js can settle the alerts themselves
+      // (price shown and the "bet at X or higher" minimum).
+      for (const r of send) rec.push({ alert: { ...liveGap.recordRow(now, match, ctx.liveMin, r, pinAgeS), mo: +(r.fair * (1 + cfg.LIVEGAP_MIN_EDGE_PCT / 100)).toFixed(3) } });
       flog(ctx.liveMin, ctx.label, 'LIVEGAP', `ALERT: ${send.map(r => `${r.label} @${r.price} vs fair ${r.fair.toFixed(2)} (+${(r.edge * 100).toFixed(1)}%)`).join('; ')} · Pinnacle ${Math.round(pinAgeS)} s old`);
     }
     // Recorded matches that left the live list: their last score (≥ 85' = final).
@@ -2840,6 +2843,22 @@ function startHashRelayServer() {
     return;
   }
   const server = http.createServer((req, res) => {
+    if (req.url === '/livegap/report' || req.url.startsWith('/livegap/report?')) {
+      // Results of the LIVEGAP alerts and recorded gaps (livegap_report.js).
+      // Protected by ?key= when LIVEGAP_REPORT_KEY is set.
+      const key = new URL(req.url, 'http://x').searchParams.get('key');
+      if (process.env.LIVEGAP_REPORT_KEY && key !== process.env.LIVEGAP_REPORT_KEY) { res.writeHead(401, { 'Content-Type': 'text/plain' }); res.end('key required'); return; }
+      let text;
+      try {
+        text = require('./livegap_report').buildReport(LIVEGAP_LOG_DIR, {
+          min: cfg.LIVEGAP_MIN_EDGE_PCT, maxEdge: cfg.LIVEGAP_MAX_EDGE_PCT, minOdds: cfg.LIVEGAP_MIN_ODDS, maxOdds: cfg.LIVEGAP_MAX_ODDS,
+          maxPinAge: cfg.LIVEGAP_MAX_PIN_AGE_S, maxMinute: cfg.LIVEGAP_MAX_MINUTE, quietMin: cfg.LIVEGAP_QUIET_MIN, tz: cfg.DISPLAY_TZ,
+        });
+      } catch (e) { text = `Report failed: ${e.message}`; }
+      res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' });
+      res.end(text);
+      return;
+    }
     if (req.url === '/pinnacle' || req.url.startsWith('/pinnacle?')) {
       // Pinnacle's live lists kept warm by pinnacle_relay.js (read by the web
       // app's functions/api/pinnacle.js).
@@ -2857,7 +2876,7 @@ function startHashRelayServer() {
     res.end('ok');
   });
   server.listen(process.env.PORT, () => {
-    console.log(`Hash relay: listening on :${process.env.PORT} (GET /hashes${cfg.PINNACLE_RELAY ? ', GET /pinnacle' : ''})`);
+    console.log(`Hash relay: listening on :${process.env.PORT} (GET /hashes${cfg.PINNACLE_RELAY ? ', GET /pinnacle' : ''}, GET /livegap/report)`);
   });
 }
 
