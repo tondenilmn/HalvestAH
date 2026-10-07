@@ -92,5 +92,61 @@ const two = G.formatAlert({ home_team: 'A', away_team: 'B', score: '1-0' }, "68'
   { key: 'AH|x', market: 'AH', side: 'away', line: 0.25, price: 2.0, fair: 1.88, pin: 1.84, edge: 2 / 1.88 - 1 }], 0, x => x, { threshold: 5 });
 assert(two.indexOf('Asian Handicap (from now)') < two.indexOf('Goal Line'), 'biggest edge first');
 assert(/B \+0\.25 — Asian Handicap \(from now\)/.test(two));
+// ── Settlement: confirmed FT from the match page (livegap_result.js)
+const R = require('./livegap_result');
+const hdr = (tv, live, ht, hg, ag) => `<tr><td colspan='9'>L</td></tr><tr${live ? " class='live'" : ''}><td>H</td><td class='name' colspan='2'>Home</td><td rowspan='2' colspan='2' id='timeval' value=${tv}></td><td colspan='2'>${hg}</td><td class='info'>ht</td><td>${ht}</td></tr><tr${live ? " class='live'" : ''}><td>A</td><td class='name' colspan='2'>Away</td><td colspan='2'>${ag}</td><td class='info'>ck</td><td class='corner'>1 - 2</td></tr>`;
+assert.deepStrictEqual(R.parseResult(hdr('2026-10-07T11:30:00Z', false, '1 - 1', 1, 4)), { status: 'FT', score: '1-4', ht: '1-1' }, 'finished page');
+assert.strictEqual(R.parseResult(hdr("67'", true, '1 - 0', 2, 0)).status, 'LIVE');
+assert.strictEqual(R.parseResult(hdr("90'+", true, '1 - 0', 2, 0)).status, 'LIVE');
+assert.strictEqual(R.parseResult(hdr('HT', true, '1 - 0', 1, 0)).status, 'LIVE');
+assert.strictEqual(R.parseResult(hdr('OT', true, '0 - 0', 1, 1)).status, 'ET', 'extra time');
+assert.strictEqual(R.parseResult(hdr('2026-10-07T18:00:00Z', false, '', 0, 0).replace(/<td class='info'>ht<\/td><td><\/td>/, "<td class='info'>ht</td><td></td>")).status, 'PRE', 'not started');
+const pageJs = `$("#tablematch1").html("${hdr('2026-10-07T11:30:00Z', false, '0 - 0', 0, 1).replace(/'/g, "\\'")}");`;
+assert.deepStrictEqual(R.parseResult(R.tablematch1(pageJs)), { status: 'FT', score: '0-1', ht: '0-0' }, 'escaped JS string');
+
+(async () => {
+  const pend = new Map(); let now = 1e12;
+  R.noteSeen(pend, 'a', 'A v B', '1-0', 60, now);
+  R.noteSeen(pend, 'e', 'C v D', '1-1', 90, now);
+  const page = { a: { status: 'LIVE', score: '1-0' }, e: { status: 'ET', score: '1-1' } };
+  const fetcher = async id => page[id];
+  assert.deepStrictEqual(await R.settleDue(pend, now + 60000, fetcher), [], 'still listed → not checked');
+  R.markGone(pend, 'a', now + 5 * 60000); R.markGone(pend, 'e', now + 5 * 60000);
+  assert.deepStrictEqual(await R.settleDue(pend, now + 5 * 60000, fetcher), [], 'page still live / extra time → wait');
+  assert(pend.get('e').et, 'extra time noted');
+  R.noteSeen(pend, 'a', 'A v B', '1-0', 62, now + 6 * 60000); // reappeared after a blackout
+  assert(!pend.get('a').gone, 'reappearing match tracked again');
+  page.a = { status: 'FT', score: '2-0', ht: '1-0' }; page.e = { status: 'FT', score: '2-1', ht: '0-0' };
+  assert.deepStrictEqual(await R.settleDue(pend, now + 9 * 60000, fetcher), [], 'listed again → not checked; e not due yet');
+  const done = await R.settleDue(pend, now + 16 * 60000, fetcher);
+  assert.deepStrictEqual(done.map(l => [l.id, l.res, l.et, l.reg]), [['a', '2-0', undefined, undefined], ['e', '2-1', true, '1-1']], 'a unseen 10 min → checked; e settled with its 90\' score');
+  assert.strictEqual(pend.size, 0);
+  R.noteSeen(pend, 'x', 'X v Y', '0-0', 30, now); R.markGone(pend, 'x', now);
+  const gaveUp = await R.settleDue(pend, now + 7 * 3600000, async () => ({ status: 'PRE' }));
+  assert(gaveUp[0].nores && gaveUp[0].status === 'PRE', 'no result after 6 h');
+
+  // Restart recovery + report statuses
+  const os = require('os'), fs = require('fs'), path = require('path');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'livegap-'));
+  const T = Date.UTC(2026, 9, 7, 13);
+  const row = (id, t, sc, min, extra = {}) => ({ t, id, min, sc, k: 'OU|Over 2.5 (match total)', mk: 'OU', side: 'over', line: 2.5, p: 2, pin: 1.85, f: 1.9, e: 5.3, pa: 20, m: id + ' match', lg: 'L', ...extra });
+  G.appendRecords(dir, T, [
+    { hb: { t: T } },
+    row('won', T, '1-1', 60), { alert: { ...row('won', T, '1-1', 61), mo: 1.995 } },
+    row('wait', T, '0-0', 70), { alert: { ...row('wait', T, '0-0', 71), mo: 1.995 } },
+    row('gone', T, '0-0', 50), { alert: { ...row('gone', T, '0-0', 51), mo: 1.995 } },
+    { t: T + 1, id: 'won', fin: '0-0', final: true }, // old-style live-list line: never settled on
+    { t: T + 2, id: 'won', res: '2-1', ht: '1-0', m: 'won match' },
+    { t: T + 3, id: 'gone', nores: true, status: 'PRE', m: 'gone match' },
+  ]);
+  const rec = R.recoverPending(dir, T + 3600000);
+  assert.deepStrictEqual([...rec.keys()], ['wait'], 'only the unresolved match is re-queued');
+  const text = require('./livegap_report').buildReport(dir, { tz: 'UTC' });
+  assert(/WON · settled \(confirmed FT 2-1\)/.test(text), 'settled on the confirmed score, not the live-list line');
+  assert(/waiting for FT/.test(text) && /no result found/.test(text));
+  assert(/Settled 1 \(confirmed FT\): 1 won · waiting for FT 1 · no result found 1/.test(text));
+  fs.rmSync(dir, { recursive: true });
+  console.log('livegap settlement: all tests passed');
+})().catch(e => { console.error(e); process.exit(1); });
 console.log('livegap: all tests passed');
 console.log('\n--- example alert ---\n' + two.replace(/<[^>]+>/g, ''));
