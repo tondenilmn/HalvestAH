@@ -35,6 +35,7 @@ const priceGap = require('./pricegap');
 const pinnRelay = require('./pinnacle_relay');
 const liveGap = require('./livegap');
 const liveGapResult = require('./livegap_result');
+const liveModel = require('./livemodel');
 const { verifyBet365Price } = require('./apifootball');
 const crossdogLib = require('./crossdog_lib');
 const { recordAlert, settlePendingAlerts } = require('./track_record');
@@ -873,6 +874,19 @@ const _liveGapState = new Map(); // matchId → livegap.updateMatchState state
 // match page (livegap_result.js) — re-queued from the recordings on start-up.
 const _liveGapPending = cfg.LIVEGAP_RECORD ? liveGapResult.recoverPending(LIVEGAP_LOG_DIR, Date.now()) : new Map();
 const LIVEGAP_GONE_MS = 5 * 60000;
+// LIVEMODEL shadow recorder (livemodel.js): its own log dir and result queue.
+const LIVEMODEL_LOG_DIR = path.join(__dirname, 'data', 'livemodel');
+const _liveModelPending = cfg.LIVEMODEL_RECORD ? liveGapResult.recoverPending(LIVEMODEL_LOG_DIR, Date.now()) : new Map();
+// One match-page read serves both queues within 5 min.
+const _resultCache = new Map();
+const cachedResult = async id => {
+  const c = _resultCache.get(id);
+  if (c && Date.now() - c.at < 5 * 60000) return c.r;
+  const r = await liveGapResult.fetchResult(id);
+  _resultCache.set(id, { r, at: Date.now() });
+  if (_resultCache.size > 500) _resultCache.delete(_resultCache.keys().next().value);
+  return r;
+};
 let _liveGapRunning = false;
 
 async function runLiveGapScan() {
@@ -886,8 +900,8 @@ async function runLiveGapScan() {
     const pinAgeS = pin.age?.markets;
     const sheets = pin.ok ? liveGap.pinnacleSheets(pin.markets, pin.matchups) : [];
     const minEdge = cfg.LIVEGAP_MIN_EDGE_PCT / 100, recMin = cfg.LIVEGAP_RECORD_MIN_PCT / 100;
-    const rec = [];
-    let withB365 = 0, paired = 0, alerts = 0;
+    const rec = [], recModel = [];
+    let withB365 = 0, paired = 0, alerts = 0, modelRows = 0;
     const seenIds = new Set();
     for (const match of live) {
       const ctx = matchContext(match);
@@ -901,6 +915,34 @@ async function runLiveGapScan() {
       const s = liveGap.updateMatchState(_liveGapState, id, score, pm ? pm.red : null, now);
       s.lastSeen = now; s.lastScore = match.score; s.lastMinute = ctx.liveMin; s.label = ctx.label; s.missingSince = null; s.gone = false;
       if (s.recorded) liveGapResult.noteSeen(_liveGapPending, id, ctx.label, match.score, ctx.liveMin, now);
+      // LIVEMODEL: Bet365 live price vs similar historical matches (records only).
+      if (cfg.LIVEMODEL_RECORD && odds && score && _dbAll?.length) {
+        try {
+          const isHT = /HT/i.test(String(match.minute || ''));
+          const htm = /^(\d+)-(\d+)$/.exec(String(match.ht_score || ''));
+          const st = { minute: ctx.liveMin, isHT, score, ht: htm ? { home: +htm[1], away: +htm[2] } : null };
+          const dist = liveModel.remainingDist(_dbAll, match.bet365_odds, st);
+          if (!dist.error) {
+            const gr = pm ? liveGap.gapRows(odds, pm, { home: match.home_team, away: match.away_team }) : [];
+            const last = s.modelLast || (s.modelLast = new Map());
+            let logged = false;
+            for (const r of liveModel.priceSides(dist, odds, score)) {
+              // Above the threshold: when it first gets there, when Bet365's price or the
+              // model's fair price moves, else every 5 min. Below: every 15 min (calibration).
+              const L = last.get(r.key), hot = r.edge * 100 >= cfg.LIVEMODEL_RECORD_MIN_PCT;
+              const due = !L || (hot ? (!L.hot || L.p !== r.price || Math.abs(r.fair / L.f - 1) > 0.02 || now - L.t >= 5 * 60000) : now - L.t >= 15 * 60000);
+              if (!due) continue;
+              last.set(r.key, { t: now, p: r.price, f: r.fair, hot }); logged = true;
+              const pf = liveModel.pinnacleFairOf(gr, r);
+              recModel.push({ t: now, id, min: ctx.liveMin, sc: match.score, ht: match.ht_score || null, k: r.key, mk: r.mk, side: r.side, line: r.line,
+                p: r.price, f: +r.fair.toFixed(3), e: +(r.edge * 100).toFixed(2), se: +(r.se * 100).toFixed(2), ne: Math.round(dist.neff), lv: dist.level,
+                pf: pf ? +pf.toFixed(3) : null, rc: pm ? pm.red : null, m: ctx.label, lg: match.league || '' });
+            }
+            if (logged) { s.modelRec = true; modelRows++; }
+          }
+        } catch (e) { console.error(`LiveModel ${ctx.label}: ${e.message}`); }
+      }
+      if (s.modelRec) liveGapResult.noteSeen(_liveModelPending, id, ctx.label, match.score, ctx.liveMin, now);
       if (!pm) continue;
       paired++;
       const rows = liveGap.gapRows(odds, pm, { home: match.home_team, away: match.away_team });
@@ -943,21 +985,24 @@ async function runLiveGapScan() {
     for (const [id, s] of _liveGapState) {
       if (seenIds.has(id)) continue;
       if (othersListed && s.missingSince == null) s.missingSince = now;
-      if (s.recorded && othersListed && s.missingSince != null && now - s.missingSince >= LIVEGAP_GONE_MS && !s.gone) {
+      if ((s.recorded || s.modelRec) && othersListed && s.missingSince != null && now - s.missingSince >= LIVEGAP_GONE_MS && !s.gone) {
         s.gone = true;
-        liveGapResult.markGone(_liveGapPending, id, now);
-        rec.push({ t: now, id, gone: s.lastScore, min: s.lastMinute, m: s.label });
+        const gone = { t: now, id, gone: s.lastScore, min: s.lastMinute, m: s.label };
+        if (s.recorded) { liveGapResult.markGone(_liveGapPending, id, now); rec.push(gone); }
+        if (s.modelRec) { liveGapResult.markGone(_liveModelPending, id, now); recModel.push(gone); }
       }
       if (now - (s.lastSeen || 0) > 2 * 3600000) _liveGapState.delete(id);
     }
     // Confirmed full-time scores from the match pages (the only thing settled on).
     if (cfg.LIVEGAP_RECORD && _liveGapPending.size) {
-      const done = await liveGapResult.settleDue(_liveGapPending, now);
+      const done = await liveGapResult.settleDue(_liveGapPending, now, cachedResult);
       for (const l of done) console.log(`[${new Date(now).toISOString()}] LiveGap result: ${l.m} ${l.res != null ? `FT ${l.res}${l.et ? ` (extra time; 90' ${l.reg ?? 'unknown'})` : ''}` : `no result found (${l.status})`}`);
       rec.push(...done);
     }
+    if (cfg.LIVEMODEL_RECORD && _liveModelPending.size) recModel.push(...await liveGapResult.settleDue(_liveModelPending, now, cachedResult));
+    if (cfg.LIVEMODEL_RECORD && recModel.length) liveGap.appendRecords(LIVEMODEL_LOG_DIR, now, recModel);
     if (cfg.LIVEGAP_RECORD) liveGap.appendRecords(LIVEGAP_LOG_DIR, now, [{ hb: { t: now, live: live.length, withB365, paired, pinAge: pinAgeS ?? null, alerts } }, ...rec]);
-    if (alerts || (now / 60000 | 0) % 10 === 0) console.log(`[${new Date(now).toISOString()}] LiveGap: ${live.length} live · ${withB365} with Bet365 live prices · ${paired} paired with Pinnacle (${pinAgeS != null ? Math.round(pinAgeS) + ' s old' : 'no Pinnacle data'}) · ${alerts} alert(s)`);
+    if (alerts || (now / 60000 | 0) % 10 === 0) console.log(`[${new Date(now).toISOString()}] LiveGap: ${live.length} live · ${withB365} with Bet365 live prices · ${paired} paired with Pinnacle (${pinAgeS != null ? Math.round(pinAgeS) + ' s old' : 'no Pinnacle data'}) · ${alerts} alert(s)${cfg.LIVEMODEL_RECORD ? ` · LiveModel: ${modelRows} match(es) recorded, ${_liveModelPending.size} awaiting FT` : ''}`);
   } catch (e) {
     console.error('LiveGap scan error:', e.message);
   } finally {
@@ -2869,6 +2914,16 @@ function startHashRelayServer() {
     return;
   }
   const server = http.createServer((req, res) => {
+    if (req.url === '/livemodel/report' || req.url.startsWith('/livemodel/report?')) {
+      // LIVEMODEL shadow recorder results (livemodel_report.js); same key as LIVEGAP's report.
+      const key = new URL(req.url, 'http://x').searchParams.get('key');
+      if (process.env.LIVEGAP_REPORT_KEY && key !== process.env.LIVEGAP_REPORT_KEY) { res.writeHead(401, { 'Content-Type': 'text/plain' }); res.end('key required'); return; }
+      let text;
+      try { text = require('./livemodel_report').buildReport(LIVEMODEL_LOG_DIR, { tz: cfg.DISPLAY_TZ }); } catch (e) { text = `Report failed: ${e.message}`; }
+      res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' });
+      res.end(text);
+      return;
+    }
     if (req.url === '/livegap/report' || req.url.startsWith('/livegap/report?')) {
       // Results of the LIVEGAP alerts and recorded gaps (livegap_report.js).
       // Protected by ?key= when LIVEGAP_REPORT_KEY is set.
@@ -2902,7 +2957,7 @@ function startHashRelayServer() {
     res.end('ok');
   });
   server.listen(process.env.PORT, () => {
-    console.log(`Hash relay: listening on :${process.env.PORT} (GET /hashes${cfg.PINNACLE_RELAY ? ', GET /pinnacle' : ''}, GET /livegap/report)`);
+    console.log(`Hash relay: listening on :${process.env.PORT} (GET /hashes${cfg.PINNACLE_RELAY ? ', GET /pinnacle' : ''}, GET /livegap/report, GET /livemodel/report)`);
   });
 }
 
@@ -2924,6 +2979,7 @@ async function main() {
   console.log(`Strategy OPENLINE [${on(cfg.OPENLINE_ENABLED)}][${cfg.OPENLINE_TIER}]: pick bucketed on OPENING odds (homeWinsFT/awayWinsFT only), priced at CURRENT Bet365  scan=day0-day${cfg.OPENLINE_WINDOW_DAYS} every ${cfg.OPENLINE_SCAN_INTERVAL_MINUTES}min  fire=first sight (restart: ≥${cfg.OPENLINE_RESTART_MIN_DAYS}d)  n≥${cfg.OPENLINE_MIN_N} z≥${cfg.OPENLINE_MIN_Z} edge≥${cfg.OPENLINE_MIN_EDGE}pp`);
   console.log(`Strategy CROSSDOG [${on(cfg.CROSSDOG_ENABLED)}][${cfg.CROSSDOG_TIER}]: back the dog when Sbobet's line disagrees (dogCover only)  fire=${cfg.CROSSDOG_WINDOW_MIN}min pre-kickoff window  gateMinN≥${cfg.CROSSDOG_GATE_MIN_N}  cells loaded: ${Object.keys(_crossdogCells.cells || {}).length} (generated ${_crossdogCells.generatedAt || 'never — run crossdog_config_search.js'})`);
   console.log(`Strategy LIVEGAP [${on(cfg.LIVEGAP_ENABLED)}][${cfg.LIVEGAP_TIER}]: Bet365 in-play ≥${cfg.LIVEGAP_MIN_EDGE_PCT}% (and <${cfg.LIVEGAP_MAX_EDGE_PCT}%) above Pinnacle live, same line, price ${cfg.LIVEGAP_MIN_ODDS}-${cfg.LIVEGAP_MAX_ODDS} (UNVALIDATED)  every 1min  Pinnacle ≤${cfg.LIVEGAP_MAX_PIN_AGE_S}s  ${cfg.LIVEGAP_MIN_SCANS} scans  quiet ${cfg.LIVEGAP_QUIET_MIN}min  ≤${cfg.LIVEGAP_MAX_MINUTE}'  record=${cfg.LIVEGAP_RECORD ? `≥${cfg.LIVEGAP_RECORD_MIN_PCT}%` : 'off'}`);
+  console.log(`Strategy LIVEMODEL [${on(cfg.LIVEMODEL_RECORD && cfg.LIVEGAP_ENABLED)}]: shadow recorder — Bet365 in-play price vs similar historical matches, logs sides ≥${cfg.LIVEMODEL_RECORD_MIN_PCT}% (never alerts)${_liveModelPending.size ? ` · ${_liveModelPending.size} match(es) from before the restart awaiting FT` : ''}`);
   if (cfg.LIVEGAP_RECORD && _liveGapPending.size) console.log(`LIVEGAP: ${_liveGapPending.size} recorded match(es) from before the restart waiting for a confirmed result`);
   console.log(`Strategy PRICEGAP [${on(cfg.PRICEGAP_ENABLED)}][${cfg.PRICEGAP_TIER}]: pre-match Bet365 ≥${cfg.PRICEGAP_MIN_EDGE_PCT}% (and <${cfg.PRICEGAP_MAX_EDGE_PCT}%) above Sbobet fair, same AH/O-U line  near=<${cfg.PRICEGAP_NEAR_HOURS}h every ${cfg.PRICEGAP_SCAN_INTERVAL_MINUTES}min  far=to day${cfg.PRICEGAP_FAR_DAYS} every ${cfg.PRICEGAP_FAR_SCAN_INTERVAL_MINUTES}min  record=${cfg.PRICEGAP_RECORD ? `≥${cfg.PRICEGAP_RECORD_MIN_PCT}%` : 'off'}`);
   console.log(`Global tier default: ${cfg.LEAGUE_TIER}`);
