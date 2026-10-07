@@ -82,7 +82,7 @@ const msg = G.formatAlert({ home_team: 'Alpha FC', away_team: 'Beta United', lea
 assert(/LIVE GAP/.test(msg) && /Over 2\.5 goals/.test(msg) && !/backtested/i.test(msg));
 assert(/the 2 goals already scored count/.test(msg), 'O/U note says the score counts');
 assert(new RegExp(`Min odds to bet: <b>${(over.fair * 1.05).toFixed(2)}</b>`).test(msg), 'min odds = fair × 1.05');
-assert(/Bet365 price: <b>2\.20<\/b>/.test(msg) && /Pinnacle price: 2\.00 \(2\.05 without margin\)/.test(msg), 'price lines');
+assert(/🟢 Bet365 price: <b>2\.20<\/b>/.test(msg) && /Pinnacle price: 2\.00 \(2\.05 without margin\)/.test(msg), 'price lines');
 // little room → warning; AH wording
 const tight = G.formatAlert({ home_team: 'A', away_team: 'B', score: '1-0' }, "68'", [{ ...over, price: 1.9, fair: 1.8, pin: 1.67, edge: 1.9 / 1.8 - 1 }], 0, x => x, { threshold: 5 });
 assert(/\(0\.01 gap\)/.test(tight), 'gap to min odds shown');

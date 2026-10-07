@@ -223,12 +223,12 @@ function formatAlert(match, minuteText, rows, pinAgeS, esc, opts = {}) {
     lines.push(
       ``,
       `🎯 <b>${esc(bet)}</b>`,
-      `<i>${esc(note)}</i>`,
-      `Bet365 price: <b>${r.price.toFixed(2)}</b>`,
-      `Pinnacle price: ${r.pin.toFixed(2)} (${r.fair.toFixed(2)} without margin)`,
-      `Edge: +${(r.edge * 100).toFixed(1)}%`,
-      `Min odds to bet: <b>${minOdds.toFixed(2)}</b> (${Math.max(0, r.price - minOdds).toFixed(2)} gap)`,
-      `Stake: ${stake}`,
+      `ℹ️ <i>${esc(note)}</i>`,
+      `🟢 Bet365 price: <b>${r.price.toFixed(2)}</b>`,
+      `🔵 Pinnacle price: ${r.pin.toFixed(2)} (${r.fair.toFixed(2)} without margin)`,
+      `📈 Edge: +${(r.edge * 100).toFixed(1)}%`,
+      `✅ Min odds to bet: <b>${minOdds.toFixed(2)}</b> (${Math.max(0, r.price - minOdds).toFixed(2)} gap)`,
+      `💰 Stake: ${stake}`,
     );
   }
   lines.push(``, `🕒 Gap held on at least 2 checks, a minute apart · Pinnacle prices ${Math.round(pinAgeS)} s old`);
