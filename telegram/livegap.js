@@ -190,19 +190,12 @@ function kelly(p, price, fraction) {
   return Math.max(0, (p * b - (1 - p)) / b) * fraction;
 }
 
-// What to bet, in plain words: the market name plus how in-play settles it.
+// What to bet, with how in-play settles it: O/U on the full-time total
+// (goals already scored count), Asian handicap on goals from now.
 function betText(r, match, teams) {
-  const sc = /^(\d+)-(\d+)$/.exec(String(match.score || ''));
-  const goals = sc ? +sc[1] + +sc[2] : null;
-  if (r.market === 'OU') return {
-    bet: `${r.side === 'over' ? 'Over' : 'Under'} ${r.line} goals`,
-    note: `full-match total${goals != null ? ` — the ${goals} goal${goals === 1 ? '' : 's'} already scored count${goals === 1 ? 's' : ''}` : ''}`,
-  };
-  if (r.market === 'AH') return {
-    bet: `${r.side === 'home' ? teams.home : teams.away} ${fmtLine(r.line)} Asian handicap`,
-    note: `counted from now — the current ${match.score || 'score'} is ignored`,
-  };
-  return { bet: r.side === 'draw' ? 'Draw' : `${r.side === 'home' ? teams.home : teams.away} to win`, note: 'full-match result' };
+  if (r.market === 'OU') return `${r.side === 'over' ? 'Over' : 'Under'} ${r.line} goals (FT total)`;
+  if (r.market === 'AH') return `${r.side === 'home' ? teams.home : teams.away} ${fmtLine(r.line)} Asian handicap (from now)`;
+  return `${r.side === 'draw' ? 'Draw' : `${r.side === 'home' ? teams.home : teams.away} to win`} (FT result)`;
 }
 
 function formatAlert(match, minuteText, rows, pinAgeS, esc, opts = {}) {
@@ -219,11 +212,9 @@ function formatAlert(match, minuteText, rows, pinAgeS, esc, opts = {}) {
     const minOdds = r.fair * (1 + thr / 100);
     const k = kelly(1 / r.fair, r.price, opts.kellyFraction ?? 0.125);
     const stake = opts.bankroll ? `€${(opts.bankroll * k).toFixed(2)}` : `${(k * 100).toFixed(2)}%`;
-    const { bet, note } = betText(r, match, teams);
     lines.push(
       ``,
-      `🎯 <b>${esc(bet)}</b>`,
-      `ℹ️ <i>${esc(note)}</i>`,
+      `🎯 <b>${esc(betText(r, match, teams))}</b>`,
       `🟢 Bet365 price: <b>${r.price.toFixed(2)}</b>`,
       `🔵 Pinnacle price: ${r.pin.toFixed(2)} (${r.fair.toFixed(2)} without margin)`,
       `📈 Edge: +${(r.edge * 100).toFixed(1)}%`,
