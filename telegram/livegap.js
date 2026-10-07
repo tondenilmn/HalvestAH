@@ -164,12 +164,17 @@ function trackGaps(s, rows, minEdge, now, maxGapMs) {
 }
 
 /**
- * Alert decision for one row. opts: { minEdge, maxEdge, minScans, quietMs,
- * maxMinute, pinAgeS, maxPinAgeS }. Returns null (send) or the reason not to.
+ * Alert decision for one row. opts: { minEdge, maxEdge, minOdds, maxOdds,
+ * minScans, quietMs, maxMinute, pinAgeS, maxPinAgeS }. Returns null (send) or the reason not to.
  */
 function blockReason(r, s, minute, now, opts) {
   if (r.edge < opts.minEdge) return 'below threshold';
   if (r.edge >= opts.maxEdge) return 'gap too large — usually a stale or suspended price';
+  // Price range: near evens is where the same-line pre-match backtests live
+  // (nearly every bet 1.90-2.10); long shots get their edge overstated by
+  // proportional de-vig, very short prices are mostly stale or near-decided.
+  if (opts.minOdds != null && r.price < opts.minOdds) return `price ${r.price} below ${opts.minOdds}`;
+  if (opts.maxOdds != null && r.price > opts.maxOdds) return `price ${r.price} above ${opts.maxOdds}`;
   if (!(opts.pinAgeS <= opts.maxPinAgeS)) return `Pinnacle prices ${Math.round(opts.pinAgeS)} s old`;
   if (minute != null && minute > opts.maxMinute) return `minute ${minute} > ${opts.maxMinute}`;
   if (now - s.changedAt < opts.quietMs) return 'goal / red card / first sight less than quiet window ago';

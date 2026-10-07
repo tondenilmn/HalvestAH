@@ -600,6 +600,11 @@ module.exports = {
   LIVEGAP_ENABLED:           process.env.LIVEGAP_ENABLED !== 'false',
   LIVEGAP_MIN_EDGE_PCT:      parseFloat(process.env.LIVEGAP_MIN_EDGE_PCT || '5'),
   LIVEGAP_MAX_EDGE_PCT:      parseFloat(process.env.LIVEGAP_MAX_EDGE_PCT || '15'),
+  // Bet365 price range an alert may fire on (user choice 2026-10-07: near
+  // evens). The recorder still logs every price, and livegap_report.js splits
+  // results by price band, so the range can be revisited on real data.
+  LIVEGAP_MIN_ODDS:          parseFloat(process.env.LIVEGAP_MIN_ODDS || '1.70'),
+  LIVEGAP_MAX_ODDS:          parseFloat(process.env.LIVEGAP_MAX_ODDS || '2.50'),
   LIVEGAP_MAX_PIN_AGE_S:     parseFloat(process.env.LIVEGAP_MAX_PIN_AGE_S || '60'),
   LIVEGAP_QUIET_MIN:         parseFloat(process.env.LIVEGAP_QUIET_MIN || '3'),
   LIVEGAP_MIN_SCANS:         parseInt(process.env.LIVEGAP_MIN_SCANS || '2', 10),

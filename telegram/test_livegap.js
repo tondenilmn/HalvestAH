@@ -60,6 +60,9 @@ assert.strictEqual(G.blockReason(over, s, 63, t, opts), null, 'held 4 scans, qui
 assert(/Pinnacle prices/.test(G.blockReason(over, s, 63, t, { ...opts, pinAgeS: 95 })), 'stale Pinnacle blocks');
 assert(/minute/.test(G.blockReason(over, s, 88, t, opts)), 'late minute blocks');
 assert(/too large/.test(G.blockReason({ ...over, edge: 0.2 }, s, 63, t, opts)));
+assert(/below 1\.7/.test(G.blockReason(over, s, 63, t, { ...opts, minOdds: 1.7, maxOdds: 2.5, }) || '') === false, 'Over @2.20 inside 1.70-2.50');
+assert(/above 2\.1/.test(G.blockReason(over, s, 63, t, { ...opts, minOdds: 1.7, maxOdds: 2.1 })), 'price above max blocks');
+assert(/below 2\.3/.test(G.blockReason(over, s, 63, t, { ...opts, minOdds: 2.3, maxOdds: 2.5 })), 'price below min blocks');
 // a goal resets the quiet window and the streaks
 t += 60000; s = G.updateMatchState(state, 'm1', { home: 2, away: 1 }, 0, t); G.trackGaps(s, rows, 0.05, t, 150000);
 assert(/quiet/.test(G.blockReason(over, s, 64, t, opts)), 'goal → quiet window');

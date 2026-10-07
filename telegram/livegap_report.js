@@ -44,11 +44,12 @@ function payout(o, final) {
 
 const byKey = new Map();
 for (const o of rows) { const k = `${o.id}|${o.k}`; if (!byKey.has(k)) byKey.set(k, []); byKey.get(k).push(o); }
-const report = (label, pickEntry) => {
+const report = (label, pickEntry, band = null) => {
   let n = 0, settled = 0, pl = 0, byB = 0, byR = 0, open = 0;
   for (const list of byKey.values()) {
     list.sort((a, b) => a.t - b.t);
     const e = pickEntry(list); if (!e) continue;
+    if (band && !(e.p >= band[0] && e.p < band[1])) continue;
     n++;
     const later = list.filter(o => o.t > e.t && o.t - e.t <= 15 * 60000 && o.sc === e.sc);
     const last = later[later.length - 1];
@@ -65,4 +66,8 @@ const report = (label, pickEntry) => {
 console.log(`LIVEGAP recorder: ${scans} scans, ${rows.length} rows, ${fin.size} matches with a final score · threshold ${MIN}%\n`);
 report('first scan at threshold', l => l.find(o => o.e >= MIN));
 report('2nd scan in a row (alert timing)', l => l.find((o, i) => o.e >= MIN && i > 0 && l[i - 1].e >= MIN && o.t - l[i - 1].t <= 150000 && l[i - 1].sc === o.sc));
+// By Bet365 price at alert timing — the evidence for LIVEGAP_MIN_ODDS / MAX_ODDS.
+console.log('\nBy Bet365 price (alert timing):');
+const atAlert = l => l.find((o, i) => o.e >= MIN && i > 0 && l[i - 1].e >= MIN && o.t - l[i - 1].t <= 150000 && l[i - 1].sc === o.sc);
+for (const band of [[1, 1.5], [1.5, 1.7], [1.7, 2.1], [2.1, 2.5], [2.5, 4], [4, 1e9]]) report(`  ${band[0]}–${band[1] > 100 ? '+' : band[1]}`, atAlert, band);
 console.log('\n"Closed by Bet365" = Bet365 came down to Pinnacle (the price was good); "by Pinnacle" = Pinnacle moved up (the gap was lag). Not backtested — this IS the test.');
