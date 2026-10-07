@@ -616,6 +616,15 @@ module.exports = {
   LIVEGAP_BANKROLL:          parseFloat(process.env.LIVEGAP_BANKROLL || process.env.PRICEGAP_BANKROLL || '0') || null,
   LIVEGAP_RECORD:            process.env.LIVEGAP_RECORD !== 'false',
   LIVEGAP_RECORD_MIN_PCT:    parseFloat(process.env.LIVEGAP_RECORD_MIN_PCT || '3'),
+  // Strategy LIVEMODEL — shadow recorder, never alerts (telegram/livemodel.js):
+  // Bet365's live price vs the result distribution of similar historical
+  // matches (same pre-match line/side/TL band, same live state). Every side
+  // with model edge ≥ LIVEMODEL_RECORD_MIN_PCT is logged each scan, every
+  // other side once every 10 min (for calibration), to
+  // telegram/data/livemodel/*.jsonl; settled from confirmed FT scores.
+  // node livemodel_report.js  or  GET <bot>/livemodel/report
+  LIVEMODEL_RECORD:          process.env.LIVEMODEL_RECORD !== 'false',
+  LIVEMODEL_RECORD_MIN_PCT:  parseFloat(process.env.LIVEMODEL_RECORD_MIN_PCT || '3'),
   // Optional link to the web app in each alert (e.g. https://<project>.pages.dev).
   APP_URL:                   process.env.APP_URL || '',
 
