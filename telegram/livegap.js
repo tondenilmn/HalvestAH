@@ -190,31 +190,50 @@ function kelly(p, price, fraction) {
   return Math.max(0, (p * b - (1 - p)) / b) * fraction;
 }
 
+// What to bet, in plain words: the market name plus how in-play settles it.
+function betText(r, match, teams) {
+  const sc = /^(\d+)-(\d+)$/.exec(String(match.score || ''));
+  const goals = sc ? +sc[1] + +sc[2] : null;
+  if (r.market === 'OU') return {
+    bet: `${r.side === 'over' ? 'Over' : 'Under'} ${r.line} goals`,
+    note: `full-match total${goals != null ? ` — the ${goals} goal${goals === 1 ? '' : 's'} already scored count${goals === 1 ? 's' : ''}` : ''}`,
+  };
+  if (r.market === 'AH') return {
+    bet: `${r.side === 'home' ? teams.home : teams.away} ${fmtLine(r.line)} Asian handicap`,
+    note: `counted from now — the current ${match.score || 'score'} is ignored`,
+  };
+  return { bet: r.side === 'draw' ? 'Draw' : `${r.side === 'home' ? teams.home : teams.away} to win`, note: 'full-match result' };
+}
+
 function formatAlert(match, minuteText, rows, pinAgeS, esc, opts = {}) {
   const thr = opts.threshold ?? 5;
+  const teams = { home: match.home_team || 'Home', away: match.away_team || 'Away' };
   const lines = [
-    `⚡ <b>LIVE GAP</b> — Bet365 above Pinnacle live`,
+    `⚡ <b>LIVE GAP</b> — Bet365 above Pinnacle`,
     ``,
-    `⚽ <b>${esc(match.home_team)} vs ${esc(match.away_team)}</b>`,
+    `⚽ <b>${esc(teams.home)} vs ${esc(teams.away)}</b>`,
     `🏆 ${esc(match.league) || '—'}`,
     `⏱ ${esc(minuteText || '')} · score ${esc(match.score || '—')}`,
-    ``,
   ];
   for (const r of rows) {
     const minOdds = r.fair * (1 + thr / 100);
     const k = kelly(1 / r.fair, r.price, opts.kellyFraction ?? 0.125);
     const stake = opts.bankroll ? `€${(opts.bankroll * k).toFixed(2)}` : `${(k * 100).toFixed(2)}% of bankroll`;
+    const { bet, note } = betText(r, match, teams);
+    const room = r.price - minOdds;
     lines.push(
-      `🎯 <b>${esc(r.label)}</b>`,
-      `  Bet365 now <b>${r.price.toFixed(2)}</b> · Pinnacle ${r.pin.toFixed(2)} (fair ${r.fair.toFixed(2)}) · edge <b>+${(r.edge * 100).toFixed(1)}%</b>`,
-      `  ✅ Bet only at ≥ <b>${minOdds.toFixed(2)}</b> · stake ${stake}`,
       ``,
+      `🎯 <b>BET: ${esc(bet)}</b>`,
+      `<i>${esc(note)}</i>`,
+      `<pre>Bet365 now   ${r.price.toFixed(2)}`,
+      `Pinnacle     ${r.pin.toFixed(2)}  (fair ${r.fair.toFixed(2)} without margin)`,
+      `Edge         +${(r.edge * 100).toFixed(1)}%</pre>`,
+      `✅ <b>Min odds ${minOdds.toFixed(2)}</b> — bet only if Bet365 still offers ${minOdds.toFixed(2)} or more`,
+      ...(room < 0.03 ? [`⚠️ Only ${Math.max(0, room).toFixed(2)} above the minimum — any drop and it's no longer worth it`] : []),
+      `💰 Stake ${stake}`,
     );
   }
-  lines.push(
-    `🕒 Gap held on consecutive checks a minute apart · Pinnacle prices ${Math.round(pinAgeS)} s old`,
-    `⚠️ NOT backtested (no in-play price history). Live prices move in seconds — check Bet365 before betting; skip if a goal or card just happened.`,
-  );
+  lines.push(``, `🕒 Gap held on at least 2 checks, a minute apart · Pinnacle prices ${Math.round(pinAgeS)} s old`);
   return lines.join('\n');
 }
 

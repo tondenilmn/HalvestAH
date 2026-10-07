@@ -79,7 +79,14 @@ assert(/quiet/.test(G.blockReason(over, s, 72, t, opts)), 'red card → quiet wi
 
 // ── Message
 const msg = G.formatAlert({ home_team: 'Alpha FC', away_team: 'Beta United', league: 'Test', score: '1-1' }, "63'", [over], 30, x => x, { threshold: 5, kellyFraction: 0.125 });
-assert(/LIVE GAP/.test(msg) && /Over 2\.5/.test(msg) && /NOT backtested/.test(msg));
-assert(new RegExp(`≥ <b>${(over.fair * 1.05).toFixed(2)}</b>`).test(msg), 'min odds = fair × 1.05');
+assert(/LIVE GAP/.test(msg) && /BET: Over 2\.5 goals/.test(msg) && !/backtested/i.test(msg));
+assert(/the 2 goals already scored count/.test(msg), 'O/U note says the score counts');
+assert(new RegExp(`Min odds ${(over.fair * 1.05).toFixed(2)}`).test(msg), 'min odds = fair × 1.05');
+assert(/Bet365 now   2\.20/.test(msg) && /Pinnacle     2\.00/.test(msg), 'price block');
+// little room → warning; AH wording
+const tight = G.formatAlert({ home_team: 'A', away_team: 'B', score: '1-0' }, "68'", [{ ...over, price: 1.9, fair: 1.8, pin: 1.67, edge: 1.9 / 1.8 - 1 }], 0, x => x, { threshold: 5 });
+assert(/Only 0\.01 above the minimum/.test(tight), 'tight-room warning');
+const ah = G.formatAlert({ home_team: 'A', away_team: 'B', score: '1-0' }, "68'", [{ key: 'AH|x', market: 'AH', side: 'away', line: 0.25, price: 2.0, fair: 1.88, pin: 1.84, edge: 2 / 1.88 - 1 }], 0, x => x, { threshold: 5 });
+assert(/BET: B \+0\.25 Asian handicap/.test(ah) && /current 1-0 is ignored/.test(ah));
 console.log('livegap: all tests passed');
 console.log('\n--- example alert ---\n' + msg.replace(/<[^>]+>/g, ''));
