@@ -218,19 +218,17 @@ function formatAlert(match, minuteText, rows, pinAgeS, esc, opts = {}) {
   for (const r of rows) {
     const minOdds = r.fair * (1 + thr / 100);
     const k = kelly(1 / r.fair, r.price, opts.kellyFraction ?? 0.125);
-    const stake = opts.bankroll ? `€${(opts.bankroll * k).toFixed(2)}` : `${(k * 100).toFixed(2)}% of bankroll`;
+    const stake = opts.bankroll ? `€${(opts.bankroll * k).toFixed(2)}` : `${(k * 100).toFixed(2)}%`;
     const { bet, note } = betText(r, match, teams);
-    const room = r.price - minOdds;
     lines.push(
       ``,
-      `🎯 <b>BET: ${esc(bet)}</b>`,
+      `🎯 <b>${esc(bet)}</b>`,
       `<i>${esc(note)}</i>`,
-      `<pre>Bet365 now   ${r.price.toFixed(2)}`,
-      `Pinnacle     ${r.pin.toFixed(2)}  (fair ${r.fair.toFixed(2)} without margin)`,
-      `Edge         +${(r.edge * 100).toFixed(1)}%</pre>`,
-      `✅ <b>Min odds ${minOdds.toFixed(2)}</b> — bet only if Bet365 still offers ${minOdds.toFixed(2)} or more`,
-      ...(room < 0.03 ? [`⚠️ Only ${Math.max(0, room).toFixed(2)} above the minimum — any drop and it's no longer worth it`] : []),
-      `💰 Stake ${stake}`,
+      `Bet365 price: <b>${r.price.toFixed(2)}</b>`,
+      `Pinnacle price: ${r.pin.toFixed(2)} (${r.fair.toFixed(2)} without margin)`,
+      `Edge: +${(r.edge * 100).toFixed(1)}%`,
+      `Min odds to bet: <b>${minOdds.toFixed(2)}</b> (${Math.max(0, r.price - minOdds).toFixed(2)} gap)`,
+      `Stake: ${stake}`,
     );
   }
   lines.push(``, `🕒 Gap held on at least 2 checks, a minute apart · Pinnacle prices ${Math.round(pinAgeS)} s old`);
