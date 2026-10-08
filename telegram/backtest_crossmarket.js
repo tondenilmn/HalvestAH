@@ -189,6 +189,12 @@ function main() {
         add(`${when} A 1X2 control (every side)`, r.month, pl);
         for (const X of [3, 5, 8, 12]) if (e * 100 >= X) {
           add(`${when} A 1X2 ≥${X}% above AH-implied`, r.month, pl);
+          if (X === 5) {
+            const mg = S.x.reduce((t, v) => t + 1 / v, 0) - 1;
+            add(`${when} A 1X2 ≥5% · 1X2 margin ${mg < 0.06 ? '<6%' : mg < 0.09 ? '6-9%' : '≥9%'}`, r.month, pl);
+            add(`${when} A 1X2 ≥5% · side ${['home', 'draw', 'away'][k]}`, r.month, pl);
+            add(`${when} A 1X2 ≥5% · price ${price < 1.7 ? '<1.70' : price <= 2.5 ? '1.70-2.50' : price <= 4 ? '2.50-4' : '>4'}`, r.month, pl);
+          }
           if (when === 'close' && mvAH != null && k !== 1) {
             // AH moved toward this side, 1X2 moved less (lagging)
             const dirAH = k === 0 ? mvAH : -mvAH, dirX = k === 0 ? mvX : -mvX;
@@ -207,6 +213,13 @@ function main() {
         add(`${when} B AH control (every side)`, r.month, pl);
         for (const X of [3, 5, 8, 12]) if (e * 100 >= X && isFinite(fair)) {
           add(`${when} B AH ≥${X}% above 1X2-implied`, r.month, pl);
+          if (X === 5) {
+            const mg = 1 / S.ho + 1 / S.ao - 1, moved = r.O.ah != null && Math.abs(r.O.ah - r.C.ah) > 0.01;
+            add(`${when} B AH ≥5% · AH margin ${mg < 0.04 ? '<4%' : mg < 0.06 ? '4-6%' : '≥6%'}`, r.month, pl);
+            add(`${when} B AH ≥5% · AH line ${moved ? 'moved' : 'unchanged'} open→close`, r.month, pl);
+            add(`${when} B AH ≥5% · price ${price < 1.7 ? '<1.70' : price <= 2.5 ? '1.70-2.50' : '>2.50'}`, r.month, pl);
+            add(`${when} B AH ≥5% · ${/(premier|la liga|serie a|bundesliga|ligue 1|champions|europa)/i.test(r.league) ? 'big league' : 'other league'}`, r.month, pl);
+          }
           if (when === 'close' && mvX != null) {
             const dirX = side === 0 ? mvX : -mvX, dirAH = side === 0 ? mvAH : -mvAH;
             if (dirX > 0.03 && dirAH < dirX / 2) add(`close B AH ≥${X}%, 1X2 moved this way, AH lagged`, r.month, pl);
