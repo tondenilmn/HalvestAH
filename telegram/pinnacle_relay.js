@@ -106,4 +106,45 @@ function relayPayload() {
   };
 }
 
-module.exports = { pollPinnacle, relayPayload, _state: state };
+// ── Pre-match lists (added 2026-10-09, for Strategy PINNGAP) ───────────────────
+// Same CDN caching (~905 s per URL variant, checked 2026-10-09), so the same
+// staggered rotation, polled every 2 min. With compression the lists are small
+// (markets with alternate lines ~1.2 MB, main lines only ~245 KB, match list
+// ~257 KB). Market variants: 3 with alternate lines + 1 main-lines-only (a
+// fallback, only used when > 30 s younger). 4 × 260 s = 1040 s > 905 s + one
+// 120-s poll, so each variant refills at the start of its slot. The match list
+// only carries names and kick-off times, so one fetch every 10 min is enough.
+const PRE_MARKET_PATHS = [
+  'markets/straight?primaryOnly=false&withSpecials=false',
+  'markets/straight?withSpecials=false&primaryOnly=false',
+  'markets/straight?withSpecials=false',
+  { path: 'markets/straight?primaryOnly=true&withSpecials=false', partial: true },
+];
+const PRE_MATCHUP_PATHS = ['matchups?withSpecials=false', 'matchups?withSpecials=false&brandId=0'];
+const PRE_MARKET_SLOT_S = 260;
+const PRE_MATCHUP_EVERY_MS = 10 * 60000;
+const pre = { markets: null, matchups: null, lastError: null, polls: 0 };
+
+async function pollPinnaclePrematch() {
+  pre.polls++;
+  const mk = await staggered(PRE_MARKET_PATHS, PRE_MARKET_SLOT_S);
+  if (mk.good.length && (!pre.markets || ageNow(mk.good[0]) <= ageNow(pre.markets))) pre.markets = mk.good[0];
+  if (!pre.matchups || Date.now() - pre.matchups.at >= PRE_MATCHUP_EVERY_MS) {
+    const v = await fetchVariant(PRE_MATCHUP_PATHS[pre.polls % PRE_MATCHUP_PATHS.length]);
+    if (v.ok) pre.matchups = v; else pre.lastError = `matchups HTTP ${v.status}${v.reason ? ` (${v.reason})` : ''}`;
+  }
+  if (!mk.good.length && mk.failed[0]) pre.lastError = `markets HTTP ${mk.failed[0].status}${mk.failed[0].reason ? ` (${mk.failed[0].reason})` : ''}`;
+  else if (mk.good.length) pre.lastError = null;
+  if (pre.polls === 1 || pre.polls % 15 === 0) {
+    console.log(pre.markets
+      ? `Pinnacle pre-match: ${pre.markets.data.length} markets, ${Math.round(ageNow(pre.markets))} s old · ${pre.matchups ? pre.matchups.data.length : 0} matchups${pre.lastError ? ` · last poll failed: ${pre.lastError}` : ''}`
+      : `Pinnacle pre-match: no prices yet — ${pre.lastError || 'no answer'}`);
+  }
+}
+const prematchPayload = () => ({
+  ok: !!pre.markets && !!pre.matchups,
+  markets: pre.markets ? pre.markets.data : [], matchups: pre.matchups ? pre.matchups.data : [],
+  age: pre.markets ? Math.round(ageNow(pre.markets)) : null, partial: !!pre.markets?.partial,
+});
+
+module.exports = { pollPinnacle, relayPayload, pollPinnaclePrematch, prematchPayload, _state: state, _pre: pre };

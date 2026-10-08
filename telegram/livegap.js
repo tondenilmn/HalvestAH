@@ -65,7 +65,7 @@ function pinnacleSheets(markets, matchups) {
       }
     }
     best.set(key, { n: list.length, m: {
-      id: g.id, league: g.league?.name || '', home: h.name, away: a.name,
+      id: g.id, league: g.league?.name || '', home: h.name, away: a.name, start: g.startTime || null,
       score: { home: h.state?.score ?? null, away: a.state?.score ?? null },
       red: (h.state?.redCards ?? 0) + (a.state?.redCards ?? 0), ft,
     } });

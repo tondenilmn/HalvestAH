@@ -647,6 +647,19 @@ module.exports = {
   // that may be a recording-time artefact — this tests it on real prices.
   // node crossmarket_report.js  or  GET <bot>/crossmarket/report
   CROSSMARKET_RECORD:        process.env.CROSSMARKET_RECORD !== 'false',
+  // PRICEGAP alert tracking (2026-10-09): every alert sent is logged with its
+  // minimum odds, a closing snapshot (last 30 min, same line) and the confirmed
+  // FT result → GET <bot>/pricegap/report.
+  PRICEGAP_TRACK:            process.env.PRICEGAP_TRACK !== 'false',
+  // Strategy PINNGAP — shadow recorder, never alerts (telegram/pinngap.js):
+  // Bet365 pre-match vs Pinnacle pre-match, same line, same moment; logs every
+  // gap's life (open / tick / closed / closing snapshot) and settles it.
+  // GET <bot>/pinngap/report. Rows with a Pinnacle copy older than
+  // PINNGAP_MAX_PIN_AGE_S are skipped (the CDN copy, not Bet365, would be stale).
+  PINNGAP_RECORD:            process.env.PINNGAP_RECORD !== 'false',
+  PINNGAP_MIN_EDGE_PCT:      parseFloat(process.env.PINNGAP_MIN_EDGE_PCT || '3'),
+  PINNGAP_MAX_EDGE_PCT:      parseFloat(process.env.PINNGAP_MAX_EDGE_PCT || '25'),
+  PINNGAP_MAX_PIN_AGE_S:     parseInt(process.env.PINNGAP_MAX_PIN_AGE_S || '600', 10),
   CROSSMARKET_RECORD_MIN_PCT: parseFloat(process.env.CROSSMARKET_RECORD_MIN_PCT || '3'),
   LIVEMODEL_RECORD_MIN_PCT:  parseFloat(process.env.LIVEMODEL_RECORD_MIN_PCT || '3'),
   // Optional link to the web app in each alert (e.g. https://<project>.pages.dev).
