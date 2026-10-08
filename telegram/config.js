@@ -624,6 +624,14 @@ module.exports = {
   // telegram/data/livemodel/*.jsonl; settled from confirmed FT scores.
   // node livemodel_report.js  or  GET <bot>/livemodel/report
   LIVEMODEL_RECORD:          process.env.LIVEMODEL_RECORD !== 'false',
+  // Strategy CROSSMARKET — shadow recorder, never alerts (telegram/crossmarket.js):
+  // Bet365's AH vs the price implied by its own 1X2 + goal line, and its 1X2 vs
+  // its own AH + goal line, on same-moment prices from the PRICEGAP scan's
+  // tablenext files. backtest_crossmarket.js found big edges on the dataset
+  // that may be a recording-time artefact — this tests it on real prices.
+  // node crossmarket_report.js  or  GET <bot>/crossmarket/report
+  CROSSMARKET_RECORD:        process.env.CROSSMARKET_RECORD !== 'false',
+  CROSSMARKET_RECORD_MIN_PCT: parseFloat(process.env.CROSSMARKET_RECORD_MIN_PCT || '3'),
   LIVEMODEL_RECORD_MIN_PCT:  parseFloat(process.env.LIVEMODEL_RECORD_MIN_PCT || '3'),
   // Optional link to the web app in each alert (e.g. https://<project>.pages.dev).
   APP_URL:                   process.env.APP_URL || '',
