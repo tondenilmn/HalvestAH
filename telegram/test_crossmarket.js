@@ -5,7 +5,7 @@
  */
 const assert = require('assert');
 const fs = require('fs'), os = require('os'), path = require('path');
-const FM = require('../static/fair_model.js');
+const FM = require('./fair_model.js');
 const X = require('./crossmarket');
 
 // Prices generated from one scoreline model, with a margin: every market agrees.
@@ -68,4 +68,7 @@ assert(/B — AH[\s\S]*Edge ≥ 5%:[\s\S]*?closing \(last 30 min\)\s+2 bets · s
 assert(/closing, other market moved, this lagged\s+1 bets · settled\s+1 · \s*-1\.00u/.test(text));
 assert(/A — 1X2[\s\S]*Edge ≥ 5%:[\s\S]*?both still at opening\s+1 bets · settled\s+0 · waiting 1/.test(text));
 fs.rmSync(dir, { recursive: true });
+// The bot's copy of fair_model.js must match the app's (Railway can't reach ../static).
+const local = fs.readFileSync(path.join(__dirname, 'fair_model.js'), 'utf8'), app = fs.readFileSync(path.join(__dirname, '../static/fair_model.js'), 'utf8');
+assert.strictEqual(local.slice(local.indexOf('*/\n') + 3), app, 'telegram/fair_model.js out of sync with static/fair_model.js — copy it again (keep the header)');
 console.log('crossmarket: all tests passed');

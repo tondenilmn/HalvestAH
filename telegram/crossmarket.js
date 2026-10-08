@@ -24,7 +24,7 @@
  */
 const fs = require('fs');
 const path = require('path');
-const FM = require('../static/fair_model.js');
+const FM = require('./fair_model.js');
 
 const ok2 = (p, q) => p > 1.01 && q > 1.01 && 1 / p + 1 / q > 1.0 && 1 / p + 1 / q < 1.15;
 const ok3 = x => x.every(v => v > 1.01) && x.reduce((s, v) => s + 1 / v, 0) > 1.0 && x.reduce((s, v) => s + 1 / v, 0) < 1.25;

@@ -24,7 +24,7 @@
  */
 const fs = require('fs');
 const path = require('path');
-const FM = require('../static/fair_model.js');
+const FM = require('./fair_model.js');
 
 const arg = (n, d) => { const i = process.argv.indexOf(n); return i > 0 ? process.argv[i + 1] : d; };
 const DIR = path.resolve(__dirname, arg('--dir', '../static/data/Bet365'));

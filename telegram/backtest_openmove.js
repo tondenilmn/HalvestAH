@@ -31,7 +31,7 @@
  */
 const fs = require('fs');
 const path = require('path');
-const FM = require('../static/fair_model.js');
+const FM = require('./fair_model.js');
 const G = require('./goal_table');
 
 const arg = (n, d) => { const i = process.argv.indexOf(n); return i > 0 ? process.argv[i + 1] : d; };

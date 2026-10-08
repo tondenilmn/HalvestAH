@@ -11,7 +11,7 @@
  * 0.0125 step the 1X2 probabilities stay within ~0.14pp of FairModel.solve
  * (checked on a sample in backtest_crossmarket.js). Building takes ~20 s.
  */
-const FM = require('../static/fair_model.js');
+const FM = require('./fair_model.js');
 
 const AH_LINES = []; for (let l = -3.5; l <= 3.5 + 1e-9; l += 0.25) AH_LINES.push(+l.toFixed(2));
 const TL_LINES = []; for (let t = 0.5; t <= 6.0 + 1e-9; t += 0.25) TL_LINES.push(+t.toFixed(2));
