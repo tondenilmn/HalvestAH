@@ -36,6 +36,7 @@ const pinnRelay = require('./pinnacle_relay');
 const liveGap = require('./livegap');
 const liveGapResult = require('./livegap_result');
 const liveModel = require('./livemodel');
+const crossMarket = require('./crossmarket');
 const { verifyBet365Price } = require('./apifootball');
 const crossdogLib = require('./crossdog_lib');
 const { recordAlert, settlePendingAlerts } = require('./track_record');
@@ -1014,6 +1015,35 @@ const priceGapDedup = new Dedup(24 * 60 * 60 * 1000);
 const PRICEGAP_LOG_DIR = path.join(__dirname, 'data', 'pricegap');
 const _priceGapRunning = { near: false, far: false };
 
+// CROSSMARKET shadow recorder (crossmarket.js): Bet365's AH vs its own 1X2 +
+// goal line (and back), same-moment prices from the same tablenext files this
+// scan already reads — no extra requests. Never alerts.
+const CROSSMARKET_LOG_DIR = path.join(__dirname, 'data', 'crossmarket');
+const _crossPending = cfg.CROSSMARKET_RECORD ? crossMarket.recoverPending(CROSSMARKET_LOG_DIR) : new Map();
+const _crossLast = new Map(); // `${id}|${k}` → { t, p, f }
+function crossMarketRows(match, ctx, now) {
+  if (!cfg.CROSSMARKET_RECORD || !match.id || !match.kickoff_time) return [];
+  const koMs = Date.parse(match.kickoff_time);
+  if (!isFinite(koMs)) return [];
+  let rows;
+  try { rows = crossMarket.analyse(match.odds, match.x2_odds); } catch (e) { return []; }
+  const out = [];
+  const closing = ctx.toKickoff <= 30;
+  for (const r of rows) {
+    const key = `${match.id}|${r.ty}|${r.mk}|${r.side}|${r.line ?? ''}`, L = _crossLast.get(key);
+    const hot = r.edge * 100 >= cfg.CROSSMARKET_RECORD_MIN_PCT;
+    // Hot sides when first seen, when the price/line or fair (> 1%) moves, else
+    // hourly; every side every 6 h and once in the last 30 min (closing snapshot).
+    const due = !L || (closing && !L.closing) || (hot && (!L.hot || L.p !== r.price || Math.abs(r.fair / L.f - 1) > 0.01 || now - L.t >= 3600000)) || now - L.t >= 6 * 3600000;
+    if (!due) continue;
+    _crossLast.set(key, { t: now, p: r.price, f: r.fair, hot, closing: closing || L?.closing });
+    out.push({ ...crossMarket.recordRow(now, match, koMs, r), cl: closing });
+  }
+  if (_crossLast.size > 60000) for (const [k, v] of _crossLast) if (now - v.t > 9 * 86400000) _crossLast.delete(k);
+  if (out.length) crossMarket.queue(_crossPending, match.id, `${match.home_team} v ${match.away_team}`, koMs);
+  return out;
+}
+
 async function runPriceGapScan(scope = 'near') {
   if (!cfg.PRICEGAP_ENABLED || _priceGapRunning[scope]) return;
   _priceGapRunning[scope] = true;
@@ -1030,11 +1060,13 @@ async function runPriceGapScan(scope = 'near') {
     const now = Date.now();
     let compared = 0, alerts = 0;
     const record = [];
+    const crossRec = [];
     for (const match of b365.matches) {
-      const s = match.id && sboById.get(match.id);
-      if (!s) continue;
       const ctx = matchContext(match);
       if (ctx.liveMin != null || ctx.toKickoff == null || ctx.toKickoff <= koMin || ctx.toKickoff > koMax) continue;
+      crossRec.push(...crossMarketRows(match, ctx, now));
+      const s = match.id && sboById.get(match.id);
+      if (!s) continue;
       if (!tierAllowed(ctx.tier, cfg.PRICEGAP_TIER)) continue;
       // x2_odds (1X2) comes from getDatanext1, match.odds (AH/TL/O-U) from
       // getData2 — two different rows of the same tablenext file, so they are
@@ -1062,7 +1094,12 @@ async function runPriceGapScan(scope = 'near') {
     if (cfg.PRICEGAP_RECORD) {
       priceGap.appendRecord(PRICEGAP_LOG_DIR, now, { t: now, scope, koMin, koMax, compared, ok: !b365.hashFailed && !sbo.hashFailed && b365.matches.length > 0 }, record);
     }
-    console.log(`PriceGap(${scope}) — ${b365.matches.length} Bet365 / ${sbo.matches.length} Sbobet fixtures, ${compared} compared, ${record.length} gap(s) ≥${cfg.PRICEGAP_RECORD_MIN_PCT}%, ${alerts} alert(s)${b365.hashFailed || sbo.hashFailed ? ' (a hash failed — check FEEDS)' : ''}.`);
+    if (cfg.CROSSMARKET_RECORD) {
+      // Confirmed FT scores for recorded fixtures (from 1 h 50 min after kick-off).
+      if (scope === 'near' && _crossPending.size) crossRec.push(...await liveGapResult.settleDue(_crossPending, now, cachedResult));
+      if (crossRec.length) liveGap.appendRecords(CROSSMARKET_LOG_DIR, now, crossRec);
+    }
+    console.log(`PriceGap(${scope}) — ${b365.matches.length} Bet365 / ${sbo.matches.length} Sbobet fixtures, ${compared} compared, ${record.length} gap(s) ≥${cfg.PRICEGAP_RECORD_MIN_PCT}%, ${alerts} alert(s)${cfg.CROSSMARKET_RECORD ? `, CrossMarket ${crossRec.length} row(s) / ${_crossPending.size} awaiting FT` : ''}${b365.hashFailed || sbo.hashFailed ? ' (a hash failed — check FEEDS)' : ''}.`);
   } finally {
     _priceGapRunning[scope] = false;
   }
@@ -2914,6 +2951,16 @@ function startHashRelayServer() {
     return;
   }
   const server = http.createServer((req, res) => {
+    if (req.url === '/crossmarket/report' || req.url.startsWith('/crossmarket/report?')) {
+      // CROSSMARKET shadow recorder results (crossmarket_report.js); same key as LIVEGAP's report.
+      const key = new URL(req.url, 'http://x').searchParams.get('key');
+      if (process.env.LIVEGAP_REPORT_KEY && key !== process.env.LIVEGAP_REPORT_KEY) { res.writeHead(401, { 'Content-Type': 'text/plain' }); res.end('key required'); return; }
+      let text;
+      try { text = require('./crossmarket_report').buildReport(CROSSMARKET_LOG_DIR, { tz: cfg.DISPLAY_TZ }); } catch (e) { text = `Report failed: ${e.message}`; }
+      res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' });
+      res.end(text);
+      return;
+    }
     if (req.url === '/livemodel/report' || req.url.startsWith('/livemodel/report?')) {
       // LIVEMODEL shadow recorder results (livemodel_report.js); same key as LIVEGAP's report.
       const key = new URL(req.url, 'http://x').searchParams.get('key');
@@ -2957,7 +3004,7 @@ function startHashRelayServer() {
     res.end('ok');
   });
   server.listen(process.env.PORT, () => {
-    console.log(`Hash relay: listening on :${process.env.PORT} (GET /hashes${cfg.PINNACLE_RELAY ? ', GET /pinnacle' : ''}, GET /livegap/report, GET /livemodel/report)`);
+    console.log(`Hash relay: listening on :${process.env.PORT} (GET /hashes${cfg.PINNACLE_RELAY ? ', GET /pinnacle' : ''}, GET /livegap/report, GET /livemodel/report, GET /crossmarket/report)`);
   });
 }
 
@@ -2980,6 +3027,7 @@ async function main() {
   console.log(`Strategy CROSSDOG [${on(cfg.CROSSDOG_ENABLED)}][${cfg.CROSSDOG_TIER}]: back the dog when Sbobet's line disagrees (dogCover only)  fire=${cfg.CROSSDOG_WINDOW_MIN}min pre-kickoff window  gateMinN≥${cfg.CROSSDOG_GATE_MIN_N}  cells loaded: ${Object.keys(_crossdogCells.cells || {}).length} (generated ${_crossdogCells.generatedAt || 'never — run crossdog_config_search.js'})`);
   console.log(`Strategy LIVEGAP [${on(cfg.LIVEGAP_ENABLED)}][${cfg.LIVEGAP_TIER}]: Bet365 in-play ≥${cfg.LIVEGAP_MIN_EDGE_PCT}% (and <${cfg.LIVEGAP_MAX_EDGE_PCT}%) above Pinnacle live, same line, price ${cfg.LIVEGAP_MIN_ODDS}-${cfg.LIVEGAP_MAX_ODDS} (UNVALIDATED)  every 1min  Pinnacle ≤${cfg.LIVEGAP_MAX_PIN_AGE_S}s  ${cfg.LIVEGAP_MIN_SCANS} scans  quiet ${cfg.LIVEGAP_QUIET_MIN}min  ≤${cfg.LIVEGAP_MAX_MINUTE}'  record=${cfg.LIVEGAP_RECORD ? `≥${cfg.LIVEGAP_RECORD_MIN_PCT}%` : 'off'}`);
   console.log(`Strategy LIVEMODEL [${on(cfg.LIVEMODEL_RECORD && cfg.LIVEGAP_ENABLED)}]: shadow recorder — Bet365 in-play price vs similar historical matches, logs sides ≥${cfg.LIVEMODEL_RECORD_MIN_PCT}% (never alerts)${_liveModelPending.size ? ` · ${_liveModelPending.size} match(es) from before the restart awaiting FT` : ''}`);
+  console.log(`Strategy CROSSMARKET [${on(cfg.CROSSMARKET_RECORD && cfg.PRICEGAP_ENABLED)}]: shadow recorder — Bet365 AH vs its own 1X2+goal line and back, same-moment pre-match prices, logs sides ≥${cfg.CROSSMARKET_RECORD_MIN_PCT}% (never alerts)${_crossPending.size ? ` · ${_crossPending.size} fixture(s) awaiting FT` : ''}`);
   if (cfg.LIVEGAP_RECORD && _liveGapPending.size) console.log(`LIVEGAP: ${_liveGapPending.size} recorded match(es) from before the restart waiting for a confirmed result`);
   console.log(`Strategy PRICEGAP [${on(cfg.PRICEGAP_ENABLED)}][${cfg.PRICEGAP_TIER}]: pre-match Bet365 ≥${cfg.PRICEGAP_MIN_EDGE_PCT}% (and <${cfg.PRICEGAP_MAX_EDGE_PCT}%) above Sbobet fair, same AH/O-U line  near=<${cfg.PRICEGAP_NEAR_HOURS}h every ${cfg.PRICEGAP_SCAN_INTERVAL_MINUTES}min  far=to day${cfg.PRICEGAP_FAR_DAYS} every ${cfg.PRICEGAP_FAR_SCAN_INTERVAL_MINUTES}min  record=${cfg.PRICEGAP_RECORD ? `≥${cfg.PRICEGAP_RECORD_MIN_PCT}%` : 'off'}`);
   console.log(`Global tier default: ${cfg.LEAGUE_TIER}`);
