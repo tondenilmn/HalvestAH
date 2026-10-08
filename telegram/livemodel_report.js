@@ -27,18 +27,20 @@ const units = x => `${x >= 0 ? '+' : ''}${x.toFixed(2)}u`;
 
 function load(dir) {
   if (!fs.existsSync(dir)) return null;
-  const rows = [], fin = new Map(), noRes = new Set();
+  const rows = [], fin = new Map(), noRes = new Set(), alerts = [];
   for (const f of fs.readdirSync(dir).filter(f => f.endsWith('.jsonl')).sort()) {
     for (const line of fs.readFileSync(path.join(dir, f), 'utf8').split('\n')) {
       if (!line.trim()) continue;
       let o; try { o = JSON.parse(line); } catch { continue; }
       if (o.res !== undefined) fin.set(o.id, o.et ? o.reg : o.res);
       else if (o.nores) noRes.add(o.id);
+      else if (o.alert) alerts.push(o.alert);
       else if (o.k) rows.push(o);
     }
   }
   rows.sort((a, b) => a.t - b.t);
-  return { rows, fin, noRes };
+  alerts.sort((a, b) => a.t - b.t);
+  return { rows, fin, noRes, alerts };
 }
 
 function buildReport(dir, opts = {}) {
@@ -50,6 +52,26 @@ function buildReport(dir, opts = {}) {
   const ret = o => { const f = fin.get(o.id); return f != null ? payout(o, f, o.p) : null; };
   const ids = new Set(rows.map(o => o.id));
   const out = [`LIVEMODEL report (shadow — no alerts sent) · ${rows.length} rows · ${ids.size} matches from ${when(rows[0].t)} to ${when(rows[rows.length - 1].t)} · ${[...ids].filter(i => fin.get(i) != null).length} with a confirmed FT score · ${[...ids].filter(i => noRes.has(i)).length} no result found`];
+
+  // ── 0. Alerts sent (since 2026-10-08) ──
+  if (d.alerts.length) {
+    let n = 0, plP = 0, plM = 0, waiting = 0, nr = 0;
+    const tally = { WON: 0, 'HALF WON': 0, VOID: 0, 'HALF LOST': 0, LOST: 0 };
+    out.push('', `ALERTS SENT: ${d.alerts.length} (one per match; settled 1 unit at the Bet365 price shown and at the minimum odds)`);
+    for (const a of d.alerts) {
+      const f = fin.get(a.id), rp = f != null ? payout(a, f, a.p) : null, rm = f != null ? payout(a, f, a.mo) : null;
+      let res;
+      if (rp == null) { if (noRes.has(a.id)) { nr++; res = 'no result found'; } else { waiting++; res = 'waiting for FT'; } }
+      else {
+        n++; plP += rp - 1; plM += rm - 1;
+        const oc = rp > 1.001 ? (rp < a.p - 1e-9 ? 'HALF WON' : 'WON') : rp < 0.999 ? (rp > 1e-9 ? 'HALF LOST' : 'LOST') : 'VOID';
+        tally[oc]++; res = `${oc} (FT ${f}) ${units(rp - 1)} @${a.p} · ${units(rm - 1)} @${(+a.mo).toFixed(2)}`;
+      }
+      out.push(`  ${when(a.t)}  ${a.m} · ${a.min ?? '?'}' ${a.sc} · ${a.k} · Bet365 ${a.p} (min ${(+a.mo).toFixed(2)}, edge +${a.e}% ±${a.se})\n      → ${res}`);
+    }
+    if (n) out.push(`  Settled ${n}: ${Object.entries(tally).filter(([, c]) => c).map(([k, c]) => `${c} ${k.toLowerCase()}`).join(', ')} · waiting ${waiting}${nr ? ` · no result ${nr}` : ''}`,
+      `  At the Bet365 price shown: ${units(plP)} → ROI ${pct(plP / n)} · at the minimum odds: ${units(plM)} → ROI ${pct(plM / n)}`);
+  }
 
   // ── 1. Calibration ──
   const seen = new Set(), cal = [];

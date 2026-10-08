@@ -178,4 +178,43 @@ function pinnacleFairOf(gapRows, s) {
   return g ? g.fair : null;
 }
 
-module.exports = { remainingShare, remainingDist, priceSides, pinnacleFairOf, favOf, tlBandOf, returnOf, MIN_NEFF };
+// ── Alerts (since 2026-10-08, user request) ──────────────────────────────────
+// The rule the recorder's first two days pointed to: edge ≥ minEdge, still ≥
+// minEdge after one standard error, not in the skip band (10–20% lost in every
+// window while ≥ 20% and 5–10% paid — see livemodel_report), Bet365 price in
+// minOdds–maxOdds, minute ≤ maxMinute. One alert per match (the first side
+// that passes) — the "first bet per match" the report measures.
+function alertBlock(r, minute, o) {
+  const e = r.edge * 100, se = r.se * 100;
+  if (e < o.minEdge) return `edge +${e.toFixed(1)}% < ${o.minEdge}%`;
+  if (o.useSe && e - se < o.minEdge) return `edge − s.e. ${(e - se).toFixed(1)}% < ${o.minEdge}%`;
+  if (o.skipFrom != null && e >= o.skipFrom && e < o.skipTo) return `edge in the skipped ${o.skipFrom}–${o.skipTo}% band`;
+  if (r.price < o.minOdds || r.price > o.maxOdds) return `price ${r.price} outside ${o.minOdds}–${o.maxOdds}`;
+  if (minute == null || minute > o.maxMinute) return `minute ${minute ?? '?'} > ${o.maxMinute}`;
+  return null;
+}
+// Lowest Bet365 price that still clears the threshold (and the s.e. if used):
+// E(price) = A·price + B ≥ 1 + edge.
+const minPrice = (r, o) => (1 + o.minEdge / 100 + (o.useSe ? r.se : 0) - r.pPush) / r.pWin;
+
+const MK_NAME = { '1X2': '1X2', AH: 'AH', OU: 'OU' };
+function formatAlert(match, minuteText, r, dist, pinFair, esc, betText, kellyFn, o = {}) {
+  const teams = { home: match.home_team || 'Home', away: match.away_team || 'Away' };
+  const mo = minPrice(r, o), room = Math.max(0, r.price - mo);
+  const k = kellyFn(1 / r.fair, r.price, o.kellyFraction ?? 0.125), pct = `${(k * 100).toFixed(2)}%`;
+  const bet = betText({ market: MK_NAME[r.mk], side: r.side, line: r.line }, match, teams);
+  return [
+    `🧮 <b>${esc(teams.home)} v ${esc(teams.away)}</b>`,
+    `⏱ ${esc(minuteText || '')} · ${esc(match.score || '—')} · ${esc(match.league) || '—'}`,
+    ``,
+    `🎯 <b>${esc(bet)}</b>`,
+    `✅ <b>BET AT ${mo.toFixed(2)} OR HIGHER</b> · now ${r.price.toFixed(2)} → ${room < 0.03 ? '<b>bet immediately, no room</b>' : `room ${room.toFixed(2)}`}`,
+    `💰 Stake ${o.bankroll ? `€${(o.bankroll * k).toFixed(2)} (${pct})` : `${pct} of bankroll`}`,
+    `📊 Bet365 ${r.price.toFixed(2)} vs fair ${r.fair.toFixed(2)} → +${(r.edge * 100).toFixed(1)}% (±${(r.se * 100).toFixed(1)})`,
+    `📚 From ~${Math.round(dist.neff)} similar matches at the same state${pinFair ? ` · Pinnacle fair ${pinFair.toFixed(2)}` : ''}`,
+    ``,
+    `🕒 Live model · one alert per match`,
+  ].join('\n');
+}
+
+module.exports = { remainingShare, remainingDist, priceSides, pinnacleFairOf, favOf, tlBandOf, returnOf, alertBlock, minPrice, formatAlert, MIN_NEFF };

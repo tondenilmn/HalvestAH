@@ -85,4 +85,36 @@ assert(/Edge ≥ 5%:\n\s+any price\s+2 bets · settled\s+2 · \s*\+0\.00u · ROI
 assert(/Edge ≥ 3%:\n\s+any price\s+3 bets · settled\s+2 .* · waiting 1/.test(text), 'c waiting');
 assert(/Pinnacle also above fair\s+1 bets · settled\s+1 · \s*-1\.00u/.test(text));
 fs.rmSync(dir, { recursive: true });
+// ── Alerts: gate, minimum price, message
+const o = { minEdge: 5, useSe: true, skipFrom: 10, skipTo: 20, minOdds: 1.7, maxOdds: 2.5, maxMinute: 85, kellyFraction: 0.125 };
+const side = (edge, se, price, extra = {}) => ({ key: 'OU|over|2.5', mk: 'OU', side: 'over', line: 2.5, price, edge, se, fair: price / (1 + edge), pWin: 1 / (price / (1 + edge)), pPush: 0, ...extra });
+assert.strictEqual(M.alertBlock(side(0.07, 0.01, 2.0), 60, o), null, '+7% ±1, 2.00, 60\' → alert');
+assert(/< 5%/.test(M.alertBlock(side(0.04, 0.01, 2.0), 60, o)));
+assert(/s\.e\./.test(M.alertBlock(side(0.06, 0.02, 2.0), 60, o)), 'edge − s.e. 4% blocks');
+assert(/skipped/.test(M.alertBlock(side(0.12, 0.01, 2.0), 60, o)), '10–20% band skipped');
+assert.strictEqual(M.alertBlock(side(0.25, 0.02, 2.0), 60, o), null, '≥ 20% allowed (paid in the recordings)');
+assert(/outside/.test(M.alertBlock(side(0.07, 0.01, 2.8), 60, o)));
+assert(/minute/.test(M.alertBlock(side(0.07, 0.01, 2.0), 88, o)));
+// minimum price: no pushes → (1.05 + se) × fair
+const s7 = side(0.07, 0.01, 2.0);
+assert(Math.abs(M.minPrice(s7, o) - (1.06 * s7.fair)) < 1e-9);
+// with a refund share: E(q) = A q + B ≥ 1.06
+const q = { ...s7, pWin: 0.4, pPush: 0.2 }; assert(Math.abs(0.4 * M.minPrice(q, o) + 0.2 - 1.06) < 1e-9);
+const LG = require('./livegap');
+const msg = M.formatAlert({ home_team: 'Alpha', away_team: 'Beta', league: 'L', score: '1-0' }, "60'", s7, { neff: 812 }, 1.95, x => x, LG.betText, LG.kelly, o);
+assert(/Over 2\.5 — Goal Line \(FT total\)/.test(msg) && new RegExp(`BET AT ${M.minPrice(s7, o).toFixed(2)} OR HIGHER`).test(msg));
+assert(/\+7\.0% \(±1\.0\)/.test(msg) && /~812 similar matches/.test(msg) && /Pinnacle fair 1\.95/.test(msg) && /one alert per match/.test(msg));
+const msgAH = M.formatAlert({ home_team: 'Alpha', away_team: 'Beta', score: '0-0' }, "30'", { ...s7, key: 'AH|away|0.25', mk: 'AH', side: 'away', line: 0.25 }, { neff: 100 }, null, x => x, LG.betText, LG.kelly, o);
+assert(/Beta \+0\.25 — Asian Handicap \(from now\)/.test(msgAH) && !/Pinnacle/.test(msgAH));
+
+(() => {
+  const fs2 = require('fs'), os2 = require('os'), path2 = require('path');
+  const dir = fs2.mkdtempSync(path2.join(os2.tmpdir(), 'livemodel-alerts-'));
+  const T = Date.UTC(2026, 9, 8, 15);
+  const al = { t: T, id: 'z', min: 60, sc: '0-0', k: 'OU|over|0.5', mk: 'OU', side: 'over', line: 0.5, p: 2.0, f: 1.8, e: 11.1, se: 1, mo: 1.91, m: 'z match', lg: 'L' };
+  fs2.writeFileSync(path2.join(dir, '2026-10-08.jsonl'), [{ alert: al }, { ...al, alert: undefined, e: 11.1 }, { t: T + 9e6, id: 'z', res: '1-0', m: 'z' }].map(l => JSON.stringify(l)).join('\n') + '\n');
+  const txt = require('./livemodel_report').buildReport(dir, { tz: 'UTC' });
+  assert(/ALERTS SENT: 1/.test(txt) && /WON \(FT 1-0\) \+1\.00u @2 · \+0\.91u @1\.91/.test(txt), 'alert settled at shown price and minimum');
+  fs2.rmSync(dir, { recursive: true });
+})();
 console.log('livemodel: all tests passed');

@@ -245,4 +245,4 @@ const recordRow = (t, match, minute, r, pinAgeS) => ({
   m: `${match.home_team} v ${match.away_team}`, lg: match.league || '',
 });
 
-module.exports = { devig, pinnacleSheets, findPinnacle, gapRows, updateMatchState, trackGaps, blockReason, kelly, formatAlert, appendRecords, recordRow, dice, dec };
+module.exports = { devig, pinnacleSheets, findPinnacle, gapRows, updateMatchState, trackGaps, blockReason, kelly, betText, formatAlert, appendRecords, recordRow, dice, dec };

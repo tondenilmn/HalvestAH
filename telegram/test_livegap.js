@@ -145,6 +145,10 @@ assert.deepStrictEqual(R.parseResult(R.tablematch1(pageJs)), { status: 'FT', sco
   assert(/WON · settled \(confirmed FT 2-1\)/.test(text), 'settled on the confirmed score, not the live-list line');
   assert(/waiting for FT/.test(text) && /no result found/.test(text));
   assert(/Settled 1 \(confirmed FT\): 1 won · waiting for FT 1 · no result found 1/.test(text));
+  // a silent (not sent) alert is labelled as such
+  G.appendRecords(dir, T, [{ alert: { ...row('quiet', T, '0-0', 30), mo: 1.995, silent: true } }]);
+  const t2 = require('./livegap_report').buildReport(dir, { tz: 'UTC' });
+  assert(/1 of them silent/.test(t2) && /\[silent — not sent\]/.test(t2));
   fs.rmSync(dir, { recursive: true });
   console.log('livegap settlement: all tests passed');
 })().catch(e => { console.error(e); process.exit(1); });

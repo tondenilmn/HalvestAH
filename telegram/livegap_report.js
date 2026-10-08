@@ -119,7 +119,8 @@ function buildReport(dir, opts = {}) {
   const firstLogged = logged.length ? Math.min(...logged.map(a => a.t)) : Infinity;
   const rebuilt = reconstructAlerts(rows, g).filter(a => a.t < firstLogged && !loggedKeys.has(`${a.id}|${a.k}`));
   const all = [...rebuilt, ...logged].sort((a, b) => a.t - b.t);
-  out.push('', `ALERTS SENT: ${all.length}${rebuilt.length ? ` (${rebuilt.length} reconstructed from the recordings — sent before alerts were logged)` : ''}`);
+  const nSilent = all.filter(a => a.silent).length;
+  out.push('', `ALERTS SENT: ${all.length}${rebuilt.length ? ` (${rebuilt.length} reconstructed from the recordings — sent before alerts were logged)` : ''}${nSilent ? ` — ${nSilent} of them silent (LIVEGAP_ALERTS off: would have been sent, not sent)` : ''}`);
   let n = 0, plShown = 0, plMin = 0, waiting = 0, noResult = 0;
   const tally = { WON: 0, 'HALF WON': 0, VOID: 0, 'HALF LOST': 0, LOST: 0 };
   for (const a of all) {
@@ -134,7 +135,7 @@ function buildReport(dir, opts = {}) {
       const f = fin.get(a.id);
       res = `${outcome} · settled (confirmed FT ${final}${f.et ? ` at 90', ${f.ft} after extra time` : ''}) ${units(pShown - 1)} @${a.p} · ${units(pMin - 1)} @${(+a.mo).toFixed(2)}`;
     } else if (/^waiting/.test(res)) waiting++; else noResult++;
-    out.push(`  ${when(a.t)}  ${a.m} · ${a.min ?? '?'}' ${a.sc} · ${a.k.split('|')[1]} · Bet365 ${a.p} (min ${(+a.mo).toFixed(2)}, edge +${a.e}%)${a.reconstructed ? ' [reconstructed]' : ''}\n      → ${res}`);
+    out.push(`  ${when(a.t)}  ${a.m} · ${a.min ?? '?'}' ${a.sc} · ${a.k.split('|')[1]} · Bet365 ${a.p} (min ${(+a.mo).toFixed(2)}, edge +${a.e}%)${a.reconstructed ? ' [reconstructed]' : ''}${a.silent ? ' [silent — not sent]' : ''}\n      → ${res}`);
   }
   if (n) {
     out.push('', `  Settled ${n} (confirmed FT): ${Object.entries(tally).filter(([, c]) => c).map(([k, c]) => `${c} ${k.toLowerCase()}`).join(', ')} · waiting for FT ${waiting} · no result found ${noResult}`,

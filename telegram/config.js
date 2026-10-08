@@ -598,6 +598,9 @@ module.exports = {
   // matches → telegram/data/livegap/YYYY-MM-DD.jsonl (needs a Railway volume
   // to survive redeploys) — the evidence for whether these gaps pay.
   LIVEGAP_ENABLED:           process.env.LIVEGAP_ENABLED !== 'false',
+  // Silent since 2026-10-08 (user request — negative in every window so far): it
+  // still scans, records and settles every would-be alert; set LIVEGAP_ALERTS=true to send again.
+  LIVEGAP_ALERTS:            process.env.LIVEGAP_ALERTS === 'true',
   LIVEGAP_MIN_EDGE_PCT:      parseFloat(process.env.LIVEGAP_MIN_EDGE_PCT || '5'),
   LIVEGAP_MAX_EDGE_PCT:      parseFloat(process.env.LIVEGAP_MAX_EDGE_PCT || '15'),
   // Bet365 price range an alert may fire on (user choice 2026-10-07: near
@@ -624,6 +627,19 @@ module.exports = {
   // telegram/data/livemodel/*.jsonl; settled from confirmed FT scores.
   // node livemodel_report.js  or  GET <bot>/livemodel/report
   LIVEMODEL_RECORD:          process.env.LIVEMODEL_RECORD !== 'false',
+  // LIVEMODEL alerts (2026-10-08, user request): one Telegram alert per match,
+  // the first side passing livemodel.alertBlock. Defaults = the rule the first
+  // two days of recordings pointed to (still far too few to call it proven).
+  LIVEMODEL_ALERTS:          process.env.LIVEMODEL_ALERTS !== 'false',
+  LIVEMODEL_MIN_EDGE_PCT:    parseFloat(process.env.LIVEMODEL_MIN_EDGE_PCT || '5'),
+  LIVEMODEL_USE_SE:          process.env.LIVEMODEL_USE_SE !== 'false',      // edge − 1 s.e. must clear it too
+  LIVEMODEL_SKIP_FROM_PCT:   parseFloat(process.env.LIVEMODEL_SKIP_FROM_PCT || '10'), // edges 10–20% lost in every window
+  LIVEMODEL_SKIP_TO_PCT:     parseFloat(process.env.LIVEMODEL_SKIP_TO_PCT || '20'),
+  LIVEMODEL_MIN_ODDS:        parseFloat(process.env.LIVEMODEL_MIN_ODDS || '1.70'),
+  LIVEMODEL_MAX_ODDS:        parseFloat(process.env.LIVEMODEL_MAX_ODDS || '2.50'),
+  LIVEMODEL_MAX_MINUTE:      parseInt(process.env.LIVEMODEL_MAX_MINUTE || '85', 10),
+  LIVEMODEL_KELLY_FRACTION:  parseFloat(process.env.LIVEMODEL_KELLY_FRACTION || '0.125'),
+  LIVEMODEL_BANKROLL:        parseFloat(process.env.LIVEMODEL_BANKROLL || process.env.LIVEGAP_BANKROLL || process.env.PRICEGAP_BANKROLL || '0') || null,
   // Strategy CROSSMARKET — shadow recorder, never alerts (telegram/crossmarket.js):
   // Bet365's AH vs the price implied by its own 1X2 + goal line, and its 1X2 vs
   // its own AH + goal line, on same-moment prices from the PRICEGAP scan's
