@@ -38,6 +38,9 @@ const liveGapResult = require('./livegap_result');
 const liveModel = require('./livemodel');
 const crossMarket = require('./crossmarket');
 const pinnGap = require('./pinngap');
+const oddsMon = require('./oddsmonitor');
+const ODDSMON_DIR = path.join(__dirname, 'data', 'oddsmonitor');
+const _bfStats = { paired: 0, blocked: 0, since: Date.now(), last: [] };
 const { verifyBet365Price } = require('./apifootball');
 const crossdogLib = require('./crossdog_lib');
 const { recordAlert, settlePendingAlerts, settleFromMatchPages } = require('./track_record');
@@ -935,6 +938,14 @@ async function runLiveGapScan() {
       const s = liveGap.updateMatchState(_liveGapState, id, score, pm ? pm.red : null, now);
       s.lastSeen = now; s.lastScore = match.score; s.lastMinute = ctx.liveMin; s.label = ctx.label; s.missingSince = null; s.gone = false;
       if (s.recorded) liveGapResult.noteSeen(_liveGapPending, id, ctx.label, match.score, ctx.liveMin, now);
+      // Stale Bet365 Live prices (from before a goal): their own contradictions, or
+      // Bet365's live 1X2 far from Betfair's at the same score (oddsmonitor.js).
+      const bfEv = cfg.ODDSMONITOR_ENABLED && odds && score && (oddsMon.ageS(now) ?? 1e9) <= cfg.ODDSMONITOR_MAX_AGE_S
+        ? oddsMon.findEvent(oddsMon._st.events, match.home_team, match.away_team, score, match.league) : null;
+      if (bfEv) _bfStats.paired++;
+      const bfStale = bfEv ? oddsMon.staleVsBetfair(odds, bfEv, { maxRatio: cfg.ODDSMONITOR_STALE_RATIO }) : null;
+      const stale = odds ? (liveModel.staleReason(odds, score, ctx.liveMin) || bfStale) : null;
+      if (bfStale) { _bfStats.blocked++; _bfStats.last.unshift(`${new Date(now).toISOString().slice(0, 16)} ${ctx.label} ${match.minute} ${match.score}: ${bfStale}`); _bfStats.last.length = Math.min(_bfStats.last.length, 30); }
       // LIVEMODEL: Bet365 live price vs similar historical matches (records only).
       if (cfg.LIVEMODEL_RECORD && odds && score && _dbAll?.length) {
         try {
@@ -942,7 +953,6 @@ async function runLiveGapScan() {
           const htm = /^(\d+)-(\d+)$/.exec(String(match.ht_score || ''));
           const st = { minute: ctx.liveMin, isHT, score, ht: htm ? { home: +htm[1], away: +htm[2] } : null };
           const dist = liveModel.remainingDist(_dbAll, match.bet365_odds, st);
-          const stale = liveModel.staleReason(odds, score, ctx.liveMin);
           if (stale) flogv(ctx.liveMin, ctx.label, 'LIVEMODEL', `stale Bet365 Live prices: ${stale}`);
           if (!dist.error) {
             const gr = pm ? liveGap.gapRows(odds, pm, { home: match.home_team, away: match.away_team }) : [];
@@ -958,7 +968,7 @@ async function runLiveGapScan() {
               const pf = liveModel.pinnacleFairOf(gr, r);
               recModel.push({ t: now, id, min: ctx.liveMin, sc: match.score, ht: match.ht_score || null, k: r.key, mk: r.mk, side: r.side, line: r.line,
                 p: r.price, f: +r.fair.toFixed(3), e: +(r.edge * 100).toFixed(2), se: +(r.se * 100).toFixed(2), ne: Math.round(dist.neff), lv: dist.level,
-                pf: pf ? +pf.toFixed(3) : null, rc: pm ? pm.red : null, m: ctx.label, lg: match.league || '', ...(stale ? { st: 1 } : {}) });
+                pf: pf ? +pf.toFixed(3) : null, rc: pm ? pm.red : null, m: ctx.label, lg: match.league || '', ...(stale ? { st: 1 } : {}), ...(bfEv ? { bf: [bfEv.home_odd, bfEv.draw_odd, bfEv.away_odd] } : {}) });
             }
             if (logged) { s.modelRec = true; modelRows++; }
             // Alert: the first side of this match passing the gate (one per match).
@@ -969,10 +979,11 @@ async function runLiveGapScan() {
               if (pick) {
                 liveModelDedup.mark(id);
                 const pf = liveModel.pinnacleFairOf(gr, pick);
-                await sendTelegram(liveModel.formatAlert(match, match.minute ? String(match.minute).replace(/\\'/g, "'") : '', pick, dist, pf, esc, liveGap.betText, liveGap.kelly, o));
+                const bfLine = bfEv ? `\n🔁 Betfair 1X2 now: ${bfEv.home_odd} / ${bfEv.draw_odd} / ${bfEv.away_odd} (${Math.round(bfEv.total_matched).toLocaleString('it-IT')} matched)` : '';
+                await sendTelegram(liveModel.formatAlert(match, match.minute ? String(match.minute).replace(/\\'/g, "'") : '', pick, dist, pf, esc, liveGap.betText, liveGap.kelly, o) + bfLine);
                 recModel.push({ alert: { t: now, id, min: ctx.liveMin, sc: match.score, ht: match.ht_score || null, k: pick.key, mk: pick.mk, side: pick.side, line: pick.line,
                   p: pick.price, f: +pick.fair.toFixed(3), e: +(pick.edge * 100).toFixed(2), se: +(pick.se * 100).toFixed(2), ne: Math.round(dist.neff), pf: pf ? +pf.toFixed(3) : null,
-                  mo: +liveModel.minPrice(pick, o).toFixed(3), m: ctx.label, lg: match.league || '' } });
+                  mo: +liveModel.minPrice(pick, o).toFixed(3), m: ctx.label, lg: match.league || '', ...(bfEv ? { bf: [bfEv.home_odd, bfEv.draw_odd, bfEv.away_odd] } : {}) } });
                 flog(ctx.liveMin, ctx.label, 'LIVEMODEL', `ALERT: ${pick.key} @${pick.price} fair ${pick.fair.toFixed(2)} (+${(pick.edge * 100).toFixed(1)}% ±${(pick.se * 100).toFixed(1)})`);
               }
             }
@@ -994,7 +1005,7 @@ async function runLiveGapScan() {
       }
 
       if (!tierAllowed(ctx.tier, cfg.LIVEGAP_TIER)) continue;
-      if (liveModel.staleReason(odds, score, ctx.liveMin)) continue; // Bet365 Live price from before a goal
+      if (stale) continue; // Bet365 Live price from before a goal
       const opts = { minEdge, maxEdge: cfg.LIVEGAP_MAX_EDGE_PCT / 100, minOdds: cfg.LIVEGAP_MIN_ODDS, maxOdds: cfg.LIVEGAP_MAX_ODDS, minScans: cfg.LIVEGAP_MIN_SCANS, quietMs: cfg.LIVEGAP_QUIET_MIN * 60000,
                      maxMinute: cfg.LIVEGAP_MAX_MINUTE, pinAgeS, maxPinAgeS: cfg.LIVEGAP_MAX_PIN_AGE_S };
       const send = [];
@@ -3085,6 +3096,15 @@ function startHashRelayServer() {
         return;
       }
     }
+    if (req.url === '/oddsmonitor/report' || req.url.startsWith('/oddsmonitor/report?')) {
+      const mins = Math.round((Date.now() - _bfStats.since) / 60000);
+      const text = [oddsMon.statusLine(ODDSMON_DIR), '',
+        `Live matches paired with Betfair (match-scans): ${_bfStats.paired} · Bet365 Live rows blocked as stale vs Betfair: ${_bfStats.blocked} — in the last ${mins} min (since the bot started)`,
+        '', 'Latest blocked:', ...(_bfStats.last.length ? _bfStats.last.map(l => '  ' + l) : ['  none yet'])].join('\n');
+      res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' });
+      res.end(text);
+      return;
+    }
     if (req.url === '/crossmarket/report' || req.url.startsWith('/crossmarket/report?')) {
       // CROSSMARKET shadow recorder results (crossmarket_report.js); same key as LIVEGAP's report.
       const key = new URL(req.url, 'http://x').searchParams.get('key');
@@ -3138,7 +3158,7 @@ function startHashRelayServer() {
     res.end('ok');
   });
   server.listen(process.env.PORT, () => {
-    console.log(`Hash relay: listening on :${process.env.PORT} (GET /hashes${cfg.PINNACLE_RELAY ? ', GET /pinnacle' : ''}, GET /livegap/report, GET /livemodel/report, GET /crossmarket/report, GET /pricegap/report, GET /pinngap/report, GET /openline/report)`);
+    console.log(`Hash relay: listening on :${process.env.PORT} (GET /hashes${cfg.PINNACLE_RELAY ? ', GET /pinnacle' : ''}, GET /livegap/report, GET /livemodel/report, GET /crossmarket/report, GET /pricegap/report, GET /pinngap/report, GET /openline/report, GET /oddsmonitor/report)`);
   });
 }
 
@@ -3192,8 +3212,13 @@ async function main() {
   // Keep Pinnacle's cached live lists warm for the web app (pinnacle_relay.js).
   // LIVEGAP reads the same lists, so it runs right after each poll.
   if ((cfg.PINNACLE_RELAY && process.env.PORT) || cfg.LIVEGAP_ENABLED) {
-    const pollPin = () => pinnRelay.pollPinnacle().catch(e => console.error('Pinnacle relay error:', e.message))
-      .then(() => runLiveGapScan());
+    const pollPin = () => Promise.all([
+      pinnRelay.pollPinnacle().catch(e => console.error('Pinnacle relay error:', e.message)),
+      cfg.ODDSMONITOR_ENABLED ? oddsMon.pollEvents() : null,
+    ]).then(() => runLiveGapScan())
+      .then(() => (cfg.ODDSMONITOR_ENABLED && cfg.ODDSMONITOR_HISTORY ? oddsMon.saveFinished(ODDSMON_DIR, Date.now(), { minMatched: cfg.ODDSMONITOR_HISTORY_MIN_MATCHED }) : 0))
+      .catch(e => console.error('oddsmonitor history error:', e.message));
+    if (cfg.ODDSMONITOR_ENABLED) oddsMon.loadSaved(ODDSMON_DIR);
     pollPin();
     cron.schedule('* * * * *', pollPin);
   }

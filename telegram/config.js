@@ -667,6 +667,17 @@ module.exports = {
   PINNGAP_MAX_EDGE_PCT:      parseFloat(process.env.PINNGAP_MAX_EDGE_PCT || '25'),
   PINNGAP_MAX_PIN_AGE_S:     parseInt(process.env.PINNGAP_MAX_PIN_AGE_S || '600', 10),
   CROSSMARKET_RECORD_MIN_PCT: parseFloat(process.env.CROSSMARKET_RECORD_MIN_PCT || '3'),
+  // ── oddsmonitor.eu — Betfair Exchange 1X2 (oddsmonitor.js, added 2026-10-09) ──
+  // Live list every minute: a Bet365 live 1X2 price off Betfair's by ≥ the ratio
+  // (same score, Betfair ≤ 10.0, ≥ €500 matched) marks the Bet365 Live row stale
+  // (MC Alger: Bet365 2.25 vs Betfair 1.06 after a goal) — no alert on it.
+  // History: each finished match's Betfair 1X2 price + money history is saved to
+  // data/oddsmonitor/ when ≥ HISTORY_MIN_MATCHED was matched.
+  ODDSMONITOR_ENABLED:       process.env.ODDSMONITOR_ENABLED !== 'false',
+  ODDSMONITOR_HISTORY:       process.env.ODDSMONITOR_HISTORY !== 'false',
+  ODDSMONITOR_HISTORY_MIN_MATCHED: parseFloat(process.env.ODDSMONITOR_HISTORY_MIN_MATCHED || '1000'),
+  ODDSMONITOR_STALE_RATIO:   parseFloat(process.env.ODDSMONITOR_STALE_RATIO || '1.35'),
+  ODDSMONITOR_MAX_AGE_S:     parseFloat(process.env.ODDSMONITOR_MAX_AGE_S || '180'),
   LIVEMODEL_RECORD_MIN_PCT:  parseFloat(process.env.LIVEMODEL_RECORD_MIN_PCT || '3'),
   // Optional link to the web app in each alert (e.g. https://<project>.pages.dev).
   APP_URL:                   process.env.APP_URL || '',
