@@ -61,7 +61,7 @@ async function apiGet(path, key) {
     throw new Error(`api-football daily budget guard: notification pool ${budget.spentToday('alert')}/${budget.NOTIFICATION_BUDGET} already spent — skipping ${path}`);
   }
   budget.recordSpend(1, 'alert');
-  const res = await fetch(`${BASE}${path}`, { headers: { 'x-apisports-key': key } });
+  const res = await fetch(`${BASE}${path}`, { headers: { 'x-apisports-key': key }, signal: AbortSignal.timeout(30000) });
   if (!res.ok) throw new Error(`api-football ${path} → HTTP ${res.status}`);
   const json = await res.json();
   if (json.errors && Object.keys(json.errors).length) {

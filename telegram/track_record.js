@@ -253,6 +253,50 @@ async function settlePendingAlerts(apiFootballKey) {
   return { checked, settled };
 }
 
+// ── Settlement from the match page (no api-football) ──────────────────────────
+// Pre-match alerts carry asianbetsoccer's match id, and its match page
+// (botbot3 oddsComp, livegap_result.fetchResult) shows the confirmed FT score
+// once the match is over — the same source LIVEGAP/LIVEMODEL/CROSSMARKET
+// settle on. Used for OPENLINE (api-football's settlement budget is 0, so
+// those alerts were never settled). Checked from kick-off + 1 h 50 (or, for
+// old entries without a kick-off, every 3 h), at most `max` pages per call;
+// extra time → no result (Bet365 settles 1X2 at 90', the page shows the
+// final score); nothing 24 h after kick-off (or 10 days after the alert) →
+// given up as no result.
+async function settleFromMatchPages(fetcher, { strategies = ['OPENLINE'], now = Date.now(), max = 10 } = {}) {
+  const log = loadLog();
+  let checked = 0, settled = 0, changed = false;
+  for (const e of log) {
+    if (e.settled || !strategies.includes(e.strategy) || !e.matchId) continue;
+    const ko = Date.parse(e.kickoff_time || '');
+    const due = isFinite(ko) ? Math.max(ko + 110 * 60000, (e.pageCheckedAt || 0) + 20 * 60000) : (e.pageCheckedAt || 0) + 3 * 3600000;
+    if (now < due) continue;
+    if (checked >= max) break;
+    checked++; e.pageCheckedAt = now; changed = true;
+    let r; try { r = await fetcher(e.matchId); } catch (err) { continue; }
+    if (r.status === 'ET') { e.sawET = true; continue; }
+    if (r.status === 'FT' && r.score) {
+      if (e.sawET) { e.settled = true; e.result = 'NO RESULT'; e.finalScore = `${r.score} (after extra time)`; continue; }
+      const [ftH, ftA] = r.score.split('-').map(Number), [htH, htA] = (r.ht || '').split('-').map(v => v === '' ? null : Number(v));
+      const fraction = settleBetKey(e.betKey, { ftH, ftA, htH: r.ht ? htH : null, htA: r.ht ? htA : null, favSide: e.favSide, favLine: e.favLine, tlLine: e.tlLine });
+      if (fraction == null) continue;
+      Object.assign(e, { settled: true, settledBy: 'matchpage', fraction, finalScore: r.score + (r.ht ? ` (HT ${r.ht})` : ''),
+        result: fraction > 0 ? (fraction === 1 ? 'WIN' : 'HALF-WIN') : fraction === 0 ? 'PUSH' : (fraction === -1 ? 'LOSS' : 'HALF-LOSS') });
+      settled++;
+    } else if (now > (isFinite(ko) ? ko + 24 * 3600000 : e.timestamp + 10 * 86400000)) {
+      Object.assign(e, { settled: true, result: 'NO RESULT', finalScore: null });
+    }
+  }
+  // The page fetches above await — an alert recorded meanwhile must not be
+  // lost, so the updates are re-applied to a fresh read of the log.
+  if (changed) {
+    const keyOf = e => `${e.timestamp}|${e.matchId}|${e.betKey}`;
+    const upd = new Map(log.filter(e => strategies.includes(e.strategy)).map(e => [keyOf(e), e]));
+    saveLog(loadLog().map(e => upd.get(keyOf(e)) || e));
+  }
+  return { checked, settled };
+}
+
 // ── Digest ─────────────────────────────────────────────────────────────────────
 function buildDigestMessage(windowDays = 7) {
   const log = loadLog();
@@ -336,4 +380,4 @@ function buildDigestMessage(windowDays = 7) {
   return lines.join('\n');
 }
 
-module.exports = { recordAlert, settlePendingAlerts, buildDigestMessage, loadState, saveState };
+module.exports = { recordAlert, settlePendingAlerts, settleFromMatchPages, settleBetKey, buildDigestMessage, loadState, saveState, LOG_FILE };

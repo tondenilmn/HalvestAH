@@ -206,7 +206,7 @@ async function tryNextCombo(hash, gS, timestamp, day = 0) {
   const url = `https://botbot3.space/tables/v4/${gS}/tablenext/day${day}/${hash}.js?date=${timestamp}&_=${timestamp + 1}`;
   let jsText;
   try {
-    const resp = await fetch(url, { headers: makeBotbotHeaders(gS, hash) });
+    const resp = await fetch(url, { headers: makeBotbotHeaders(gS, hash), signal: AbortSignal.timeout(30000) });
     if (!resp.ok) {
       console.log(`  nextgame ${gS}/${hash.slice(0,8)}… → HTTP ${resp.status}`);
       return { matches: null, hashInvalid: resp.status === 404 };
@@ -233,7 +233,7 @@ async function tryCombo(hash, gS, timestamp) {
   const url = `https://botbot3.space/tables/v4/${gS}/livegame/${hash}.js?date=${timestamp}&_=${timestamp + 1}`;
   let jsText;
   try {
-    const resp = await fetch(url, { headers: makeBotbotHeaders(gS, hash) });
+    const resp = await fetch(url, { headers: makeBotbotHeaders(gS, hash), signal: AbortSignal.timeout(30000) });
     if (!resp.ok) {
       console.log(`  botbot3 ${gS}/${hash.slice(0,8)}… → HTTP ${resp.status}`);
       return { matches: null, hashInvalid: resp.status === 404 };
@@ -304,7 +304,7 @@ async function fetchHashesViaRelay() {
   if (!HASH_RELAY_URL) return { pinnacle: null, bet365: null, bet365live: null, sbobet: null };
   const url = `${HASH_RELAY_URL.replace(/\/$/, '')}/api/livescore`;
   try {
-    const resp = await fetch(url);
+    const resp = await fetch(url, { signal: AbortSignal.timeout(30000) });
     if (!resp.ok) {
       console.log(`  relay ${url} → HTTP ${resp.status}`);
       return { pinnacle: null, bet365: null, bet365live: null, sbobet: null };
@@ -352,7 +352,7 @@ async function fetchAllBookHashesDirect() {
   try {
     let resp;
     for (const headers of LIVESCORE_HEADER_SETS) {
-      resp = await fetch('https://www.asianbetsoccer.com/it/livescore.html', { headers });
+      resp = await fetch('https://www.asianbetsoccer.com/it/livescore.html', { headers, signal: AbortSignal.timeout(30000) });
       if (resp.ok) break;
       console.log(`  livescore.html → HTTP ${resp.status} (UA "${headers['User-Agent'].slice(0, 20)}…") — trying next header set`);
     }
@@ -741,7 +741,7 @@ async function fetchBet365OddsMap(timestamp, day = 0) {
   const url = `https://botbot3.space/tables/v4/${GS_PRIMARY}/tablenext/day${day}/${BET365_HASH}.js?date=${timestamp}&_=${timestamp + 1}`;
   let jsText;
   try {
-    const resp = await fetch(url, { headers: makeBotbotHeaders(GS_PRIMARY, BET365_HASH) });
+    const resp = await fetch(url, { headers: makeBotbotHeaders(GS_PRIMARY, BET365_HASH), signal: AbortSignal.timeout(30000) });
     if (!resp.ok) {
       console.log(`  bet365 tablenext/${BET365_HASH.slice(0, 8)}… → HTTP ${resp.status}`);
       return { map: new Map(), hashFailed: resp.status === 404 };
@@ -1013,7 +1013,7 @@ async function syncHashesFromApp() {
   for (const [b, h] of Object.entries(current)) _noteLocal(b, h);
   let json;
   try {
-    const resp = await fetch(`${HASH_RELAY_URL.replace(/\/$/, '')}/api/hashes?raw=1`);
+    const resp = await fetch(`${HASH_RELAY_URL.replace(/\/$/, '')}/api/hashes?raw=1`, { signal: AbortSignal.timeout(30000) });
     if (!resp.ok) return { adopted: [], error: `HTTP ${resp.status}` };
     json = await resp.json();
   } catch (e) { return { adopted: [], error: e.message }; }

@@ -40,7 +40,7 @@ const crossMarket = require('./crossmarket');
 const pinnGap = require('./pinngap');
 const { verifyBet365Price } = require('./apifootball');
 const crossdogLib = require('./crossdog_lib');
-const { recordAlert, settlePendingAlerts } = require('./track_record');
+const { recordAlert, settlePendingAlerts, settleFromMatchPages } = require('./track_record');
 const { computeLiveOdd, computeLive1HOdd, computeLiveResult2H, computeLiveBtts2H, _2hResultField, _2H_RESULT_KEYS, mcLiveLo, mcLiveHi } = require('./live_odds');
 const focusLib = require('./focus_lib');
 const focusSelect = require('./focus_select');
@@ -77,6 +77,7 @@ async function sendTelegram(text) {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({ chat_id: cfg.TELEGRAM_CHAT_ID, text, parse_mode: 'HTML' }),
+      signal:  AbortSignal.timeout(30000),
     });
     if (!res.ok) {
       console.error(`[TELEGRAM] Send FAILED: ${await res.text()}`);
@@ -827,7 +828,8 @@ async function runStrategyOpenline(match, ctx) {
       fixtureId: null,
       betKey: bet.k, betLabel,
       favSide, favLine, tlLine: opening.tlO,
-      priceAtAlert: marketOdds,
+      priceAtAlert: marketOdds, openPrice: openOdds ?? null, kickoff_time: match.kickoff_time || null,
+      daysToKickoff: +daysToKickoff.toFixed(2),
       mo: bet.mo, mo_lo: bet.mo_lo,
       strategy: 'OPENLINE', venue: 'soft', minute: null,
       state: { score: null, redCards: 0, half: null },
@@ -890,11 +892,26 @@ const cachedResult = async id => {
   if (_resultCache.size > 500) _resultCache.delete(_resultCache.keys().next().value);
   return r;
 };
-let _liveGapRunning = false;
+// Overlap guards hold the start time of the running scan, not a flag: a scan
+// stuck on a request that never returns (seen 2026-10-09 — every recorder
+// stopped overnight while the server kept answering) would otherwise block
+// every later scan until a restart. After SCAN_STUCK_MS a new scan starts
+// anyway; the stuck one can no longer clear the guard (token check).
+const LIVEGAP_STUCK_MS = 10 * 60000, PRICEGAP_STUCK_MS = 30 * 60000;
+function takeGuard(holder, key, stuckMs, label) {
+  const now = Date.now(), held = holder[key];
+  if (held && now - held < stuckMs) return null;
+  if (held) console.error(`${label}: previous scan running for ${Math.round((now - held) / 60000)} min — treating it as stuck and starting a new one`);
+  holder[key] = now;
+  return now;
+}
+const releaseGuard = (holder, key, token) => { if (holder[key] === token) holder[key] = 0; };
+const _liveGapGuard = { scan: 0 };
 
 async function runLiveGapScan() {
-  if (!cfg.LIVEGAP_ENABLED || _liveGapRunning) return;
-  _liveGapRunning = true;
+  if (!cfg.LIVEGAP_ENABLED) return;
+  const token = takeGuard(_liveGapGuard, 'scan', LIVEGAP_STUCK_MS, 'LiveGap');
+  if (!token) return;
   try {
     const now = Date.now();
     const [lm, b365] = await Promise.all([fetchLiveMatches(), fetchBet365LiveOddsMap()]);
@@ -1025,13 +1042,13 @@ async function runLiveGapScan() {
   } catch (e) {
     console.error('LiveGap scan error:', e.message);
   } finally {
-    _liveGapRunning = false;
+    releaseGuard(_liveGapGuard, 'scan', token);
   }
 }
 
 const priceGapDedup = new Dedup(24 * 60 * 60 * 1000);
 const PRICEGAP_LOG_DIR = path.join(__dirname, 'data', 'pricegap');
-const _priceGapRunning = { near: false, far: false };
+const _priceGapRunning = { near: 0, far: 0 };
 
 // CROSSMARKET shadow recorder (crossmarket.js): Bet365's AH vs its own 1X2 +
 // goal line (and back), same-moment prices from the same tablenext files this
@@ -1100,8 +1117,9 @@ function pinnIndex() {
 }
 
 async function runPriceGapScan(scope = 'near') {
-  if (!cfg.PRICEGAP_ENABLED || _priceGapRunning[scope]) return;
-  _priceGapRunning[scope] = true;
+  if (!cfg.PRICEGAP_ENABLED) return;
+  const token = takeGuard(_priceGapRunning, scope, PRICEGAP_STUCK_MS, `PriceGap(${scope})`);
+  if (!token) return;
   try {
     const nearMin = cfg.PRICEGAP_NEAR_HOURS * 60;
     const [fromDay, toDay, koMin, koMax] = scope === 'near'
@@ -1196,7 +1214,7 @@ async function runPriceGapScan(scope = 'near') {
     }
     console.log(`PriceGap(${scope}) — ${b365.matches.length} Bet365 / ${sbo.matches.length} Sbobet fixtures, ${compared} compared, ${record.length} gap(s) ≥${cfg.PRICEGAP_RECORD_MIN_PCT}%, ${alerts} alert(s)${cfg.CROSSMARKET_RECORD ? `, CrossMarket ${crossRec.length} row(s) / ${_crossPending.size} awaiting FT` : ''}${cfg.PINNGAP_RECORD ? `, PinnGap ${pinPaired} paired (Pinnacle ${pin.age ?? '—'} s old${pinFresh ? '' : ', not used'}) ${pinnRec.length} row(s)` : ''}${b365.hashFailed || sbo.hashFailed ? ' (a hash failed — check FEEDS)' : ''}.`);
   } finally {
-    _priceGapRunning[scope] = false;
+    releaseGuard(_priceGapRunning, scope, token);
   }
 }
 
@@ -3028,6 +3046,13 @@ async function runSettlementCheck() {
   } catch (e) {
     console.error(`[track_record] Settlement check failed: ${e.message}`);
   }
+  // OPENLINE alerts: confirmed FT score from the match page (no api-football quota).
+  try {
+    const r = await settleFromMatchPages(liveGapResult.fetchResult);
+    if (r.checked) console.log(`[track_record] OPENLINE: checked ${r.checked} match page(s), settled ${r.settled}.`);
+  } catch (e) {
+    console.error(`[track_record] OPENLINE settlement failed: ${e.message}`);
+  }
 }
 
 // ── Hash relay server ────────────────────────────────────────────────────────
@@ -3046,7 +3071,7 @@ function startHashRelayServer() {
     return;
   }
   const server = http.createServer((req, res) => {
-    for (const [route, mod, dir] of [['/pricegap/report', './pricegap_bets_report', PRICEGAP_BETS_DIR], ['/pinngap/report', './pinngap_report', PINNGAP_LOG_DIR]]) {
+    for (const [route, mod, dir] of [['/pricegap/report', './pricegap_bets_report', PRICEGAP_BETS_DIR], ['/pinngap/report', './pinngap_report', PINNGAP_LOG_DIR], ['/openline/report', './openline_report', require('./track_record').LOG_FILE]]) {
       if (req.url === route || req.url.startsWith(route + '?')) {
         const key = new URL(req.url, 'http://x').searchParams.get('key');
         if (process.env.LIVEGAP_REPORT_KEY && key !== process.env.LIVEGAP_REPORT_KEY) { res.writeHead(401, { 'Content-Type': 'text/plain' }); res.end('key required'); return; }
@@ -3110,7 +3135,7 @@ function startHashRelayServer() {
     res.end('ok');
   });
   server.listen(process.env.PORT, () => {
-    console.log(`Hash relay: listening on :${process.env.PORT} (GET /hashes${cfg.PINNACLE_RELAY ? ', GET /pinnacle' : ''}, GET /livegap/report, GET /livemodel/report, GET /crossmarket/report, GET /pricegap/report, GET /pinngap/report)`);
+    console.log(`Hash relay: listening on :${process.env.PORT} (GET /hashes${cfg.PINNACLE_RELAY ? ', GET /pinnacle' : ''}, GET /livegap/report, GET /livemodel/report, GET /crossmarket/report, GET /pricegap/report, GET /pinngap/report, GET /openline/report)`);
   });
 }
 
