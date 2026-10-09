@@ -69,7 +69,7 @@ const match = { id: 'w', home_team: 'Real Betis', away_team: 'Sevilla', league: 
   const lines = [{ hb: { t: KO - 4 * 3600000, paired: 10, fresh: true } }, o1, cz, c1, { t: KO + 2 * 3600000, id: 'w', res: '2-0', m: 'w' }];
   fs.writeFileSync(path.join(dir, '2026-10-10.jsonl'), lines.map(l => JSON.stringify(l)).join('\n') + '\n');
   const txt = require('./pinngap_report').buildReport(dir, { tz: 'UTC' });
-  assert(/Edge ≥ 3%:\n\s+all\s+1 bets · settled\s+1 · \s*\+1\.05u · ROI\s+\+105\.0% · CLV \+4\.1% \(1\)/.test(txt), 'won at 2.05, CLV 2.05/1.97');
+  assert(/Edge ≥ 3%:\n\s+all\s+1 bets · settled\s+1 · \s*\+1\.05u · ROI\s+\+105\.0% · vs blind \+109\.\d% \(blind -4\.\d%\) · CLV \+4\.1% \(1\)/.test(txt), 'won at 2.05, CLV 2.05/1.97, vs blind = ROI − Bet365 AH blind ROI near evens');
   assert(/median 60/.test(txt) && /Bet365's price coming down: 1 \(100%\)/.test(txt));
   fs.rmSync(dir, { recursive: true });
 }
@@ -79,8 +79,19 @@ const match = { id: 'w', home_team: 'Real Betis', away_team: 'Sevilla', league: 
   const lines = [a, { ...a, t: KO - 15 * 60000, ev: 'cl', p: 1.95, f: 2.0 }, { t: KO + 9e6, id: 'x', res: '1-1', m: 'x' }];
   fs.writeFileSync(path.join(dir, '2026-10-10.jsonl'), lines.map(l => JSON.stringify(l)).join('\n') + '\n');
   const txt = require('./pricegap_bets_report').buildReport(dir, { tz: 'UTC' });
-  assert(/settled 1 · at the Bet365 price shown \+1\.10u → ROI \+110\.0% · at the minimum odds \+1\.05u/.test(txt), 'away +0.5 at 1-1 wins');
+  assert(/settled 1 · at the Bet365 price shown \+1\.10u → ROI \+110\.0% · at the minimum odds \+1\.05u → ROI \+105\.0% · vs blind \+113\.9% \(blind -3\.9%\)/.test(txt), 'away +0.5 at 1-1 wins; vs blind');
   assert(/price shown vs Sbobet's closing fair → \+5\.0%/.test(txt) && /later lower 1, higher 0/.test(txt));
   fs.rmSync(dir, { recursive: true });
 }
-console.log('pinngap + pricegap alerts: all tests passed');
+// ── Vs blind: same market + price band, cells under MIN_N ignored
+{
+  const B = require('./blind');
+  assert.strictEqual(B.bandOf(1.95), 4); assert.strictEqual(B.bandOf(5.5), 9); assert.strictEqual(B.bandOf(1), -1);
+  const T = { 'AH|4': { n: 500, roi: -0.05 }, '1X2|draw|7': { n: 500, roi: -0.07 }, 'OU|4': { n: 50, roi: 0.5 } };
+  const v = B.vsBlind(T, [{ mk: 'AH', side: 'home', p: 1.95, ret: 1.95 }, { mk: '1X2', side: 'draw', p: 3.2, ret: 0 }, { mk: 'OU', side: 'over', p: 2, ret: 2 }]);
+  assert.strictEqual(v.n, 2, 'thin OU cell skipped');
+  assert(Math.abs(v.excess - ((0.95 + 0.05) + (-1 + 0.07)) / 2) < 1e-12);
+  const pre = B.prematchTable();
+  assert(B.blindRoi(pre, 'AH', 'home', 1.95) < 0 && B.blindRoi(pre, '1X2', 'away', 6) < B.blindRoi(pre, '1X2', 'away', 1.2), 'committed table: long prices lose more');
+}
+console.log('pinngap + pricegap alerts + vs blind: all tests passed');

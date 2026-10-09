@@ -18,6 +18,7 @@
 const fs = require('fs');
 const path = require('path');
 const { payout } = require('./livegap_report');
+const blind = require('./blind');
 
 const pct = x => `${x >= 0 ? '+' : ''}${(x * 100).toFixed(1)}%`;
 const units = x => `${x >= 0 ? '+' : ''}${x.toFixed(2)}u`;
@@ -39,9 +40,9 @@ function load(dir) {
 }
 
 function summarize(list, fin) {
-  let n = 0, plP = 0, plM = 0;
-  for (const a of list) { const f = fin.get(a.id); if (f == null) continue; const rp = payout(a, f, a.p), rm = payout(a, f, a.mo); if (rp == null) continue; n++; plP += rp - 1; plM += rm - 1; }
-  return { n, plP, plM };
+  let n = 0, plP = 0, plM = 0; const settled = [];
+  for (const a of list) { const f = fin.get(a.id); if (f == null) continue; const rp = payout(a, f, a.p), rm = payout(a, f, a.mo); if (rp == null) continue; n++; plP += rp - 1; plM += rm - 1; settled.push({ ...a, ret: rp }); }
+  return { n, plP, plM, vs: blind.vsBlind(blind.prematchTable(), settled) };
 }
 
 function buildReport(dir, opts = {}) {
@@ -54,12 +55,12 @@ function buildReport(dir, opts = {}) {
 
   const all = summarize(alerts, fin);
   const waiting = alerts.filter(a => !fin.has(a.id) && !noRes.has(a.id)).length;
-  out.push('', `RESULT (1 unit per alerted side): settled ${all.n}${all.n ? ` · at the Bet365 price shown ${units(all.plP)} → ROI ${pct(all.plP / all.n)} · at the minimum odds ${units(all.plM)} → ROI ${pct(all.plM / all.n)}` : ''} · waiting for FT ${waiting}${noRes.size ? ` · no result ${alerts.filter(a => noRes.has(a.id)).length}` : ''}`);
+  out.push('', `RESULT (1 unit per alerted side): settled ${all.n}${all.n ? ` · at the Bet365 price shown ${units(all.plP)} → ROI ${pct(all.plP / all.n)} · at the minimum odds ${units(all.plM)} → ROI ${pct(all.plM / all.n)}${blind.fmtVs(all.vs, all.n)}` : ''} · waiting for FT ${waiting}${noRes.size ? ` · no result ${alerts.filter(a => noRes.has(a.id)).length}` : ''}`);
   for (const [label, key] of [['by backtest bucket', 'b'], ['by market', 'mk']]) {
     out.push(`  ${label}:`);
     for (const v of [...new Set(alerts.map(a => a[key]))]) {
       const L = alerts.filter(a => a[key] === v), s = summarize(L, fin);
-      out.push(`    ${String(v).padEnd(14)} ${String(L.length).padStart(4)} sides · settled ${String(s.n).padStart(4)}${s.n ? ` · ${units(s.plP).padStart(8)} · ROI ${pct(s.plP / s.n).padStart(7)}` : ''}`);
+      out.push(`    ${String(v).padEnd(14)} ${String(L.length).padStart(4)} sides · settled ${String(s.n).padStart(4)}${s.n ? ` · ${units(s.plP).padStart(8)} · ROI ${pct(s.plP / s.n).padStart(7)}${blind.fmtVs(s.vs, s.n)}` : ''}`);
     }
   }
 
@@ -74,6 +75,7 @@ function buildReport(dir, opts = {}) {
       `  (the backtest's edge lives in this number: positive = the alerts beat the close)`);
   }
 
+  out.push('', 'Vs blind = ROI at the price shown minus what betting every side blind at Bet365\'s closing price returned at the same market and price band.');
   out.push('', 'ALERTED SIDES:');
   for (const a of alerts.slice(-80)) {
     const f = fin.get(a.id), c = cl.get(a.pk);

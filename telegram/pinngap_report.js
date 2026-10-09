@@ -20,6 +20,7 @@
 const fs = require('fs');
 const path = require('path');
 const { payout } = require('./livegap_report');
+const blind = require('./blind');
 
 const pct = x => `${x >= 0 ? '+' : ''}${(x * 100).toFixed(1)}%`;
 const units = x => `${x >= 0 ? '+' : ''}${x.toFixed(2)}u`;
@@ -53,13 +54,13 @@ function buildReport(dir, opts = {}) {
   const out = [`PINNGAP report (shadow — no alerts sent) · ${d.scans} scans from ${when(d.first)} to ${when(d.last)} · Pinnacle fresh on ${Math.round(d.fresh / d.scans * 100)}% of scans · ${opens.length} gaps opened on ${new Set(opens.map(o => o.id)).size} fixtures · ${[...new Set(opens.map(o => o.id))].filter(i => fin.has(i)).length} fixtures with a confirmed FT score`];
 
   const line = (label, list) => {
-    let n = 0, pl = 0, nc = 0, clv = 0;
+    let n = 0, pl = 0, nc = 0, clv = 0; const settled = [];
     for (const o of list) {
       const f = fin.get(o.id), r = f != null ? payout(o, f, o.p) : null;
-      if (r != null) { n++; pl += r - 1; }
+      if (r != null) { n++; pl += r - 1; settled.push({ ...o, ret: r }); }
       const c = cl.get(`${o.id}|${o.k}`); if (c && c.f > 1) { nc++; clv += o.p / c.f - 1; }
     }
-    out.push(`  ${label.padEnd(30)} ${String(list.length).padStart(5)} bets · settled ${String(n).padStart(5)}${n ? ` · ${units(pl).padStart(8)} · ROI ${pct(pl / n).padStart(7)}` : ''}${nc ? ` · CLV ${pct(clv / nc)} (${nc})` : ''}`);
+    out.push(`  ${label.padEnd(30)} ${String(list.length).padStart(5)} bets · settled ${String(n).padStart(5)}${n ? ` · ${units(pl).padStart(8)} · ROI ${pct(pl / n).padStart(7)}${blind.fmtVs(blind.vsBlind(blind.prematchTable(), settled), n)}` : ''}${nc ? ` · CLV ${pct(clv / nc)} (${nc})` : ''}`);
   };
   out.push('', 'FIRST SIGHTING — 1 unit at Bet365\'s price when the gap first reached the edge:');
   for (const X of [3, 5, 8]) {
@@ -83,7 +84,7 @@ function buildReport(dir, opts = {}) {
       closed.length ? `  closed mostly by Bet365's price coming down: ${byB} (${Math.round(byB / closed.length * 100)}%) · by Pinnacle's fair moving up: ${byP} (${Math.round(byP / closed.length * 100)}%)` : '',
       `  still ≥ 3% in the closing snapshot: ${stillAtClose}`].filter(Boolean));
   }
-  out.push('', 'Judge on CLV first (it needs no results) and on ROI only after a few hundred settled bets.');
+  out.push('', 'Vs blind = ROI minus what betting every side blind at Bet365\'s closing price returned at the same market and price band (blind_baseline.json).', 'Judge on CLV first (it needs no results) and on ROI only after a few hundred settled bets.');
   return out.join('\n');
 }
 

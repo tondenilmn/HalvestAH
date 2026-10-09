@@ -114,6 +114,7 @@ assert(/Beta \+0\.25 — Asian Handicap \(from now\)/.test(msgAH) && !/Pinnacle/
   const al = { t: T, id: 'z', min: 60, sc: '0-0', k: 'OU|over|0.5', mk: 'OU', side: 'over', line: 0.5, p: 2.0, f: 1.8, e: 11.1, se: 1, mo: 1.91, m: 'z match', lg: 'L' };
   fs2.writeFileSync(path2.join(dir, '2026-10-08.jsonl'), [{ alert: al }, { ...al, alert: undefined, e: 11.1 }, { t: T + 9e6, id: 'z', res: '1-0', m: 'z' }].map(l => JSON.stringify(l)).join('\n') + '\n');
   const txt = require('./livemodel_report').buildReport(dir, { tz: 'UTC' });
+  assert(/IN-PLAY BLIND/.test(txt) && /OU\s+0\.5|OU\s+1\.90–2\.10/.test(txt), 'in-play blind table from the recorded rows');
   assert(/ALERTS SENT: 1/.test(txt) && /WON \(FT 1-0\) \+1\.00u @2 · \+0\.91u @1\.91/.test(txt), 'alert settled at shown price and minimum');
   fs2.rmSync(dir, { recursive: true });
 })();
