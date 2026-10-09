@@ -78,6 +78,14 @@ function buildReport(dir, opts = {}) {
     }
     if (n) out.push(`  Settled ${n}: ${Object.entries(tally).filter(([, c]) => c).map(([k, c]) => `${c} ${k.toLowerCase()}`).join(', ')} · waiting ${waiting}${nr ? ` · no result ${nr}` : ''}`,
       `  At the Bet365 price shown: ${units(plP)} → ROI ${pct(plP / n)}${vsOf(d.alerts, n)} · at the minimum odds: ${units(plM)} → ROI ${pct(plM / n)}`);
+    // Edges ≥ 20% are blocked since 2026-10-09 (LIVEMODEL_MAX_EDGE_PCT): mostly Bet365
+    // Live prices left over from before a goal, so their profit was at a price nobody
+    // could get. Shown apart so the current rule's own record is visible.
+    for (const [lab, f] of [['edge < 20% (current rule)', a => a.e < 20], ['edge ≥ 20% (blocked since 09/10 — mostly stale prices)', a => a.e >= 20]]) {
+      const L = d.alerts.filter(f); let k = 0, pl = 0;
+      for (const a of L) { const fr = fin.get(a.id), r = fr != null ? payout(a, fr, a.p) : null; if (r != null) { k++; pl += r - 1; } }
+      if (L.length) out.push(`    ${lab.padEnd(54)} ${String(L.length).padStart(4)} alerts · settled ${String(k).padStart(4)}${k ? ` · ${units(pl).padStart(8)} → ROI ${pct(pl / k)}` : ''}`);
+    }
   }
 
   // ── 1. Calibration ──
@@ -118,6 +126,7 @@ function buildReport(dir, opts = {}) {
     strat('  1.70–2.50, 1st half', o => o.e >= X && inRange(o) && o.min <= 45 && !o.ht);
     strat('  1.70–2.50, half-time / 2nd half', o => o.e >= X && inRange(o) && (o.min > 45 || o.ht));
     strat('  1.70–2.50, Pinnacle also above fair', o => o.e >= X && inRange(o) && pinAgrees(o));
+    strat('  current alert rule (− 1 s.e., < 20%, not stale)', o => o.e - o.se >= X && o.e < 20 && inRange(o) && !o.st);
   }
 
   // ── In-play blind baseline table ──

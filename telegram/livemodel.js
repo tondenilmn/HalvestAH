@@ -184,9 +184,27 @@ function pinnacleFairOf(gapRows, s) {
 // window while ≥ 20% and 5–10% paid — see livemodel_report), Bet365 price in
 // minOdds–maxOdds, minute ≤ maxMinute. One alert per match (the first side
 // that passes) — the "first bet per match" the report measures.
+// Bet365 Live keeps serving a match's pre-goal prices for minutes after a goal
+// (seen 2026-10-09: MC Alger 1-0 at 78'-83' still quoted goal line 0.5 and the
+// 1X2 of a 0-0 — "MC Alger to win" 2.25 when the real price was ~1.10). Such a
+// row is not bettable and its "edge" is fiction. Two contradictions give it
+// away: a full-match goal line at or below the goals already scored, and —
+// from half-time on — the leading side priced as the outsider.
+function staleReason(odds, score, minute) {
+  if (!odds || !score) return null;
+  const g = score.home + score.away, lead = score.home - score.away;
+  if (odds.tl_c != null && odds.tl_c <= g) return `goal line ${odds.tl_c} with ${g} goal(s) scored — price from before a goal`;
+  if (lead !== 0 && minute != null && minute >= 45 && odds.x2_h > 1 && odds.x2_a > 1) {
+    const leader = lead > 0 ? odds.x2_h : odds.x2_a, trailer = lead > 0 ? odds.x2_a : odds.x2_h;
+    if (leader >= trailer) return `leading side at ${leader} vs ${trailer} — price from before a goal`;
+  }
+  return null;
+}
+
 function alertBlock(r, minute, o) {
   const e = r.edge * 100, se = r.se * 100;
   if (e < o.minEdge) return `edge +${e.toFixed(1)}% < ${o.minEdge}%`;
+  if (o.maxEdge != null && e >= o.maxEdge) return `edge +${e.toFixed(1)}% ≥ ${o.maxEdge}% (almost always a stale price or news the model lacks)`;
   if (o.useSe && e - se < o.minEdge) return `edge − s.e. ${(e - se).toFixed(1)}% < ${o.minEdge}%`;
   if (o.skipFrom != null && e >= o.skipFrom && e < o.skipTo) return `edge in the skipped ${o.skipFrom}–${o.skipTo}% band`;
   if (r.price < o.minOdds || r.price > o.maxOdds) return `price ${r.price} outside ${o.minOdds}–${o.maxOdds}`;
@@ -217,4 +235,4 @@ function formatAlert(match, minuteText, r, dist, pinFair, esc, betText, kellyFn,
   ].join('\n');
 }
 
-module.exports = { remainingShare, remainingDist, priceSides, pinnacleFairOf, favOf, tlBandOf, returnOf, alertBlock, minPrice, formatAlert, MIN_NEFF };
+module.exports = { staleReason, remainingShare, remainingDist, priceSides, pinnacleFairOf, favOf, tlBandOf, returnOf, alertBlock, minPrice, formatAlert, MIN_NEFF };

@@ -118,4 +118,10 @@ assert(/Beta \+0\.25 — Asian Handicap \(from now\)/.test(msgAH) && !/Pinnacle/
   assert(/ALERTS SENT: 1/.test(txt) && /WON \(FT 1-0\) \+1\.00u @2 · \+0\.91u @1\.91/.test(txt), 'alert settled at shown price and minimum');
   fs2.rmSync(dir, { recursive: true });
 })();
+// ── Stale Bet365 Live prices (MC Alger 1-0 at 83' still quoted as 0-0) + edge cap
+assert(/before a goal/.test(M.staleReason({ tl_c: 0.5, x2_h: 2.25, x2_x: 1.72, x2_a: 15 }, { home: 1, away: 0 }, 83)), 'goal line 0.5 at 1-0');
+assert(/leading side/.test(M.staleReason({ tl_c: 2.5, x2_h: 4, x2_x: 2, x2_a: 2.1 }, { home: 1, away: 0 }, 60)), 'leader priced as outsider after HT');
+assert.strictEqual(M.staleReason({ tl_c: 2.5, x2_h: 4, x2_x: 2, x2_a: 2.1 }, { home: 1, away: 0 }, 10), null, 'early on a big underdog can lead and stay the outsider');
+assert.strictEqual(M.staleReason({ tl_c: 1.5, x2_h: 1.25, x2_x: 5, x2_a: 15 }, { home: 1, away: 0 }, 80), null, 'consistent row');
+assert(/stale price/.test(M.alertBlock(side(0.25, 0.02, 2.0), 60, { ...o, maxEdge: 20 })), '≥ 20% blocked when capped');
 console.log('livemodel: all tests passed');

@@ -942,6 +942,8 @@ async function runLiveGapScan() {
           const htm = /^(\d+)-(\d+)$/.exec(String(match.ht_score || ''));
           const st = { minute: ctx.liveMin, isHT, score, ht: htm ? { home: +htm[1], away: +htm[2] } : null };
           const dist = liveModel.remainingDist(_dbAll, match.bet365_odds, st);
+          const stale = liveModel.staleReason(odds, score, ctx.liveMin);
+          if (stale) flogv(ctx.liveMin, ctx.label, 'LIVEMODEL', `stale Bet365 Live prices: ${stale}`);
           if (!dist.error) {
             const gr = pm ? liveGap.gapRows(odds, pm, { home: match.home_team, away: match.away_team }) : [];
             const last = s.modelLast || (s.modelLast = new Map());
@@ -956,12 +958,12 @@ async function runLiveGapScan() {
               const pf = liveModel.pinnacleFairOf(gr, r);
               recModel.push({ t: now, id, min: ctx.liveMin, sc: match.score, ht: match.ht_score || null, k: r.key, mk: r.mk, side: r.side, line: r.line,
                 p: r.price, f: +r.fair.toFixed(3), e: +(r.edge * 100).toFixed(2), se: +(r.se * 100).toFixed(2), ne: Math.round(dist.neff), lv: dist.level,
-                pf: pf ? +pf.toFixed(3) : null, rc: pm ? pm.red : null, m: ctx.label, lg: match.league || '' });
+                pf: pf ? +pf.toFixed(3) : null, rc: pm ? pm.red : null, m: ctx.label, lg: match.league || '', ...(stale ? { st: 1 } : {}) });
             }
             if (logged) { s.modelRec = true; modelRows++; }
             // Alert: the first side of this match passing the gate (one per match).
-            if (cfg.LIVEMODEL_ALERTS && !liveModelDedup.has(id)) {
-              const o = { minEdge: cfg.LIVEMODEL_MIN_EDGE_PCT, useSe: cfg.LIVEMODEL_USE_SE, skipFrom: cfg.LIVEMODEL_SKIP_FROM_PCT, skipTo: cfg.LIVEMODEL_SKIP_TO_PCT,
+            if (cfg.LIVEMODEL_ALERTS && !liveModelDedup.has(id) && !stale && now - s.changedAt >= cfg.LIVEMODEL_QUIET_MIN * 60000) {
+              const o = { minEdge: cfg.LIVEMODEL_MIN_EDGE_PCT, maxEdge: cfg.LIVEMODEL_MAX_EDGE_PCT, useSe: cfg.LIVEMODEL_USE_SE, skipFrom: cfg.LIVEMODEL_SKIP_FROM_PCT, skipTo: cfg.LIVEMODEL_SKIP_TO_PCT,
                           minOdds: cfg.LIVEMODEL_MIN_ODDS, maxOdds: cfg.LIVEMODEL_MAX_ODDS, maxMinute: cfg.LIVEMODEL_MAX_MINUTE, kellyFraction: cfg.LIVEMODEL_KELLY_FRACTION, bankroll: cfg.LIVEMODEL_BANKROLL };
               const pick = liveModel.priceSides(dist, odds, score).filter(r => !liveModel.alertBlock(r, ctx.liveMin, o)).sort((a, b) => b.edge - a.edge)[0];
               if (pick) {
@@ -992,6 +994,7 @@ async function runLiveGapScan() {
       }
 
       if (!tierAllowed(ctx.tier, cfg.LIVEGAP_TIER)) continue;
+      if (liveModel.staleReason(odds, score, ctx.liveMin)) continue; // Bet365 Live price from before a goal
       const opts = { minEdge, maxEdge: cfg.LIVEGAP_MAX_EDGE_PCT / 100, minOdds: cfg.LIVEGAP_MIN_ODDS, maxOdds: cfg.LIVEGAP_MAX_ODDS, minScans: cfg.LIVEGAP_MIN_SCANS, quietMs: cfg.LIVEGAP_QUIET_MIN * 60000,
                      maxMinute: cfg.LIVEGAP_MAX_MINUTE, pinAgeS, maxPinAgeS: cfg.LIVEGAP_MAX_PIN_AGE_S };
       const send = [];

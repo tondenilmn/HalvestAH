@@ -635,6 +635,12 @@ module.exports = {
   LIVEMODEL_USE_SE:          process.env.LIVEMODEL_USE_SE !== 'false',      // edge − 1 s.e. must clear it too
   LIVEMODEL_SKIP_FROM_PCT:   parseFloat(process.env.LIVEMODEL_SKIP_FROM_PCT || '10'), // edges 10–20% lost in every window
   LIVEMODEL_SKIP_TO_PCT:     parseFloat(process.env.LIVEMODEL_SKIP_TO_PCT || '20'),
+  // Edges this big are almost always a Bet365 Live price left over from before
+  // a goal (2026-10-09: +116% on MC Alger at 2.25 when the real price was ~1.10),
+  // and their recorded profit is at a price nobody could get. Added 2026-10-09.
+  LIVEMODEL_MAX_EDGE_PCT:    parseFloat(process.env.LIVEMODEL_MAX_EDGE_PCT || '20'),
+  // No alert within this many minutes of a score change (or of first seeing the match).
+  LIVEMODEL_QUIET_MIN:       parseFloat(process.env.LIVEMODEL_QUIET_MIN || '3'),
   LIVEMODEL_MIN_ODDS:        parseFloat(process.env.LIVEMODEL_MIN_ODDS || '1.70'),
   LIVEMODEL_MAX_ODDS:        parseFloat(process.env.LIVEMODEL_MAX_ODDS || '2.50'),
   LIVEMODEL_MAX_MINUTE:      parseInt(process.env.LIVEMODEL_MAX_MINUTE || '85', 10),
