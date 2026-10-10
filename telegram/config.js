@@ -630,7 +630,10 @@ module.exports = {
   // LIVEMODEL alerts (2026-10-08, user request): one Telegram alert per match,
   // the first side passing livemodel.alertBlock. Defaults = the rule the first
   // two days of recordings pointed to (still far too few to call it proven).
-  LIVEMODEL_ALERTS:          process.env.LIVEMODEL_ALERTS !== 'false',
+  // Silent since 2026-10-10 (user request — the model predicted results worse than
+  // Bet365's own price on log loss): would-be alerts are still logged (silent: true)
+  // and settled in the report. LIVEMODEL_ALERTS=true to send again.
+  LIVEMODEL_ALERTS:          process.env.LIVEMODEL_ALERTS === 'true',
   LIVEMODEL_MIN_EDGE_PCT:    parseFloat(process.env.LIVEMODEL_MIN_EDGE_PCT || '5'),
   LIVEMODEL_USE_SE:          process.env.LIVEMODEL_USE_SE !== 'false',      // edge − 1 s.e. must clear it too
   LIVEMODEL_SKIP_FROM_PCT:   parseFloat(process.env.LIVEMODEL_SKIP_FROM_PCT || '10'), // edges 10–20% lost in every window

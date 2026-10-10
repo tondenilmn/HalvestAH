@@ -974,7 +974,8 @@ async function runLiveGapScan() {
             }
             if (logged) { s.modelRec = true; modelRows++; }
             // Alert: the first side of this match passing the gate (one per match).
-            if (cfg.LIVEMODEL_ALERTS && !liveModelDedup.has(id) && !stale && now - s.changedAt >= cfg.LIVEMODEL_QUIET_MIN * 60000) {
+            // Silent unless LIVEMODEL_ALERTS (since 2026-10-10): the would-be alert is still picked, logged and settled.
+            if (!liveModelDedup.has(id) && !stale && now - s.changedAt >= cfg.LIVEMODEL_QUIET_MIN * 60000) {
               const o = { minEdge: cfg.LIVEMODEL_MIN_EDGE_PCT, maxEdge: cfg.LIVEMODEL_MAX_EDGE_PCT, useSe: cfg.LIVEMODEL_USE_SE, skipFrom: cfg.LIVEMODEL_SKIP_FROM_PCT, skipTo: cfg.LIVEMODEL_SKIP_TO_PCT,
                           minOdds: cfg.LIVEMODEL_MIN_ODDS, maxOdds: cfg.LIVEMODEL_MAX_ODDS, maxMinute: cfg.LIVEMODEL_MAX_MINUTE, kellyFraction: cfg.LIVEMODEL_KELLY_FRACTION, bankroll: cfg.LIVEMODEL_BANKROLL };
               const pick = liveModel.priceSides(dist, odds, score).filter(r => !liveModel.alertBlock(r, ctx.liveMin, o)).sort((a, b) => b.edge - a.edge)[0];
@@ -982,11 +983,11 @@ async function runLiveGapScan() {
                 liveModelDedup.mark(id);
                 const pf = liveModel.pinnacleFairOf(gr, pick);
                 const bfLine = bfEv ? `\n🔁 Betfair 1X2 now: ${bfEv.home_odd} / ${bfEv.draw_odd} / ${bfEv.away_odd} (${Math.round(bfEv.total_matched).toLocaleString('it-IT')} matched)` : '';
-                await sendTelegram(liveModel.formatAlert(match, match.minute ? String(match.minute).replace(/\\'/g, "'") : '', pick, dist, pf, esc, liveGap.betText, liveGap.kelly, o) + bfLine);
+                if (cfg.LIVEMODEL_ALERTS) await sendTelegram(liveModel.formatAlert(match, match.minute ? String(match.minute).replace(/\\'/g, "'") : '', pick, dist, pf, esc, liveGap.betText, liveGap.kelly, o) + bfLine);
                 recModel.push({ alert: { t: now, id, min: ctx.liveMin, sc: match.score, ht: match.ht_score || null, k: pick.key, mk: pick.mk, side: pick.side, line: pick.line,
                   p: pick.price, f: +pick.fair.toFixed(3), e: +(pick.edge * 100).toFixed(2), se: +(pick.se * 100).toFixed(2), ne: Math.round(dist.neff), pf: pf ? +pf.toFixed(3) : null,
-                  mo: +liveModel.minPrice(pick, o).toFixed(3), m: ctx.label, lg: match.league || '', ...(bfEv ? { bf: [bfEv.home_odd, bfEv.draw_odd, bfEv.away_odd] } : {}) } });
-                flog(ctx.liveMin, ctx.label, 'LIVEMODEL', `ALERT: ${pick.key} @${pick.price} fair ${pick.fair.toFixed(2)} (+${(pick.edge * 100).toFixed(1)}% ±${(pick.se * 100).toFixed(1)})`);
+                  mo: +liveModel.minPrice(pick, o).toFixed(3), m: ctx.label, lg: match.league || '', ...(bfEv ? { bf: [bfEv.home_odd, bfEv.draw_odd, bfEv.away_odd] } : {}), ...(cfg.LIVEMODEL_ALERTS ? {} : { silent: true }) } });
+                flog(ctx.liveMin, ctx.label, 'LIVEMODEL', `${cfg.LIVEMODEL_ALERTS ? 'ALERT' : 'SILENT (not sent)'}: ${pick.key} @${pick.price} fair ${pick.fair.toFixed(2)} (+${(pick.edge * 100).toFixed(1)}% ±${(pick.se * 100).toFixed(1)})`);
               }
             }
           }
@@ -3293,7 +3294,7 @@ async function main() {
   console.log(`Strategy OPENLINE [${on(cfg.OPENLINE_ENABLED)}][${cfg.OPENLINE_TIER}]: pick bucketed on OPENING odds (homeWinsFT/awayWinsFT only), priced at CURRENT Bet365  scan=day0-day${cfg.OPENLINE_WINDOW_DAYS} every ${cfg.OPENLINE_SCAN_INTERVAL_MINUTES}min  fire=first sight (restart: ≥${cfg.OPENLINE_RESTART_MIN_DAYS}d)  n≥${cfg.OPENLINE_MIN_N} z≥${cfg.OPENLINE_MIN_Z} edge≥${cfg.OPENLINE_MIN_EDGE}pp`);
   console.log(`Strategy CROSSDOG [${on(cfg.CROSSDOG_ENABLED)}][${cfg.CROSSDOG_TIER}]: back the dog when Sbobet's line disagrees (dogCover only)  fire=${cfg.CROSSDOG_WINDOW_MIN}min pre-kickoff window  gateMinN≥${cfg.CROSSDOG_GATE_MIN_N}  cells loaded: ${Object.keys(_crossdogCells.cells || {}).length} (generated ${_crossdogCells.generatedAt || 'never — run crossdog_config_search.js'})`);
   console.log(`Strategy LIVEGAP [${on(cfg.LIVEGAP_ENABLED)}][${cfg.LIVEGAP_TIER}]${cfg.LIVEGAP_ALERTS ? '' : ' SILENT (records only)'}: Bet365 in-play ≥${cfg.LIVEGAP_MIN_EDGE_PCT}% (and <${cfg.LIVEGAP_MAX_EDGE_PCT}%) above Pinnacle live, same line, price ${cfg.LIVEGAP_MIN_ODDS}-${cfg.LIVEGAP_MAX_ODDS} (UNVALIDATED)  every 1min  Pinnacle ≤${cfg.LIVEGAP_MAX_PIN_AGE_S}s  ${cfg.LIVEGAP_MIN_SCANS} scans  quiet ${cfg.LIVEGAP_QUIET_MIN}min  ≤${cfg.LIVEGAP_MAX_MINUTE}'  record=${cfg.LIVEGAP_RECORD ? `≥${cfg.LIVEGAP_RECORD_MIN_PCT}%` : 'off'}`);
-  console.log(`Strategy LIVEMODEL [${on(cfg.LIVEMODEL_RECORD && cfg.LIVEGAP_ENABLED)}]: Bet365 in-play price vs similar historical matches, records sides ≥${cfg.LIVEMODEL_RECORD_MIN_PCT}% · alerts ${cfg.LIVEMODEL_ALERTS ? `ON (edge ≥${cfg.LIVEMODEL_MIN_EDGE_PCT}%${cfg.LIVEMODEL_USE_SE ? ' after 1 s.e.' : ''}, not ${cfg.LIVEMODEL_SKIP_FROM_PCT}–${cfg.LIVEMODEL_SKIP_TO_PCT}%, price ${cfg.LIVEMODEL_MIN_ODDS}–${cfg.LIVEMODEL_MAX_ODDS}, ≤${cfg.LIVEMODEL_MAX_MINUTE}', one per match)` : 'OFF'}${_liveModelPending.size ? ` · ${_liveModelPending.size} match(es) from before the restart awaiting FT` : ''}`);
+  console.log(`Strategy LIVEMODEL [${on(cfg.LIVEMODEL_RECORD && cfg.LIVEGAP_ENABLED)}]: Bet365 in-play price vs similar historical matches, records sides ≥${cfg.LIVEMODEL_RECORD_MIN_PCT}% · alerts ${cfg.LIVEMODEL_ALERTS ? `ON (edge ≥${cfg.LIVEMODEL_MIN_EDGE_PCT}%${cfg.LIVEMODEL_USE_SE ? ' after 1 s.e.' : ''}, not ${cfg.LIVEMODEL_SKIP_FROM_PCT}–${cfg.LIVEMODEL_SKIP_TO_PCT}%, price ${cfg.LIVEMODEL_MIN_ODDS}–${cfg.LIVEMODEL_MAX_ODDS}, ≤${cfg.LIVEMODEL_MAX_MINUTE}', one per match)` : 'SILENT (would-be alerts logged and settled, not sent)'}${_liveModelPending.size ? ` · ${_liveModelPending.size} match(es) from before the restart awaiting FT` : ''}`);
   console.log(`Strategy PINNGAP [${on(cfg.PINNGAP_RECORD && cfg.PRICEGAP_ENABLED)}]: shadow recorder — Bet365 pre-match vs Pinnacle pre-match, same line, gaps ≥${cfg.PINNGAP_MIN_EDGE_PCT}% tracked open→closed, Pinnacle copies ≤${cfg.PINNGAP_MAX_PIN_AGE_S}s (never alerts)${_pinnPending.size ? ` · ${_pinnPending.size} fixture(s) awaiting FT` : ''}`);
   if (cfg.PRICEGAP_TRACK) console.log(`PRICEGAP tracking: alerts logged, closing snapshot and FT result → /pricegap/report${_pgPending.size ? ` · ${_pgPending.size} fixture(s) awaiting FT` : ''}`);
   console.log(`Strategy OPENWATCH [${on(cfg.OPENWATCH_RECORD && cfg.PRICEGAP_ENABLED)}]: shadow recorder — Bet365 pre-match vs the predicted Pinnacle close (research_books.js), ≥${cfg.OPENWATCH_MIN_EDGE_PCT}% (never alerts)${_owPending.size ? ` · ${_owPending.size} fixture(s) awaiting FT` : ''}`);

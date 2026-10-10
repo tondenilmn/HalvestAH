@@ -75,7 +75,8 @@ function buildReport(dir, opts = {}) {
   if (d.alerts.length) {
     let n = 0, plP = 0, plM = 0, waiting = 0, nr = 0;
     const tally = { WON: 0, 'HALF WON': 0, VOID: 0, 'HALF LOST': 0, LOST: 0 };
-    out.push('', `ALERTS SENT: ${d.alerts.length} (one per match; settled 1 unit at the Bet365 price shown and at the minimum odds)`);
+    const nSilent = d.alerts.filter(a => a.silent).length;
+    out.push('', `ALERTS SENT: ${d.alerts.length}${nSilent ? ` — ${nSilent} of them silent (LIVEMODEL_ALERTS off: would have been sent, not sent)` : ''} (one per match; settled 1 unit at the Bet365 price shown and at the minimum odds)`);
     for (const a of d.alerts) {
       const f = fin.get(a.id), rp = f != null ? payout(a, f, a.p) : null, rm = f != null ? payout(a, f, a.mo) : null;
       let res;
@@ -85,7 +86,7 @@ function buildReport(dir, opts = {}) {
         const oc = rp > 1.001 ? (rp < a.p - 1e-9 ? 'HALF WON' : 'WON') : rp < 0.999 ? (rp > 1e-9 ? 'HALF LOST' : 'LOST') : 'VOID';
         tally[oc]++; res = `${oc} (FT ${f}) ${units(rp - 1)} @${a.p} · ${units(rm - 1)} @${(+a.mo).toFixed(2)}`;
       }
-      out.push(`  ${when(a.t)}  ${a.m} · ${a.min ?? '?'}' ${a.sc} · ${a.k} · Bet365 ${a.p} (min ${(+a.mo).toFixed(2)}, edge +${a.e}% ±${a.se})\n      → ${res}`);
+      out.push(`  ${when(a.t)}  ${a.m} · ${a.min ?? '?'}' ${a.sc} · ${a.k} · Bet365 ${a.p} (min ${(+a.mo).toFixed(2)}, edge +${a.e}% ±${a.se})${a.silent ? ' [silent — not sent]' : ''}\n      → ${res}`);
     }
     if (n) out.push(`  Settled ${n}: ${Object.entries(tally).filter(([, c]) => c).map(([k, c]) => `${c} ${k.toLowerCase()}`).join(', ')} · waiting ${waiting}${nr ? ` · no result ${nr}` : ''}`,
       `  At the Bet365 price shown: ${units(plP)} → ROI ${pct(plP / n)}${vsOf(d.alerts, n)} · at the minimum odds: ${units(plM)} → ROI ${pct(plM / n)}`);
