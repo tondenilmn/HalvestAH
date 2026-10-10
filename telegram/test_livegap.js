@@ -10,11 +10,13 @@ const { parseGetData2NoneCalls } = require('./livescore');
 
 // ── Bet365 Live parser: indices 5 id, 7 AH, 11/31 AH prices, 15 TL, 19/36 O/U, 45/47/49 1X2
 const args = Array.from({ length: 51 }, (_, i) => i);
-Object.assign(args, { 5: "'abc123'", 7: '-0.25', 11: '1.95', 31: '1.90', 15: '2.5', 19: '2.10', 36: '1.75', 45: '2.4', 47: '3.1', 49: '3.3' });
+Object.assign(args, { 5: "'abc123'", 7: '-0.25', 11: '1.95', 31: '1.90', 15: '2.5', 19: '2.10', 36: '1.75', 45: '2.4', 47: '3.1', 49: '3.3',
+  8: '-0.5', 13: '1.88', 33: '1.98', 16: '2.75', 21: '1.95', 38: '1.9', 46: '2.2', 48: '3.3', 50: '3.4' }); // pre-match = 2nd of each pair
 const js = `match2text += getData2none(${args.join(',')});`;
 const parsed = parseGetData2NoneCalls(js);
 assert.strictEqual(parsed.length, 1);
-assert.deepStrictEqual(parsed[0], { matchId: 'abc123', live_odds: { ah_hc: -0.25, ho_c: 1.95, ao_c: 1.9, tl_c: 2.5, ov_c: 2.1, un_c: 1.75, x2_h: 2.4, x2_x: 3.1, x2_a: 3.3 } });
+assert.deepStrictEqual(parsed[0], { matchId: 'abc123', live_odds: { ah_hc: -0.25, ho_c: 1.95, ao_c: 1.9, tl_c: 2.5, ov_c: 2.1, un_c: 1.75, x2_h: 2.4, x2_x: 3.1, x2_a: 3.3,
+  pre: { ah_hc: -0.5, ho_c: 1.88, ao_c: 1.98, tl_c: 2.75, ov_c: 1.95, un_c: 1.9, x2_h: 2.2, x2_x: 3.3, x2_a: 3.4 } } });
 
 // ── Pinnacle raw lists → sheets (American odds → decimal; duplicate live entry dropped)
 const team = (alignment, name, score, red = 0) => ({ alignment, name, state: { score, redCards: red } });

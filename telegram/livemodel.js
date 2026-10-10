@@ -193,6 +193,13 @@ function pinnacleFairOf(gapRows, s) {
 function staleReason(odds, score, minute) {
   if (!odds || !score) return null;
   const g = score.home + score.away, lead = score.home - score.away;
+  // Live slot showing the pre-match prices (Bet365 suspended — half-time, after
+  // a goal): goal line, Over and Under prices all identical to pre-match, once
+  // the match is far enough in (or a goal has gone in) that live must differ.
+  const P = odds.pre;
+  if (P && (g > 0 || (minute != null && minute >= 20)) && P.tl_c != null && odds.tl_c === P.tl_c && odds.ov_c === P.ov_c && odds.un_c === P.un_c
+      && (odds.x2_h == null || P.x2_h == null || (odds.x2_h === P.x2_h && odds.x2_a === P.x2_a)))
+    return `live prices identical to pre-match (goal line ${odds.tl_c} @${odds.ov_c}) — Bet365 live market suspended`;
   if (odds.tl_c != null && odds.tl_c <= g) return `goal line ${odds.tl_c} with ${g} goal(s) scored — price from before a goal`;
   if (lead !== 0 && minute != null && minute >= 45 && odds.x2_h > 1 && odds.x2_a > 1) {
     const leader = lead > 0 ? odds.x2_h : odds.x2_a, trailer = lead > 0 ? odds.x2_a : odds.x2_h;

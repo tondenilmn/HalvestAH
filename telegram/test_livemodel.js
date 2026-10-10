@@ -124,4 +124,9 @@ assert(/leading side/.test(M.staleReason({ tl_c: 2.5, x2_h: 4, x2_x: 2, x2_a: 2.
 assert.strictEqual(M.staleReason({ tl_c: 2.5, x2_h: 4, x2_x: 2, x2_a: 2.1 }, { home: 1, away: 0 }, 10), null, 'early on a big underdog can lead and stay the outsider');
 assert.strictEqual(M.staleReason({ tl_c: 1.5, x2_h: 1.25, x2_x: 5, x2_a: 15 }, { home: 1, away: 0 }, 80), null, 'consistent row');
 assert(/stale price/.test(M.alertBlock(side(0.25, 0.02, 2.0), 60, { ...o, maxEdge: 20 })), '≥ 20% blocked when capped');
+// Live slot showing pre-match prices (Fukushima v Rayluck Shiga, HT 1-1: Over 3 @1.95 = pre-match)
+const pre = { tl_c: 3, ov_c: 1.95, un_c: 1.85, x2_h: 2.4, x2_x: 3.6, x2_a: 2.35 };
+assert(/identical to pre-match/.test(M.staleReason({ ...pre, pre }, { home: 1, away: 1 }, 45)), 'HT 1-1 with pre-match prices → stale');
+assert.strictEqual(M.staleReason({ tl_c: 3.5, ov_c: 1.83, un_c: 1.98, x2_h: 2.5, x2_x: 2.75, x2_a: 3, pre }, { home: 1, away: 1 }, 49), null, 'real live prices pass');
+assert.strictEqual(M.staleReason({ ...pre, pre }, { home: 0, away: 0 }, 5), null, 'at 5\' 0-0 live can equal pre-match');
 console.log('livemodel: all tests passed');

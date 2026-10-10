@@ -714,6 +714,13 @@ function parseGetData2NoneCalls(jsText) {
       ah_hc: pf(args[7]), ho_c: pf(args[11]), ao_c: pf(args[31]),
       tl_c: pf(args[15]), ov_c: pf(args[19]), un_c: pf(args[36]),
       x2_h: pf(args[45]), x2_x: pf(args[47]), x2_a: pf(args[49]),
+      // The same row also carries the PRE-MATCH prices (the second value of each
+      // pair). While Bet365 suspends its live markets (half-time, after a goal)
+      // the live slot can show these instead — kept so staleReason can tell
+      // (2026-10-10: Fukushima v Rayluck Shiga at HT alerted "Over 3 @1.95",
+      // the pre-match line/price; live was 3.5 @1.83).
+      pre: { ah_hc: pf(args[8]), ho_c: pf(args[13]), ao_c: pf(args[33]), tl_c: pf(args[16]), ov_c: pf(args[21]), un_c: pf(args[38]),
+             x2_h: pf(args[46]), x2_x: pf(args[48]), x2_a: pf(args[50]) },
     } });
   }
   return out;
