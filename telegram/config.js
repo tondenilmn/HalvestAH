@@ -292,6 +292,9 @@ module.exports = {
   // periodically as more months of data accumulate; it may find more.
   // ════════════════════════════════════════════════════════════════════════════
   FOCUS_ENABLED:        process.env.FOCUS_ENABLED !== 'false',
+  // Silent since 2026-10-10 (user request — Telegram keeps LATEGOAL, PRICEGAP, CROSSDOG): FOCUS still runs and its
+  // would-be alerts go to data/silent_alerts/ instead of Telegram. FOCUS_ALERTS=true to send again.
+  FOCUS_ALERTS:            process.env.FOCUS_ALERTS === 'true',
   FOCUS_PRE_WINDOW_MIN: parseInt(process.env.FOCUS_PRE_WINDOW_MIN || '10', 10),
   FOCUS_MIN_LIVE_N:     parseInt(process.env.FOCUS_MIN_LIVE_N || '50', 10), // min size of the live _dbAll pool backing a matched cell
 
@@ -359,6 +362,9 @@ module.exports = {
   // anything outside those two keys.
   // ════════════════════════════════════════════════════════════════════════════
   LIVEWATCH_ENABLED:            process.env.LIVEWATCH_ENABLED !== 'false',
+  // Silent since 2026-10-10 (user request — Telegram keeps LATEGOAL, PRICEGAP, CROSSDOG): LIVEWATCH still runs and its
+  // would-be alerts go to data/silent_alerts/ instead of Telegram. LIVEWATCH_ALERTS=true to send again.
+  LIVEWATCH_ALERTS:        process.env.LIVEWATCH_ALERTS === 'true',
   LIVEWATCH_TIER:               process.env.LIVEWATCH_TIER || 'ALL',
   LIVEWATCH_MIN_N:              parseInt(process.env.LIVEWATCH_MIN_N || '50', 10),
   // 70% chosen via backtest_livewatch.js's walk-forward sweep (best
@@ -452,6 +458,9 @@ module.exports = {
   // L123's layer1Live does) was NOT what was validated here, so OPENLINE
   // doesn't reuse layer1Live.
   OPENLINE_ENABLED:     process.env.OPENLINE_ENABLED !== 'false',
+  // Silent since 2026-10-10 (user request — Telegram keeps LATEGOAL, PRICEGAP, CROSSDOG): OPENLINE still runs and its
+  // would-be alerts go to data/silent_alerts/ instead of Telegram. OPENLINE_ALERTS=true to send again.
+  OPENLINE_ALERTS:         process.env.OPENLINE_ALERTS === 'true',
   OPENLINE_TIER:        process.env.OPENLINE_TIER        || 'ALL',
   OPENLINE_MIN_N:       parseInt(process.env.OPENLINE_MIN_N   || '15',  10),
   OPENLINE_MIN_Z:       parseFloat(process.env.OPENLINE_MIN_Z || '1.5'),

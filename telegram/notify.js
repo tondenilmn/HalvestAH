@@ -73,6 +73,19 @@ function flogv(liveMin, label, strat, msg) {
 }
 
 // ── Telegram ──────────────────────────────────────────────────────────────────
+// Strategies switched to silent (FOCUS / LIVEWATCH / OPENLINE since 2026-10-10)
+// still build their alert; it goes to data/silent_alerts/YYYY-MM-DD.jsonl instead.
+const SILENT_ALERTS_DIR = path.join(__dirname, 'data', 'silent_alerts');
+async function sendOrLog(strategy, on, text, match) {
+  if (on) return sendTelegram(text);
+  const plain = text.replace(/<[^>]+>/g, '').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+  try {
+    fs.mkdirSync(SILENT_ALERTS_DIR, { recursive: true });
+    fs.appendFileSync(path.join(SILENT_ALERTS_DIR, `${new Date().toISOString().slice(0, 10)}.jsonl`),
+      JSON.stringify({ t: Date.now(), strategy, id: match?.id || null, m: match ? `${match.home_team} v ${match.away_team}` : null, lg: match?.league || null, text: plain }) + '\n');
+  } catch (e) { console.error(`silent alert log failed: ${e.message}`); }
+  console.log(`[SILENT] ${strategy} alert logged, not sent → "${plain.replace(/\s+/g, ' ').trim().slice(0, 100)}…"`);
+}
 async function sendTelegram(text) {
   const url = `https://api.telegram.org/bot${cfg.TELEGRAM_TOKEN}/sendMessage`;
   const preview = text.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim().slice(0, 120);
@@ -821,7 +834,7 @@ async function runStrategyOpenline(match, ctx) {
       ...(kellyLn ? [kellyLn] : []),
     ]
   );
-  await sendTelegram(msg);
+  await sendOrLog('OPENLINE', cfg.OPENLINE_ALERTS, msg, match);
   openlineDedup.mark(dedupKey);
   decide();
   flog(liveMin, label, 'OPENLINE', `ALERT: ${bet.k} n=${bet.n} z=${bet.z.toFixed(2)} edge=${(bet.lo - bet.bl).toFixed(1)}pp current=@${marketOdds.toFixed(2)} mo_lo=@${bet.mo_lo} tier=${tier} daysToKickoff=${daysToKickoff.toFixed(1)}`);
@@ -836,7 +849,7 @@ async function runStrategyOpenline(match, ctx) {
       priceAtAlert: marketOdds, openPrice: openOdds ?? null, kickoff_time: match.kickoff_time || null,
       daysToKickoff: +daysToKickoff.toFixed(2),
       mo: bet.mo, mo_lo: bet.mo_lo,
-      strategy: 'OPENLINE', venue: 'soft', minute: null,
+      strategy: 'OPENLINE', venue: 'soft', minute: null, ...(cfg.OPENLINE_ALERTS ? {} : { silent: true }),
       state: { score: null, redCards: 0, half: null },
     });
   } else {
@@ -2593,7 +2606,7 @@ async function runStrategyFocusPreMatch(match, ctx) {
     // unverified; api-football has no half-specific O/U market anyway (see
     // apifootball.js's SUPPORTED set).
     const msg = focusFormat(match, key, cell, liveOdd, liveOddLo, null, null, odds, `Kickoff in ${Math.round(toKickoff)}m`);
-    await sendTelegram(msg);
+    await sendOrLog('FOCUS', cfg.FOCUS_ALERTS, msg, match);
     focusDedup.mark(dedupKey);
     flog(null, label, 'FOCUS', `ALERT: ${key} p=${live.p.toFixed(1)}% n=${live.n} liveOdd=${liveOdd.fair_odd} tier=${tier}`);
     // Not recorded to track_record — no verified price to gate on for this key.
@@ -2647,7 +2660,7 @@ async function runStrategyFocusHt(match, ctx) {
     }
 
     const msg = focusFormat(match, key, cell, liveOdd, liveOddLo, equivalent, apiFootballCheck, odds, `${liveMin}' · HT score ${htSnap.home}-${htSnap.away} · TL ${odds.tl_c ?? '—'}`);
-    await sendTelegram(msg);
+    await sendOrLog('FOCUS', cfg.FOCUS_ALERTS, msg, match);
     focusDedup.mark(dedupKey);
     flog(liveMin, label, 'FOCUS', `ALERT: ${key} p=${live.p.toFixed(1)}% n=${live.n} liveOdd=${liveOdd.fair_odd} equiv=${equivalent ? equivalent.label : '—'} tier=${tier}`);
 
@@ -2949,7 +2962,7 @@ async function runStrategyLiveWatch(match, ctx) {
     const msg = liveWatchFormat(match, key, liveOddLo.live_p, histP, histN, blP, {
       liveMin, isHalf1, curScore, htSnap, odds, equivalent, apiFootballCheck,
     });
-    await sendTelegram(msg);
+    await sendOrLog('LIVEWATCH', cfg.LIVEWATCH_ALERTS, msg, match);
     liveWatchDedup.mark(dedupKey);
     flog(liveMin, label, 'LIVEWATCH', `ALERT: ${key} live_p=${liveOdd.live_p.toFixed(1)}% live_lo=${liveOddLo.live_p.toFixed(1)}% hist=${histP.toFixed(1)}% n=${histN} tier=${tier}`);
 
@@ -3289,9 +3302,9 @@ async function main() {
   console.log(`Strategy DASHBOARD [${on(cfg.DASHBOARD_ENABLED)}][${cfg.DASHBOARD_TIER}]: cross-fit opening-odds pick  fire=${cfg.DASHBOARD_WINDOW_MIN}min pre-kickoff window  n≥${cfg.DASHBOARD_MIN_N} z≥${cfg.DASHBOARD_MIN_Z} edge≥${cfg.DASHBOARD_MIN_EDGE}pp`);
   console.log(`Strategy NEWMODEL [${on(cfg.NEWMODEL_ENABLED)}][${cfg.NEWMODEL_TIER}]: E8 LiveModel HT reprice (UNVALIDATED)  fire=HT window ${HT_SNAPSHOT_WINDOW[0]}'-${HT_SNAPSHOT_WINDOW[1]}'  minEdge≥${cfg.NEWMODEL_MIN_EDGE_PP}pp  minLoUnverified≥${cfg.NEWMODEL_MIN_LO_UNVERIFIED}%`);
   const focusSurvivorCounts = Object.entries(focusSelect.loadConfigs().results || {}).map(([k, v]) => `${k}=${v.length}`).join(' ') || 'none loaded';
-  console.log(`Strategy FOCUS [${on(cfg.FOCUS_ENABLED)}]: 1T/2T O/U 0.5/1.5, cells fixed offline by focus_config_search.js  fire=1H@${cfg.FOCUS_PRE_WINDOW_MIN}min pre-kickoff / 2H@HT window ${HT_SNAPSHOT_WINDOW[0]}'-${HT_SNAPSHOT_WINDOW[1]}'  minLiveN≥${cfg.FOCUS_MIN_LIVE_N}  survivingCells: ${focusSurvivorCounts}`);
-  console.log(`Strategy LIVEWATCH [${on(cfg.LIVEWATCH_ENABLED)}][${cfg.LIVEWATCH_TIER}]: live probability threshold watch (UNVALIDATED)  fire=CI-lower live_p≥${cfg.LIVEWATCH_THRESHOLD_PCT}% AND edge≥${cfg.LIVEWATCH_MIN_EDGE}pp vs baseline  1H-over=${cfg.LIVEWATCH_TRIGGER_WINDOW_1H_OVER[0]}'-${cfg.LIVEWATCH_TRIGGER_WINDOW_1H_OVER[1]}'  1H-under=${cfg.LIVEWATCH_TRIGGER_WINDOW_1H_UNDER[0]}'-${cfg.LIVEWATCH_TRIGGER_WINDOW_1H_UNDER[1]}'  2H-over=${cfg.LIVEWATCH_TRIGGER_WINDOW_2H_OVER[0]}'-${cfg.LIVEWATCH_TRIGGER_WINDOW_2H_OVER[1]}'  2H-under=${cfg.LIVEWATCH_TRIGGER_WINDOW_2H_UNDER[0]}'-${cfg.LIVEWATCH_TRIGGER_WINDOW_2H_UNDER[1]}'  minN≥${cfg.LIVEWATCH_MIN_N}  keys=${cfg.LIVEWATCH_KEYS.join(',')}`);
-  console.log(`Strategy OPENLINE [${on(cfg.OPENLINE_ENABLED)}][${cfg.OPENLINE_TIER}]: pick bucketed on OPENING odds (homeWinsFT/awayWinsFT only), priced at CURRENT Bet365  scan=day0-day${cfg.OPENLINE_WINDOW_DAYS} every ${cfg.OPENLINE_SCAN_INTERVAL_MINUTES}min  fire=first sight (restart: ≥${cfg.OPENLINE_RESTART_MIN_DAYS}d)  n≥${cfg.OPENLINE_MIN_N} z≥${cfg.OPENLINE_MIN_Z} edge≥${cfg.OPENLINE_MIN_EDGE}pp`);
+  console.log(`Strategy FOCUS [${on(cfg.FOCUS_ENABLED)}]${cfg.FOCUS_ALERTS ? '' : ' SILENT (logged to data/silent_alerts, not sent)'}: 1T/2T O/U 0.5/1.5, cells fixed offline by focus_config_search.js  fire=1H@${cfg.FOCUS_PRE_WINDOW_MIN}min pre-kickoff / 2H@HT window ${HT_SNAPSHOT_WINDOW[0]}'-${HT_SNAPSHOT_WINDOW[1]}'  minLiveN≥${cfg.FOCUS_MIN_LIVE_N}  survivingCells: ${focusSurvivorCounts}`);
+  console.log(`Strategy LIVEWATCH [${on(cfg.LIVEWATCH_ENABLED)}]${cfg.LIVEWATCH_ALERTS ? '' : ' SILENT (logged to data/silent_alerts, not sent)'}[${cfg.LIVEWATCH_TIER}]: live probability threshold watch (UNVALIDATED)  fire=CI-lower live_p≥${cfg.LIVEWATCH_THRESHOLD_PCT}% AND edge≥${cfg.LIVEWATCH_MIN_EDGE}pp vs baseline  1H-over=${cfg.LIVEWATCH_TRIGGER_WINDOW_1H_OVER[0]}'-${cfg.LIVEWATCH_TRIGGER_WINDOW_1H_OVER[1]}'  1H-under=${cfg.LIVEWATCH_TRIGGER_WINDOW_1H_UNDER[0]}'-${cfg.LIVEWATCH_TRIGGER_WINDOW_1H_UNDER[1]}'  2H-over=${cfg.LIVEWATCH_TRIGGER_WINDOW_2H_OVER[0]}'-${cfg.LIVEWATCH_TRIGGER_WINDOW_2H_OVER[1]}'  2H-under=${cfg.LIVEWATCH_TRIGGER_WINDOW_2H_UNDER[0]}'-${cfg.LIVEWATCH_TRIGGER_WINDOW_2H_UNDER[1]}'  minN≥${cfg.LIVEWATCH_MIN_N}  keys=${cfg.LIVEWATCH_KEYS.join(',')}`);
+  console.log(`Strategy OPENLINE [${on(cfg.OPENLINE_ENABLED)}]${cfg.OPENLINE_ALERTS ? '' : ' SILENT (logged to data/silent_alerts, not sent)'}[${cfg.OPENLINE_TIER}]: pick bucketed on OPENING odds (homeWinsFT/awayWinsFT only), priced at CURRENT Bet365  scan=day0-day${cfg.OPENLINE_WINDOW_DAYS} every ${cfg.OPENLINE_SCAN_INTERVAL_MINUTES}min  fire=first sight (restart: ≥${cfg.OPENLINE_RESTART_MIN_DAYS}d)  n≥${cfg.OPENLINE_MIN_N} z≥${cfg.OPENLINE_MIN_Z} edge≥${cfg.OPENLINE_MIN_EDGE}pp`);
   console.log(`Strategy CROSSDOG [${on(cfg.CROSSDOG_ENABLED)}][${cfg.CROSSDOG_TIER}]: back the dog when Sbobet's line disagrees (dogCover only)  fire=${cfg.CROSSDOG_WINDOW_MIN}min pre-kickoff window  gateMinN≥${cfg.CROSSDOG_GATE_MIN_N}  cells loaded: ${Object.keys(_crossdogCells.cells || {}).length} (generated ${_crossdogCells.generatedAt || 'never — run crossdog_config_search.js'})`);
   console.log(`Strategy LIVEGAP [${on(cfg.LIVEGAP_ENABLED)}][${cfg.LIVEGAP_TIER}]${cfg.LIVEGAP_ALERTS ? '' : ' SILENT (records only)'}: Bet365 in-play ≥${cfg.LIVEGAP_MIN_EDGE_PCT}% (and <${cfg.LIVEGAP_MAX_EDGE_PCT}%) above Pinnacle live, same line, price ${cfg.LIVEGAP_MIN_ODDS}-${cfg.LIVEGAP_MAX_ODDS} (UNVALIDATED)  every 1min  Pinnacle ≤${cfg.LIVEGAP_MAX_PIN_AGE_S}s  ${cfg.LIVEGAP_MIN_SCANS} scans  quiet ${cfg.LIVEGAP_QUIET_MIN}min  ≤${cfg.LIVEGAP_MAX_MINUTE}'  record=${cfg.LIVEGAP_RECORD ? `≥${cfg.LIVEGAP_RECORD_MIN_PCT}%` : 'off'}`);
   console.log(`Strategy LIVEMODEL [${on(cfg.LIVEMODEL_RECORD && cfg.LIVEGAP_ENABLED)}]: Bet365 in-play price vs similar historical matches, records sides ≥${cfg.LIVEMODEL_RECORD_MIN_PCT}% · alerts ${cfg.LIVEMODEL_ALERTS ? `ON (edge ≥${cfg.LIVEMODEL_MIN_EDGE_PCT}%${cfg.LIVEMODEL_USE_SE ? ' after 1 s.e.' : ''}, not ${cfg.LIVEMODEL_SKIP_FROM_PCT}–${cfg.LIVEMODEL_SKIP_TO_PCT}%, price ${cfg.LIVEMODEL_MIN_ODDS}–${cfg.LIVEMODEL_MAX_ODDS}, ≤${cfg.LIVEMODEL_MAX_MINUTE}', one per match)` : 'SILENT (would-be alerts logged and settled, not sent)'}${_liveModelPending.size ? ` · ${_liveModelPending.size} match(es) from before the restart awaiting FT` : ''}`);
