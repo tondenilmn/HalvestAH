@@ -21,7 +21,9 @@ const log = [
 ];
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'alerts-')), file = path.join(dir, 'alert_log.json');
 fs.writeFileSync(file, JSON.stringify(log));
-const txt = R.buildReport({ tz: 'UTC', logFile: file });
+const all = R.buildReport({ tz: 'UTC', logFile: file });
+assert(/everything in the log · 5 alerts recorded/.test(all) && /\? v \? · \?/.test(all), 'whole log by default; missing names shown as ?');
+const txt = R.buildReport({ tz: 'UTC', logFile: file, since: Date.UTC(2026, 9, 10) });
 assert(/4 alerts recorded/.test(txt), txt);
 assert(/LATEGOAL\s+2 alerts \(2 sent, 0 silent\) · settled\s+2 \(1 won, 0 half won, 0 void, 1 lost\) · hit 50% vs model 70% · at the price shown -1\.00u → ROI -100\.0% \(1 priced\) · at the target odds -0\.40u → ROI -20\.0%/.test(txt), txt);
 assert(/CROSSDOG\s+1 alerts .* at the price shown \+0\.50u → ROI \+50\.0% \(1 priced\)/.test(txt));

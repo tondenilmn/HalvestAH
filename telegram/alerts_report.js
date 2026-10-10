@@ -92,7 +92,7 @@ function buildReport(opts = {}) {
     for (const e of recent) {
       const price = e.priceAtAlert > 1 ? `@${e.priceAtAlert}` : 'no price';
       const res = !e.settled ? 'waiting for FT' : e.result === 'NO RESULT' ? 'no result' : `${e.result} (FT ${e.finalScore})${e.priceAtAlert > 1 ? ` ${units(plAt(e.fraction, e.priceAtAlert))}` : ''}`;
-      out.push(`  ${when(e.timestamp)}  ${e.strategy}${e.sent === false || e.silent ? ' [silent]' : ''} · ${e.homeTeam} v ${e.awayTeam}${e.minute != null ? ` · ${e.minute}'` : ''} · ${e.betLabel || e.betKey}${e.equivalent ? ` (= ${e.equivalent})` : ''} · ${price}${e.minOdds ? `, target @${(+e.minOdds).toFixed(2)}` : ''}\n      → ${res}`);
+      out.push(`  ${when(e.timestamp)}  ${e.strategy}${e.sent === false || e.silent ? ' [silent]' : ''} · ${e.homeTeam || '?'} v ${e.awayTeam || '?'}${e.minute != null ? ` · ${e.minute}'` : ''} · ${e.betLabel || e.betKey || '?'}${e.equivalent ? ` (= ${e.equivalent})` : ''} · ${price}${e.minOdds ? `, target @${(+e.minOdds).toFixed(2)}` : ''}\n      → ${res}`);
     }
   }
   out.push('', 'Small samples swing a lot — judge a strategy on a few hundred settled alerts, not a few days.');
