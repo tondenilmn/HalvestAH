@@ -666,6 +666,22 @@ module.exports = {
   PINNGAP_MIN_EDGE_PCT:      parseFloat(process.env.PINNGAP_MIN_EDGE_PCT || '3'),
   PINNGAP_MAX_EDGE_PCT:      parseFloat(process.env.PINNGAP_MAX_EDGE_PCT || '25'),
   PINNGAP_MAX_PIN_AGE_S:     parseInt(process.env.PINNGAP_MAX_PIN_AGE_S || '600', 10),
+  // BFPORT — paper portfolio on Betfair Exchange 1X2 (telegram/bfport.js, added
+  // 2026-10-10): Betfair back (oddsmonitor.eu) net of commission vs Pinnacle's
+  // pre-match fair (power de-vig), same moment; one paper bet per fixture,
+  // ⅛ Kelly on a paper bankroll. Never alerts. GET <bot>/bfport/report.
+  BFPORT_RECORD:             process.env.BFPORT_RECORD !== 'false',
+  BFPORT_COMMISSION:         parseFloat(process.env.BFPORT_COMMISSION || '0.045'), // Betfair Italy, on winnings
+  BFPORT_MIN_EDGE_PCT:       parseFloat(process.env.BFPORT_MIN_EDGE_PCT || '2'),
+  BFPORT_MAX_EDGE_PCT:       parseFloat(process.env.BFPORT_MAX_EDGE_PCT || '15'),
+  BFPORT_MIN_ODDS:           parseFloat(process.env.BFPORT_MIN_ODDS || '1.5'),
+  BFPORT_MAX_ODDS:           parseFloat(process.env.BFPORT_MAX_ODDS || '4'),
+  BFPORT_MIN_MATCHED:        parseFloat(process.env.BFPORT_MIN_MATCHED || '1000'),
+  BFPORT_MAX_BOOK:           parseFloat(process.env.BFPORT_MAX_BOOK || '1.04'),  // Σ 1/back over the 3 sides
+  BFPORT_MAX_PIN_AGE_S:      parseInt(process.env.BFPORT_MAX_PIN_AGE_S || '300', 10),
+  BFPORT_KELLY_FRACTION:     parseFloat(process.env.BFPORT_KELLY_FRACTION || '0.125'),
+  BFPORT_MAX_STAKE_PCT:      parseFloat(process.env.BFPORT_MAX_STAKE_PCT || '2'),
+  BFPORT_START_BANKROLL:     parseFloat(process.env.BFPORT_START_BANKROLL || '1000'),
   CROSSMARKET_RECORD_MIN_PCT: parseFloat(process.env.CROSSMARKET_RECORD_MIN_PCT || '3'),
   // ── oddsmonitor.eu — Betfair Exchange 1X2 (oddsmonitor.js, added 2026-10-09) ──
   // Live list every minute: a Bet365 live 1X2 price off Betfair's by ≥ the ratio
