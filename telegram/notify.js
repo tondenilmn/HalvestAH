@@ -73,6 +73,14 @@ function flogv(liveMin, label, strat, msg) {
 }
 
 // ── Telegram ──────────────────────────────────────────────────────────────────
+// Kick-off time for the track record: the feed's, else (in play) estimated from the
+// minute — the match-page settlement only needs it to know when to start checking.
+function kickoffFor(match, liveMin, now = Date.now()) {
+  if (match.kickoff_time) return match.kickoff_time;
+  if (liveMin == null) return null;
+  return new Date(now - (liveMin + (liveMin > 45 ? 15 : 0)) * 60000).toISOString();
+}
+
 // Strategies switched to silent (FOCUS / LIVEWATCH / OPENLINE since 2026-10-10)
 // still build their alert; it goes to data/silent_alerts/YYYY-MM-DD.jsonl instead.
 const SILENT_ALERTS_DIR = path.join(__dirname, 'data', 'silent_alerts');
@@ -644,8 +652,8 @@ async function runStrategyCrossDog(match, ctx) {
     fixtureId: apiFootballCheck?.fixtureId ?? null,
     betKey: 'dogCover', betLabel: 'AH Cover (Dog)',
     favSide, favLine, tlLine: odds.tl_c,
-    priceAtAlert: liveDogPrice,
-    mo: impliedPrice, mo_lo: impliedPrice,
+    priceAtAlert: liveDogPrice, verified: true, minOdds: +impliedPrice.toFixed(3), pModel: cell.ciLo,
+    mo: impliedPrice, mo_lo: impliedPrice, kickoff_time: match.kickoff_time || null, sent: true,
     strategy: 'CROSSDOG', venue: 'soft', minute: null,
     state: { score: null, redCards: 0, half: null },
   });
@@ -848,7 +856,7 @@ async function runStrategyOpenline(match, ctx) {
       favSide, favLine, tlLine: opening.tlO,
       priceAtAlert: marketOdds, openPrice: openOdds ?? null, kickoff_time: match.kickoff_time || null,
       daysToKickoff: +daysToKickoff.toFixed(2),
-      mo: bet.mo, mo_lo: bet.mo_lo,
+      mo: bet.mo, mo_lo: bet.mo_lo, verified: true, minOdds: bet.mo_lo, pModel: bet.lo, sent: !!cfg.OPENLINE_ALERTS,
       strategy: 'OPENLINE', venue: 'soft', minute: null, ...(cfg.OPENLINE_ALERTS ? {} : { silent: true }),
       state: { score: null, redCards: 0, half: null },
     });
@@ -1694,23 +1702,21 @@ async function runStrategyLateGoal(match, ctx) {
   lateGoalDedup.mark(dedupKey);
   flog(liveMin, label, 'LATEGOAL', `ALERT: ${bet.k} p=${bet.p.toFixed(1)}% z=${bet.z.toFixed(2)} n=${bet.n} liveOdd=${liveOdd.fair_odd} equiv=${equivalent ? equivalent.label : '—'} tier=${tier}`);
 
-  // Only recorded if api-football found a real price for the equivalent
-  // market AND it clears the target fair odds — see verifiedGoodPrice.
+  // Every alert is recorded (2026-10-10) so alerts_report.js can settle all of
+  // them: priceAtAlert = api-football's verified price when it found one, else
+  // null (then P/L is shown at minOdds — the target price the message gave).
   const lateGoalPrice = apiFootballCheck?.supported ? apiFootballCheck.odds : null;
-  if (verifiedGoodPrice(lateGoalPrice, liveOdd.fair_odd)) {
-    recordAlert({
-      matchId, homeTeam: match.home_team, awayTeam: match.away_team,
-      league: match.league, tier,
-      fixtureId: apiFootballCheck?.fixtureId ?? null, betKey: bet.k, betLabel: bet.label,
-      favSide, favLine, tlLine: odds.tl_c,
-      priceAtAlert: lateGoalPrice,
-      mo: bet.mo, mo_lo: bet.mo_lo,
-      strategy: 'LATEGOAL', venue: 'soft', minute: liveMin,
-      state: { score: `${htSnap.home}-${htSnap.away}`, redCards: 0, half: 2 },
-    });
-  } else {
-    flogv(liveMin, label, 'LATEGOAL', 'Not recorded to track record — no verified price clearing target.');
-  }
+  recordAlert({
+    matchId, homeTeam: match.home_team, awayTeam: match.away_team,
+    league: match.league, tier,
+    fixtureId: apiFootballCheck?.fixtureId ?? null, betKey: bet.k, betLabel: bet.label,
+    favSide, favLine, tlLine: odds.tl_c,
+    priceAtAlert: lateGoalPrice, verified: verifiedGoodPrice(lateGoalPrice, liveOdd.fair_odd),
+    minOdds: liveOdd.fair_odd, pModel: liveOddLo.live_p, equivalent: equivalent ? equivalent.label : null,
+    mo: bet.mo, mo_lo: bet.mo_lo, kickoff_time: kickoffFor(match, liveMin), sent: true,
+    strategy: 'LATEGOAL', venue: 'soft', minute: liveMin,
+    state: { score: `${htSnap.home}-${htSnap.away}`, redCards: 0, half: 2 },
+  });
 }
 
 // ── Strategy QUIET2H — "expect a quiet 2nd half" watch ───────────────────────
@@ -2609,7 +2615,16 @@ async function runStrategyFocusPreMatch(match, ctx) {
     await sendOrLog('FOCUS', cfg.FOCUS_ALERTS, msg, match);
     focusDedup.mark(dedupKey);
     flog(null, label, 'FOCUS', `ALERT: ${key} p=${live.p.toFixed(1)}% n=${live.n} liveOdd=${liveOdd.fair_odd} tier=${tier}`);
-    // Not recorded to track_record — no verified price to gate on for this key.
+    // No market price for 1H keys pre-kickoff — recorded at its target price only.
+    recordAlert({
+      matchId, homeTeam: match.home_team, awayTeam: match.away_team,
+      league: match.league, tier, fixtureId: null, betKey: key, betLabel: focusLib.FOCUS_LABELS[key],
+      favSide: matchCfg?.signals?.favSide ?? null, favLine: matchCfg?.signals?.favLine ?? null, tlLine: odds.tl_c,
+      priceAtAlert: null, verified: false, minOdds: liveOdd.fair_odd, pModel: liveOddLo.live_p,
+      mo: parseFloat((100 / live.p).toFixed(2)), mo_lo: parseFloat((100 / live.lo).toFixed(2)),
+      kickoff_time: match.kickoff_time || null, sent: !!cfg.FOCUS_ALERTS,
+      strategy: 'FOCUS', venue: 'soft', minute: null, state: { score: null, redCards: 0, half: 1 },
+    });
   }
 }
 
@@ -2665,20 +2680,18 @@ async function runStrategyFocusHt(match, ctx) {
     flog(liveMin, label, 'FOCUS', `ALERT: ${key} p=${live.p.toFixed(1)}% n=${live.n} liveOdd=${liveOdd.fair_odd} equiv=${equivalent ? equivalent.label : '—'} tier=${tier}`);
 
     const focusPrice = apiFootballCheck?.supported ? apiFootballCheck.odds : null;
-    if (verifiedGoodPrice(focusPrice, liveOdd.fair_odd)) {
-      recordAlert({
-        matchId, homeTeam: match.home_team, awayTeam: match.away_team,
-        league: match.league, tier,
-        fixtureId: apiFootballCheck?.fixtureId ?? null, betKey: key, betLabel: focusLib.FOCUS_LABELS[key],
-        favSide, favLine: matchCfg.signals.favLine, tlLine: odds.tl_c,
-        priceAtAlert: focusPrice,
-        mo: parseFloat((100 / live.p).toFixed(2)), mo_lo: parseFloat((100 / live.lo).toFixed(2)),
-        strategy: 'FOCUS', venue: 'soft', minute: liveMin,
-        state: { score: `${htSnap.home}-${htSnap.away}`, redCards: 0, half: 2 },
-      });
-    } else {
-      flogv(liveMin, label, 'FOCUS', 'Not recorded to track record — no verified price clearing target.');
-    }
+    recordAlert({
+      matchId, homeTeam: match.home_team, awayTeam: match.away_team,
+      league: match.league, tier,
+      fixtureId: apiFootballCheck?.fixtureId ?? null, betKey: key, betLabel: focusLib.FOCUS_LABELS[key],
+      favSide, favLine: matchCfg.signals.favLine, tlLine: odds.tl_c,
+      priceAtAlert: focusPrice, verified: verifiedGoodPrice(focusPrice, liveOdd.fair_odd),
+      minOdds: liveOdd.fair_odd, pModel: liveOddLo.live_p, equivalent: equivalent ? equivalent.label : null,
+      mo: parseFloat((100 / live.p).toFixed(2)), mo_lo: parseFloat((100 / live.lo).toFixed(2)),
+      kickoff_time: kickoffFor(match, liveMin), sent: !!cfg.FOCUS_ALERTS,
+      strategy: 'FOCUS', venue: 'soft', minute: liveMin,
+      state: { score: `${htSnap.home}-${htSnap.away}`, redCards: 0, half: 2 },
+    });
   }
 }
 
@@ -2968,20 +2981,18 @@ async function runStrategyLiveWatch(match, ctx) {
 
     const lwPrice = apiFootballCheck?.supported ? apiFootballCheck.odds : null;
     const lwMinOdd = liveOddLo.live_p > 0 ? parseFloat((100 / liveOddLo.live_p).toFixed(2)) : null;
-    if (verifiedGoodPrice(lwPrice, lwMinOdd)) {
-      recordAlert({
-        matchId, homeTeam: match.home_team, awayTeam: match.away_team,
-        league: match.league, tier,
-        fixtureId: apiFootballCheck?.fixtureId ?? null, betKey: key, betLabel: liveWatchLabel(key),
-        favSide, favLine, tlLine: odds.tl_c,
-        priceAtAlert: lwPrice,
-        mo: parseFloat((100 / liveOdd.live_p).toFixed(2)), mo_lo: lwMinOdd,
-        strategy: 'LIVEWATCH', venue: 'soft', minute: liveMin,
-        state: { score: match.score || null, redCards: 0, half: isHalf1 ? 1 : 2 },
-      });
-    } else {
-      flogv(liveMin, label, 'LIVEWATCH', 'Not recorded to track record — no verified price clearing target.');
-    }
+    recordAlert({
+      matchId, homeTeam: match.home_team, awayTeam: match.away_team,
+      league: match.league, tier,
+      fixtureId: apiFootballCheck?.fixtureId ?? null, betKey: key, betLabel: liveWatchLabel(key),
+      favSide, favLine, tlLine: odds.tl_c,
+      priceAtAlert: lwPrice, verified: verifiedGoodPrice(lwPrice, lwMinOdd),
+      minOdds: lwMinOdd, pModel: liveOddLo.live_p, equivalent: equivalent ? equivalent.label : null,
+      mo: parseFloat((100 / liveOdd.live_p).toFixed(2)), mo_lo: lwMinOdd,
+      kickoff_time: kickoffFor(match, liveMin), sent: !!cfg.LIVEWATCH_ALERTS,
+      strategy: 'LIVEWATCH', venue: 'soft', minute: liveMin,
+      state: { score: match.score || null, redCards: 0, half: isHalf1 ? 1 : 2 },
+    });
   }
 }
 
@@ -3167,12 +3178,12 @@ async function runSettlementCheck() {
   } catch (e) {
     console.error(`[track_record] Settlement check failed: ${e.message}`);
   }
-  // OPENLINE alerts: confirmed FT score from the match page (no api-football quota).
+  // Alerts of these strategies: confirmed FT score from the match page (no api-football quota).
   try {
-    const r = await settleFromMatchPages(liveGapResult.fetchResult);
-    if (r.checked) console.log(`[track_record] OPENLINE: checked ${r.checked} match page(s), settled ${r.settled}.`);
+    const r = await settleFromMatchPages(liveGapResult.fetchResult, { strategies: ['OPENLINE', 'CROSSDOG', 'LATEGOAL', 'FOCUS', 'LIVEWATCH'], max: 25 });
+    if (r.checked) console.log(`[track_record] match pages: checked ${r.checked}, settled ${r.settled} (OPENLINE, CROSSDOG, LATEGOAL, FOCUS, LIVEWATCH).`);
   } catch (e) {
-    console.error(`[track_record] OPENLINE settlement failed: ${e.message}`);
+    console.error(`[track_record] match-page settlement failed: ${e.message}`);
   }
 }
 
@@ -3218,6 +3229,16 @@ function startHashRelayServer() {
       if (process.env.LIVEGAP_REPORT_KEY && key !== process.env.LIVEGAP_REPORT_KEY) { res.writeHead(401, { 'Content-Type': 'text/plain' }); res.end('key required'); return; }
       let text;
       try { text = require('./pinngap_report').buildReport(OPENWATCH_LOG_DIR, { tz: cfg.DISPLAY_TZ, title: 'OPENWATCH' }); } catch (e) { text = `Report failed: ${e.message}`; }
+      res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' });
+      res.end(text);
+      return;
+    }
+    if (req.url === '/alerts/report' || req.url.startsWith('/alerts/report?')) {
+      // P/L of every Telegram alert strategy (alerts_report.js); same key as LIVEGAP's report.
+      const key = new URL(req.url, 'http://x').searchParams.get('key');
+      if (process.env.LIVEGAP_REPORT_KEY && key !== process.env.LIVEGAP_REPORT_KEY) { res.writeHead(401, { 'Content-Type': 'text/plain' }); res.end('key required'); return; }
+      let text;
+      try { text = require('./alerts_report').buildReport({ tz: cfg.DISPLAY_TZ, dirs: { pricegap: PRICEGAP_BETS_DIR, livegap: LIVEGAP_LOG_DIR, livemodel: LIVEMODEL_LOG_DIR } }); } catch (e) { text = `Report failed: ${e.message}`; }
       res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' });
       res.end(text);
       return;
@@ -3285,7 +3306,7 @@ function startHashRelayServer() {
     res.end('ok');
   });
   server.listen(process.env.PORT, () => {
-    console.log(`Hash relay: listening on :${process.env.PORT} (GET /hashes${cfg.PINNACLE_RELAY ? ', GET /pinnacle' : ''}, GET /livegap/report, GET /livemodel/report, GET /crossmarket/report, GET /pricegap/report, GET /pinngap/report, GET /openline/report, GET /oddsmonitor/report, GET /bfport/report, GET /openwatch/report)`);
+    console.log(`Hash relay: listening on :${process.env.PORT} (GET /hashes${cfg.PINNACLE_RELAY ? ', GET /pinnacle' : ''}, GET /livegap/report, GET /livemodel/report, GET /crossmarket/report, GET /pricegap/report, GET /pinngap/report, GET /openline/report, GET /oddsmonitor/report, GET /bfport/report, GET /openwatch/report, GET /alerts/report)`);
   });
 }
 
