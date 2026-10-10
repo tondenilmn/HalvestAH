@@ -178,11 +178,94 @@ function buildReport(dir, opts = {}) {
     out.push('', `PINNACLE CHECK — model edge ≥ 5% with a same-line Pinnacle price: ${withPin.length} rows; Pinnacle also had Bet365 above its fair in ${agree.length} (${Math.round(agree.length / withPin.length * 100)}%).`,
       `  Pinnacle agrees:    ${roiOf(agree)}`, `  Pinnacle disagrees: ${roiOf(withPin.filter(o => !pinAgrees(o)))}`);
   }
+  out.push('', ...logLossSection(rows, fin));
   out.push('', 'Vs blind = ROI minus what betting every recorded side blind returned at the same market and price band (in-play, from this recorder\'s own rows).', 'Large model edges usually mean Bet365 knows something the model does not (red card, line-ups, pressure). Judge only on settled rows across many matches.');
   return out.join('\n');
 }
 
-module.exports = { buildReport };
+// ── Log loss: model vs Bet365 (margin removed) vs Pinnacle vs Betfair ──
+// Only markets whose outcome is win/lose with no push: 1X2 (all three sides
+// logged at the same moment) and OU/AH half lines (both sides logged together).
+// One market snapshot per match+market+line per 15 min. Lower = better; a
+// coin flip scores ln 2 = 0.693 (two-way), ln 3 = 1.099 (1X2). Compared only on
+// the snapshots where every source in the comparison has a price.
+const norm = p => { const s = p.reduce((a, b) => a + b, 0); return p.map(x => x / s); };
+const devigProp = prices => norm(prices.map(x => 1 / x));
+function devigPow(prices) {
+  const q = prices.map(x => 1 / x), sum = k => q.reduce((a, x) => a + Math.pow(x, k), 0);
+  let lo = 0.5, hi = 1.5;
+  for (let i = 0; i < 60; i++) { const k = (lo + hi) / 2; if (sum(k) > 1) lo = k; else hi = k; }
+  return norm(q.map(x => Math.pow(x, (lo + hi) / 2)));
+}
+const ORDER = { '1X2': ['home', 'draw', 'away'], OU: ['over', 'under'], AH: ['home', 'away'] };
+
+function logLossEvents(rows, fin) {
+  const groups = new Map();
+  for (const o of rows) {
+    if (o.st || fin.get(o.id) == null) continue;
+    if (o.mk !== '1X2' && !(o.line != null && Math.abs(Math.abs(o.line % 1) - 0.5) < 1e-6)) continue;
+    const lineKey = o.mk === 'AH' ? Math.abs(o.line) : o.line ?? '';
+    const g = `${o.id}|${o.t}|${o.mk}|${lineKey}`;
+    if (!groups.has(g)) groups.set(g, []);
+    groups.get(g).push(o);
+  }
+  const seen = new Set(), ev = [];
+  for (const L of groups.values()) {
+    const o0 = L[0], sides = ORDER[o0.mk];
+    const by = sides.map(s => L.find(o => o.side === s));
+    if (by.some(o => !o)) continue;
+    if (o0.mk === 'AH' && Math.abs(by[0].line + by[1].line) > 1e-6) continue;
+    const slot = `${o0.id}|${o0.mk}|${o0.mk === 'AH' ? Math.abs(o0.line) : o0.line ?? ''}|${Math.floor(o0.t / 900000)}`;
+    if (seen.has(slot)) continue;
+    const won = by.findIndex(o => payout(o, fin.get(o.id), 2) > 1.5);
+    if (won < 0) continue;
+    seen.add(slot);
+    const ll = p => -Math.log(Math.max(1e-6, p[won]));
+    const e = { id: o0.id, mk: o0.mk, half: o0.min <= 45 && !o0.ht ? 1 : 2,
+      model: ll(norm(by.map(o => 1 / o.f))),
+      b365: ll(o0.mk === '1X2' ? devigPow(by.map(o => o.p)) : devigProp(by.map(o => o.p))) };
+    if (by.every(o => o.pf > 1)) e.pin = ll(norm(by.map(o => 1 / o.pf)));
+    if (o0.mk === '1X2' && Array.isArray(o0.bf) && o0.bf.every(x => x > 1)) e.bf = ll(devigProp(o0.bf));
+    ev.push(e);
+  }
+  return ev;
+}
+
+function logLossSection(rows, fin) {
+  const ev = logLossEvents(rows, fin);
+  const out = ['LOG LOSS — model vs Bet365\'s own price (margin removed) vs Pinnacle / Betfair, settled markets with no push (1X2, .5 lines), 1 snapshot per match+market per 15 min (lower = better):'];
+  if (!ev.length) return [...out, '  nothing settled yet'];
+  // Mean difference with a standard error over matches (snapshots of one match are correlated).
+  const cmp = (L, a, b) => {
+    const per = new Map();
+    for (const e of L) { const m = per.get(e.id) || { s: 0, n: 0 }; m.s += e[a] - e[b]; m.n++; per.set(e.id, m); }
+    const d = [...per.values()].map(m => m.s / m.n), k = d.length;
+    const mean = d.reduce((x, y) => x + y, 0) / k;
+    const se = k > 1 ? Math.sqrt(d.reduce((x, y) => x + (y - mean) ** 2, 0) / (k - 1) / k) : NaN;
+    return `${a} − ${b} ${mean >= 0 ? '+' : ''}${mean.toFixed(4)} ± ${isFinite(se) ? se.toFixed(4) : '?'}`;
+  };
+  const avg = (L, k) => (L.reduce((s, e) => s + e[k], 0) / L.length).toFixed(4);
+  const line = (label, L, srcs) => {
+    if (!L.length) return null;
+    const ms = new Set(L.map(e => e.id)).size;
+    return `  ${label.padEnd(28)} ${String(L.length).padStart(5)} snapshots · ${String(ms).padStart(4)} matches · ${srcs.map(s => `${s} ${avg(L, s)}`).join(' · ')} · ${srcs.slice(1).map(s => cmp(L, srcs[0], s)).join(' · ')}`;
+  };
+  const groups = [['1X2', e => e.mk === '1X2'], ['Goal line (.5)', e => e.mk === 'OU'], ['AH (.5)', e => e.mk === 'AH'],
+    ['all, 1st half', e => e.half === 1], ['all, HT / 2nd half', e => e.half === 2], ['all', () => true]];
+  out.push('  Model vs Bet365 (every snapshot):');
+  for (const [lab, f] of groups) { const r = line(lab, ev.filter(f), ['model', 'b365']); if (r) out.push(r); }
+  const wp = ev.filter(e => e.pin != null);
+  if (wp.length) {
+    out.push('  Where Pinnacle has the same line:');
+    for (const [lab, f] of groups) { const r = line(lab, wp.filter(f), ['model', 'b365', 'pin']); if (r) out.push(r); }
+  }
+  const wb = ev.filter(e => e.bf != null);
+  if (wb.length) out.push('  1X2 where Betfair is paired:', line('1X2', wb, ['model', 'b365', 'bf']));
+  out.push('  model − b365 < 0 means the model predicts better than Bet365\'s own price; ± is one standard error over matches.');
+  return out;
+}
+
+module.exports = { buildReport, logLossEvents };
 
 if (require.main === module) {
   const arg = (n, dflt) => { const i = process.argv.indexOf(n); return i > 0 ? process.argv[i + 1] : dflt; };

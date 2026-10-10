@@ -139,3 +139,21 @@ assert.strictEqual(M.staleReason({ ...pre, pre }, { home: 0, away: 0 }, 5), null
   fs3.rmSync(d3, { recursive: true });
 }
 console.log('livemodel: all tests passed');
+// ── Log loss: a 1X2 snapshot (all three sides) and an OU .5 pair; pushes skipped
+{
+  const { logLossEvents } = require('./livemodel_report');
+  const T = Date.UTC(2026, 9, 10, 12);
+  const r = (k, mk, side, line, p, f, extra = {}) => ({ t: T, id: 'm', min: 30, sc: '0-0', ht: null, k, mk, side, line, p, f, e: 0, se: 1, ...extra });
+  const rows = [
+    r('1X2|home|', '1X2', 'home', null, 2.0, 2.0, { pf: 2.1, bf: [2.0, 4.0, 4.0] }), r('1X2|draw|', '1X2', 'draw', null, 3.6, 4.0, { pf: 3.8 }), r('1X2|away|', '1X2', 'away', null, 3.6, 4.0, { pf: 3.8 }),
+    r('OU|over|2.5', 'OU', 'over', 2.5, 1.9, 2.5), r('OU|under|2.5', 'OU', 'under', 2.5, 1.9, 2.0),
+    r('OU|over|2', 'OU', 'over', 2, 1.9, 2), r('OU|under|2', 'OU', 'under', 2, 1.9, 2),          // integer line → skipped
+  ];
+  const ev = logLossEvents(rows, new Map([['m', '1-0']]));
+  assert.strictEqual(ev.length, 2);
+  const x = ev.find(e => e.mk === '1X2'), u = ev.find(e => e.mk === 'OU');
+  assert(close(x.model, -Math.log(0.5)) && x.b365 > x.model && x.b365 < -Math.log(0.5 / 1.0556), '1X2 home won: model 0.5; Bet365 power de-vig between proportional (0.474) and 0.5');
+  assert(x.pin > 0 && close(x.bf, -Math.log(0.5)));
+  assert(close(u.model, -Math.log(0.5 / 0.9)) && close(u.b365, Math.log(2)), 'under 2.5 won (1 goal): model 0.4/0.5 normalised');
+}
+console.log('livemodel log loss OK');
