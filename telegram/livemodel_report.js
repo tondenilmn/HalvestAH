@@ -45,15 +45,25 @@ function load(dir) {
   return { rows, fin, noRes, alerts };
 }
 
+const DEFAULT_SINCE = Date.parse(process.env.LIVEMODEL_REPORT_SINCE || '2026-10-10T08:21:00Z');
+
 function buildReport(dir, opts = {}) {
   const tz = opts.tz || 'Europe/Rome';
   const d = load(dir);
   if (!d || !d.rows.length) return `No LIVEMODEL data yet (${dir}). It needs the Railway volume mounted at /app/data.`;
-  const { rows, fin, noRes } = d;
+  // Clean start: before 2026-10-10 08:21 UTC (deploy of the stale-price checks)
+  // many rows and alerts used Bet365 Live prices left over from before a goal or
+  // from pre-match — not bettable, so they're left out unless opts.since = 0.
+  const since = opts.since ?? DEFAULT_SINCE;
+  const all = d.rows.length, allAlerts = d.alerts.length;
+  if (since) { d.rows = d.rows.filter(o => o.t >= since); d.alerts = d.alerts.filter(a => a.t >= since); }
   const when = t => new Date(t).toLocaleString('it-IT', { timeZone: tz, day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+  const sinceNote = since ? `Counting from ${when(since)} (stale-price checks live) — ${all - d.rows.length} older rows and ${allAlerts - d.alerts.length} older alerts left out; add ?all=1 to include them.` : 'All recordings, including the period before the stale-price checks (prices that were often not bettable).';
+  if (!d.rows.length) return `LIVEMODEL report\n\n${sinceNote}\n\nNo rows since then yet.`;
+  const { rows, fin, noRes } = d;
   const ret = o => { const f = fin.get(o.id); return f != null ? payout(o, f, o.p) : null; };
   const ids = new Set(rows.map(o => o.id));
-  const out = [`LIVEMODEL report (shadow — no alerts sent) · ${rows.length} rows · ${ids.size} matches from ${when(rows[0].t)} to ${when(rows[rows.length - 1].t)} · ${[...ids].filter(i => fin.get(i) != null).length} with a confirmed FT score · ${[...ids].filter(i => noRes.has(i)).length} no result found`];
+  const out = [sinceNote, '', `LIVEMODEL report · ${rows.length} rows · ${ids.size} matches from ${when(rows[0].t)} to ${when(rows[rows.length - 1].t)} · ${[...ids].filter(i => fin.get(i) != null).length} with a confirmed FT score · ${[...ids].filter(i => noRes.has(i)).length} no result found`];
 
   // In-play blind baseline from the calibration sample (1 row per match+side per 15 min).
   const seen = new Set(), cal = [];
@@ -176,5 +186,5 @@ module.exports = { buildReport };
 
 if (require.main === module) {
   const arg = (n, dflt) => { const i = process.argv.indexOf(n); return i > 0 ? process.argv[i + 1] : dflt; };
-  console.log(buildReport(path.resolve(__dirname, arg('--dir', 'data/livemodel'))));
+  console.log(buildReport(path.resolve(__dirname, arg('--dir', 'data/livemodel')), process.argv.includes('--all') ? { since: 0 } : {}));
 }

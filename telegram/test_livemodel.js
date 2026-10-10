@@ -79,7 +79,7 @@ const lines = [
   { t: T + 9e6, id: 'b', res: '0-0', ht: '0-0', m: 'b' },
 ];
 fs.writeFileSync(path.join(dir, '2026-10-07.jsonl'), lines.map(l => JSON.stringify(l)).join('\n') + '\n');
-const text = require('./livemodel_report').buildReport(dir, { tz: 'UTC' });
+const text = require('./livemodel_report').buildReport(dir, { tz: 'UTC', since: 0 });
 assert(/3 matches .* 2 with a confirmed FT score/.test(text));
 assert(/Edge ≥ 5%:\n\s+any price\s+2 bets · settled\s+2 · \s*\+0\.00u · ROI\s+\+0\.0% · 1 won, 1 lost/.test(text), 'first bet per match: a won +1, b lost −1');
 assert(/Edge ≥ 3%:\n\s+any price\s+3 bets · settled\s+2 .* · waiting 1/.test(text), 'c waiting');
@@ -113,7 +113,7 @@ assert(/Beta \+0\.25 — Asian Handicap \(from now\)/.test(msgAH) && !/Pinnacle/
   const T = Date.UTC(2026, 9, 8, 15);
   const al = { t: T, id: 'z', min: 60, sc: '0-0', k: 'OU|over|0.5', mk: 'OU', side: 'over', line: 0.5, p: 2.0, f: 1.8, e: 11.1, se: 1, mo: 1.91, m: 'z match', lg: 'L' };
   fs2.writeFileSync(path2.join(dir, '2026-10-08.jsonl'), [{ alert: al }, { ...al, alert: undefined, e: 11.1 }, { t: T + 9e6, id: 'z', res: '1-0', m: 'z' }].map(l => JSON.stringify(l)).join('\n') + '\n');
-  const txt = require('./livemodel_report').buildReport(dir, { tz: 'UTC' });
+  const txt = require('./livemodel_report').buildReport(dir, { tz: 'UTC', since: 0 });
   assert(/IN-PLAY BLIND/.test(txt) && /OU\s+0\.5|OU\s+1\.90–2\.10/.test(txt), 'in-play blind table from the recorded rows');
   assert(/ALERTS SENT: 1/.test(txt) && /WON \(FT 1-0\) \+1\.00u @2 · \+0\.91u @1\.91/.test(txt), 'alert settled at shown price and minimum');
   fs2.rmSync(dir, { recursive: true });
@@ -129,4 +129,13 @@ const pre = { tl_c: 3, ov_c: 1.95, un_c: 1.85, x2_h: 2.4, x2_x: 3.6, x2_a: 2.35 
 assert(/identical to pre-match/.test(M.staleReason({ ...pre, pre }, { home: 1, away: 1 }, 45)), 'HT 1-1 with pre-match prices → stale');
 assert.strictEqual(M.staleReason({ tl_c: 3.5, ov_c: 1.83, un_c: 1.98, x2_h: 2.5, x2_x: 2.75, x2_a: 3, pre }, { home: 1, away: 1 }, 49), null, 'real live prices pass');
 assert.strictEqual(M.staleReason({ ...pre, pre }, { home: 0, away: 0 }, 5), null, 'at 5\' 0-0 live can equal pre-match');
+// Default report starts at the stale-fix deploy: October 7 rows are left out.
+{
+  const fs3 = require('fs'), os3 = require('os'), path3 = require('path');
+  const d3 = fs3.mkdtempSync(path3.join(os3.tmpdir(), 'lm-since-'));
+  fs3.writeFileSync(path3.join(d3, 'a.jsonl'), JSON.stringify({ t: Date.UTC(2026, 9, 7, 15), id: 'x', min: 30, sc: '0-0', k: 'OU|over|2.5', mk: 'OU', side: 'over', line: 2.5, p: 2, f: 1.8, e: 8, se: 1 }) + '\n');
+  const t3 = require('./livemodel_report').buildReport(d3, { tz: 'UTC' });
+  assert(/1 older rows and 0 older alerts left out/.test(t3) && /No rows since then yet/.test(t3), t3);
+  fs3.rmSync(d3, { recursive: true });
+}
 console.log('livemodel: all tests passed');

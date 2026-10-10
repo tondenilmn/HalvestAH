@@ -3120,7 +3120,7 @@ function startHashRelayServer() {
       const key = new URL(req.url, 'http://x').searchParams.get('key');
       if (process.env.LIVEGAP_REPORT_KEY && key !== process.env.LIVEGAP_REPORT_KEY) { res.writeHead(401, { 'Content-Type': 'text/plain' }); res.end('key required'); return; }
       let text;
-      try { text = require('./livemodel_report').buildReport(LIVEMODEL_LOG_DIR, { tz: cfg.DISPLAY_TZ }); } catch (e) { text = `Report failed: ${e.message}`; }
+      try { text = require('./livemodel_report').buildReport(LIVEMODEL_LOG_DIR, { tz: cfg.DISPLAY_TZ, ...(/[?&]all=1/.test(req.url) ? { since: 0 } : {}) }); } catch (e) { text = `Report failed: ${e.message}`; }
       res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' });
       res.end(text);
       return;
