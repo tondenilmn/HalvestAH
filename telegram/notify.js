@@ -219,6 +219,34 @@ function buildMessage(strategyName, match, minuteScore, betLines) {
   ].join('\n');
 }
 
+// Short layout shared by the Telegram alerts (2026-10-10, user request — same
+// shape as PRICEGAP's): header · match · time, then one line for the bet and
+// one for min / price / stake, then a single check-the-price line.
+function shortMessage(title, match, timeLine, betLines, footer = 'Check the price on Bet365 first — skip it below the min.') {
+  return [
+    `${title} · ${esc(match.league) || '—'}`,
+    `⚽ <b>${esc(match.home_team)} vs ${esc(match.away_team)}</b>`,
+    timeLine,
+    ``,
+    ...betLines,
+    ``,
+    footer,
+  ].join('\n');
+}
+// ¼-Kelly stake % at `price` on the conservative probability `loPct` (null if no edge or no price).
+function stakePct(price, loPct, fraction = 4) {
+  if (!(price > 1) || loPct == null) return null;
+  const p = loPct / 100, f = p - (1 - p) / (price - 1);
+  return f > 0 ? (f * 100) / fraction : null;
+}
+// "min 1.60 · Bet365 1.75 ✓ · stake 1.2% of bankroll" (or "· price not found — check Bet365").
+function minPriceStakeLine(minOdds, price, loPct) {
+  const min = minOdds != null ? `min ${(+minOdds).toFixed(2)}` : 'min —';
+  if (!(price > 1)) return `   ${min} · price not found — check Bet365`;
+  const ok = minOdds == null || price >= minOdds, st = ok ? stakePct(price, loPct) : null;
+  return `   ${min} · Bet365 ${price.toFixed(2)} ${ok ? '✓' : '✗ below min — skip'}${st ? ` · stake ${st.toFixed(1)}% of bankroll` : ''}`;
+}
+
 // ── Database ──────────────────────────────────────────────────────────────────
 let _dbAll = null;
 
@@ -627,20 +655,17 @@ async function runStrategyCrossDog(match, ctx) {
     }
   }
 
-  const kickoffLine = toKickoff != null ? `Kickoff in ${Math.max(0, Math.round(toKickoff))} min` : 'Kickoff imminent';
-  const msg = buildMessage(
-    'CROSSDOG — Sbobet disagrees, back the dog',
+  // Short layout (2026-10-10): the dog as a team + Asian line, Bet365's price, the minimum, the stake.
+  const dogTeam = favSide === 'HOME' ? match.away_team : match.home_team;
+  const dogLine = favLine === 0 ? '0' : `+${favLine}`;
+  const msg = shortMessage(
+    `🐶 <b>CROSSDOG</b>`,
     match,
-    kickoffLine,
+    toKickoff != null ? `📅 Kick-off in ${Math.max(0, Math.round(toKickoff))} min` : '📅 Kick-off imminent',
     [
-      `👉 <b>AH Cover (Dog)</b>`,
-      realPriceVerdict('AH Cover (Dog)', liveDogPrice, impliedPrice),
-      modelProbLine(cell.ciLo),
-      kellyLine(liveDogPrice, cell.ciLo),
-      `📈 Bet365 fav_line ${favLine.toFixed(2)} (${favSide})  →  Sbobet ${sboCfg.signals.favLine.toFixed(2)} (Δ${lineDelta.toFixed(2)})`,
-      `📊 ${cell.hitPct.toFixed(0)}% historically (n=${cell.n}, cell=${cellKey}) — backtested +17.6% ROI@mo_lo pooled, 8/8 walk-forward months positive`,
-      ...(apiFootballCheck ? [apiFootballVerdictLine('AH Cover (Dog)', impliedPrice, apiFootballCheck)] : []),
-    ].filter(Boolean),
+      `👉 <b>${esc(dogTeam)} ${dogLine}</b> (Asian handicap) @ <b>${liveDogPrice.toFixed(2)}</b>`,
+      minPriceStakeLine(impliedPrice, liveDogPrice, cell.ciLo).replace(/ · Bet365 [\d.]+ ✓/, ''),
+    ],
   );
   await sendTelegram(msg);
   crossdogDedup.mark(dedupKey);
@@ -1618,21 +1643,16 @@ function tlPaceLine(odds, htSnap) {
 // lineMovementLine (pre-match open→close context, tangential to an in-play
 // decision already conditioned on the real HT state).
 function lateGoalFormat(match, bet, liveMin, htSnap, liveOdd, liveOddLo, equivalent, apiFootballCheck, odds, tlBandUsed) {
-  const marketLabel = equivalent ? equivalent.label : bet.label;
+  // Short layout (2026-10-10): the bet as the real market it equals, the minimum
+  // price (the live-decayed fair odds), Bet365's price when api-football found it.
   const actualPrice = apiFootballCheck?.supported ? apiFootballCheck.odds : null;
-  const verdictLine = realPriceVerdict(marketLabel, actualPrice, liveOdd.fair_odd);
-  const kellyLn = kellyLine(actualPrice, liveOddLo.live_p);
-  const paceLine = tlPaceLine(odds, htSnap);
-  return buildMessage(
-    `🟡 LATEGOAL — still no 2nd-half goal`,
+  return shortMessage(
+    `🟡 <b>LATE GOAL</b>`,
     match,
-    `${liveMin}' · Score stuck at ${htSnap.home}-${htSnap.away} since half-time`,
+    `⏱ ${liveMin}' · ${htSnap.home}-${htSnap.away}, no goal since half-time`,
     [
-      `👉 <b>${esc(bet.label)}</b>`,
-      verdictLine,
-      ...(kellyLn ? [kellyLn] : []),
-      ...(paceLine ? [paceLine] : []),
-      `📊 ${bet.p.toFixed(0)}% historically vs ${bet.bl.toFixed(0)}% baseline (n=${bet.n}, similar HT scores${tlBandUsed ? ' + Total Line' : ''})`,
+      `👉 <b>${esc(equivalent ? equivalent.label : bet.label)}</b>`,
+      minPriceStakeLine(liveOdd.fair_odd, actualPrice, liveOddLo.live_p),
     ],
   );
 }
