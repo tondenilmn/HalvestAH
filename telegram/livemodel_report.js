@@ -22,6 +22,7 @@ const fs = require('fs');
 const path = require('path');
 const { payout } = require('./livegap_report');
 const blind = require('./blind');
+const { classifyLeague } = require('./engine');
 
 const pct = x => `${x >= 0 ? '+' : ''}${(x * 100).toFixed(1)}%`;
 const units = x => `${x >= 0 ? '+' : ''}${x.toFixed(2)}u`;
@@ -127,6 +128,28 @@ function buildReport(dir, opts = {}) {
     strat('  1.70–2.50, half-time / 2nd half', o => o.e >= X && inRange(o) && (o.min > 45 || o.ht));
     strat('  1.70–2.50, Pinnacle also above fair', o => o.e >= X && inRange(o) && pinAgrees(o));
     strat('  current alert rule (− 1 s.e., < 20%, not stale)', o => o.e - o.se >= X && o.e < 20 && inRange(o) && !o.st);
+  }
+
+  // ── By league tier (TOP / MAJOR / OTHER, engine.classifyLeague) ──
+  const tierOf = o => classifyLeague(o.lg || '');
+  const tally = (list, label, w = 16) => {
+    let n = 0, pl = 0, won = 0;
+    for (const o of list) { const r = ret(o); if (r == null) continue; n++; pl += r - 1; if (r > 1.001) won++; }
+    return `    ${label.padEnd(w)} ${String(list.length).padStart(4)} bets · settled ${String(n).padStart(4)}${n ? ` · ${units(pl).padStart(8)} · ROI ${pct(pl / n).padStart(7)} · won ${Math.round(won / n * 100)}%${vsOf(list, n)}` : ''}`;
+  };
+  const firstOf = pick => { const f = new Map(); for (const o of rows) if (!f.has(o.id) && pick(o)) f.set(o.id, o); return [...f.values()]; };
+  const ruleNow = o => o.e - o.se >= 5 && o.e < 20 && inRange(o) && !o.st;
+  out.push('', 'BY LEAGUE TIER (TOP = top-5 leagues + UEFA cups, MAJOR = other strong leagues, OTHER = the rest):');
+  for (const [title, list] of [['Alerts sent, edge < 20% (current rule):', d.alerts.filter(a => a.e < 20)], ['Alerts sent, all:', d.alerts],
+    ['Recorded first bet per match under the current rule (edge − 1 s.e. ≥ 5%, < 20%, 1.70–2.50, not stale):', firstOf(ruleNow)]]) {
+    out.push(`  ${title}`);
+    for (const t of ['TOP', 'MAJOR', 'OTHER']) { const L = list.filter(o => tierOf(o) === t); if (L.length) out.push(tally(L, t)); }
+  }
+  const byLg = new Map(); for (const o of firstOf(ruleNow)) { const k = o.lg || '?'; if (!byLg.has(k)) byLg.set(k, []); byLg.get(k).push(o); }
+  const lgRows = [...byLg].filter(([, L]) => L.filter(o => ret(o) != null).length >= 5).sort((a, b) => b[1].length - a[1].length).slice(0, 15);
+  if (lgRows.length) {
+    out.push('  Leagues with ≥ 5 settled first bets under the current rule (small samples — noise at this size):');
+    for (const [lg, L] of lgRows) out.push(tally(L, `${classifyLeague(lg)} · ${lg}`.slice(0, 44), 44));
   }
 
   // ── In-play blind baseline table ──
