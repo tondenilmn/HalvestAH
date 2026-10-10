@@ -1,0 +1,30 @@
+{
+ "note": "Pinnacle closing μ / s ≈ w · [1, Bet365, Pinnacle, (Sbobet)] — research_books.js, all months",
+ "fitted": "2026-10-10",
+ "months": [
+  "2025-01",
+  "2026-02"
+ ],
+ "s_withSbobet": [
+  0.00616,
+  -0.0295,
+  0.13402,
+  0.90573
+ ],
+ "mu_withSbobet": [
+  -0.05896,
+  -0.06497,
+  0.22446,
+  0.86645
+ ],
+ "s_noSbobet": [
+  0.01849,
+  0.21121,
+  0.77683
+ ],
+ "mu_noSbobet": [
+  -0.01618,
+  0.12342,
+  0.88237
+ ]
+}

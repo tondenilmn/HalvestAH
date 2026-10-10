@@ -38,61 +38,13 @@ function load(book) {
 const num = x => { const v = parseFloat(x); return isFinite(v) ? v : null; };
 const score = s => { const m = String(s || '').match(/(\d+)\s*-\s*(\d+)/); return m ? [+m[1], +m[2]] : null; };
 
-// ── (μ, s) lookup table of win-equivalent probabilities (1 / fair odds) ──
-const MU0 = 0.3, MU1 = 6.5, DMU = 0.05, S0 = -4.5, S1 = 4.5, DS = 0.05;
-const NMU = Math.round((MU1 - MU0) / DMU) + 1, NS = Math.round((S1 - S0) / DS) + 1;
-const AH_LINES = []; for (let x = -4.5; x <= 4.5001; x += 0.25) AH_LINES.push(+x.toFixed(2));
-const TL_LINES = []; for (let x = 0.5; x <= 6.5001; x += 0.25) TL_LINES.push(+x.toFixed(2));
-const ahIdx = l => Math.round((l + 4.5) * 4), tlIdx = l => Math.round((l - 0.5) * 4);
-const lam = (mu, s) => [Math.max((mu + s) / 2, 0.02), Math.max((mu - s) / 2, 0.02)];
-const TAB_AH = new Float32Array(NMU * NS * AH_LINES.length), TAB_OU = new Float32Array(NMU * NS * TL_LINES.length);
-(function buildTables() {
-  for (let i = 0; i < NMU; i++) for (let j = 0; j < NS; j++) {
-    const [lh, la] = lam(MU0 + i * DMU, S0 + j * DS), P = FM.scoreGrid(lh, la);
-    const b = i * NS + j;
-    AH_LINES.forEach((l, k) => { TAB_AH[b * AH_LINES.length + k] = 1 / FM.fairOddsFromDist(FM.ahDist(P, l, 'home')); });
-    TL_LINES.forEach((l, k) => { TAB_OU[b * TL_LINES.length + k] = 1 / FM.fairOddsFromDist(FM.ouDist(P, l, 'over')); });
-  }
-})();
-function interp(tab, nl, k, mu, s) {
-  const x = Math.min(Math.max((mu - MU0) / DMU, 0), NMU - 1.001), y = Math.min(Math.max((s - S0) / DS, 0), NS - 1.001);
-  const i = Math.floor(x), j = Math.floor(y), fx = x - i, fy = y - j;
-  const g = (a, b) => tab[(a * NS + b) * nl + k];
-  return g(i, j) * (1 - fx) * (1 - fy) + g(i + 1, j) * fx * (1 - fy) + g(i, j + 1) * (1 - fx) * fy + g(i + 1, j + 1) * fx * fy;
-}
-const pAH = (mu, s, l) => interp(TAB_AH, AH_LINES.length, ahIdx(l), mu, s);
-const pOU = (mu, s, l) => interp(TAB_OU, TL_LINES.length, tlIdx(l), mu, s);
-const bis = (lo, hi, f) => { for (let i = 0; i < 40; i++) { const m = (lo + hi) / 2; if (f(m) > 0) hi = m; else lo = m; } return (lo + hi) / 2; };
-// AH home line + de-vigged home win-equivalent prob, goal line + over prob → (μ, s).
-function fit(ahLine, pHome, tl, pOver) {
-  let mu = 2.6, s = 0;
-  for (let it = 0; it < 6; it++) {
-    mu = bis(MU0, MU1, m => pOU(m, s, tl) - pOver);           // p(over) rises with μ
-    s = bis(S0, S1, x => pAH(mu, x, ahLine) - pHome);          // p(home covers) rises with s
-  }
-  return { mu, s };
-}
+const MF = require('./market_fit');
+const { evOf, ret, lam } = MF;
 function bookTime(o, when) {
-  const ah = num(o[`Home AH ${when}`]), ho = num(o[`Home Odds ${when}`]), ao = num(o[`Away Odds ${when}`]);
-  const tl = num(o[`Total Line ${when}`]), ov = num(o[`Over Odds ${when}`]), un = num(o[`Under Odds ${when}`]);
-  if ([ah, ho, ao, tl, ov, un].some(v => v == null) || ho <= 1 || ao <= 1 || ov <= 1 || un <= 1) return null;
-  if (Math.abs(ah) > 4.5 || tl < 0.5 || tl > 6.5 || Math.abs(ah * 4 - Math.round(ah * 4)) > 1e-6 || Math.abs(tl * 4 - Math.round(tl * 4)) > 1e-6) return null;
-  const a = FM.devig([ho, ao]), t = FM.devig([ov, un]);
-  const f = fit(ah, a.probs[0], tl, t.probs[0]);
-  return { ...f, ah, ho, ao, tl, ov, un, mAH: a.margin, mOU: t.margin };
-}
-
-// Return of 1 unit at price o on a handicap-style bet (value + line > 0 wins; quarter lines split).
-function ret(value, line, o) {
-  let r = 0; const parts = FM.splitLine(line);
-  for (const ln of parts) { const v = value + ln; r += v > 0 ? o : v < 0 ? 0 : 1; }
-  return r / parts.length;
-}
-// Expected return of that bet under (μ, s).
-function evOf(mu, s, kind, side, line, o) {
-  const [lh, la] = lam(mu, s), P = FM.scoreGrid(lh, la);
-  const d = kind === 'AH' ? FM.ahDist(P, line, side) : FM.ouDist(P, line, side);
-  return d.w * o + d.hw * (1 + o) / 2 + d.p + d.hl * 0.5;
+  const f = MF.fitPrices({ ah: num(o[`Home AH ${when}`]), ho: num(o[`Home Odds ${when}`]), ao: num(o[`Away Odds ${when}`]),
+    tl: num(o[`Total Line ${when}`]), ov: num(o[`Over Odds ${when}`]), un: num(o[`Under Odds ${when}`]) });
+  return f && { ...f, ah: num(o[`Home AH ${when}`]), ho: num(o[`Home Odds ${when}`]), ao: num(o[`Away Odds ${when}`]),
+    tl: num(o[`Total Line ${when}`]), ov: num(o[`Over Odds ${when}`]), un: num(o[`Under Odds ${when}`]) };
 }
 
 // ── OLS (normal equations, tiny) ──
@@ -214,8 +166,16 @@ function main() {
     const ms = Object.values(o.months), pos = ms.filter(v => v > 0).length;
     console.log(`  ${label.padEnd(62)} ${String(o.n).padStart(6)} bets · ROI ${pct(o.pl / o.n).padStart(7)} · CLV vs Pinnacle close ${pct(o.clv / o.n).padStart(7)} · ${pos}/${ms.length} months positive`);
   }
+  // Weights for the live recorder (openwatch.js): fit on every month.
+  const out = { note: 'Pinnacle closing μ / s ≈ w · [1, Bet365, Pinnacle, (Sbobet)] — research_books.js, all months', fitted: new Date().toISOString().slice(0, 10), months: [months[0], months[months.length - 1]] };
+  for (const withS of [true, false]) for (const key of ['s', 'mu']) {
+    const L = withS ? rows.filter(r => r.So) : rows;
+    out[`${key}_${withS ? 'withSbobet' : 'noSbobet'}`] = ols(L.map(r => feats(r, key, withS)), L.map(r => r.Pc[key])).map(v => +v.toFixed(5));
+  }
+  fs.writeFileSync(path.join(__dirname, 'openwatch_weights.json'), JSON.stringify(out, null, 1) + '\n');
+  console.log(`\nWeights for the live recorder written to openwatch_weights.json: ${JSON.stringify(out)}`);
   console.log(`\nDone in ${((Date.now() - t0) / 1000).toFixed(0)} s.`);
 }
 
 if (require.main === module) main();
-module.exports = { fit, evOf, ret };
+module.exports = { bookTime };

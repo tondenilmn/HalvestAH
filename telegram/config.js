@@ -666,6 +666,14 @@ module.exports = {
   PINNGAP_MIN_EDGE_PCT:      parseFloat(process.env.PINNGAP_MIN_EDGE_PCT || '3'),
   PINNGAP_MAX_EDGE_PCT:      parseFloat(process.env.PINNGAP_MAX_EDGE_PCT || '25'),
   PINNGAP_MAX_PIN_AGE_S:     parseInt(process.env.PINNGAP_MAX_PIN_AGE_S || '600', 10),
+  // Strategy OPENWATCH — shadow recorder, never alerts (telegram/openwatch.js):
+  // Bet365 pre-match vs the predicted Pinnacle close (research_books.js weights),
+  // any line; gap lifecycle like PINNGAP, tagged at-opening / Sbobet listed.
+  // GET <bot>/openwatch/report.
+  OPENWATCH_RECORD:          process.env.OPENWATCH_RECORD !== 'false',
+  OPENWATCH_MIN_EDGE_PCT:    parseFloat(process.env.OPENWATCH_MIN_EDGE_PCT || '3'),
+  OPENWATCH_MAX_EDGE_PCT:    parseFloat(process.env.OPENWATCH_MAX_EDGE_PCT || '25'),
+  OPENWATCH_MAX_PIN_AGE_S:   parseInt(process.env.OPENWATCH_MAX_PIN_AGE_S || '600', 10),
   // BFPORT — paper portfolio on Betfair Exchange 1X2 (telegram/bfport.js, added
   // 2026-10-10): Betfair back (oddsmonitor.eu) net of commission vs Pinnacle's
   // pre-match fair (power de-vig), same moment; one paper bet per fixture,

@@ -46,12 +46,13 @@ function load(dir) {
 function buildReport(dir, opts = {}) {
   const tz = opts.tz || 'Europe/Rome';
   const d = load(dir);
-  if (!d || !d.scans) return `No PINNGAP data yet (${dir}).`;
+  const title = opts.title || 'PINNGAP';
+  if (!d || !d.scans) return `No ${title} data yet (${dir}).`;
   const { rows, fin, noRes } = d;
   const when = t => new Date(t).toLocaleString('it-IT', { timeZone: tz, day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
   const opens = rows.filter(o => o.ev === 'open');
   const cl = new Map(rows.filter(o => o.ev === 'cl').map(o => [`${o.id}|${o.k}`, o]));
-  const out = [`PINNGAP report (shadow — no alerts sent) · ${d.scans} scans from ${when(d.first)} to ${when(d.last)} · Pinnacle fresh on ${Math.round(d.fresh / d.scans * 100)}% of scans · ${opens.length} gaps opened on ${new Set(opens.map(o => o.id)).size} fixtures · ${[...new Set(opens.map(o => o.id))].filter(i => fin.has(i)).length} fixtures with a confirmed FT score`];
+  const out = [`${title} report (shadow — no alerts sent) · ${d.scans} scans from ${when(d.first)} to ${when(d.last)} · Pinnacle fresh on ${Math.round(d.fresh / d.scans * 100)}% of scans · ${opens.length} gaps opened on ${new Set(opens.map(o => o.id)).size} fixtures · ${[...new Set(opens.map(o => o.id))].filter(i => fin.has(i)).length} fixtures with a confirmed FT score`];
 
   const line = (label, list) => {
     let n = 0, pl = 0, nc = 0, clv = 0; const settled = [];
@@ -67,9 +68,16 @@ function buildReport(dir, opts = {}) {
     const L = opens.filter(o => o.e >= X);
     out.push(` Edge ≥ ${X}%:`);
     line('all', L);
-    for (const mk of ['AH', 'OU', '1X2']) line(`  ${mk}`, L.filter(o => o.mk === mk));
+    for (const mk of ['AH', 'OU', '1X2']) if (L.some(o => o.mk === mk)) line(`  ${mk}`, L.filter(o => o.mk === mk));
     for (const [lab, lo, hi] of [['  ≤ 1 h before KO', 0, 60], ['  1–6 h', 60, 360], ['  6–24 h', 360, 1440], ['  > 24 h', 1440, 1e9]]) line(lab, L.filter(o => o.kmin > lo && o.kmin <= hi));
     line('  Pinnacle copy ≤ 2 min old', L.filter(o => o.pa != null && o.pa <= 120));
+    // OPENWATCH rows also carry op (Bet365 still on its opening line + price) and hs (Sbobet listed).
+    if (L.some(o => o.op != null)) {
+      line('  Bet365 still at its opening', L.filter(o => o.op === 1));
+      line('  Bet365 already moved', L.filter(o => o.op === 0));
+      line('  Sbobet listed', L.filter(o => o.hs === 1));
+      line('  no Sbobet', L.filter(o => o.hs === 0));
+    }
   }
 
   // Lifetime
