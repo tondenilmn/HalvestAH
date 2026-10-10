@@ -561,6 +561,10 @@ module.exports = {
   // always a stale price). One alert per match+market+side per 24h.
   PRICEGAP_ENABLED:          process.env.PRICEGAP_ENABLED !== 'false',
   PRICEGAP_MIN_EDGE_PCT:     parseFloat(process.env.PRICEGAP_MIN_EDGE_PCT || '5'),
+  // 2026-10-10 (user report: Vendsyssel v HB Køge Over 2.5 alerted @1.88 while the site already
+  // showed 1.70 — the feed was one refresh behind Bet365): a gap must be seen on this many
+  // scans in a row (≤ 2.5 intervals apart, same scope) before it alerts.
+  PRICEGAP_MIN_SCANS:        parseInt(process.env.PRICEGAP_MIN_SCANS || '2', 10),
   PRICEGAP_MAX_EDGE_PCT:     parseFloat(process.env.PRICEGAP_MAX_EDGE_PCT || '15'),
   PRICEGAP_TIER:             process.env.PRICEGAP_TIER || 'ALL',
   // 1X2 gaps alongside AH / goals (added 2026-10-04,

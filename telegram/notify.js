@@ -1129,11 +1129,13 @@ const _pgAlerted = new Map(); // `${id}|${market}|${side}|${line}` (PRICEGAP's o
       let o; try { o = JSON.parse(line); } catch { continue; }
       if (o.ev === 'alert' && o.ko > now) seen.set(o.pk, { koMs: o.ko, cl: false, row: o });
       else if (o.ev === 'cl' && seen.has(o.pk)) seen.get(o.pk).cl = true;
+      else if (o.ev === 'nx' && seen.has(o.pk)) seen.get(o.pk).nx = true;
     }
   }
   for (const [k, v] of seen) _pgAlerted.set(k, v);
 })();
 const pgRowKey = (id, r) => `${id}|${r.market}|${r.side}|${r.line}`;
+const _pgStreak = new Map(); // `${scope}|${pk}` → { n, first, last }: consecutive scans a side stayed ≥ the alert edge
 const pgBetRow = (t, ev, match, koMs, r, extra = {}) => ({
   t, ev, id: match.id, ko: koMs, kmin: Math.round((koMs - t) / 60000), pk: pgRowKey(match.id, r),
   k: `${r.market}|${r.side}|${r.line ?? ''}`, mk: r.market === 'X12' ? '1X2' : r.market, side: r.side,
@@ -1289,7 +1291,25 @@ async function runPriceGapScan(scope = 'near') {
         const r = rows.find(x => pgRowKey(match.id, x) === pk);
         pgRec.push(r ? pgBetRow(now, 'cl', match, a.koMs, r) : { t: now, ev: 'cl', id: match.id, ko: a.koMs, pk, k: a.row.k, moved: true, m: a.row.m });
       }
-      const gaps = priceGap.qualifyingGaps(rows, cfg.PRICEGAP_MIN_EDGE_PCT, cfg.PRICEGAP_MAX_EDGE_PCT)
+      // Next-scan check of each alert sent: is the price still ≥ the minimum odds? (gone = feed lag / fast correction)
+      if (cfg.PRICEGAP_TRACK) for (const [pk, a] of _pgAlerted) {
+        if (a.nx || !pk.startsWith(match.id + '|') || now - a.row.t < 30000) continue;
+        a.nx = true;
+        const r = rows.find(x => pgRowKey(match.id, x) === pk);
+        pgRec.push({ t: now, ev: 'nx', id: match.id, ko: a.koMs, pk, k: a.row.k, p: r ? r.price : null, held: r && r.price >= a.row.mo ? 1 : 0, mins: +((now - a.row.t) / 60000).toFixed(1), m: a.row.m });
+      }
+      // A gap alerts only after PRICEGAP_MIN_SCANS consecutive scans of this scope (a one-scan gap is
+      // usually the feed one refresh behind Bet365).
+      const intervalMs = (scope === 'near' ? cfg.PRICEGAP_SCAN_INTERVAL_MINUTES : cfg.PRICEGAP_FAR_SCAN_INTERVAL_MINUTES) * 60000;
+      const qual = priceGap.qualifyingGaps(rows, cfg.PRICEGAP_MIN_EDGE_PCT, cfg.PRICEGAP_MAX_EDGE_PCT);
+      for (const r of qual) {
+        const sk = `${scope}|${pgRowKey(match.id, r)}`;
+        let st = _pgStreak.get(sk);
+        if (st && now - st.last <= 2.5 * intervalMs) st.n++; else st = { n: 1, first: now };
+        st.last = now; _pgStreak.set(sk, st);
+        r._scans = st.n; r._first = st.first;
+      }
+      const gaps = qual.filter(r => r._scans >= cfg.PRICEGAP_MIN_SCANS)
         .filter(r => !priceGapDedup.has(`${match.id}:${r.market}:${r.side}:${r.line}`));
       if (!gaps.length) continue;
       for (const r of gaps) priceGapDedup.mark(`${match.id}:${r.market}:${r.side}:${r.line}`);
@@ -1302,7 +1322,7 @@ async function runPriceGapScan(scope = 'near') {
       if (cfg.PRICEGAP_TRACK && match.kickoff_time) {
         const koMs = Date.parse(match.kickoff_time);
         for (const r of gaps) {
-          const row = pgBetRow(now, 'alert', match, koMs, r, { mo: +(r.fair * (1 + cfg.PRICEGAP_MIN_EDGE_PCT / 100)).toFixed(3), b: priceGap.bucketOf(r).name });
+          const row = pgBetRow(now, 'alert', match, koMs, r, { mo: +(r.fair * (1 + cfg.PRICEGAP_MIN_EDGE_PCT / 100)).toFixed(3), b: priceGap.bucketOf(r).name, scans: r._scans, first: r._first });
           pgRec.push(row); _pgAlerted.set(row.pk, { koMs, cl: false, row });
         }
         crossMarket.queue(_pgPending, match.id, `${match.home_team} v ${match.away_team}`, koMs);
@@ -1317,6 +1337,7 @@ async function runPriceGapScan(scope = 'near') {
       if (scope === 'near' && _pgPending.size) pgRec.push(...await liveGapResult.settleDue(_pgPending, now, cachedResult));
       if (pgRec.length) liveGap.appendRecords(PRICEGAP_BETS_DIR, now, pgRec);
       for (const [k, a] of _pgAlerted) if (now - a.koMs > 6 * 3600000) _pgAlerted.delete(k);
+      if (_pgStreak.size > 20000) for (const [k, v] of _pgStreak) if (now - v.last > 3600000) _pgStreak.delete(k);
     }
     if (cfg.PINNGAP_RECORD) {
       if (scope === 'near' && _pinnPending.size) pinnRec.push(...await liveGapResult.settleDue(_pinnPending, now, cachedResult));

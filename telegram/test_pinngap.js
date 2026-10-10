@@ -83,6 +83,20 @@ const match = { id: 'w', home_team: 'Real Betis', away_team: 'Sevilla', league: 
   assert(/price shown vs Sbobet's closing fair → \+5\.0%/.test(txt) && /later lower 1, higher 0/.test(txt));
   fs.rmSync(dir, { recursive: true });
 }
+// PRICEGAP next-scan check: one alert still there, one gone (the Vendsyssel case); confirmed vs single-scan split
+{
+  const dir = tmp('pricegap-nx-');
+  const a = { t: KO - 3 * 3600000, ev: 'alert', id: 'x', ko: KO, kmin: 180, pk: 'x|AH|away|-0.5', k: 'AH|away|-0.5', mk: 'AH', side: 'away', line: 0.5, p: 2.1, f: 1.95, e: 7.7, mo: 2.05, b: 'moved', u: 0, sc: '0-0', m: 'x match', lg: 'L', scans: 2 };
+  const b = { ...a, id: 'y', pk: 'y|OU|over|2.5', k: 'OU|over|2.5', mk: 'OU', side: 'over', line: 2.5, p: 1.88, mo: 1.88, m: 'y match', scans: undefined };
+  const lines = [a, b, { t: a.t + 60000, ev: 'nx', id: 'x', pk: a.pk, p: 2.08, held: 1 }, { t: b.t + 60000, ev: 'nx', id: 'y', pk: b.pk, p: 1.7, held: 0 },
+    { t: KO + 9e6, id: 'x', res: '1-1', m: 'x' }, { t: KO + 9e6, id: 'y', res: '2-1', m: 'y' }];
+  fs.writeFileSync(path.join(dir, '2026-10-10.jsonl'), lines.map(l => JSON.stringify(l)).join('\n') + '\n');
+  const txt = require('./pricegap_bets_report').buildReport(dir, { tz: 'UTC' });
+  assert(/2 checked · still ≥ the minimum odds 1 \(50%\) · gone or below 1/.test(txt), txt);
+  assert(/price still there\s+1 sides · settled\s+1 · \s*\+1\.10u/.test(txt) && /gone \/ below the minimum \(not bettable\)\s+1 sides · settled\s+1 · \s*\+0\.88u/.test(txt));
+  assert(/confirmed on 2\+ scans before alerting\s+1 sides/.test(txt) && /next scan: 1\.7 ✗ below min/.test(txt) && /2 scans\) · next scan: 2\.08 ✓/.test(txt));
+  fs.rmSync(dir, { recursive: true });
+}
 // ── Vs blind: same market + price band, cells under MIN_N ignored
 {
   const B = require('./blind');

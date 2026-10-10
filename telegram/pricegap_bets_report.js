@@ -25,18 +25,19 @@ const units = x => `${x >= 0 ? '+' : ''}${x.toFixed(2)}u`;
 
 function load(dir) {
   if (!fs.existsSync(dir)) return null;
-  const alerts = [], cl = new Map(), fin = new Map(), noRes = new Set();
+  const alerts = [], cl = new Map(), nx = new Map(), fin = new Map(), noRes = new Set();
   for (const f of fs.readdirSync(dir).filter(f => f.endsWith('.jsonl')).sort()) {
     for (const line of fs.readFileSync(path.join(dir, f), 'utf8').split('\n')) {
       if (!line.trim()) continue;
       let o; try { o = JSON.parse(line); } catch { continue; }
       if (o.ev === 'alert') alerts.push(o);
       else if (o.ev === 'cl') cl.set(o.pk, o);
+      else if (o.ev === 'nx') nx.set(o.pk, o);
       else if (o.res !== undefined) fin.set(o.id, o.et ? o.reg : o.res);
       else if (o.nores) noRes.add(o.id);
     }
   }
-  return { alerts: alerts.sort((a, b) => a.t - b.t), cl, fin, noRes };
+  return { alerts: alerts.sort((a, b) => a.t - b.t), cl, nx, fin, noRes };
 }
 
 function summarize(list, fin) {
@@ -49,7 +50,7 @@ function buildReport(dir, opts = {}) {
   const tz = opts.tz || 'Europe/Rome';
   const d = load(dir);
   if (!d || !d.alerts.length) return `No PRICEGAP alerts tracked yet (${dir}).`;
-  const { alerts, cl, fin, noRes } = d;
+  const { alerts, cl, nx, fin, noRes } = d;
   const when = t => new Date(t).toLocaleString('it-IT', { timeZone: tz, day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
   const out = [`PRICEGAP report · ${alerts.length} alerted sides from ${when(alerts[0].t)} to ${when(alerts[alerts.length - 1].t)}`];
 
@@ -62,6 +63,16 @@ function buildReport(dir, opts = {}) {
       const L = alerts.filter(a => a[key] === v), s = summarize(L, fin);
       out.push(`    ${String(v).padEnd(14)} ${String(L.length).padStart(4)} sides · settled ${String(s.n).padStart(4)}${s.n ? ` · ${units(s.plP).padStart(8)} · ROI ${pct(s.plP / s.n).padStart(7)}${blind.fmtVs(s.vs, s.n)}` : ''}`);
     }
+  }
+
+  // Next scan after the alert: was the price still there?
+  const checked = alerts.filter(a => nx.has(a.pk));
+  if (checked.length) {
+    const held = checked.filter(a => nx.get(a.pk).held), gone = checked.filter(a => !nx.get(a.pk).held);
+    const sl = (lab, L) => { const s = summarize(L, fin); return `  ${lab.padEnd(40)} ${String(L.length).padStart(4)} sides · settled ${String(s.n).padStart(4)}${s.n ? ` · ${units(s.plP).padStart(8)} · ROI ${pct(s.plP / s.n).padStart(7)}` : ''}`; };
+    out.push('', `NEXT SCAN AFTER THE ALERT (~1 min near / ~15 min far): ${checked.length} checked · still ≥ the minimum odds ${held.length} (${Math.round(held.length / checked.length * 100)}%) · gone or below ${gone.length}`,
+      sl('price still there', held), sl('gone / below the minimum (not bettable)', gone),
+      sl('confirmed on 2+ scans before alerting', alerts.filter(a => (a.scans || 1) >= 2)), sl('alerted on a single scan (before 10/10)', alerts.filter(a => !a.scans || a.scans < 2)));
   }
 
   // Closing-line value
@@ -82,7 +93,8 @@ function buildReport(dir, opts = {}) {
     const r = f != null ? payout(a, f, a.p) : null;
     const res = r == null ? (noRes.has(a.id) ? 'no result found' : 'waiting for FT')
       : `${r > 1.001 ? (r < a.p - 1e-9 ? 'HALF WON' : 'WON') : r < 0.999 ? (r > 1e-9 ? 'HALF LOST' : 'LOST') : 'VOID'} (FT ${f}) ${units(r - 1)}`;
-    out.push(`  ${when(a.t)}  ${a.m} · ${a.k} · Bet365 ${a.p} (min ${(+a.mo).toFixed(2)}, +${a.e}%, ${a.b}, ${Math.round(a.kmin / 60)} h before KO)${c ? (c.moved ? ' · close: line moved' : ` · close: Bet365 ${c.p}, Sbobet fair ${c.f}`) : ''}\n      → ${res}`);
+    const x = nx.get(a.pk);
+    out.push(`  ${when(a.t)}  ${a.m} · ${a.k} · Bet365 ${a.p} (min ${(+a.mo).toFixed(2)}, +${a.e}%, ${a.b}, ${Math.round(a.kmin / 60)} h before KO${a.scans ? `, ${a.scans} scans` : ''})${x ? ` · next scan: ${x.p == null ? 'gone' : `${x.p}${x.held ? ' ✓' : ' ✗ below min'}`}` : ''}${c ? (c.moved ? ' · close: line moved' : ` · close: Bet365 ${c.p}, Sbobet fair ${c.f}`) : ''}\n      → ${res}`);
   }
   if (alerts.length > 80) out.push(`  … ${alerts.length - 80} earlier`);
   return out.join('\n');
