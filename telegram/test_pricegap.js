@@ -66,7 +66,11 @@ const msg = pg.formatAlert(
   [home, x2rows[0]], 120, s => s,
   { threshold: 5, kellyFraction: 0.25, bankroll: 1000, displayTz: 'Europe/Rome' });
 assert(/⚽ <b>Alpha vs Beta<\/b>/.test(msg), 'the match');
-assert(/💰 <b>PRICE GAP<\/b> · Test League/.test(msg), 'the league');
+assert(/🟢 <b>PRICE GAP<\/b> · Test League/.test(msg), 'the league');
+assert(msg.includes('<a href="https://www.bet365.it/#/AX/K%5EAlpha/">🔍 Bet365</a> · <a href="https://x/m">Match page</a>'), 'Bet365 search + match page links');
+assert.strictEqual(pg.bet365SearchUrl('Andorra (W)'), 'https://www.bet365.it/#/AX/K%5EAndorra/');
+assert.strictEqual(pg.bet365SearchUrl('Arsenal U21'), 'https://www.bet365.it/#/AX/K%5EArsenal/');
+assert.strictEqual(pg.bet365SearchUrl('Real Madrid II'), 'https://www.bet365.it/#/AX/K%5EReal%20Madrid/');
 assert(/📅 .*04\/10.*21:45.*\(in 2\.0 h\)/.test(msg), 'date + local time + time to kick-off');
 assert(/👉 <b>Alpha -0\.25<\/b> \(Asian handicap\) @ <b>2\.10<\/b>/.test(msg), 'what to bet and the Bet365 price');
 assert(/👉 <b>Alpha<\/b> \(1X2\) @ /.test(msg), 'the 1X2 bet names the market');

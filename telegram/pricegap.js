@@ -180,6 +180,19 @@ function kickoffLine(match, toKickoffMin, tz) {
  * what to bet, the price Bet365 is showing, and the price below which the bet
  * is off — rather than a dense summary line (asked for 2026-10-04).
  */
+// Bet365 search for the home team (2026-10-10, user-tested on bet365.it): Bet365's
+// own match ids aren't in any feed we read, so a search one tap from the match is
+// the closest link. Team-kind markers are dropped so the search finds the club.
+function bet365SearchUrl(team, domain = process.env.BET365_DOMAIN || 'www.bet365.it') {
+  const q = String(team || '').replace(/\((w|r)\)|\bU-?\d{2}\b|\bII\b/gi, ' ').replace(/\s+/g, ' ').trim();
+  return q ? `https://${domain}/#/AX/K%5E${encodeURIComponent(q)}/` : null;
+}
+// "🔍 Bet365 · Match page" links (either may be missing).
+function linksLine(match, esc) {
+  const b = bet365SearchUrl(match.home_team);
+  return [b ? `<a href="${esc(b)}">🔍 Bet365</a>` : null, match.url ? `<a href="${esc(match.url)}">Match page</a>` : null].filter(Boolean).join(' · ');
+}
+
 function formatAlert(match, gaps, toKickoffMin, esc, opts = {}) {
   // Simplified 2026-10-10 (user request): only what is needed to act — match,
   // kick-off, the bet, Bet365's price, the minimum price, edge and stake. The
@@ -188,7 +201,7 @@ function formatAlert(match, gaps, toKickoffMin, esc, opts = {}) {
   const ko = kickoffLine(match, toKickoffMin, opts.displayTz);
   const kFrac = opts.kellyFraction ?? 0.25;
   const lines = [
-    `💰 <b>PRICE GAP</b> · ${esc(match.league) || '—'}`,
+    `🟢 <b>PRICE GAP</b> · ${esc(match.league) || '—'}`,
     `⚽ <b>${esc(match.home_team)} vs ${esc(match.away_team)}</b>`,
     ...(ko ? [ko] : []),
     ``,
@@ -202,7 +215,8 @@ function formatAlert(match, gaps, toKickoffMin, esc, opts = {}) {
       `   min ${minOdds.toFixed(2)} · edge +${(r.edge * 100).toFixed(1)}% · stake ${stake}`,
     );
   }
-  lines.push('', `Check the price on Bet365 first — skip it below the min.${match.url ? ` <a href="${esc(match.url)}">Match page</a>` : ''}`);
+  const links = linksLine(match, esc);
+  lines.push('', 'Check the price on Bet365 first — skip it below the min.', ...(links ? [links] : []));
   return lines.join('\n');
 }
 
@@ -230,4 +244,4 @@ function appendRecord(dir, t, heartbeat, rows) {
   }
 }
 
-module.exports = { devig2, devigPower, marketUnmoved, x12Unmoved, kelly, findGaps, bucketOf, qualifyingGaps, formatAlert, kickoffLine, sameLine, recordRow, appendRecord, X12_MIN_EDGE_PCT, X12_OPEN_ONLY };
+module.exports = { bet365SearchUrl, linksLine, devig2, devigPower, marketUnmoved, x12Unmoved, kelly, findGaps, bucketOf, qualifyingGaps, formatAlert, kickoffLine, sameLine, recordRow, appendRecord, X12_MIN_EDGE_PCT, X12_OPEN_ONLY };

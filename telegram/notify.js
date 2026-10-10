@@ -223,6 +223,7 @@ function buildMessage(strategyName, match, minuteScore, betLines) {
 // shape as PRICEGAP's): header · match · time, then one line for the bet and
 // one for min / price / stake, then a single check-the-price line.
 function shortMessage(title, match, timeLine, betLines, footer = 'Check the price on Bet365 first — skip it below the min.') {
+  const links = priceGap.linksLine(match, esc);
   return [
     `${title} · ${esc(match.league) || '—'}`,
     `⚽ <b>${esc(match.home_team)} vs ${esc(match.away_team)}</b>`,
@@ -231,6 +232,7 @@ function shortMessage(title, match, timeLine, betLines, footer = 'Check the pric
     ...betLines,
     ``,
     footer,
+    ...(links ? [links] : []),
   ].join('\n');
 }
 // ¼-Kelly stake % at `price` on the conservative probability `loPct` (null if no edge or no price).
@@ -659,7 +661,7 @@ async function runStrategyCrossDog(match, ctx) {
   const dogTeam = favSide === 'HOME' ? match.away_team : match.home_team;
   const dogLine = favLine === 0 ? '0' : `+${favLine}`;
   const msg = shortMessage(
-    `🐶 <b>CROSSDOG</b>`,
+    `🔵 <b>CROSSDOG</b>`,
     match,
     toKickoff != null ? `📅 Kick-off in ${Math.max(0, Math.round(toKickoff))} min` : '📅 Kick-off imminent',
     [
