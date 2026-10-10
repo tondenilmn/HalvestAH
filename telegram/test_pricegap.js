@@ -66,13 +66,12 @@ const msg = pg.formatAlert(
   [home, x2rows[0]], 120, s => s,
   { threshold: 5, kellyFraction: 0.25, bankroll: 1000, displayTz: 'Europe/Rome' });
 assert(/⚽ <b>Alpha vs Beta<\/b>/.test(msg), 'the match');
-assert(/🏆 Test League/.test(msg), 'the league');
+assert(/💰 <b>PRICE GAP<\/b> · Test League/.test(msg), 'the league');
 assert(/📅 .*04\/10.*21:45.*\(in 2\.0 h\)/.test(msg), 'date + local time + time to kick-off');
-assert(/🎯 <b>BET: Alpha -0\.25<\/b> — Asian handicap/.test(msg), 'what to bet');
-assert(/🎯 <b>BET: Alpha<\/b> — 1X2 \(match result\)/.test(msg), 'the 1X2 bet names the market');
-assert(/Bet365 price now: <b>2\.10<\/b>/.test(msg), 'the Bet365 price');
-assert(/Minimum price: <b>2\.10<\/b>/.test(msg), 'min odds = 2.00 × 1.05');
-assert(/stake €\d+\.\d\d \(¼ Kelly\)/.test(msg), 'the stake');
+assert(/👉 <b>Alpha -0\.25<\/b> \(Asian handicap\) @ <b>2\.10<\/b>/.test(msg), 'what to bet and the Bet365 price');
+assert(/👉 <b>Alpha<\/b> \(1X2\) @ /.test(msg), 'the 1X2 bet names the market');
+assert(/min 2\.10 · edge \+5\.0% · stake €\d+\.\d\d/.test(msg), 'min odds = 2.00 × 1.05, edge, stake');
+assert(!/Fair price|📊|opened/.test(msg), 'no fair price / bucket / opening line any more');
 console.log('pricegap: unit tests passed');
 
 if (process.argv.includes('--live')) {

@@ -152,7 +152,7 @@ function qualifyingGaps(rows, minEdgePct, maxEdgePct) {
     .sort((a, b) => b.edge - a.edge);
 }
 
-const MARKET_NAME = { AH: 'Asian handicap', OU: 'Goals over/under', X12: '1X2 (match result)' };
+const MARKET_SHORT = { AH: 'Asian handicap', OU: 'goals', X12: '1X2' };
 
 // Kick-off as a date AND a time, in the reader's own timezone — a bet that
 // needs placing before kick-off is useless without the date.
@@ -181,35 +181,28 @@ function kickoffLine(match, toKickoffMin, tz) {
  * is off — rather than a dense summary line (asked for 2026-10-04).
  */
 function formatAlert(match, gaps, toKickoffMin, esc, opts = {}) {
+  // Simplified 2026-10-10 (user request): only what is needed to act — match,
+  // kick-off, the bet, Bet365's price, the minimum price, edge and stake. The
+  // fair price, opening price and backtest bucket live in /pricegap/report.
   const thr = opts.threshold ?? 5;
   const ko = kickoffLine(match, toKickoffMin, opts.displayTz);
   const kFrac = opts.kellyFraction ?? 0.25;
   const lines = [
-    `💰 <b>PRICE GAP</b> — Bet365 is paying more than Sbobet's fair price`,
-    ``,
+    `💰 <b>PRICE GAP</b> · ${esc(match.league) || '—'}`,
     `⚽ <b>${esc(match.home_team)} vs ${esc(match.away_team)}</b>`,
-    `🏆 ${esc(match.league) || '—'}`,
     ...(ko ? [ko] : []),
     ``,
   ];
   for (const r of gaps) {
-    const b = bucketOf(r);
     const minOdds = r.fair * (1 + (r.market === 'X12' ? Math.max(thr, X12_MIN_EDGE_PCT) : thr) / 100);
     const k = kelly(r.p, r.price, kFrac);
-    const stake = opts.bankroll ? `€${(opts.bankroll * k).toFixed(2)}` : `${(k * 100).toFixed(2)}% of bankroll`;
-    const moved = r.openPrice > 1 && Math.abs(r.price - r.openPrice) > 0.001 ? ` (opened ${r.openPrice.toFixed(2)})` : '';
+    const stake = opts.bankroll ? `€${(opts.bankroll * k).toFixed(2)}` : `${(k * 100).toFixed(1)}% of bankroll`;
     lines.push(
-      `🎯 <b>BET: ${esc(r.label)}</b> — ${MARKET_NAME[r.market] || r.market}`,
-      `   Bet365 price now: <b>${r.price.toFixed(2)}</b>${moved}`,
-      `   Minimum price: <b>${minOdds.toFixed(2)}</b> — below this, skip it`,
-      `   Fair price ${r.fair.toFixed(2)} · edge <b>+${(r.edge * 100).toFixed(1)}%</b> · stake ${stake} (${kFrac === 0.125 ? '⅛' : kFrac === 0.5 ? '½' : '¼'} Kelly)`,
-      `   📊 ${b.name}: ${b.note}`,
-      ``,
+      `👉 <b>${esc(r.label)}</b> (${MARKET_SHORT[r.market] || r.market}) @ <b>${r.price.toFixed(2)}</b>`,
+      `   min ${minOdds.toFixed(2)} · edge +${(r.edge * 100).toFixed(1)}% · stake ${stake}`,
     );
   }
-  lines.push('⚠️ Bet365 usually corrects toward Sbobet fast — check the price before betting.');
-  if (opts.appUrl && match.url) lines.push(`🔗 <a href="${esc(opts.appUrl)}">Open the app</a> · <a href="${esc(match.url)}">match page</a>`);
-  else if (match.url) lines.push(`🔗 <a href="${esc(match.url)}">match page</a>`);
+  lines.push('', `Check the price on Bet365 first — skip it below the min.${match.url ? ` <a href="${esc(match.url)}">Match page</a>` : ''}`);
   return lines.join('\n');
 }
 
