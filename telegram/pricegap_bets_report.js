@@ -57,10 +57,12 @@ function buildReport(dir, opts = {}) {
   const all = summarize(alerts, fin);
   const waiting = alerts.filter(a => !fin.has(a.id) && !noRes.has(a.id)).length;
   out.push('', `RESULT (1 unit per alerted side): settled ${all.n}${all.n ? ` · at the Bet365 price shown ${units(all.plP)} → ROI ${pct(all.plP / all.n)} · at the minimum odds ${units(all.plM)} → ROI ${pct(all.plM / all.n)}${blind.fmtVs(all.vs, all.n)}` : ''} · waiting for FT ${waiting}${noRes.size ? ` · no result ${alerts.filter(a => noRes.has(a.id)).length}` : ''}`);
-  for (const [label, key] of [['by backtest bucket', 'b'], ['by market', 'mk']]) {
+  const refName = a => (a.ref === 'pin' ? 'vs Pinnacle' : 'vs Sbobet');
+  for (const [label, key] of [['by reference book', refName], ['by backtest bucket', 'b'], ['by market', 'mk']]) {
+    const get = typeof key === 'function' ? key : a => a[key];
     out.push(`  ${label}:`);
-    for (const v of [...new Set(alerts.map(a => a[key]))]) {
-      const L = alerts.filter(a => a[key] === v), s = summarize(L, fin);
+    for (const v of [...new Set(alerts.map(get))]) {
+      const L = alerts.filter(a => get(a) === v), s = summarize(L, fin);
       out.push(`    ${String(v).padEnd(14)} ${String(L.length).padStart(4)} sides · settled ${String(s.n).padStart(4)}${s.n ? ` · ${units(s.plP).padStart(8)} · ROI ${pct(s.plP / s.n).padStart(7)}${blind.fmtVs(s.vs, s.n)}` : ''}`);
     }
   }
@@ -82,7 +84,7 @@ function buildReport(dir, opts = {}) {
     const clv = same.reduce((s, x) => s + (x.a.p / x.c.f - 1), 0) / Math.max(1, same.length);
     const b365down = same.filter(x => x.c.p < x.a.p).length, b365up = same.filter(x => x.c.p > x.a.p).length;
     out.push('', `CLOSING-LINE VALUE (closing snapshot ≤ 30 min before kick-off): ${withCl.length} sides · line changed ${withCl.length - same.length}`,
-      `  same line ${same.length}: price shown vs Sbobet's closing fair → ${pct(clv)} on average · Bet365's price later lower ${b365down}, higher ${b365up}`,
+      `  same line ${same.length}: price shown vs the reference's closing fair (Sbobet, or Pinnacle for its alerts) → ${pct(clv)} on average · Bet365's price later lower ${b365down}, higher ${b365up}`,
       `  (the backtest's edge lives in this number: positive = the alerts beat the close)`);
   }
 
@@ -94,7 +96,7 @@ function buildReport(dir, opts = {}) {
     const res = r == null ? (noRes.has(a.id) ? 'no result found' : 'waiting for FT')
       : `${r > 1.001 ? (r < a.p - 1e-9 ? 'HALF WON' : 'WON') : r < 0.999 ? (r > 1e-9 ? 'HALF LOST' : 'LOST') : 'VOID'} (FT ${f}) ${units(r - 1)}`;
     const x = nx.get(a.pk);
-    out.push(`  ${when(a.t)}  ${a.m} · ${a.k} · Bet365 ${a.p} (min ${(+a.mo).toFixed(2)}, +${a.e}%, ${a.b}, ${Math.round(a.kmin / 60)} h before KO${a.scans ? `, ${a.scans} scans` : ''})${x ? ` · next scan: ${x.p == null ? 'gone' : `${x.p}${x.held ? ' ✓' : ' ✗ below min'}`}` : ''}${c ? (c.moved ? ' · close: line moved' : ` · close: Bet365 ${c.p}, Sbobet fair ${c.f}`) : ''}\n      → ${res}`);
+    out.push(`  ${when(a.t)}  ${a.m} · ${a.k} · Bet365 ${a.p} (min ${(+a.mo).toFixed(2)}, +${a.e}%, ${a.b}, ${Math.round(a.kmin / 60)} h before KO${a.scans ? `, ${a.scans} scans` : ''})${x ? ` · next scan: ${x.p == null ? 'gone' : `${x.p}${x.held ? ' ✓' : ' ✗ below min'}`}` : ''}${c ? (c.moved ? ' · close: line moved' : ` · close: Bet365 ${c.p}, ${a.ref === 'pin' ? 'Pinnacle' : 'Sbobet'} fair ${c.f}`) : ''}\n      → ${res}`);
   }
   if (alerts.length > 80) out.push(`  … ${alerts.length - 80} earlier`);
   return out.join('\n');

@@ -80,7 +80,7 @@ const match = { id: 'w', home_team: 'Real Betis', away_team: 'Sevilla', league: 
   fs.writeFileSync(path.join(dir, '2026-10-10.jsonl'), lines.map(l => JSON.stringify(l)).join('\n') + '\n');
   const txt = require('./pricegap_bets_report').buildReport(dir, { tz: 'UTC' });
   assert(/settled 1 · at the Bet365 price shown \+1\.10u → ROI \+110\.0% · at the minimum odds \+1\.05u → ROI \+105\.0% · vs blind \+113\.9% \(blind -3\.9%\)/.test(txt), 'away +0.5 at 1-1 wins; vs blind');
-  assert(/price shown vs Sbobet's closing fair → \+5\.0%/.test(txt) && /later lower 1, higher 0/.test(txt));
+  assert(/price shown vs the reference's closing fair \(Sbobet, or Pinnacle for its alerts\) → \+5\.0%/.test(txt) && /later lower 1, higher 0/.test(txt));
   fs.rmSync(dir, { recursive: true });
 }
 // PRICEGAP next-scan check: one alert still there, one gone (the Vendsyssel case); confirmed vs single-scan split

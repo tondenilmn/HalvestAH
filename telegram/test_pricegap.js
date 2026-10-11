@@ -76,6 +76,19 @@ assert(/👉 <b>Alpha -0\.25<\/b> \(Asian handicap\) @ <b>2\.10<\/b>/.test(msg),
 assert(/👉 <b>Alpha<\/b> \(1X2\) @ /.test(msg), 'the 1X2 bet names the market');
 assert(/min 2\.10 · edge \+5\.0% · stake €\d+\.\d\d/.test(msg), 'min odds = 2.00 × 1.05, edge, stake');
 assert(!/Fair price|📊|opened/.test(msg), 'no fair price / bucket / opening line any more');
+// Pinnacle reference: same line only, AH + goals, proportional de-vig, no 1X2
+{
+  const b = { ah_hc: -0.25, ho_c: 2.10, ao_c: 1.80, tl_c: 2.5, ov_c: 1.95, un_c: 1.90 };
+  const pm = { ft: { ah: [{ line: -0.5, h: 2.3, a: 1.65 }, { line: -0.25, h: 2.02, a: 1.88 }], ou: [{ line: 2.75, o: 2.1, u: 1.8 }], ml: { h: 2.4, d: 3.3, a: 3.1 } } };
+  const pr = pg.pinnacleGaps(b, pm, { home: 'Alpha', away: 'Beta' });
+  assert.strictEqual(pr.length, 2, 'AH on the same line only (no goal line on 2.5, no 1X2)');
+  const home = pr.find(r => r.side === 'home'), f = (1 / 2.02 + 1 / 1.88) / (1 / 2.02);
+  assert(Math.abs(home.fair - f) < 1e-9 && home.ref === 'pin' && home.line === -0.25 && home.label === 'Alpha -0.25');
+  assert.strictEqual(pr.find(r => r.side === 'away').label, 'Beta +0.25');
+  assert.strictEqual(pg.bucketOf(home).name, 'vs Pinnacle');
+  const pmsg = pg.formatAlert({ home_team: 'Alpha', away_team: 'Beta', league: 'L' }, [{ ...home, price: 2.25, edge: 2.25 / home.fair - 1 }], 120, x => x, { threshold: 5 });
+  assert(/edge \+\d+\.\d% vs Pinnacle/.test(pmsg), 'Pinnacle gaps are tagged in the message');
+}
 console.log('pricegap: unit tests passed');
 
 if (process.argv.includes('--live')) {

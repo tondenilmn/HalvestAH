@@ -1168,6 +1168,7 @@ const pgBetRow = (t, ev, match, koMs, r, extra = {}) => ({
   k: `${r.market}|${r.side}|${r.line ?? ''}`, mk: r.market === 'X12' ? '1X2' : r.market, side: r.side,
   line: r.market === 'AH' && r.side === 'away' ? -r.line : r.line, // the side's own line (settlement)
   p: r.price, f: +r.fair.toFixed(3), e: +(r.edge * 100).toFixed(2), u: r.unmoved ? 1 : 0, sc: '0-0',
+  ref: r.ref || 'sbo', // reference book: Sbobet, or Pinnacle (PRICEGAP_PINNACLE)
   m: `${match.home_team} v ${match.away_team}`, lg: match.league || '', ...extra,
 });
 
@@ -1258,7 +1259,10 @@ async function runPriceGapScan(scope = 'near') {
     let compared = 0, alerts = 0;
     const record = [];
     const crossRec = [], pgRec = [], pinnRec = [];
-    const pin = cfg.PINNGAP_RECORD || cfg.BFPORT_RECORD || cfg.OPENWATCH_RECORD ? pinnIndex() : { idx: null };
+    const pin = cfg.PINNGAP_RECORD || cfg.BFPORT_RECORD || cfg.OPENWATCH_RECORD || cfg.PRICEGAP_PINNACLE ? pinnIndex() : { idx: null };
+    // PRICEGAP's second reference: Pinnacle's pre-match price, only while its copy is fresh.
+    const pgPinOn = cfg.PRICEGAP_PINNACLE && pin.idx && pin.age != null && pin.age <= cfg.PRICEGAP_PIN_MAX_AGE_S;
+    let pgPinPaired = 0, pgPinAlerts = 0;
     const owOn = cfg.OPENWATCH_RECORD && pin.idx && pin.age != null && pin.age <= cfg.OPENWATCH_MAX_PIN_AGE_S;
     const owRec = []; let owPaired = 0;
     const bfOn = cfg.BFPORT_RECORD && cfg.ODDSMONITOR_ENABLED && scope === 'near' && pin.idx && pin.age != null && pin.age <= cfg.BFPORT_MAX_PIN_AGE_S
@@ -1299,38 +1303,48 @@ async function runPriceGapScan(scope = 'near') {
         }
       }
       const s = match.id && sboById.get(match.id);
-      if (!s) continue;
+      const pmPg = pgPinOn && match.id && match.kickoff_time
+        ? pinnGap.findPrematch(pin.idx, match.home_team, match.away_team, Date.parse(match.kickoff_time), match.league) : null;
+      if (!s && !pmPg) continue;
       if (!tierAllowed(ctx.tier, cfg.PRICEGAP_TIER)) continue;
+      const teams = { home: match.home_team, away: match.away_team };
       // x2_odds (1X2) comes from getDatanext1, match.odds (AH/TL/O-U) from
       // getData2 — two different rows of the same tablenext file, so they are
       // passed separately. See pricegap.js's header for the 1X2 gates.
-      const rows = priceGap.findGaps(
-        match.odds, s.odds,
-        { home: match.home_team, away: match.away_team },
+      const rows = s ? priceGap.findGaps(
+        match.odds, s.odds, teams,
         cfg.PRICEGAP_X12 ? { b: match.x2_odds, s: s.x2_odds } : {},
-      );
-      compared += rows.length;
+      ) : [];
+      // Second reference: Pinnacle's same-line AH / goal-line price (no 1X2) — see config.js's PRICEGAP_PINNACLE.
+      const pinRows = pmPg ? priceGap.pinnacleGaps(match.odds, pmPg, teams) : [];
+      if (pinRows.length) pgPinPaired++;
+      const rowsOf = ref => (ref === 'pin' ? pinRows : rows);
+      compared += rows.length + pinRows.length;
       if (cfg.PRICEGAP_RECORD) for (const r of rows) if (r.edge * 100 >= cfg.PRICEGAP_RECORD_MIN_PCT) record.push(priceGap.recordRow(match, r, ctx.toKickoff));
       // Closing snapshot (last 30 min) for every side this bot alerted: same line, or 'moved'.
       if (cfg.PRICEGAP_TRACK && ctx.toKickoff <= 30) for (const [pk, a] of _pgAlerted) {
         if (a.cl || !pk.startsWith(match.id + '|')) continue;
         a.cl = true;
-        const r = rows.find(x => pgRowKey(match.id, x) === pk);
-        pgRec.push(r ? pgBetRow(now, 'cl', match, a.koMs, r) : { t: now, ev: 'cl', id: match.id, ko: a.koMs, pk, k: a.row.k, moved: true, m: a.row.m });
+        const r = rowsOf(a.row.ref).find(x => pgRowKey(match.id, x) === pk);
+        pgRec.push(r ? pgBetRow(now, 'cl', match, a.koMs, r) : { t: now, ev: 'cl', id: match.id, ko: a.koMs, pk, k: a.row.k, ref: a.row.ref, moved: true, m: a.row.m });
       }
       // Next-scan check of each alert sent: is the price still ≥ the minimum odds? (gone = feed lag / fast correction)
       if (cfg.PRICEGAP_TRACK) for (const [pk, a] of _pgAlerted) {
         if (a.nx || !pk.startsWith(match.id + '|') || now - a.row.t < 30000) continue;
         a.nx = true;
-        const r = rows.find(x => pgRowKey(match.id, x) === pk);
+        const r = rowsOf(a.row.ref).find(x => pgRowKey(match.id, x) === pk);
         pgRec.push({ t: now, ev: 'nx', id: match.id, ko: a.koMs, pk, k: a.row.k, p: r ? r.price : null, held: r && r.price >= a.row.mo ? 1 : 0, mins: +((now - a.row.t) / 60000).toFixed(1), m: a.row.m });
       }
       // A gap alerts only after PRICEGAP_MIN_SCANS consecutive scans of this scope (a one-scan gap is
       // usually the feed one refresh behind Bet365).
       const intervalMs = (scope === 'near' ? cfg.PRICEGAP_SCAN_INTERVAL_MINUTES : cfg.PRICEGAP_FAR_SCAN_INTERVAL_MINUTES) * 60000;
-      const qual = priceGap.qualifyingGaps(rows, cfg.PRICEGAP_MIN_EDGE_PCT, cfg.PRICEGAP_MAX_EDGE_PCT);
+      // Sbobet first; Pinnacle adds the sides Sbobet doesn't flag (not listed, other line, or below the edge).
+      const qS = priceGap.qualifyingGaps(rows, cfg.PRICEGAP_MIN_EDGE_PCT, cfg.PRICEGAP_MAX_EDGE_PCT);
+      const sKeys = new Set(qS.map(r => pgRowKey(match.id, r)));
+      const qual = [...qS, ...priceGap.qualifyingGaps(pinRows, cfg.PRICEGAP_MIN_EDGE_PCT, cfg.PRICEGAP_MAX_EDGE_PCT)
+        .filter(r => !sKeys.has(pgRowKey(match.id, r)))].sort((a, b) => b.edge - a.edge);
       for (const r of qual) {
-        const sk = `${scope}|${pgRowKey(match.id, r)}`;
+        const sk = `${scope}|${r.ref || 'sbo'}|${pgRowKey(match.id, r)}`;
         let st = _pgStreak.get(sk);
         if (st && now - st.last <= 2.5 * intervalMs) st.n++; else st = { n: 1, first: now };
         st.last = now; _pgStreak.set(sk, st);
@@ -1340,7 +1354,8 @@ async function runPriceGapScan(scope = 'near') {
         .filter(r => !priceGapDedup.has(`${match.id}:${r.market}:${r.side}:${r.line}`));
       if (!gaps.length) continue;
       for (const r of gaps) priceGapDedup.mark(`${match.id}:${r.market}:${r.side}:${r.line}`);
-      flog(null, ctx.label, 'PRICEGAP', gaps.map(r => `${r.label} @${r.price} fair ${r.fair.toFixed(2)} +${(r.edge * 100).toFixed(1)}%`).join(' | '));
+      flog(null, ctx.label, 'PRICEGAP', gaps.map(r => `${r.label} @${r.price} fair ${r.fair.toFixed(2)} +${(r.edge * 100).toFixed(1)}%${r.ref === 'pin' ? ' (vs Pinnacle)' : ''}`).join(' | '));
+      if (gaps.some(r => r.ref === 'pin')) pgPinAlerts++;
       await sendTelegram(priceGap.formatAlert(match, gaps, ctx.toKickoff, esc, {
         threshold: cfg.PRICEGAP_MIN_EDGE_PCT, kellyFraction: cfg.PRICEGAP_KELLY_FRACTION,
         bankroll: cfg.PRICEGAP_BANKROLL, appUrl: cfg.APP_URL, displayTz: cfg.DISPLAY_TZ,
@@ -1389,7 +1404,7 @@ async function runPriceGapScan(scope = 'near') {
       if (scope === 'near' && _crossPending.size) crossRec.push(...await liveGapResult.settleDue(_crossPending, now, cachedResult));
       if (crossRec.length) liveGap.appendRecords(CROSSMARKET_LOG_DIR, now, crossRec);
     }
-    console.log(`PriceGap(${scope}) — ${b365.matches.length} Bet365 / ${sbo.matches.length} Sbobet fixtures, ${compared} compared, ${record.length} gap(s) ≥${cfg.PRICEGAP_RECORD_MIN_PCT}%, ${alerts} alert(s)${cfg.CROSSMARKET_RECORD ? `, CrossMarket ${crossRec.length} row(s) / ${_crossPending.size} awaiting FT` : ''}${cfg.PINNGAP_RECORD ? `, PinnGap ${pinPaired} paired (Pinnacle ${pin.age ?? '—'} s old${pinFresh ? '' : ', not used'}) ${pinnRec.length} row(s)` : ''}${owOn ? `, OpenWatch ${owPaired} paired ${owRec.length} row(s)` : ''}${bfOn ? `, BFPORT ${bfPaired} paired / ${_bf.bets.length} paper bet(s)` : ''}${b365.hashFailed || sbo.hashFailed ? ' (a hash failed — check FEEDS)' : ''}.`);
+    console.log(`PriceGap(${scope}) — ${b365.matches.length} Bet365 / ${sbo.matches.length} Sbobet fixtures, ${compared} compared, ${record.length} gap(s) ≥${cfg.PRICEGAP_RECORD_MIN_PCT}%, ${alerts} alert(s)${cfg.CROSSMARKET_RECORD ? `, CrossMarket ${crossRec.length} row(s) / ${_crossPending.size} awaiting FT` : ''}${cfg.PRICEGAP_PINNACLE ? `, Pinnacle ref ${pgPinOn ? `${pgPinPaired} paired / ${pgPinAlerts} alert(s)` : `off (copy ${pin.age ?? '—'} s old)`}` : ''}${cfg.PINNGAP_RECORD ? `, PinnGap ${pinPaired} paired (Pinnacle ${pin.age ?? '—'} s old${pinFresh ? '' : ', not used'}) ${pinnRec.length} row(s)` : ''}${owOn ? `, OpenWatch ${owPaired} paired ${owRec.length} row(s)` : ''}${bfOn ? `, BFPORT ${bfPaired} paired / ${_bf.bets.length} paper bet(s)` : ''}${b365.hashFailed || sbo.hashFailed ? ' (a hash failed — check FEEDS)' : ''}.`);
   } finally {
     releaseGuard(_priceGapRunning, scope, token);
   }
@@ -3438,8 +3453,8 @@ async function main() {
     pollPin();
     cron.schedule('* * * * *', pollPin);
   }
-  // Pinnacle pre-match lists for PINNGAP (pinnacle_relay.js's pre-match rotation).
-  if (cfg.PINNGAP_RECORD) {
+  // Pinnacle pre-match lists for PINNGAP / OPENWATCH / BFPORT and PRICEGAP's Pinnacle reference (pinnacle_relay.js's pre-match rotation).
+  if (cfg.PINNGAP_RECORD || (cfg.PRICEGAP_ENABLED && cfg.PRICEGAP_PINNACLE)) {
     const pollPre = () => pinnRelay.pollPinnaclePrematch().catch(e => console.error('Pinnacle pre-match error:', e.message));
     pollPre();
     cron.schedule('*/2 * * * *', pollPre);

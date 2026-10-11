@@ -129,9 +129,40 @@ function findGaps(b365, sbo, teams = {}, x12 = {}) {
   return rows;
 }
 
+// Pinnacle as a second reference (added 2026-10-11): Bet365's AH / goal-line
+// price vs Pinnacle's pre-match price on the same line, margin removed
+// (proportional, two-way). `pm` = a pinngap.prematchIndex entry (pm.ft.ah /
+// pm.ft.ou lists, main + alternate lines). No 1X2 — the live PINNGAP recorder
+// lost on 1X2 vs Pinnacle and the timing study below covers AH / goals only.
+// Evidence (research_7m_timing.js, 7msport history 2026-04 → 10, 80k matches):
+// Bet365 ≥ 5% above Pinnacle's fair → +3.4% on 15,049 first gaps, 6/7 months,
+// CLV +2.3%, still +3.8–4.1% when bet 1–15 min late.
+function pinnacleGaps(b365, pm, teams = {}) {
+  const rows = [];
+  if (!b365 || !pm?.ft) return rows;
+  const add = (market, side, label, line, price, fair) => {
+    if (!(price > 1) || !(fair > 1)) return;
+    rows.push({ market, side, label, line, price, fair, edge: price / fair - 1, p: 1 / fair, ref: 'pin', unmoved: false });
+  };
+  const ah = num(b365.ah_hc) != null && (pm.ft.ah || []).find(x => sameLine(x.line, +b365.ah_hc));
+  const fa = ah && devig2(ah.h, ah.a);
+  if (fa) {
+    add('AH', 'home', `${teams.home || 'Home'} ${fmtLine(+b365.ah_hc)}`, +b365.ah_hc, +b365.ho_c, fa[0]);
+    add('AH', 'away', `${teams.away || 'Away'} ${fmtLine(-b365.ah_hc)}`, +b365.ah_hc, +b365.ao_c, fa[1]);
+  }
+  const ou = num(b365.tl_c) != null && (pm.ft.ou || []).find(x => sameLine(x.line, +b365.tl_c));
+  const fo = ou && devig2(ou.o, ou.u);
+  if (fo) {
+    add('OU', 'over', `Over ${b365.tl_c}`, +b365.tl_c, +b365.ov_c, fo[0]);
+    add('OU', 'under', `Under ${b365.tl_c}`, +b365.tl_c, +b365.un_c, fo[1]);
+  }
+  return rows;
+}
+
 // Which backtest bucket the gap falls into, and what it measured there.
 function bucketOf(r) {
   const e = r.edge * 100;
+  if (r.ref === 'pin') return { name: 'vs Pinnacle', note: 'Bet365 ≥5% above Pinnacle, AH / goals → +3.4% ROI, 6/7 months (7msport history)' };
   if (r.market === 'X12') {
     return r.unmoved
       ? { name: 'at opening', note: '1X2 ≥5% at opening → +6.2% ROI, 17/20 months (−9.0% at closing prices — take it now)' }
@@ -212,7 +243,7 @@ function formatAlert(match, gaps, toKickoffMin, esc, opts = {}) {
     const stake = opts.bankroll ? `€${(opts.bankroll * k).toFixed(2)}` : `${(k * 100).toFixed(1)}% of bankroll`;
     lines.push(
       `👉 <b>${esc(r.label)}</b> (${MARKET_SHORT[r.market] || r.market}) @ <b>${r.price.toFixed(2)}</b>`,
-      `   min ${minOdds.toFixed(2)} · edge +${(r.edge * 100).toFixed(1)}% · stake ${stake}`,
+      `   min ${minOdds.toFixed(2)} · edge +${(r.edge * 100).toFixed(1)}%${r.ref === 'pin' ? ' vs Pinnacle' : ''} · stake ${stake}`,
     );
   }
   const links = linksLine(match, esc);
@@ -244,4 +275,4 @@ function appendRecord(dir, t, heartbeat, rows) {
   }
 }
 
-module.exports = { bet365SearchUrl, linksLine, devig2, devigPower, marketUnmoved, x12Unmoved, kelly, findGaps, bucketOf, qualifyingGaps, formatAlert, kickoffLine, sameLine, recordRow, appendRecord, X12_MIN_EDGE_PCT, X12_OPEN_ONLY };
+module.exports = { bet365SearchUrl, linksLine, devig2, devigPower, marketUnmoved, x12Unmoved, kelly, findGaps, pinnacleGaps, bucketOf, qualifyingGaps, formatAlert, kickoffLine, sameLine, recordRow, appendRecord, X12_MIN_EDGE_PCT, X12_OPEN_ONLY };

@@ -574,6 +574,15 @@ module.exports = {
   // pricegap.js, not here, because outside them the backtest found nothing
   // (closing vs closing: +0.1%). This flag only turns the market on or off.
   PRICEGAP_X12:              process.env.PRICEGAP_X12 !== 'false',
+  // Pinnacle as a second reference (added 2026-10-11, telegram/research_7m_timing.js
+  // on 7msport's timestamped history, 2026-04 → 10, 80k matches): Bet365 ≥ 5% above
+  // Pinnacle's pre-match fair on the same AH / goal line → +3.4% on 15,049 first gaps,
+  // 6/7 months, CLV +2.3% — and Pinnacle prices ~2× as many fixtures as Sbobet. AH and
+  // goals only, never 1X2. Sbobet stays first: a side flagged by both alerts once, as
+  // Sbobet. Pinnacle's pre-match copy must be ≤ PRICEGAP_PIN_MAX_AGE_S old (gaps live a
+  // median 7–9 min, so an older copy is mostly a moved price).
+  PRICEGAP_PINNACLE:         process.env.PRICEGAP_PINNACLE !== 'false',
+  PRICEGAP_PIN_MAX_AGE_S:    parseFloat(process.env.PRICEGAP_PIN_MAX_AGE_S || '300'),
   // Two scans with their own cadence (2026-10-04: botbot3 refreshes its
   // tablenext files about once a minute — measured over 11 fetches 30 s apart,
   // changes on every other fetch — so scanning faster than 1 min gains nothing):
