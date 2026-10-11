@@ -131,7 +131,9 @@ function sideOf(a, r) {
   return { line: r.p_2, price: a.side === 'over' ? r.p_1 : r.p_3 };
 }
 function classify(a, rows) {
-  if (!rows || !rows.length) return { cls: 'no data' };
+  // In-play rows only (they carry the minute): a pre-match row says nothing about the live price.
+  rows = (rows || []).filter(r => r.time);
+  if (!rows.length) return { cls: 'no data' };
   const t = a.t / 1000;
   const before = rows.filter(r => r.updateTime <= t - 90).pop();
   const win = [...(before ? [before] : []), ...rows.filter(r => r.updateTime > t - 90 && r.updateTime <= t + 30)];
