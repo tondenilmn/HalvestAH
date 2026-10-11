@@ -3257,6 +3257,29 @@ function startHashRelayServer() {
         return;
       }
     }
+    // Raw recorder files, read-only (added 2026-10-11): GET /data/<recorder>/ lists the
+    // daily .jsonl files, /data/<recorder>/<YYYY-MM-DD>.jsonl returns one gzipped — so
+    // the recordings can be re-analysed offline (e.g. against 7msport's price history).
+    // Only the recorders below, only plain day-file names; ?key= when LIVEGAP_REPORT_KEY is set.
+    const dm = /^\/data\/(livegap|livemodel)\/((\d{4}-\d{2}-\d{2})\.jsonl)?(\?.*)?$/.exec(req.url);
+    if (dm) {
+      const key = new URL(req.url, 'http://x').searchParams.get('key');
+      if (process.env.LIVEGAP_REPORT_KEY && key !== process.env.LIVEGAP_REPORT_KEY) { res.writeHead(401, { 'Content-Type': 'text/plain' }); res.end('key required'); return; }
+      const dir = { livegap: LIVEGAP_LOG_DIR, livemodel: LIVEMODEL_LOG_DIR }[dm[1]];
+      try {
+        if (!dm[2]) {
+          const files = fs.existsSync(dir) ? fs.readdirSync(dir).filter(f => /^\d{4}-\d{2}-\d{2}\.jsonl$/.test(f)).sort() : [];
+          res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' });
+          res.end(files.map(f => `${f} ${fs.statSync(path.join(dir, f)).size}`).join('\n'));
+        } else {
+          const f = path.join(dir, dm[2]);
+          if (!fs.existsSync(f)) { res.writeHead(404, { 'Content-Type': 'text/plain' }); res.end('not found'); return; }
+          res.writeHead(200, { 'Content-Type': 'application/gzip', 'Cache-Control': 'no-store' });
+          fs.createReadStream(f).pipe(require('zlib').createGzip()).pipe(res);
+        }
+      } catch (e) { res.writeHead(500, { 'Content-Type': 'text/plain' }); res.end(e.message); }
+      return;
+    }
     if (req.url === '/oddsmonitor/report' || req.url.startsWith('/oddsmonitor/report?')) {
       const mins = Math.round((Date.now() - _bfStats.since) / 60000);
       const text = [oddsMon.statusLine(ODDSMON_DIR), '',
