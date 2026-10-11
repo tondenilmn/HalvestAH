@@ -151,6 +151,17 @@ assert.deepStrictEqual(R.parseResult(R.tablematch1(pageJs)), { status: 'FT', sco
   G.appendRecords(dir, T, [{ alert: { ...row('quiet', T, '0-0', 30), mo: 1.995, silent: true } }]);
   const t2 = require('./livegap_report').buildReport(dir, { tz: 'UTC' });
   assert(/1 of them silent/.test(t2) && /\[silent — not sent\]/.test(t2));
+  // Next scan after a gap: held (Bet365 + Pinnacle unchanged) vs side pulled
+  const dir2 = fs.mkdtempSync(path.join(os.tmpdir(), 'livegap-nx-'));
+  const T2 = T + 7200000, ns = (id, t, ex = {}) => row(id, t, '0-0', 30, ex);
+  G.appendRecords(dir2, T2, [{ hb: { t: T2 } }, ns('hold', T2), ns('pull', T2), ns('pull', T2, { k: 'AH|x', mk: 'AH', side: 'home', line: 0, e: 0 })]);
+  G.appendRecords(dir2, T2, [{ hb: { t: T2 + 60000 } }, ns('hold', T2 + 60000), ns('pull', T2 + 60000), ns('pull', T2 + 60000, { k: 'AH|x', mk: 'AH', side: 'home', line: 0, e: 0 })]);
+  G.appendRecords(dir2, T2, [{ hb: { t: T2 + 120000 } }, ns('hold', T2 + 120000), ns('pull', T2 + 120000, { k: 'AH|x', mk: 'AH', side: 'home', line: 0, e: 0 })]);
+  const t3 = require('./livegap_report').buildReport(dir2, { tz: 'UTC' });
+  assert(/Bet365 same · Pinnacle fair same\s+1 \(50%\) · still open 1/.test(t3), 'held gap counted');
+  assert(/gone from the feed — this side only[^\n]*1 \(50%\)/.test(t3), 'pulled line counted');
+  assert(/Bet365 price changed 0%/.test(t3));
+  fs.rmSync(dir2, { recursive: true });
   fs.rmSync(dir, { recursive: true });
   console.log('livegap settlement: all tests passed');
 })().catch(e => { console.error(e); process.exit(1); });

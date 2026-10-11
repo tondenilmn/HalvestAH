@@ -179,6 +179,7 @@ function buildReport(dir, opts = {}) {
     out.push('', `PINNACLE CHECK — model edge ≥ 5% with a same-line Pinnacle price: ${withPin.length} rows; Pinnacle also had Bet365 above its fair in ${agree.length} (${Math.round(agree.length / withPin.length * 100)}%).`,
       `  Pinnacle agrees:    ${roiOf(agree)}`, `  Pinnacle disagrees: ${roiOf(withPin.filter(o => !pinAgrees(o)))}`);
   }
+  out.push('', ...stableSection(rows, fin, ret, vsOf));
   out.push('', ...logLossSection(rows, fin));
   out.push('', 'Vs blind = ROI minus what betting every recorded side blind returned at the same market and price band (in-play, from this recorder\'s own rows).', 'Large model edges usually mean Bet365 knows something the model does not (red card, line-ups, pressure). Judge only on settled rows across many matches.');
   return out.join('\n');
@@ -266,7 +267,68 @@ function logLossSection(rows, fin) {
   return out;
 }
 
-module.exports = { buildReport, logLossEvents };
+// ── Stable prices only (added 2026-10-11) ──
+// Is the model weak, or are its edges just Bet365 Live prices that weren't
+// really there (frozen, a goal / card being priced in)? A side at ≥ 3% is
+// logged again whenever Bet365's price moves, else after 5 min — so two
+// back-to-back logged rows of the same side, both ≥ 3%, at the same price
+// and score, ≥ 3 min and ≤ 5.5 min apart, mean Bet365's price stood still
+// over that window with no goal. The later row is the "stable" bet (taken
+// at that moment, settled on the FT score); rows flagged stale are out.
+// If stable edges pay, the losses elsewhere are latency; if they don't, the
+// model itself is the problem. (A frozen Bet365 price also looks stable —
+// the Pinnacle split shows whether the sharp book agreed.)
+function stableRows(rows) {
+  const byKey = new Map();
+  for (const o of rows) { const k = `${o.id}|${o.k}`; if (!byKey.has(k)) byKey.set(k, []); byKey.get(k).push(o); }
+  const out = [];
+  for (const L of byKey.values()) {
+    L.sort((a, b) => a.t - b.t);
+    for (let i = 1; i < L.length; i++) {
+      const a = L[i - 1], o = L[i], dt = o.t - a.t;
+      if (o.st || a.st || a.e < 3 || o.e < 3 || a.p !== o.p || a.sc !== o.sc || dt < 180000 || dt > 330000) continue;
+      out.push({ ...o, held: dt });
+    }
+  }
+  return out;
+}
+function stableSection(rows, fin, ret, vsOf) {
+  const out = ['STABLE PRICES ONLY — Bet365\'s price unchanged for ≥ 3 min with no goal, the side ≥ 3% on the model throughout (is it the model, or prices that weren\'t really there?):'];
+  const st = stableRows(rows), seen = new Set(), S = [];
+  for (const o of st) { const k = `${o.id}|${o.k}|${Math.floor(o.t / 900000)}`; if (!seen.has(k)) { seen.add(k); S.push(o); } }
+  const stableKeys = new Set(S.map(o => `${o.id}|${o.k}|${Math.floor(o.t / 900000)}`));
+  // Comparison: every other hot row (first sighting, price just moved, after a goal), same 15-min dedup.
+  const seen2 = new Set(), O = [];
+  for (const o of rows) {
+    if (o.st || o.e < 3) continue;
+    const k = `${o.id}|${o.k}|${Math.floor(o.t / 900000)}`;
+    if (stableKeys.has(k) || seen2.has(k)) continue; seen2.add(k); O.push(o);
+  }
+  const line = (label, L) => {
+    const sL = L.filter(o => ret(o) != null), n = sL.length;
+    if (!L.length) return null;
+    const pl = sL.reduce((x, o) => x + ret(o) - 1, 0);
+    return `  ${label.padEnd(44)} ${String(L.length).padStart(5)} rows · ${String(new Set(L.map(o => o.id)).size).padStart(4)} matches · settled ${String(n).padStart(5)}${n ? ` · avg model edge ${pct(sL.reduce((x, o) => x + o.e / 100, 0) / n)} · actual ROI ${pct(pl / n)}${vsOf(sL, n)}` : ''}`;
+  };
+  if (!S.length) return [...out, '  none recorded yet'];
+  const bands = [[3, 5], [5, 10], [10, 20], [20, Infinity]];
+  out.push('  Stable price:');
+  for (const [lo, hi] of bands) { const r = line(hi === Infinity ? `edge ≥ ${lo}%` : `edge ${lo}…${hi}%`, S.filter(o => o.e >= lo && o.e < hi)); if (r) out.push(r); }
+  const r1 = line('all ≥ 3%', S); if (r1) out.push(r1);
+  const r2 = line('≥ 5%, Bet365 1.70–2.50', S.filter(o => o.e >= 5 && o.p >= 1.7 && o.p <= 2.5)); if (r2) out.push(r2);
+  const wp = S.filter(o => o.pf > 1);
+  const r3 = line('≥ 5%, Pinnacle also below Bet365', wp.filter(o => o.e >= 5 && o.p > o.pf)); if (r3) out.push(r3);
+  const r4 = line('≥ 5%, Pinnacle at or above Bet365', wp.filter(o => o.e >= 5 && o.p <= o.pf)); if (r4) out.push(r4);
+  const first = new Map(); for (const o of S) if (o.e >= 5 && !first.has(o.id)) first.set(o.id, o);
+  const r5 = line('first stable ≥ 5% per match', [...first.values()]); if (r5) out.push(r5);
+  out.push('  Every other row ≥ 3% (first sighting, price just moved):');
+  for (const [lo, hi] of bands) { const r = line(hi === Infinity ? `edge ≥ ${lo}%` : `edge ${lo}…${hi}%`, O.filter(o => o.e >= lo && o.e < hi)); if (r) out.push(r); }
+  const r6 = line('all ≥ 3%', O); if (r6) out.push(r6);
+  out.push('  Stable rows paying near their model edge → the model is fine and the other losses are prices that weren\'t there; stable rows losing too → the model itself is weak.');
+  return out;
+}
+
+module.exports = { buildReport, logLossEvents, stableRows };
 
 if (require.main === module) {
   const arg = (n, dflt) => { const i = process.argv.indexOf(n); return i > 0 ? process.argv[i + 1] : dflt; };

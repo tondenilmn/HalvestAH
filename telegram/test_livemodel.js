@@ -138,6 +138,20 @@ assert.strictEqual(M.staleReason({ ...pre, pre }, { home: 0, away: 0 }, 5), null
   assert(/1 older rows and 0 older alerts left out/.test(t3) && /No rows since then yet/.test(t3), t3);
   fs3.rmSync(d3, { recursive: true });
 }
+// Stable prices: same price + score, both ≥ 3%, 3–5.5 min apart → stable; price moved → not
+{
+  const { stableRows } = require('./livemodel_report');
+  const T = Date.UTC(2026, 9, 11, 12), r = (t, p, e, sc = '0-0', k = 'OU|over|2.5') => ({ t, id: 's', min: 30, sc, k, mk: 'OU', side: 'over', line: 2.5, p, f: 1.8, e, se: 1 });
+  const st = stableRows([r(T, 2, 8), r(T + 300000, 2, 8), r(T + 400000, 2.1, 9), r(T + 700000, 2.1, 9, '1-0'), r(T, 2, 2, '0-0', 'x'), r(T + 300000, 2, 8, '0-0', 'x')]);
+  assert.strictEqual(st.length, 1, 'only the 5-min re-log at an unchanged price and score');
+  assert.strictEqual(st[0].t, T + 300000);
+  const fs4 = require('fs'), os4 = require('os'), path4 = require('path');
+  const d4 = fs4.mkdtempSync(path4.join(os4.tmpdir(), 'lm-stable-'));
+  fs4.writeFileSync(path4.join(d4, 'a.jsonl'), [r(T, 2, 8), r(T + 300000, 2, 8), { t: T + 9e6, id: 's', res: '2-1' }].map(l => JSON.stringify(l)).join('\n') + '\n');
+  const t4 = require('./livemodel_report').buildReport(d4, { tz: 'UTC', since: 0 });
+  assert(/STABLE PRICES ONLY/.test(t4) && /edge 5…10%\s+1 rows ·\s+1 matches · settled\s+1 · avg model edge \+8\.0% · actual ROI \+100\.0%/.test(t4), t4);
+  fs4.rmSync(d4, { recursive: true });
+}
 console.log('livemodel: all tests passed');
 // ── Log loss: a 1X2 snapshot (all three sides) and an OU .5 pair; pushes skipped
 {

@@ -44,12 +44,13 @@ const units = x => `${x >= 0 ? '+' : ''}${x.toFixed(2)}u`;
 function load(dir) {
   const rows = [], fin = new Map(), noRes = new Map(), alerts = [];
   let scans = 0, first = null, last = null;
+  const hbs = [];
   if (!fs.existsSync(dir)) return null;
   for (const f of fs.readdirSync(dir).filter(f => f.endsWith('.jsonl')).sort()) {
     for (const line of fs.readFileSync(path.join(dir, f), 'utf8').split('\n')) {
       if (!line.trim()) continue;
       let o; try { o = JSON.parse(line); } catch { continue; }
-      if (o.hb) { scans++; first = first ?? o.hb.t; last = o.hb.t; }
+      if (o.hb) { scans++; first = first ?? o.hb.t; last = o.hb.t; hbs.push(o.hb.t); }
       else if (o.alert) alerts.push(o.alert);
       else if (o.res !== undefined) {
         // score: what to settle on — the 90' score when it went to extra time.
@@ -61,7 +62,8 @@ function load(dir) {
       else rows.push(o);
     }
   }
-  return { rows, fin, noRes, alerts, scans, first, last };
+  hbs.sort((a, b) => a - b);
+  return { rows, fin, noRes, alerts, scans, first, last, hbs };
 }
 
 // Alerts from before they were logged: the first row per match+market+line
@@ -172,10 +174,82 @@ function buildReport(dir, opts = {}) {
   out.push('By Bet365 price (alert timing):');
   for (const band of [[1, 1.5], [1.5, 1.7], [1.7, 2.1], [2.1, 2.5], [2.5, 4], [4, 1e9]]) line(`  ${band[0]}–${band[1] > 100 ? '+' : band[1]}`, atAlert, band);
   out.push('', '"Closed by Bet365" = Bet365 came down to Pinnacle (the price was good); "by Pinnacle" = Pinnacle moved up (the gap was lag).');
+  out.push('', ...nextScanSection(d, byKey, finalOf, MIN));
   return out.join('\n');
 }
 
-module.exports = { buildReport, reconstructAlerts, payout };
+// ── 3. The next scan after a gap (added 2026-10-11) ──
+// Was the gap still there one scan (~1 min) later, and who moved? Every
+// gap ≥ MIN at alert timing (2nd scan in a row), compared with the same
+// side on the very next scan of the recorder:
+//   gone from the feed — no row for this side on the next scan (market
+//     suspended / line pulled; split by whether the match's other sides
+//     were still listed);
+//   goal — the score changed in between (prices before it say nothing);
+//   else Bet365's price down / same / up and Pinnacle's fair up / same /
+//     down (> 0.5%), and whether the gap was still ≥ MIN.
+// ROI is at the entry price, settled on the confirmed FT score. If the gaps
+// that held on the next scan pay and the ones Bet365 corrected don't, the
+// feed lag is the problem; if none pay, it isn't just lag.
+// Also: how often Bet365's and Pinnacle's prices change from one scan to
+// the next across every recorded side — Bet365 standing still while
+// Pinnacle moves is the "frozen price" signature.
+function nextScanSection(d, byKey, finalOf, MIN) {
+  const out = [`NEXT SCAN AFTER A GAP ≥ ${MIN}% (alert timing; was it still there ~1 min later, and who moved?):`];
+  const hbs = d.hbs;
+  const nextHb = t => { let lo = 0, hi = hbs.length; while (lo < hi) { const m = (lo + hi) >> 1; if (hbs[m] <= t) lo = m + 1; else hi = m; } return hbs[lo] ?? null; };
+  const byScan = new Map(); // `${id}|${t}` → listed at that scan
+  for (const o of d.rows) byScan.set(`${o.id}|${o.t}`, true);
+  const buckets = new Map(), order = [];
+  const add = (name, e, extra = {}) => {
+    if (!buckets.has(name)) { buckets.set(name, { n: 0, settled: 0, pl: 0, still: 0 }); order.push(name); }
+    const b = buckets.get(name); b.n++;
+    if (extra.still) b.still++;
+    const final = finalOf(e.id), pay = final != null ? payout(e, final, e.p) : null;
+    if (pay != null) { b.settled++; b.pl += pay - 1; }
+  };
+  let total = 0, noNext = 0;
+  for (const list of byKey.values()) {
+    for (let i = 1; i < list.length; i++) {
+      const e = list[i], prev = list[i - 1];
+      if (!(e.e >= MIN && prev.e >= MIN && e.t - prev.t <= 150000 && prev.sc === e.sc)) continue;
+      const tn = nextHb(e.t);
+      if (tn == null || tn - e.t > 150000) { noNext++; continue; }
+      total++;
+      const nx = list.find(o => o.t === tn);
+      if (!nx) { add(byScan.has(`${e.id}|${tn}`) ? 'gone from the feed — this side only (line pulled / suspended)' : 'gone from the feed — whole match', e); continue; }
+      if (nx.sc !== e.sc) { add('goal before the next scan', e); continue; }
+      const b = nx.p < e.p ? 'down' : nx.p > e.p ? 'up' : 'same';
+      const r = nx.f > e.f * 1.005 ? 'up' : nx.f < e.f * 0.995 ? 'down' : 'same';
+      const still = nx.e >= MIN;
+      add(`Bet365 ${b.padEnd(4)} · Pinnacle fair ${r}`, e, { still });
+      add(still ? 'ALL: gap still ≥ threshold on the next scan' : 'ALL: gap gone on the next scan (same score)', e);
+    }
+  }
+  if (!total) { out.push(`  no gap with a next scan recorded yet${noNext ? ` (${noNext} without one)` : ''}`); return out; }
+  const fmt = (name, b) => `  ${name.padEnd(62)} ${String(b.n).padStart(5)} (${(b.n / total * 100).toFixed(0).padStart(2)}%)${b.still && !name.startsWith('ALL') ? ` · still open ${b.still}` : ''} · settled ${b.settled}${b.settled ? ` · ROI ${pct(b.pl / b.settled)}` : ''}`;
+  const sorted = order.filter(n => !n.startsWith('ALL')).sort((a, b) => buckets.get(b).n - buckets.get(a).n);
+  for (const n of sorted) out.push(fmt(n, buckets.get(n)));
+  for (const n of order.filter(n => n.startsWith('ALL'))) out.push(fmt(n, buckets.get(n)));
+  out.push(`  (${total} gaps with a next scan ≤ 2.5 min later${noNext ? `; ${noNext} without one` : ''}.)`);
+
+  // Scan-to-scan price changes, every recorded side at the same score.
+  let pairs = 0, bCh = 0, rCh = 0, bOnly = 0, rOnly = 0, both = 0;
+  for (const list of byKey.values()) for (let i = 1; i < list.length; i++) {
+    const a = list[i - 1], o = list[i];
+    if (o.sc !== a.sc || o.t - a.t > 150000 || nextHb(a.t) !== o.t) continue;
+    pairs++;
+    const bc = o.p !== a.p, rc = Math.abs(o.f / a.f - 1) > 0.005;
+    if (bc) bCh++; if (rc) rCh++;
+    if (bc && rc) both++; else if (bc) bOnly++; else if (rc) rOnly++;
+  }
+  if (pairs) out.push('', `Scan-to-scan price changes (every recorded side, same score, ${pairs} pairs of back-to-back scans):`,
+    `  Bet365 price changed ${(bCh / pairs * 100).toFixed(0)}% · Pinnacle fair changed (> 0.5%) ${(rCh / pairs * 100).toFixed(0)}% · both ${(both / pairs * 100).toFixed(0)}% · Bet365 only ${(bOnly / pairs * 100).toFixed(0)}% · Pinnacle only ${(rOnly / pairs * 100).toFixed(0)}%`,
+    '  Pinnacle moving while Bet365 stands still = a Bet365 price that is frozen (or our copy of it is) — the gaps it makes are not bettable.');
+  return out;
+}
+
+module.exports = { buildReport, reconstructAlerts, payout, nextScanSection };
 
 if (require.main === module) {
   const arg = (n, dflt) => { const i = process.argv.indexOf(n); return i > 0 ? process.argv[i + 1] : dflt; };
