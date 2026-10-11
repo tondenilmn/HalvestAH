@@ -182,6 +182,15 @@ function report(matches) {
         const st5 = L.filter(g => !late(g, 300, X).gone).length;
         out.push(`    ${`${lo}–${hi > 1e8 ? '+' : hi} h`.padEnd(8)} ${String(L.length).padStart(5)} · median life ${fmtDur(q(d, 0.5)).padStart(7)} · still there after 5 min ${(st5 / L.length * 100).toFixed(0).padStart(3)}% · ROI ${roiOf(L)}`);
       }
+      // Month by month (kick-off month), and by how often 7msport recorded Bet365 moving on
+      // that market (few changes = thinly followed league, where gap lifetimes are least reliable).
+      const byMonth = new Map();
+      for (const g of firsts) { const k = new Date(g.m.ko).toISOString().slice(0, 7); if (!byMonth.has(k)) byMonth.set(k, []); byMonth.get(k).push(g); }
+      const months = [...byMonth.entries()].sort();
+      const pos = months.filter(([, L]) => L.reduce((a, g) => a + (g.r ?? 1) - 1, 0) > 0).length;
+      out.push(`  by month: ${pos}/${months.length} positive · ${months.map(([k, L]) => `${k.slice(2)} ${roiOf(L)}`).join(' · ')}`);
+      const nCh = g => g.m[g.mk === 'AH' ? 'ah' : 'ou'].b365.length;
+      out.push(`  by Bet365 changes recorded: <8 ${roiOf(firsts.filter(g => nCh(g) < 8))} · 8–20 ${roiOf(firsts.filter(g => nCh(g) >= 8 && nCh(g) <= 20))} · >20 ${roiOf(firsts.filter(g => nCh(g) > 20))}`);
       out.push('  by market:');
       for (const mk of ['AH', 'OU']) { const L = firsts.filter(g => g.mk === mk); if (L.length) out.push(`    ${mk.padEnd(3)} ${String(L.length).padStart(5)} · ROI ${roiOf(L)}`); }
       out.push('');
