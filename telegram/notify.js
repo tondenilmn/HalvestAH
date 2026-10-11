@@ -1162,6 +1162,8 @@ const _pgAlerted = new Map(); // `${id}|${market}|${side}|${line}` (PRICEGAP's o
   for (const [k, v] of seen) _pgAlerted.set(k, v);
 })();
 const pgRowKey = (id, r) => `${id}|${r.market}|${r.side}|${r.line}`;
+const sevenM = require('./sevenm');
+const _pg7Block = new Map(); // gap key → time 7msport last blocked it (re-checked after 10 min)
 const _pgStreak = new Map(); // `${scope}|${pk}` → { n, first, last }: consecutive scans a side stayed ≥ the alert edge
 const pgBetRow = (t, ev, match, koMs, r, extra = {}) => ({
   t, ev, id: match.id, ko: koMs, kmin: Math.round((koMs - t) / 60000), pk: pgRowKey(match.id, r),
@@ -1350,9 +1352,35 @@ async function runPriceGapScan(scope = 'near') {
         st.last = now; _pgStreak.set(sk, st);
         r._scans = st.n; r._first = st.first;
       }
-      const gaps = qual.filter(r => r._scans >= cfg.PRICEGAP_MIN_SCANS)
+      let gaps = qual.filter(r => r._scans >= cfg.PRICEGAP_MIN_SCANS)
         .filter(r => !priceGapDedup.has(`${match.id}:${r.market}:${r.side}:${r.line}`));
       if (!gaps.length) continue;
+      // 7msport check (PRICEGAP_7M, sevenm.js): Bet365's latest price there for the same market.
+      // Another line, or a price below the minimum → blocked (our feed is behind Bet365);
+      // lower but still ≥ the minimum → sent at that price; not found / unreachable → sent as before.
+      if (cfg.PRICEGAP_7M) {
+        const keep = [], koMs7 = match.kickoff_time ? Date.parse(match.kickoff_time) : null;
+        for (const r of gaps) {
+          const bk = `${match.id}|${r.market}|${r.side}|${r.line}`, seen = _pg7Block.get(bk);
+          if (seen && now - seen < 10 * 60000) continue;
+          const mo = r.fair * (1 + cfg.PRICEGAP_MIN_EDGE_PCT / 100);
+          const v = await sevenM.checkGap(match, r, mo, { tol: cfg.PRICEGAP_7M_TOL });
+          sevenM.count(v.st); r._v7 = v;
+          if (v.st === 'line' || v.st === 'lower') {
+            _pg7Block.set(bk, now);
+            flog(null, ctx.label, 'PRICEGAP', `blocked by 7msport (${v.st}): ${r.label} @${r.price} — Bet365 there ${v.st === 'line' ? `on line ${v.line7}` : `@${v.p7}`}, ${v.ageS} s since its last change`);
+            if (cfg.PRICEGAP_TRACK && koMs7) {
+              pgRec.push(pgBetRow(now, 'blk7', match, koMs7, r, { mo: +mo.toFixed(3), b: priceGap.bucketOf(r).name, v7: v.st, p7: v.p7 ?? null, line7: v.line7 ?? null, a7: v.ageS ?? null }));
+              crossMarket.queue(_pgPending, match.id, `${match.home_team} v ${match.away_team}`, koMs7);
+            }
+            continue;
+          }
+          if (v.st === 'adj') { r._pFeed = r.price; r.price = v.p7; r.edge = v.p7 / r.fair - 1; }
+          keep.push(r);
+        }
+        gaps = keep;
+        if (!gaps.length) continue;
+      }
       for (const r of gaps) priceGapDedup.mark(`${match.id}:${r.market}:${r.side}:${r.line}`);
       flog(null, ctx.label, 'PRICEGAP', gaps.map(r => `${r.label} @${r.price} fair ${r.fair.toFixed(2)} +${(r.edge * 100).toFixed(1)}%${r.ref === 'pin' ? ' (vs Pinnacle)' : ''}`).join(' | '));
       if (gaps.some(r => r.ref === 'pin')) pgPinAlerts++;
@@ -1364,7 +1392,8 @@ async function runPriceGapScan(scope = 'near') {
       if (cfg.PRICEGAP_TRACK && match.kickoff_time) {
         const koMs = Date.parse(match.kickoff_time);
         for (const r of gaps) {
-          const row = pgBetRow(now, 'alert', match, koMs, r, { mo: +(r.fair * (1 + cfg.PRICEGAP_MIN_EDGE_PCT / 100)).toFixed(3), b: priceGap.bucketOf(r).name, scans: r._scans, first: r._first });
+          const row = pgBetRow(now, 'alert', match, koMs, r, { mo: +(r.fair * (1 + cfg.PRICEGAP_MIN_EDGE_PCT / 100)).toFixed(3), b: priceGap.bucketOf(r).name, scans: r._scans, first: r._first,
+            ...(r._v7 ? { v7: r._v7.st, p7: r._v7.p7 ?? null, a7: r._v7.ageS ?? null, ...(r._pFeed ? { pf: r._pFeed } : {}) } : {}) });
           pgRec.push(row); _pgAlerted.set(row.pk, { koMs, cl: false, row });
         }
         crossMarket.queue(_pgPending, match.id, `${match.home_team} v ${match.away_team}`, koMs);
@@ -1380,6 +1409,7 @@ async function runPriceGapScan(scope = 'near') {
       if (pgRec.length) liveGap.appendRecords(PRICEGAP_BETS_DIR, now, pgRec);
       for (const [k, a] of _pgAlerted) if (now - a.koMs > 6 * 3600000) _pgAlerted.delete(k);
       if (_pgStreak.size > 20000) for (const [k, v] of _pgStreak) if (now - v.last > 3600000) _pgStreak.delete(k);
+      for (const [k, t] of _pg7Block) if (now - t > 3600000) _pg7Block.delete(k);
     }
     if (cfg.PINNGAP_RECORD) {
       if (scope === 'near' && _pinnPending.size) pinnRec.push(...await liveGapResult.settleDue(_pinnPending, now, cachedResult));
@@ -1404,7 +1434,7 @@ async function runPriceGapScan(scope = 'near') {
       if (scope === 'near' && _crossPending.size) crossRec.push(...await liveGapResult.settleDue(_crossPending, now, cachedResult));
       if (crossRec.length) liveGap.appendRecords(CROSSMARKET_LOG_DIR, now, crossRec);
     }
-    console.log(`PriceGap(${scope}) — ${b365.matches.length} Bet365 / ${sbo.matches.length} Sbobet fixtures, ${compared} compared, ${record.length} gap(s) ≥${cfg.PRICEGAP_RECORD_MIN_PCT}%, ${alerts} alert(s)${cfg.CROSSMARKET_RECORD ? `, CrossMarket ${crossRec.length} row(s) / ${_crossPending.size} awaiting FT` : ''}${cfg.PRICEGAP_PINNACLE ? `, Pinnacle ref ${pgPinOn ? `${pgPinPaired} paired / ${pgPinAlerts} alert(s)` : `off (copy ${pin.age ?? '—'} s old)`}` : ''}${cfg.PINNGAP_RECORD ? `, PinnGap ${pinPaired} paired (Pinnacle ${pin.age ?? '—'} s old${pinFresh ? '' : ', not used'}) ${pinnRec.length} row(s)` : ''}${owOn ? `, OpenWatch ${owPaired} paired ${owRec.length} row(s)` : ''}${bfOn ? `, BFPORT ${bfPaired} paired / ${_bf.bets.length} paper bet(s)` : ''}${b365.hashFailed || sbo.hashFailed ? ' (a hash failed — check FEEDS)' : ''}.`);
+    console.log(`PriceGap(${scope}) — ${b365.matches.length} Bet365 / ${sbo.matches.length} Sbobet fixtures, ${compared} compared, ${record.length} gap(s) ≥${cfg.PRICEGAP_RECORD_MIN_PCT}%, ${alerts} alert(s)${cfg.CROSSMARKET_RECORD ? `, CrossMarket ${crossRec.length} row(s) / ${_crossPending.size} awaiting FT` : ''}${cfg.PRICEGAP_7M && scope === 'near' && (now / 60000 | 0) % 10 === 0 ? ` [${sevenM.statusLine()}]` : ''}${cfg.PRICEGAP_PINNACLE ? `, Pinnacle ref ${pgPinOn ? `${pgPinPaired} paired / ${pgPinAlerts} alert(s)` : `off (copy ${pin.age ?? '—'} s old)`}` : ''}${cfg.PINNGAP_RECORD ? `, PinnGap ${pinPaired} paired (Pinnacle ${pin.age ?? '—'} s old${pinFresh ? '' : ', not used'}) ${pinnRec.length} row(s)` : ''}${owOn ? `, OpenWatch ${owPaired} paired ${owRec.length} row(s)` : ''}${bfOn ? `, BFPORT ${bfPaired} paired / ${_bf.bets.length} paper bet(s)` : ''}${b365.hashFailed || sbo.hashFailed ? ' (a hash failed — check FEEDS)' : ''}.`);
   } finally {
     releaseGuard(_priceGapRunning, scope, token);
   }

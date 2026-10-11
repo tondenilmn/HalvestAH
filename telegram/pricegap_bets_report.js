@@ -25,19 +25,20 @@ const units = x => `${x >= 0 ? '+' : ''}${x.toFixed(2)}u`;
 
 function load(dir) {
   if (!fs.existsSync(dir)) return null;
-  const alerts = [], cl = new Map(), nx = new Map(), fin = new Map(), noRes = new Set();
+  const alerts = [], blocked = [], cl = new Map(), nx = new Map(), fin = new Map(), noRes = new Set();
   for (const f of fs.readdirSync(dir).filter(f => f.endsWith('.jsonl')).sort()) {
     for (const line of fs.readFileSync(path.join(dir, f), 'utf8').split('\n')) {
       if (!line.trim()) continue;
       let o; try { o = JSON.parse(line); } catch { continue; }
       if (o.ev === 'alert') alerts.push(o);
+      else if (o.ev === 'blk7') blocked.push(o);
       else if (o.ev === 'cl') cl.set(o.pk, o);
       else if (o.ev === 'nx') nx.set(o.pk, o);
       else if (o.res !== undefined) fin.set(o.id, o.et ? o.reg : o.res);
       else if (o.nores) noRes.add(o.id);
     }
   }
-  return { alerts: alerts.sort((a, b) => a.t - b.t), cl, nx, fin, noRes };
+  return { alerts: alerts.sort((a, b) => a.t - b.t), blocked, cl, nx, fin, noRes };
 }
 
 function summarize(list, fin) {
@@ -64,6 +65,23 @@ function buildReport(dir, opts = {}) {
     for (const v of [...new Set(alerts.map(get))]) {
       const L = alerts.filter(a => get(a) === v), s = summarize(L, fin);
       out.push(`    ${String(v).padEnd(14)} ${String(L.length).padStart(4)} sides · settled ${String(s.n).padStart(4)}${s.n ? ` · ${units(s.plP).padStart(8)} · ROI ${pct(s.plP / s.n).padStart(7)}${blind.fmtVs(s.vs, s.n)}` : ''}`);
+    }
+  }
+
+  // 7msport check (sevenm.js, since 2026-10-11): what it said about the alerts sent, and the
+  // alerts it blocked, settled as if sent at our feed's price — blocking pays if those lose.
+  if (d.blocked.length || alerts.some(a => a.v7)) {
+    const V7 = { ok: 'confirmed by 7msport', adj: 'sent at 7msport\'s lower price', nf: 'not found on 7msport', err: '7msport unreachable' };
+    out.push('', '7MSPORT CHECK (Bet365\'s latest price on 7msport before sending):');
+    for (const [k, lab] of Object.entries(V7)) {
+      const L = alerts.filter(a => a.v7 === k); if (!L.length) continue;
+      const s = summarize(L, fin);
+      out.push(`  ${lab.padEnd(34)} ${String(L.length).padStart(4)} sides · settled ${String(s.n).padStart(4)}${s.n ? ` · ${units(s.plP).padStart(8)} · ROI ${pct(s.plP / s.n).padStart(7)}` : ''}`);
+    }
+    for (const [k, lab] of [['line', 'BLOCKED — Bet365 on another line'], ['lower', 'BLOCKED — Bet365 below the minimum']]) {
+      const L = d.blocked.filter(a => a.v7 === k); if (!L.length) continue;
+      const s = summarize(L, fin);
+      out.push(`  ${lab.padEnd(34)} ${String(L.length).padStart(4)} sides · settled ${String(s.n).padStart(4)}${s.n ? ` · if sent at our price ${units(s.plP).padStart(8)} · ROI ${pct(s.plP / s.n).padStart(7)}` : ''}`);
     }
   }
 

@@ -583,6 +583,13 @@ module.exports = {
   // median 7–9 min, so an older copy is mostly a moved price).
   PRICEGAP_PINNACLE:         process.env.PRICEGAP_PINNACLE !== 'false',
   PRICEGAP_PIN_MAX_AGE_S:    parseFloat(process.env.PRICEGAP_PIN_MAX_AGE_S || '300'),
+  // 7msport check before each AH / goal-line alert (added 2026-10-11, telegram/sevenm.js):
+  // Bet365's latest pre-match price on 7msport for that market. Another line, or a
+  // price below the alert's minimum → blocked (our feed is behind Bet365); lower but
+  // ≥ the minimum → sent at 7msport's price; within PRICEGAP_7M_TOL → sent as is;
+  // match not found or 7msport unreachable → sent as before (never blocks blind).
+  PRICEGAP_7M:               process.env.PRICEGAP_7M !== 'false',
+  PRICEGAP_7M_TOL:           parseFloat(process.env.PRICEGAP_7M_TOL || '0.02'),
   // Two scans with their own cadence (2026-10-04: botbot3 refreshes its
   // tablenext files about once a minute — measured over 11 fetches 30 s apart,
   // changes on every other fetch — so scanning faster than 1 min gains nothing):
