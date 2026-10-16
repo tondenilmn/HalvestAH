@@ -3306,11 +3306,11 @@ function startHashRelayServer() {
     // daily .jsonl files, /data/<recorder>/<YYYY-MM-DD>.jsonl returns one gzipped — so
     // the recordings can be re-analysed offline (e.g. against 7msport's price history).
     // Only the recorders below, only plain day-file names; ?key= when LIVEGAP_REPORT_KEY is set.
-    const dm = /^\/data\/(livegap|livemodel)\/((\d{4}-\d{2}-\d{2})\.jsonl)?(\?.*)?$/.exec(req.url);
+    const dm = /^\/data\/(livegap|livemodel|pricegap_bets|openwatch)\/((\d{4}-\d{2}-\d{2})\.jsonl)?(\?.*)?$/.exec(req.url);
     if (dm) {
       const key = new URL(req.url, 'http://x').searchParams.get('key');
       if (process.env.LIVEGAP_REPORT_KEY && key !== process.env.LIVEGAP_REPORT_KEY) { res.writeHead(401, { 'Content-Type': 'text/plain' }); res.end('key required'); return; }
-      const dir = { livegap: LIVEGAP_LOG_DIR, livemodel: LIVEMODEL_LOG_DIR }[dm[1]];
+      const dir = { livegap: LIVEGAP_LOG_DIR, livemodel: LIVEMODEL_LOG_DIR, pricegap_bets: PRICEGAP_BETS_DIR, openwatch: OPENWATCH_LOG_DIR }[dm[1]];
       try {
         if (!dm[2]) {
           const files = fs.existsSync(dir) ? fs.readdirSync(dir).filter(f => /^\d{4}-\d{2}-\d{2}\.jsonl$/.test(f)).sort() : [];

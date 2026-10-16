@@ -68,6 +68,45 @@ function buildReport(dir, opts = {}) {
     }
   }
 
+  // Detail per market (added 2026-10-17, user request): league tier, line cluster, side, price band.
+  // AH lines are the side's own handicap (−0.5 = giving half a goal → favourite side).
+  const { classifyLeague } = require('./engine');
+  const row = (label, L) => { const s = summarize(L, fin); return `    ${label.padEnd(26)} ${String(L.length).padStart(4)} sides · settled ${String(s.n).padStart(4)}${s.n ? ` · ${units(s.plP).padStart(8)} · ROI ${pct(s.plP / s.n).padStart(7)}${blind.fmtVs(s.vs, s.n)}` : ''}`; };
+  const groups = (L, label, key, order) => {
+    out.push(`  ${label}:`);
+    const vals = [...new Set(L.map(key))].sort((a, b) => (order ? order.indexOf(a) - order.indexOf(b) : String(a).localeCompare(String(b))));
+    for (const v of vals) out.push(row(String(v), L.filter(a => key(a) === v)));
+  };
+  const tierOf = a => classifyLeague(a.lg || '');
+  const priceBand = a => (a.p < 1.8 ? 'price < 1.80' : a.p < 2.0 ? 'price 1.80–1.99' : a.p < 2.2 ? 'price 2.00–2.19' : 'price ≥ 2.20');
+  const PB = ['price < 1.80', 'price 1.80–1.99', 'price 2.00–2.19', 'price ≥ 2.20'], TIERS = ['TOP', 'MAJOR', 'OTHER'];
+  const ah = alerts.filter(a => a.mk === 'AH'), ou = alerts.filter(a => a.mk === 'OU');
+  if (ah.length) {
+    out.push('', `ASIAN HANDICAP DETAIL (${ah.length} sides):`);
+    groups(ah, 'by league tier', tierOf, TIERS);
+    const sideType = a => (Math.abs(a.line) < 1e-9 ? 'level (0)' : a.line < 0 ? 'favourite (giving goals)' : 'underdog (getting goals)');
+    groups(ah, 'by side', sideType, ['favourite (giving goals)', 'level (0)', 'underdog (getting goals)']);
+    const AHC = ['line 0', 'line 0.25', 'line 0.5', 'line 0.75', 'line 1–1.25', 'line ≥ 1.5'];
+    const ahCl = a => { const x = Math.abs(a.line); return x < 0.01 ? AHC[0] : x < 0.3 ? AHC[1] : x < 0.6 ? AHC[2] : x < 0.8 ? AHC[3] : x < 1.4 ? AHC[4] : AHC[5]; };
+    groups(ah, 'by line (size of the handicap)', ahCl, AHC);
+    groups(ah, 'by line and side', a => `${ahCl(a)} ${a.line < -1e-9 ? 'fav' : a.line > 1e-9 ? 'dog' : ''}`.trim(),
+      AHC.flatMap(c => [`${c} fav`, c, `${c} dog`]));
+    groups(ah, 'by Bet365 price', priceBand, PB);
+    groups(ah, 'by tier and reference', a => `${tierOf(a)} ${refName(a)}`, TIERS.flatMap(t => [`${t} vs Sbobet`, `${t} vs Pinnacle`]));
+  }
+  if (ou.length) {
+    out.push('', `GOAL LINE (OVER / UNDER) DETAIL (${ou.length} sides):`);
+    groups(ou, 'by league tier', tierOf, TIERS);
+    groups(ou, 'by side', a => a.side, ['over', 'under']);
+    const OUC = ['total < 2', 'total 2–2.5', 'total 2.75–3', 'total ≥ 3.25'];
+    const ouCl = a => (a.line < 1.99 ? OUC[0] : a.line < 2.6 ? OUC[1] : a.line < 3.1 ? OUC[2] : OUC[3]);
+    groups(ou, 'by total line', ouCl, OUC);
+    groups(ou, 'by total line and side', a => `${ouCl(a)} ${a.side}`, OUC.flatMap(c => [`${c} over`, `${c} under`]));
+    groups(ou, 'by Bet365 price', priceBand, PB);
+    groups(ou, 'by tier and reference', a => `${tierOf(a)} ${refName(a)}`, TIERS.flatMap(t => [`${t} vs Sbobet`, `${t} vs Pinnacle`]));
+  }
+  out.push('  (Small cells swing a lot — read cells with a few hundred settled sides, not a few dozen.)');
+
   // 7msport check (sevenm.js, since 2026-10-11): what it said about the alerts sent, and the
   // alerts it blocked, settled as if sent at our feed's price — blocking pays if those lose.
   if (d.blocked.length || alerts.some(a => a.v7)) {
