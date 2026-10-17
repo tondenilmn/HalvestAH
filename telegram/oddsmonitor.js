@@ -36,10 +36,25 @@ const HEADERS = { 'User-Agent': 'Mozilla/5.0', Accept: 'application/json' };
 
 const _st = { events: [], fetchedAt: 0, generatedAt: null, error: null, fails: 0, seen: new Map(), saved: new Set(), stats: { saved: 0, failed: 0 } };
 
-async function getJson(url) {
+// oddsmonitor answers 403 to Railway's IP (2026-10-17): on a 403 the request goes
+// through the web app's /api/oddsmonitor relay instead (ODDSMONITOR_RELAY_URL,
+// else HASH_RELAY_URL / DATA_URL), and keeps doing so for an hour.
+const RELAY = () => (process.env.ODDSMONITOR_RELAY_URL || process.env.HASH_RELAY_URL || process.env.DATA_URL || '').replace(/\/+$/, '');
+let _viaRelayUntil = 0;
+async function fetchJson(url) {
   const r = await fetch(url, { headers: HEADERS, signal: AbortSignal.timeout(30000) });
-  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  if (!r.ok) { const e = new Error(`HTTP ${r.status}`); e.status = r.status; throw e; }
   return r.json();
+}
+async function getJson(url) {
+  const relay = RELAY(), viaRelay = relay && url.startsWith(BASE) ? `${relay}/api/oddsmonitor?p=${encodeURIComponent(url.slice(BASE.length + 1))}` : null;
+  if (viaRelay && Date.now() < _viaRelayUntil) return fetchJson(viaRelay);
+  try { return await fetchJson(url); } catch (e) {
+    if (e.status !== 403 || !viaRelay) throw e;
+    const d = await fetchJson(viaRelay);
+    _viaRelayUntil = Date.now() + 3600e3; _st.via = 'relay';
+    return d;
+  }
 }
 
 // Live list (every minute). Keeps the previous list on failure.
@@ -159,7 +174,7 @@ function statusLine(dir, now = Date.now()) {
   let files = 0, bytes = 0;
   try { for (const day of fs.readdirSync(dir)) for (const f of fs.readdirSync(path.join(dir, day))) { files++; bytes += fs.statSync(path.join(dir, day, f)).size; } } catch { /* none */ }
   const a = ageS(now);
-  return `oddsmonitor: ${_st.events.length} matches listed (${_st.events.filter(e => e.inplay).length} live)${a != null ? `, list ${Math.round(a)} s old` : ''}${_st.error ? `, last error: ${_st.error}` : ''} · ${files} match histories saved (${(bytes / 1e6).toFixed(1)} MB)`;
+  return `oddsmonitor: ${_st.events.length} matches listed (${_st.events.filter(e => e.inplay).length} live)${a != null ? `, list ${Math.round(a)} s old` : ''}${_st.via === 'relay' && Date.now() < _viaRelayUntil ? ' (via the web app relay — oddsmonitor refuses this IP)' : ''}${_st.error ? `, last error: ${_st.error}` : ''} · ${files} match histories saved (${(bytes / 1e6).toFixed(1)} MB)`;
 }
 
 module.exports = { pollEvents, findEvent, staleVsBetfair, compactChart, saveFinished, loadSaved, readHistory, statusLine, ageS, _st };
