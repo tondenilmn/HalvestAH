@@ -39,6 +39,14 @@ const MINS = opt('--min', '3,5').split(',').map(Number);
 fs.mkdirSync(CACHE, { recursive: true });
 const UA = { headers: { 'User-Agent': 'Mozilla/5.0' } };
 const BOOK = { b365: '2', sbo: '16', pin: '23' };
+// --all-books (added 2026-10-17): keep every bookmaker 7msport lists, as `c<id>` (Bet365 /
+// Sbobet / Pinnacle keep their names), so other soft books can be tested as the target with
+// --targets <id,id,…> — e.g. 7 William Hill, 8 1xbet, 5 Bwin, 10 Interwetten, 22 Ladbrokes.
+const ALL_BOOKS = args.includes('--all-books');
+const keyOf = cid => (Object.entries(BOOK).find(([, v]) => v === String(cid)) || [`c${cid}`])[0];
+const NAMES = { 2: 'Bet365', 3: 'Crown', 4: 'Macau', 5: 'Bwin', 7: 'William Hill', 8: '1xbet', 9: 'Betfair', 10: 'Interwetten', 12: 'Victor Chandler', 14: '10BET', 15: '188BET', 16: 'Sbobet', 17: 'Mansion88', 18: 'YSB88', 19: '12BET', 20: 'wewbet', 22: 'Ladbrokes', 23: 'Pinnacle' };
+const TARGETS = opt('--targets', '2').split(',').map(x => x.trim()).filter(Boolean);
+let TARGET = keyOf(TARGETS[0]);
 
 async function getText(url) {
   for (let i = 0; i < 3; i++) {
@@ -74,16 +82,17 @@ async function fetchDay(day) {
     let any = false;
     for (const [ty, k] of [[2, 'ah'], [3, 'ou']]) {
       const c = inf[ty] || {};
-      if (!c[BOOK.b365] || !(c[BOOK.sbo] || c[BOOK.pin])) continue;
+      if (!(c[BOOK.sbo] || c[BOOK.pin]) || !(ALL_BOOKS || c[BOOK.b365])) continue;
       const h = await getText(`https://static-data-expansion.7mdt.com/football/luck/type/${ty}/sdt/${id}.json`);
       let d; try { d = JSON.parse(h); } catch { continue; }
       m[k] = {};
-      for (const [name, cid] of Object.entries(BOOK)) {
+      const books = ALL_BOOKS ? Object.keys(d).map(cid => [keyOf(cid), cid]) : Object.entries(BOOK);
+      for (const [name, cid] of books) {
         const rows = (d[cid]?.data || []).filter(r => !r.time && r.updateTime * 1000 < ko && r.p_1 > 1 && r.p_3 > 1)
           .map(r => [r.updateTime, r.p_1, r.p_2, r.p_3, r.is_lock ? 1 : 0]).sort((x, y) => x[0] - y[0]);
         if (rows.length) m[k][name] = rows;
       }
-      if (m[k].b365) any = true;
+      if (ALL_BOOKS ? Object.keys(m[k]).length >= 2 : m[k].b365) any = true;
     }
     if (any) { out.push(m); withBooks++; }
   });
@@ -106,11 +115,11 @@ function edgeAt(mk, side, b, ref) {
 function replay(matches, X) {
   const gaps = [];
   for (const m of matches) for (const [k, mk, sides] of [['ah', 'AH', ['home', 'away']], ['ou', 'OU', ['over', 'under']]]) {
-    const bk = m[k]; if (!bk?.b365) continue;
+    const bk = m[k]; if (!bk?.[TARGET]) continue;
     for (const refName of ['sbo', 'pin']) {
       const ref = bk[refName]; if (!ref) continue;
-      const times = [...new Set([...bk.b365.map(r => r[0]), ...ref.map(r => r[0])])].sort((x, y) => x - y)
-        .filter(t => t >= Math.max(bk.b365[0][0], ref[0][0]));
+      const times = [...new Set([...bk[TARGET].map(r => r[0]), ...ref.map(r => r[0])])].sort((x, y) => x - y)
+        .filter(t => t >= Math.max(bk[TARGET][0][0], ref[0][0]));
       const koS = m.ko / 1000;
       const refClose = ref[ref.length - 1];
       for (const side of sides) {
@@ -120,7 +129,7 @@ function replay(matches, X) {
           open = null;
         };
         for (const t of times) {
-          const b = stateAt(bk.b365, t), r = stateAt(ref, t), e = edgeAt(mk, side, b, r);
+          const b = stateAt(bk[TARGET], t), r = stateAt(ref, t), e = edgeAt(mk, side, b, r);
           if (open) {
             if (e && e.edge * 100 >= X) continue;
             let cause;
@@ -144,7 +153,7 @@ function replay(matches, X) {
 function late(g, d, X) {
   const bk = g.m[g.mk === 'AH' ? 'ah' : 'ou'], t = g.t + d;
   if (t >= g.m.ko / 1000) return { gone: true, why: 'kick-off' };
-  const e = edgeAt(g.mk, g.side, stateAt(bk.b365, t), stateAt(bk[g.ref], t));
+  const e = edgeAt(g.mk, g.side, stateAt(bk[TARGET], t), stateAt(bk[g.ref], t));
   if (!e || Math.abs(e.line - g.line) > 1e-6) return { gone: true };
   return e.edge * 100 >= X ? { price: e.price } : { gone: true };
 }
@@ -163,7 +172,7 @@ function report(matches) {
       if (!G.length) continue;
       // first gap per match+market+side (one bet each), as the strategies would alert
       const firsts = G.filter(g => g.n === 0).map(g => ({ ...g, r: ret(g, g.price) }));
-      out.push(`── Bet365 ≥ ${X}% above ${ref === 'sbo' ? 'Sbobet' : 'Pinnacle'}'s fair, same line ── ${G.length} gaps · ${firsts.length} first per match+side`);
+      out.push(`── ${NAMES[TARGETS.find(t => keyOf(t) === TARGET)] || TARGET} ≥ ${X}% above ${ref === 'sbo' ? 'Sbobet' : 'Pinnacle'}'s fair, same line ── ${G.length} gaps · ${firsts.length} first per match+side`);
       const durs = G.filter(g => g.cause !== 'kick-off').map(g => g.dur);
       out.push(`  how long: median ${fmtDur(q(durs, 0.5))} · 25% under ${fmtDur(q(durs, 0.25))} · 75% under ${fmtDur(q(durs, 0.75))} · open at kick-off ${G.filter(g => g.cause === 'kick-off').length}`);
       const causes = {}; for (const g of G) causes[g.cause] = (causes[g.cause] || 0) + 1;
@@ -189,7 +198,7 @@ function report(matches) {
       const months = [...byMonth.entries()].sort();
       const pos = months.filter(([, L]) => L.reduce((a, g) => a + (g.r ?? 1) - 1, 0) > 0).length;
       out.push(`  by month: ${pos}/${months.length} positive · ${months.map(([k, L]) => `${k.slice(2)} ${roiOf(L)}`).join(' · ')}`);
-      const nCh = g => g.m[g.mk === 'AH' ? 'ah' : 'ou'].b365.length;
+      const nCh = g => g.m[g.mk === 'AH' ? 'ah' : 'ou'][TARGET].length;
       out.push(`  by Bet365 changes recorded: <8 ${roiOf(firsts.filter(g => nCh(g) < 8))} · 8–20 ${roiOf(firsts.filter(g => nCh(g) >= 8 && nCh(g) <= 20))} · >20 ${roiOf(firsts.filter(g => nCh(g) > 20))}`);
       out.push('  by market:');
       for (const mk of ['AH', 'OU']) { const L = firsts.filter(g => g.mk === mk); if (L.length) out.push(`    ${mk.padEnd(3)} ${String(L.length).padStart(5)} · ROI ${roiOf(L)}`); }
@@ -206,5 +215,10 @@ function report(matches) {
   for (const d of days(FROM, TO)) await fetchDay(d);
   if (args.includes('--fetch-only')) return;
   const matches = days(FROM, TO).flatMap(d => { const f = path.join(CACHE, `day_${d}.json.gz`); return fs.existsSync(f) ? JSON.parse(zlib.gunzipSync(fs.readFileSync(f))) : []; });
-  console.log(report(matches));
+  for (const t of TARGETS) {
+    TARGET = keyOf(t);
+    const withBook = matches.filter(m => m.ah?.[TARGET] || m.ou?.[TARGET]);
+    if (!withBook.length) { console.log(`${NAMES[t] || t}: no matches with its prices\n`); continue; }
+    console.log(report(withBook) + '\n');
+  }
 })();
