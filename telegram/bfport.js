@@ -106,32 +106,47 @@ const recordRow = (t, ev, match, koMs, r, pinAgeS, b365x2, extra = {}) => ({
   sc: '0-0', m: `${match.home_team} v ${match.away_team}`, lg: match.league || '', ...extra,
 });
 
-// ── Scalp tracker (added 2026-10-17, research_bf_scalp.js's one lead): Betfair back
-// ≥ minPct above Pinnacle's fair (gross, before commission) with kick-off ≥ 30 min
-// away → paper "back now, lay later". Exits logged 15 / 60 min later and in the
-// last 5 min before kick-off: lay = one tick above Betfair's back price then (the
-// list has no lay price), green = entry / lay − 1, less commission when positive.
+// ── Scalp tracker (added 2026-10-17, research_bf_scalp.js's lead): Betfair 1X2 vs
+// Pinnacle's pre-match fair, kick-off ≥ 30 min away, both directions:
+//   back first — Betfair back ≥ minPct above fair: back now, lay later;
+//   lay first  — Betfair lay (taken as one tick above the back price; the list has
+//                no lay price) ≥ minPct below fair: lay now, back later.
+// Exits logged 15 / 60 min later and in the last 5 min before kick-off. Green per
+// unit: back first entry / lay − 1, lay first 1 − lay / back; commission when
+// positive. `gw` = the same with a wider spread on thin markets (ticksFor).
 const BANDS = [[2, 0.01], [3, 0.02], [4, 0.05], [6, 0.1], [10, 0.2], [20, 0.5], [30, 1], [50, 2], [100, 5], [1000, 10]];
-const tickUp = p => { for (const [hi, st] of BANDS) if (p < hi - 1e-9) return +(p + st).toFixed(2); return p; };
-const scalpGreen = (entry, back, c = 0.045) => { const g = entry / tickUp(back) - 1; return g > 0 ? g * (1 - c) : g; };
+const tickUp = (p, n = 1) => { for (let k = 0; k < n; k++) { const b = BANDS.find(([hi]) => p < hi - 1e-9); if (!b) break; p = +(p + b[1]).toFixed(2); } return p; };
+const ticksFor = matched => (matched >= 2e4 ? 1 : matched >= 5e3 ? 2 : 3);
+const netG = (g, c) => (g > 0 ? g * (1 - c) : g);
+// Back-first green at entry back price `entry`, lay n ticks above the exit back price.
+const scalpGreen = (entry, back, c = 0.045, n = 1) => netG(entry / tickUp(back, n) - 1, c);
+// Lay-first green: laid at `lay`, backed later at the exit back price.
+const scalpGreenLay = (lay, back, c = 0.045) => netG(1 - lay / back, c);
 function scalpTrack(state, id, rows, now, toKickoffMin, o = {}) {
   const minPct = o.minPct ?? 3, c = o.commission ?? 0.045, out = [];
   for (const r of rows) {
-    const k = `${id}|${r.side}`, gross = r.bf / r.fair - 1;
-    let s = state.get(k);
-    if (!s) {
-      if (gross * 100 < minPct || gross > 0.25 || toKickoffMin == null || toKickoffMin < 30) continue;
-      state.set(k, s = { t: now, bf: r.bf, done: new Set() });
-      out.push({ ev: 'so', side: r.side, bf: r.bf, f: +r.fair.toFixed(3), e: +(gross * 100).toFixed(2), kmin: Math.round(toKickoffMin), mt: Math.round(r.matched), book: +r.book.toFixed(3) });
-      continue;
-    }
-    for (const [h, due] of [['15', now - s.t >= 15 * 60000], ['60', now - s.t >= 60 * 60000], ['ko', toKickoffMin != null && toKickoffMin <= 5]]) {
-      if (!due || s.done.has(h)) continue;
-      s.done.add(h);
-      out.push({ ev: 'sx', side: r.side, h, in: s.bf, bf: r.bf, g: +scalpGreen(s.bf, r.bf, c).toFixed(4), mins: Math.round((now - s.t) / 60000) });
+    const n = ticksFor(r.matched);
+    for (const dir of ['back', 'lay']) {
+      const k = `${id}|${r.side}|${dir}`;
+      let s = state.get(k);
+      if (!s) {
+        const lay = tickUp(r.bf), edge = dir === 'back' ? r.bf / r.fair - 1 : r.fair / lay - 1;
+        if (edge * 100 < minPct || edge > 0.25 || toKickoffMin == null || toKickoffMin < 30) continue;
+        // Entry price: back price (back first) or lay price (lay first); laywide = lay n ticks above the back price.
+        state.set(k, s = { t: now, p: dir === 'back' ? r.bf : lay, pw: dir === 'back' ? r.bf : tickUp(r.bf, n), n, done: new Set() });
+        out.push({ ev: 'so', side: r.side, dir, bf: r.bf, p: s.p, f: +r.fair.toFixed(3), e: +(edge * 100).toFixed(2), kmin: Math.round(toKickoffMin), mt: Math.round(r.matched), book: +r.book.toFixed(3), ...(o.extra || {}) });
+        continue;
+      }
+      for (const [h, due] of [['15', now - s.t >= 15 * 60000], ['60', now - s.t >= 60 * 60000], ['ko', toKickoffMin != null && toKickoffMin <= 5]]) {
+        if (!due || s.done.has(h)) continue;
+        s.done.add(h);
+        const g = dir === 'back' ? scalpGreen(s.p, r.bf, c) : scalpGreenLay(s.p, r.bf, c);
+        const gw = dir === 'back' ? scalpGreen(s.p, r.bf, c, s.n) : scalpGreenLay(s.pw, r.bf, c);
+        out.push({ ev: 'sx', side: r.side, dir, h, in: s.p, bf: r.bf, g: +g.toFixed(4), gw: +gw.toFixed(4), mins: Math.round((now - s.t) / 60000) });
+      }
     }
   }
   return out;
 }
 
-module.exports = { scalpTrack, scalpGreen, tickUp, netPrice, findPrematchEvent, sideRows, blockReason, stakeFrac, settleBet, bankrollOf, recordRow, SIDES };
+module.exports = { scalpTrack, scalpGreen, scalpGreenLay, tickUp, ticksFor, netPrice, findPrematchEvent, sideRows, blockReason, stakeFrac, settleBet, bankrollOf, recordRow, SIDES };

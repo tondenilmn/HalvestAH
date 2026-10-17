@@ -35,6 +35,7 @@ const FM = require('./fair_model.js');
 const S7 = require('./sevenm');
 const { dice } = require('./livegap');
 const { kindOf } = require('./pinngap');
+const { classifyLeague } = require('./engine');
 
 const args = process.argv.slice(2);
 const opt = (k, d) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : d; };
@@ -51,7 +52,9 @@ const utc = s => Date.parse(String(s).replace(' ', 'T') + (/[zZ]|[+-]\d\d:?\d\d$
 
 // ── Betfair ticks ──
 const BANDS = [[2, 0.01], [3, 0.02], [4, 0.05], [6, 0.1], [10, 0.2], [20, 0.5], [30, 1], [50, 2], [100, 5], [1000, 10]];
-const tickUp = p => { for (const [hi, s] of BANDS) if (p < hi - 1e-9) return +(p + s).toFixed(2); return p; };
+const tickUp = (p, n = 1) => { for (let k = 0; k < n; k++) { const b = BANDS.find(([hi]) => p < hi - 1e-9); if (!b) break; p = +(p + b[1]).toFixed(2); } return p; };
+// Liquidity-adjusted spread: thin markets rarely match one tick away.
+const ticksFor = matched => (matched >= 2e4 ? 1 : matched >= 5e3 ? 2 : 3);
 
 // ── load Betfair histories ──
 function loadBf(dir) {
@@ -129,7 +132,11 @@ function points(m) {
   return P;
 }
 const priceAt = (P, at) => { let r = null; for (const p of P) { if (p.at <= at) r = p; else break; } return r; };
-const green = (entry, exit) => { const g = entry / exit - 1; return g > 0 ? g * (1 - COMM) : g; };
+const net = g => (g > 0 ? g * (1 - COMM) : g);
+// Back at B1, lay later at L2 (stake S·B1/L2): green = B1/L2 − 1 per unit backed.
+const green = (entry, exit) => net(entry / exit - 1);
+// Lay at L1, back later at B2 (stake S·L1/B2): green = 1 − L1/B2 per unit laid.
+const greenLay = (lay, back) => net(1 - lay / back);
 const H = [['15 min', 15], ['60 min', 60], ['KO−2', 1e9]];
 
 function simulate(m, refs, X) {
@@ -147,12 +154,14 @@ function simulate(m, refs, X) {
       for (const [dir, edge] of [['back', back / fair - 1], ['lay', fair / lay - 1]]) {
         if (edge * 100 < X || edge > 0.5 || done.has(`${s}|${dir}`)) continue;
         done.add(`${s}|${dir}`);
-        const tr = { side: SIDES[s], dir, edge, price: dir === 'back' ? back : lay, hrs: (m.koMs - p.at) / 3600e3, matched: m.matched, g: {} };
+        const n = ticksFor(m.matched), layN = tickUp(back, n);
+        const tr = { side: SIDES[s], dir, edge, price: dir === 'back' ? back : lay, hrs: (m.koMs - p.at) / 3600e3, matched: m.matched, g: {}, ga: {} };
         for (const [lab, mins] of H) {
           const x = priceAt(P, Math.min(p.at + mins * 60000, m.koMs - 2 * 60000));
           if (!x) continue;
           const xb = x.b[s], xl = tickUp(xb);
-          tr.g[lab] = dir === 'back' ? green(back, xl) : green(lay, xb);
+          tr.g[lab] = dir === 'back' ? green(back, xl) : greenLay(lay, xb);
+          tr.ga[lab] = dir === 'back' ? green(back, tickUp(xb, n)) : greenLay(layN, xb); // n-tick spread at entry or exit
         }
         // Did Betfair move toward the sharp price by KO? (mid-price move, no spread)
         const last = P[P.length - 1].b[s];
@@ -180,7 +189,10 @@ const mean = a => a.reduce((s, x) => s + x, 0) / a.length;
 const se = a => Math.sqrt(a.reduce((s, x) => s + (x - mean(a)) ** 2, 0) / Math.max(1, a.length - 1) / a.length);
 function line(label, trades) {
   if (!trades.length) return `  ${label.padEnd(26)}     0`;
-  const cols = H.map(([lab]) => { const v = trades.map(t => t.g[lab]).filter(v => v != null); return v.length ? `${lab} ${pct(mean(v)).padStart(7)} ±${(se(v) * 100).toFixed(2)} (${Math.round(v.filter(x => x > 0).length / v.length * 100)}% up)` : ''; });
+  const cols = H.map(([lab]) => {
+    const v = trades.map(t => t.g[lab]).filter(v => v != null), va = trades.map(t => t.ga[lab]).filter(v => v != null);
+    return v.length ? `${lab} ${pct(mean(v)).padStart(7)} ±${(se(v) * 100).toFixed(2)} (${Math.round(v.filter(x => x > 0).length / v.length * 100)}% up; wide spread ${pct(mean(va))})` : '';
+  });
   return `  ${label.padEnd(26)} ${String(trades.length).padStart(5)} · ${cols.join(' · ')} · moved toward by KO ${Math.round(trades.filter(t => t.toward).length / trades.length * 100)}%`;
 }
 
@@ -189,28 +201,38 @@ function line(label, trades) {
   const days = new Set();
   for (const m of bf) for (const d of [0, 1]) days.add(new Date(m.koMs + 8 * 3600e3 - d * 86400e3).toISOString().slice(0, 10));
   const idx = await sevenIndex([...days].sort());
+  // Pairings are remembered: today's matches are only on 7msport's livescore page,
+  // which doesn't list every match on every load.
+  const pf = path.join(CACHE, 'pairs.json'), pairs = fs.existsSync(pf) ? JSON.parse(fs.readFileSync(pf, 'utf8')) : {};
   const paired = [];
   for (const m of bf) {
-    const e = findSeven(idx, m);
-    if (!e) continue;
-    try { const r = await refRows(e.id); if (r.sbo.length || r.pin.length) paired.push({ m, r }); } catch { /* skip */ }
+    const id = pairs[m.slug] || findSeven(idx, m)?.id;
+    if (!id) continue;
+    pairs[m.slug] = id;
+    try { const r = await refRows(id); if (r.sbo.length || r.pin.length) paired.push({ m, r }); } catch { /* skip */ }
   }
+  fs.writeFileSync(pf, JSON.stringify(pairs));
   const hrsAvail = bf.map(m => (m.koMs - m.t0ms) / 3600e3);
   console.log(`BETFAIR PRE-MATCH TRADING TOWARD THE SHARP BOOKS — ${bf.length} Betfair histories (median ${hrsAvail.sort((a, b) => a - b)[hrsAvail.length >> 1]?.toFixed(1)} h before KO), ${paired.length} paired with 7msport (${paired.filter(p => p.r.sbo.length).length} with Sbobet 1X2, ${paired.filter(p => p.r.pin.length).length} with Pinnacle 1X2)`);
   const ctl = paired.flatMap(p => control(p.m));
   console.log(`\nCONTROL — no signal, every minute, back then lay 60 min later (the spread's cost): ${ctl.length ? pct(mean(ctl)) : '—'} (${ctl.length} trades)`);
   for (const [refKey, refName] of [['sbo', 'Sbobet'], ['pin', 'Pinnacle']]) {
     for (const X of MINS) {
-      const T = paired.filter(p => p.r[refKey].length).flatMap(p => simulate(p.m, p.r[refKey], X).map(t => ({ ...t, comp: p.m.comp })));
+      const T = paired.filter(p => p.r[refKey].length).flatMap(p => simulate(p.m, p.r[refKey], X).map(t => ({ ...t, comp: p.m.comp, tier: classifyLeague(p.m.comp) })));
       console.log(`\n── Betfair ≥ ${X}% off ${refName}'s de-vigged 1X2 (power) ── ${T.length} trades on ${new Set(T.map(t => t.comp)).size} competitions · green after 4.5% commission when positive, ± 1 s.e.`);
       console.log(line('all', T));
       console.log(line('back first (Betfair long)', T.filter(t => t.dir === 'back')));
       console.log(line('lay first (Betfair short)', T.filter(t => t.dir === 'lay')));
       for (const [lab, lo, hi] of [['≥ 6 h before KO', 6, 1e9], ['1–6 h', 1, 6], ['30 min–1 h', 0, 1]]) console.log(line(lab, T.filter(t => t.hrs >= lo && t.hrs < hi)));
       for (const [lab, lo, hi] of [['matched < 10k', 0, 1e4], ['matched 10k–100k', 1e4, 1e5], ['matched ≥ 100k', 1e5, 1e12]]) console.log(line(lab, T.filter(t => t.matched >= lo && t.matched < hi)));
+      for (const tier of ['TOP', 'MAJOR', 'OTHER']) console.log(line(`tier ${tier}`, T.filter(t => t.tier === tier)));
+      console.log(line('MAJOR LEAGUES, ≥ 50k', T.filter(t => t.tier !== 'OTHER' && t.matched >= 5e4)));
+      console.log(line('  … back first', T.filter(t => t.tier !== 'OTHER' && t.matched >= 5e4 && t.dir === 'back')));
+      console.log(line('MINOR LEAGUES, < 10k', T.filter(t => t.tier === 'OTHER' && t.matched < 1e4)));
+      console.log(line('  … back first', T.filter(t => t.tier === 'OTHER' && t.matched < 1e4 && t.dir === 'back')));
       for (const sd of SIDES) console.log(line(sd, T.filter(t => t.side === sd)));
       for (const [lab, lo, hi] of [['price < 2.5', 0, 2.5], ['2.5–5', 2.5, 5], ['≥ 5', 5, 1e9]]) console.log(line(lab, T.filter(t => t.price >= lo && t.price < hi)));
     }
   }
-  console.log('\nLay price assumed one tick above the back price (no lay in the histories): optimistic on thin markets. Exit = the price at that moment, no queueing. Matched = total matched on the market by the end.');
+  console.log('\nLay price assumed one tick above the back price (no lay in the histories): optimistic on thin markets. "Wide spread" = 2 ticks at 5k–20k matched, 3 ticks under 5k (1 tick at ≥ 20k). Exit = the price at that moment, no queueing. Matched = total matched on the market by the end; tier = engine.classifyLeague on Betfair\'s competition name.');
 })().catch(e => { console.error(e); process.exit(1); });

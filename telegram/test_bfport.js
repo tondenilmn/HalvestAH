@@ -73,12 +73,13 @@ assert(/vs Pinnacle's closing fair \+\d/.test(txt) && /vs Betfair's closing back
 assert(/favourites\s+1 sides · settled\s+1/.test(txt) && /underdogs\s+1 sides · settled\s+1 · \s*-1\.00u/.test(txt), 'blind by role');
 assert(/net edge ≥ 2%\s+1 bets/.test(txt));
 fs.rmSync(dir, { recursive: true });
-// Scalp tracker: entry ≥ 3% gross, exits at 15 / 60 min and before KO, lay one tick above the back price
+// Scalp tracker: both directions, exits at 15 / 60 min and before KO, lay one tick above the back price
 (() => {
-  const st = new Map(), r = bf => [{ side: 'home', bf, fair: 2.0, matched: 5000, book: 1.01 }];
-  assert.strictEqual(B.scalpTrack(st, 'x', r(2.04), 0, 120).length, 0, '2% < 3%');
+  const st = new Map(), r = (bf, matched = 5e4) => [{ side: 'home', bf, fair: 2.0, matched, book: 1.01 }];
+  assert.strictEqual(B.scalpTrack(st, 'x', r(2.04), 0, 120).length, 0, 'back 2% < 3%; lay 2.05 above fair');
   assert.strictEqual(B.scalpTrack(st, 'x', r(2.1), 0, 20).length, 0, 'under 30 min to KO');
-  assert.strictEqual(B.scalpTrack(st, 'x', r(2.1), 0, 120)[0].ev, 'so');
+  const o = B.scalpTrack(st, 'x', r(2.1), 0, 120);
+  assert.deepStrictEqual(o.map(e => [e.ev, e.dir]), [['so', 'back']]);
   assert.strictEqual(B.scalpTrack(st, 'x', r(2.1), 5 * 60000, 115).length, 0, 'nothing due yet');
   const x = B.scalpTrack(st, 'x', r(2.0), 61 * 60000, 59);
   assert.deepStrictEqual(x.map(e => e.h), ['15', '60'], 'both exits due');
@@ -86,5 +87,15 @@ fs.rmSync(dir, { recursive: true });
   assert(B.scalpGreen(2.0, 2.1) < 0 && Math.abs(B.scalpGreen(2.0, 2.1) - (2.0 / 2.12 - 1)) < 1e-9, 'a loss pays no commission');
   assert.strictEqual(B.scalpTrack(st, 'x', r(2.0), 116 * 60000, 4)[0].h, 'ko');
   assert.strictEqual(B.scalpTrack(st, 'x', r(2.0), 117 * 60000, 3).length, 0, 'each exit once');
+  // Lay first: Betfair 1.90 (lay 1.91) vs fair 2.0 → 4.7% short; drifts to 2.06 → green 1 − 1.91/2.06
+  const s2 = new Map(), l = B.scalpTrack(s2, 'y', r(1.9), 0, 120);
+  assert.deepStrictEqual(l.map(e => [e.dir, e.p]), [['lay', 1.91]]);
+  const lx = B.scalpTrack(s2, 'y', r(2.06), 16 * 60000, 104).find(e => e.ev === 'sx');
+  assert(Math.abs(lx.g - (1 - 1.91 / 2.06) * 0.955) < 1e-4 && lx.g > 0, 'lay first wins when Betfair drifts out');
+  // Thin market: the wide-spread green is worse than the one-tick green
+  const s3 = new Map(); B.scalpTrack(s3, 'z', r(1.9, 3000), 0, 120);
+  const tx = B.scalpTrack(s3, 'z', r(2.06, 3000), 16 * 60000, 104).find(e => e.ev === 'sx');
+  assert(tx.gw < tx.g && Math.abs(tx.gw - (1 - 1.93 / 2.06) * 0.955) < 1e-4, '3 ticks under 5k matched');
+  assert.strictEqual(B.ticksFor(25000), 1); assert.strictEqual(B.ticksFor(8000), 2); assert.strictEqual(B.ticksFor(1000), 3);
 })();
 console.log('bfport: all tests passed');

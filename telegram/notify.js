@@ -1232,7 +1232,7 @@ function bfPortRows(match, ctx, now, pin) {
     }
   }
   if (cfg.BFPORT_SCALP) {
-    for (const e of bfPort.scalpTrack(_bf.scalp, match.id, rows, now, ctx.toKickoff, { minPct: cfg.BFPORT_SCALP_MIN_PCT, commission: cfg.BFPORT_COMMISSION }))
+    for (const e of bfPort.scalpTrack(_bf.scalp, match.id, rows, now, ctx.toKickoff, { minPct: cfg.BFPORT_SCALP_MIN_PCT, commission: cfg.BFPORT_COMMISSION, extra: { tier: classifyLeague(match.league || '') } }))
       out.push({ t: now, ...e, id: match.id, ko: koMs, pa: pin.age == null ? null : Math.round(pin.age), m: `${match.home_team} v ${match.away_team}`, lg: match.league || '' });
     if (_bf.scalp.size > 20000) for (const [k, v] of _bf.scalp) if (now - v.t > 2 * 86400000) _bf.scalp.delete(k);
   }
