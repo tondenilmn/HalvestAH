@@ -106,4 +106,32 @@ const recordRow = (t, ev, match, koMs, r, pinAgeS, b365x2, extra = {}) => ({
   sc: '0-0', m: `${match.home_team} v ${match.away_team}`, lg: match.league || '', ...extra,
 });
 
-module.exports = { netPrice, findPrematchEvent, sideRows, blockReason, stakeFrac, settleBet, bankrollOf, recordRow, SIDES };
+// ── Scalp tracker (added 2026-10-17, research_bf_scalp.js's one lead): Betfair back
+// ≥ minPct above Pinnacle's fair (gross, before commission) with kick-off ≥ 30 min
+// away → paper "back now, lay later". Exits logged 15 / 60 min later and in the
+// last 5 min before kick-off: lay = one tick above Betfair's back price then (the
+// list has no lay price), green = entry / lay − 1, less commission when positive.
+const BANDS = [[2, 0.01], [3, 0.02], [4, 0.05], [6, 0.1], [10, 0.2], [20, 0.5], [30, 1], [50, 2], [100, 5], [1000, 10]];
+const tickUp = p => { for (const [hi, st] of BANDS) if (p < hi - 1e-9) return +(p + st).toFixed(2); return p; };
+const scalpGreen = (entry, back, c = 0.045) => { const g = entry / tickUp(back) - 1; return g > 0 ? g * (1 - c) : g; };
+function scalpTrack(state, id, rows, now, toKickoffMin, o = {}) {
+  const minPct = o.minPct ?? 3, c = o.commission ?? 0.045, out = [];
+  for (const r of rows) {
+    const k = `${id}|${r.side}`, gross = r.bf / r.fair - 1;
+    let s = state.get(k);
+    if (!s) {
+      if (gross * 100 < minPct || gross > 0.25 || toKickoffMin == null || toKickoffMin < 30) continue;
+      state.set(k, s = { t: now, bf: r.bf, done: new Set() });
+      out.push({ ev: 'so', side: r.side, bf: r.bf, f: +r.fair.toFixed(3), e: +(gross * 100).toFixed(2), kmin: Math.round(toKickoffMin), mt: Math.round(r.matched), book: +r.book.toFixed(3) });
+      continue;
+    }
+    for (const [h, due] of [['15', now - s.t >= 15 * 60000], ['60', now - s.t >= 60 * 60000], ['ko', toKickoffMin != null && toKickoffMin <= 5]]) {
+      if (!due || s.done.has(h)) continue;
+      s.done.add(h);
+      out.push({ ev: 'sx', side: r.side, h, in: s.bf, bf: r.bf, g: +scalpGreen(s.bf, r.bf, c).toFixed(4), mins: Math.round((now - s.t) / 60000) });
+    }
+  }
+  return out;
+}
+
+module.exports = { scalpTrack, scalpGreen, tickUp, netPrice, findPrematchEvent, sideRows, blockReason, stakeFrac, settleBet, bankrollOf, recordRow, SIDES };

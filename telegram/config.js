@@ -728,6 +728,11 @@ module.exports = {
   BFPORT_KELLY_FRACTION:     parseFloat(process.env.BFPORT_KELLY_FRACTION || '0.125'),
   BFPORT_MAX_STAKE_PCT:      parseFloat(process.env.BFPORT_MAX_STAKE_PCT || '2'),
   BFPORT_START_BANKROLL:     parseFloat(process.env.BFPORT_START_BANKROLL || '1000'),
+  // BFPORT scalp tracker (added 2026-10-17): Betfair back ≥ this % above Pinnacle's
+  // fair, kick-off ≥ 30 min away → paper back-then-lay, exits at 15 / 60 min / last
+  // 5 min before KO (bfport.scalpTrack). Shown in GET <bot>/bfport/report.
+  BFPORT_SCALP:              process.env.BFPORT_SCALP !== 'false',
+  BFPORT_SCALP_MIN_PCT:      parseFloat(process.env.BFPORT_SCALP_MIN_PCT || '3'),
   CROSSMARKET_RECORD_MIN_PCT: parseFloat(process.env.CROSSMARKET_RECORD_MIN_PCT || '3'),
   // ── oddsmonitor.eu — Betfair Exchange 1X2 (oddsmonitor.js, added 2026-10-09) ──
   // Live list every minute: a Bet365 live 1X2 price off Betfair's by ≥ the ratio

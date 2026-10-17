@@ -1200,7 +1200,7 @@ const _owBfState = new Map();
 const BFPORT_LOG_DIR = path.join(__dirname, 'data', 'bfport');
 const _bfPending = cfg.BFPORT_RECORD ? crossMarket.recoverPending(BFPORT_LOG_DIR) : new Map();
 const _bf = (() => {
-  const st = { last: new Map(), cl: new Set(), betIds: new Set(), bets: [], fin: new Map() };
+  const st = { last: new Map(), cl: new Set(), betIds: new Set(), bets: [], fin: new Map(), scalp: new Map() };
   if (!cfg.BFPORT_RECORD) return st;
   try {
     const d = require('./bfport_report').load(BFPORT_LOG_DIR);
@@ -1230,6 +1230,11 @@ function bfPortRows(match, ctx, now, pin) {
       _bf.last.set(key, { t: now, bf: r.bf, f: r.fair });
       out.push(bfPort.recordRow(now, 'c', match, koMs, r, pin.age, match.x2_odds, { ok }));
     }
+  }
+  if (cfg.BFPORT_SCALP) {
+    for (const e of bfPort.scalpTrack(_bf.scalp, match.id, rows, now, ctx.toKickoff, { minPct: cfg.BFPORT_SCALP_MIN_PCT, commission: cfg.BFPORT_COMMISSION }))
+      out.push({ t: now, ...e, id: match.id, ko: koMs, pa: pin.age == null ? null : Math.round(pin.age), m: `${match.home_team} v ${match.away_team}`, lg: match.league || '' });
+    if (_bf.scalp.size > 20000) for (const [k, v] of _bf.scalp) if (now - v.t > 2 * 86400000) _bf.scalp.delete(k);
   }
   if (!_bf.betIds.has(match.id)) {
     const pick = rows.filter(r => !bfPort.blockReason(r, ctx.toKickoff, pin.age, o)).sort((a, b) => b.edge - a.edge)[0];

@@ -120,6 +120,24 @@ function buildReport(dir, opts = {}) {
     out.push(`  ${lab.padEnd(18)} ${String(L.length).padStart(5)} sides${r.n ? ` · ${r.text}` : ''}`);
   }
 
+  // ── Scalp tracker: back now, lay later (bfport.scalpTrack) ──
+  const seenSo = new Set(), so = rows.filter(o => o.ev === 'so' && !seenSo.has(`${o.id}|${o.side}`) && seenSo.add(`${o.id}|${o.side}`)); // first entry only (a restart forgets the tracker)
+  const sx = rows.filter(o => o.ev === 'sx');
+  if (so.length) {
+    const mean = a => a.reduce((t, x) => t + x, 0) / a.length;
+    const se = a => Math.sqrt(a.reduce((t, x) => t + (x - mean(a)) ** 2, 0) / Math.max(1, a.length - 1) / a.length);
+    const exits = new Map(); for (const x of sx) exits.set(`${x.id}|${x.side}|${x.h}`, x);
+    const sline = (lab, L) => `  ${lab.padEnd(22)} ${String(L.length).padStart(4)} entries · ` + [['15', '15 min'], ['60', '60 min'], ['ko', 'before KO']].map(([h, hl]) => {
+      const g = L.map(o => exits.get(`${o.id}|${o.side}|${h}`)?.g).filter(v => v != null);
+      return g.length ? `${hl} ${pct(mean(g))} ±${(se(g) * 100).toFixed(1)} (${g.length}, ${Math.round(g.filter(v => v > 0).length / g.length * 100)}% up)` : `${hl} —`;
+    }).join(' · ');
+    out.push('', `SCALP — back on Betfair when above Pinnacle's fair by the entry threshold (BFPORT_SCALP_MIN_PCT, gross), lay later; ${so.length} entries · green per unit after commission, ± 1 s.e.:`);
+    for (const X of [3, 5, 8]) out.push(sline(`edge ≥ ${X}%`, so.filter(o => o.e >= X)));
+    for (const [lab, lo, hi] of [['  ≥ 6 h before KO', 360, 1e9], ['  1–6 h', 60, 360], ['  30 min–1 h', 0, 60]]) out.push(sline(lab, so.filter(o => o.kmin >= lo && o.kmin < hi)));
+    for (const [lab, lo, hi] of [['  matched < 10k', 0, 1e4], ['  matched 10k–100k', 1e4, 1e5], ['  matched ≥ 100k', 1e5, 1e12]]) out.push(sline(lab, so.filter(o => o.mt >= lo && o.mt < hi)));
+    out.push('  (lay taken as one tick above Betfair\'s back price — the list has no lay price, so thin markets look better than they are)');
+  }
+
   // ── Latest bets ──
   if (bets.length) {
     out.push('', 'PAPER BETS (latest 40):');

@@ -73,4 +73,18 @@ assert(/vs Pinnacle's closing fair \+\d/.test(txt) && /vs Betfair's closing back
 assert(/favourites\s+1 sides · settled\s+1/.test(txt) && /underdogs\s+1 sides · settled\s+1 · \s*-1\.00u/.test(txt), 'blind by role');
 assert(/net edge ≥ 2%\s+1 bets/.test(txt));
 fs.rmSync(dir, { recursive: true });
+// Scalp tracker: entry ≥ 3% gross, exits at 15 / 60 min and before KO, lay one tick above the back price
+(() => {
+  const st = new Map(), r = bf => [{ side: 'home', bf, fair: 2.0, matched: 5000, book: 1.01 }];
+  assert.strictEqual(B.scalpTrack(st, 'x', r(2.04), 0, 120).length, 0, '2% < 3%');
+  assert.strictEqual(B.scalpTrack(st, 'x', r(2.1), 0, 20).length, 0, 'under 30 min to KO');
+  assert.strictEqual(B.scalpTrack(st, 'x', r(2.1), 0, 120)[0].ev, 'so');
+  assert.strictEqual(B.scalpTrack(st, 'x', r(2.1), 5 * 60000, 115).length, 0, 'nothing due yet');
+  const x = B.scalpTrack(st, 'x', r(2.0), 61 * 60000, 59);
+  assert.deepStrictEqual(x.map(e => e.h), ['15', '60'], 'both exits due');
+  assert(Math.abs(x[1].g - (2.1 / 2.02 - 1) * 0.955) < 1e-4, 'tick above 2.00 is 2.02; commission on the green');
+  assert(B.scalpGreen(2.0, 2.1) < 0 && Math.abs(B.scalpGreen(2.0, 2.1) - (2.0 / 2.12 - 1)) < 1e-9, 'a loss pays no commission');
+  assert.strictEqual(B.scalpTrack(st, 'x', r(2.0), 116 * 60000, 4)[0].h, 'ko');
+  assert.strictEqual(B.scalpTrack(st, 'x', r(2.0), 117 * 60000, 3).length, 0, 'each exit once');
+})();
 console.log('bfport: all tests passed');
