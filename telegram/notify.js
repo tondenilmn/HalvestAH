@@ -3326,6 +3326,27 @@ function startHashRelayServer() {
     // daily .jsonl files, /data/<recorder>/<YYYY-MM-DD>.jsonl returns one gzipped — so
     // the recordings can be re-analysed offline (e.g. against 7msport's price history).
     // Only the recorders below, only plain day-file names; ?key= when LIVEGAP_REPORT_KEY is set.
+    // Betfair 1X2 histories (oddsmonitor.js saveFinished): /data/oddsmonitor/ lists days,
+    // /data/oddsmonitor/<YYYY-MM-DD> = that day's histories as one gzipped JSON-lines stream.
+    const om = /^\/data\/oddsmonitor\/(\d{4}-\d{2}-\d{2})?(\?.*)?$/.exec(req.url);
+    if (om) {
+      const key = new URL(req.url, 'http://x').searchParams.get('key');
+      if (process.env.LIVEGAP_REPORT_KEY && key !== process.env.LIVEGAP_REPORT_KEY) { res.writeHead(401, { 'Content-Type': 'text/plain' }); res.end('key required'); return; }
+      try {
+        if (!om[1]) {
+          const days = fs.existsSync(ODDSMON_DIR) ? fs.readdirSync(ODDSMON_DIR).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort() : [];
+          res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' });
+          res.end(days.map(d => `${d} ${fs.readdirSync(path.join(ODDSMON_DIR, d)).length}`).join('\n'));
+        } else {
+          const d = path.join(ODDSMON_DIR, om[1]);
+          if (!fs.existsSync(d)) { res.writeHead(404, { 'Content-Type': 'text/plain' }); res.end('not found'); return; }
+          const lines = fs.readdirSync(d).filter(f => f.endsWith('.json.gz')).map(f => { try { return JSON.stringify(oddsMon.readHistory(path.join(d, f))); } catch { return null; } }).filter(Boolean);
+          res.writeHead(200, { 'Content-Type': 'application/gzip', 'Cache-Control': 'no-store' });
+          res.end(require('zlib').gzipSync(lines.join('\n') + '\n'));
+        }
+      } catch (e) { res.writeHead(500, { 'Content-Type': 'text/plain' }); res.end(e.message); }
+      return;
+    }
     const dm = /^\/data\/(livegap|livemodel|pricegap_bets|openwatch|openwatch_bf)\/((\d{4}-\d{2}-\d{2})\.jsonl)?(\?.*)?$/.exec(req.url);
     if (dm) {
       const key = new URL(req.url, 'http://x').searchParams.get('key');
