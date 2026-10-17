@@ -53,4 +53,21 @@ assert(/Bet365 still at its opening\s+1 bets · settled\s+1 · \s*\+1\.20u/.test
 assert(/CLV \+10\.0% \(1\)/.test(txt), 'CLV 2.20 vs closing fair 2.00');
 assert(!/  1X2 /.test(txt), 'no empty 1X2 line');
 fs.rmSync(dir, { recursive: true });
+// Exchange leg: Betfair 1X2 net of commission vs the 1X2 of the predicted close
+(() => {
+  const ev = { home_odd: 2.3, draw_odd: 3.4, away_odd: 3.5, total_matched: 5000 };
+  const bx = OW.exchangeRows({ mu: 2.5, s: 0.3 }, ev, { commission: 0.045 });
+  assert.strictEqual(bx.length, 3);
+  assert(Math.abs(bx.reduce((t, r) => t + 1 / r.fair, 0) - 1) < 1e-9, 'fair 1X2 sums to 1');
+  assert(Math.abs(bx[0].price - (1 + 1.3 * 0.955)) < 1e-4, 'net of commission');
+  assert(bx[0].fair < bx[2].fair, 'home favoured at s > 0');
+  assert.strictEqual(OW.exchangeRows({ mu: 2.5, s: 0.3 }, { ...ev, total_matched: 200 }).length, 0, 'illiquid');
+  assert.strictEqual(OW.exchangeRows({ mu: 2.5, s: 0.3 }, { ...ev, home_odd: 1.8 }).length, 0, 'wide book');
+  const d2 = fs.mkdtempSync(path.join(os.tmpdir(), 'owbf-')), T = Date.UTC(2026, 9, 17, 12);
+  const row = { t: T, ev: 'open', id: 'x', ko: T + 7200e3, kmin: 120, k: 'BF|1X2|away|', mk: '1X2', side: 'away', line: null, p: 3.39, f: 3.2, e: 5.9, pa: 60, sc: '0-0', m: 'A v B', lg: 'L', bf: 3.5, hs: 1 };
+  fs.writeFileSync(path.join(d2, '2026-10-17.jsonl'), [{ hb: { t: T, paired: 1, fresh: true } }, row, { t: T + 9e6, id: 'x', res: '0-1' }].map(l => JSON.stringify(l)).join('\n') + '\n');
+  const t2 = require('./pinngap_report').buildReport(d2, { tz: 'UTC', title: 'OPENWATCH · BETFAIR 1X2', book: 'Betfair (net of commission)', noBlind: true, edges: [2, 3, 5] });
+  assert(/at Betfair \(net of commission\)'s price/.test(t2) && /  away\s+1 bets · settled\s+1 · \s*\+2\.39u/.test(t2) && !/vs blind/i.test(t2), t2);
+  fs.rmSync(d2, { recursive: true });
+})();
 console.log('openwatch: all tests passed');

@@ -1190,6 +1190,10 @@ function pinnIndex() {
 const OPENWATCH_LOG_DIR = path.join(__dirname, 'data', 'openwatch');
 const _owPending = cfg.OPENWATCH_RECORD ? crossMarket.recoverPending(OPENWATCH_LOG_DIR) : new Map();
 const _owState = new Map();
+// OPENWATCH exchange leg: Betfair 1X2 back (net of commission) vs the same predicted close.
+const OPENWATCH_BF_LOG_DIR = path.join(__dirname, 'data', 'openwatch_bf');
+const _owBfPending = cfg.OPENWATCH_BF_RECORD ? crossMarket.recoverPending(OPENWATCH_BF_LOG_DIR) : new Map();
+const _owBfState = new Map();
 
 // BFPORT paper portfolio (bfport.js): Betfair 1X2 back (oddsmonitor) net of
 // commission vs Pinnacle's pre-match fair; one paper bet per fixture.
@@ -1267,6 +1271,8 @@ async function runPriceGapScan(scope = 'near') {
     let pgPinPaired = 0, pgPinAlerts = 0;
     const owOn = cfg.OPENWATCH_RECORD && pin.idx && pin.age != null && pin.age <= cfg.OPENWATCH_MAX_PIN_AGE_S;
     const owRec = []; let owPaired = 0;
+    const owBfOn = owOn && cfg.OPENWATCH_BF_RECORD && cfg.ODDSMONITOR_ENABLED && (oddsMon.ageS(now) ?? 1e9) <= cfg.ODDSMONITOR_MAX_AGE_S;
+    const owBfRec = []; let owBfPaired = 0;
     const bfOn = cfg.BFPORT_RECORD && cfg.ODDSMONITOR_ENABLED && scope === 'near' && pin.idx && pin.age != null && pin.age <= cfg.BFPORT_MAX_PIN_AGE_S
       && (oddsMon.ageS(now) ?? 1e9) <= cfg.ODDSMONITOR_MAX_AGE_S;
     const bfRec = []; let bfPaired = 0;
@@ -1289,6 +1295,15 @@ async function runPriceGapScan(scope = 'near') {
               { minEdge: cfg.OPENWATCH_MIN_EDGE_PCT / 100, maxEdge: cfg.OPENWATCH_MAX_EDGE_PCT / 100 });
             for (const ev of evs) owRec.push({ ...pinnGap.recordRow(now, match, koMs, ev, pin.age), op: ev.r.op ? 1 : 0, hs: ow.pred.hs ? 1 : 0, pl: ow.pinLines });
             if (evs.some(e => e.ev === 'open')) crossMarket.queue(_owPending, match.id, `${match.home_team} v ${match.away_team}`, koMs);
+            const bfEv = owBfOn && bfPort.findPrematchEvent(oddsMon._st.events, match.home_team, match.away_team, koMs, match.league);
+            const bx = bfEv ? openWatch.exchangeRows(ow.pred, bfEv, { commission: cfg.BFPORT_COMMISSION, minMatched: cfg.BFPORT_MIN_MATCHED, maxBook: cfg.BFPORT_MAX_BOOK }) : [];
+            if (bx.length) {
+              owBfPaired++;
+              const bevs = pinnGap.track(_owBfState, match.id, bx, now, ctx.toKickoff,
+                { minEdge: cfg.OPENWATCH_BF_MIN_EDGE_PCT / 100, maxEdge: cfg.OPENWATCH_MAX_EDGE_PCT / 100 });
+              for (const ev of bevs) owBfRec.push({ ...pinnGap.recordRow(now, match, koMs, ev, pin.age), bf: ev.r.bf, mt: ev.r.mt, book: ev.r.book, hs: ow.pred.hs ? 1 : 0, b3: +match.x2_odds?.[`${ev.r.side}_c`] || null });
+              if (bevs.some(e => e.ev === 'open')) crossMarket.queue(_owBfPending, match.id, `${match.home_team} v ${match.away_team}`, koMs);
+            }
           }
         }
       }
@@ -1421,6 +1436,11 @@ async function runPriceGapScan(scope = 'near') {
       if (owRec.length || pin.idx) liveGap.appendRecords(OPENWATCH_LOG_DIR, now, [{ hb: { t: now, scope, paired: owPaired, pinAge: pin.age ?? null, fresh: !!owOn } }, ...owRec]);
       if (_owState.size > 80000) _owState.clear();
     }
+    if (cfg.OPENWATCH_BF_RECORD) {
+      if (scope === 'near' && _owBfPending.size) owBfRec.push(...await liveGapResult.settleDue(_owBfPending, now, cachedResult));
+      if (owBfRec.length || owOn) liveGap.appendRecords(OPENWATCH_BF_LOG_DIR, now, [{ hb: { t: now, scope, paired: owBfPaired, pinAge: pin.age ?? null, fresh: !!owBfOn } }, ...owBfRec]);
+      if (_owBfState.size > 80000) _owBfState.clear();
+    }
     if (cfg.BFPORT_RECORD && scope === 'near') {
       if (_bfPending.size) {
         const done = await liveGapResult.settleDue(_bfPending, now, cachedResult);
@@ -1434,7 +1454,7 @@ async function runPriceGapScan(scope = 'near') {
       if (scope === 'near' && _crossPending.size) crossRec.push(...await liveGapResult.settleDue(_crossPending, now, cachedResult));
       if (crossRec.length) liveGap.appendRecords(CROSSMARKET_LOG_DIR, now, crossRec);
     }
-    console.log(`PriceGap(${scope}) — ${b365.matches.length} Bet365 / ${sbo.matches.length} Sbobet fixtures, ${compared} compared, ${record.length} gap(s) ≥${cfg.PRICEGAP_RECORD_MIN_PCT}%, ${alerts} alert(s)${cfg.CROSSMARKET_RECORD ? `, CrossMarket ${crossRec.length} row(s) / ${_crossPending.size} awaiting FT` : ''}${cfg.PRICEGAP_7M && scope === 'near' && (now / 60000 | 0) % 10 === 0 ? ` [${sevenM.statusLine()}]` : ''}${cfg.PRICEGAP_PINNACLE ? `, Pinnacle ref ${pgPinOn ? `${pgPinPaired} paired / ${pgPinAlerts} alert(s)` : `off (copy ${pin.age ?? '—'} s old)`}` : ''}${cfg.PINNGAP_RECORD ? `, PinnGap ${pinPaired} paired (Pinnacle ${pin.age ?? '—'} s old${pinFresh ? '' : ', not used'}) ${pinnRec.length} row(s)` : ''}${owOn ? `, OpenWatch ${owPaired} paired ${owRec.length} row(s)` : ''}${bfOn ? `, BFPORT ${bfPaired} paired / ${_bf.bets.length} paper bet(s)` : ''}${b365.hashFailed || sbo.hashFailed ? ' (a hash failed — check FEEDS)' : ''}.`);
+    console.log(`PriceGap(${scope}) — ${b365.matches.length} Bet365 / ${sbo.matches.length} Sbobet fixtures, ${compared} compared, ${record.length} gap(s) ≥${cfg.PRICEGAP_RECORD_MIN_PCT}%, ${alerts} alert(s)${cfg.CROSSMARKET_RECORD ? `, CrossMarket ${crossRec.length} row(s) / ${_crossPending.size} awaiting FT` : ''}${cfg.PRICEGAP_7M && scope === 'near' && (now / 60000 | 0) % 10 === 0 ? ` [${sevenM.statusLine()}]` : ''}${cfg.PRICEGAP_PINNACLE ? `, Pinnacle ref ${pgPinOn ? `${pgPinPaired} paired / ${pgPinAlerts} alert(s)` : `off (copy ${pin.age ?? '—'} s old)`}` : ''}${cfg.PINNGAP_RECORD ? `, PinnGap ${pinPaired} paired (Pinnacle ${pin.age ?? '—'} s old${pinFresh ? '' : ', not used'}) ${pinnRec.length} row(s)` : ''}${owOn ? `, OpenWatch ${owPaired} paired ${owRec.length} row(s)${owBfOn ? ` (Betfair ${owBfPaired} paired)` : ''}` : ''}${bfOn ? `, BFPORT ${bfPaired} paired / ${_bf.bets.length} paper bet(s)` : ''}${b365.hashFailed || sbo.hashFailed ? ' (a hash failed — check FEEDS)' : ''}.`);
   } finally {
     releaseGuard(_priceGapRunning, scope, token);
   }
@@ -3306,11 +3326,11 @@ function startHashRelayServer() {
     // daily .jsonl files, /data/<recorder>/<YYYY-MM-DD>.jsonl returns one gzipped — so
     // the recordings can be re-analysed offline (e.g. against 7msport's price history).
     // Only the recorders below, only plain day-file names; ?key= when LIVEGAP_REPORT_KEY is set.
-    const dm = /^\/data\/(livegap|livemodel|pricegap_bets|openwatch)\/((\d{4}-\d{2}-\d{2})\.jsonl)?(\?.*)?$/.exec(req.url);
+    const dm = /^\/data\/(livegap|livemodel|pricegap_bets|openwatch|openwatch_bf)\/((\d{4}-\d{2}-\d{2})\.jsonl)?(\?.*)?$/.exec(req.url);
     if (dm) {
       const key = new URL(req.url, 'http://x').searchParams.get('key');
       if (process.env.LIVEGAP_REPORT_KEY && key !== process.env.LIVEGAP_REPORT_KEY) { res.writeHead(401, { 'Content-Type': 'text/plain' }); res.end('key required'); return; }
-      const dir = { livegap: LIVEGAP_LOG_DIR, livemodel: LIVEMODEL_LOG_DIR, pricegap_bets: PRICEGAP_BETS_DIR, openwatch: OPENWATCH_LOG_DIR }[dm[1]];
+      const dir = { livegap: LIVEGAP_LOG_DIR, livemodel: LIVEMODEL_LOG_DIR, pricegap_bets: PRICEGAP_BETS_DIR, openwatch: OPENWATCH_LOG_DIR, openwatch_bf: OPENWATCH_BF_LOG_DIR }[dm[1]];
       try {
         if (!dm[2]) {
           const files = fs.existsSync(dir) ? fs.readdirSync(dir).filter(f => /^\d{4}-\d{2}-\d{2}\.jsonl$/.test(f)).sort() : [];
@@ -3339,7 +3359,11 @@ function startHashRelayServer() {
       const key = new URL(req.url, 'http://x').searchParams.get('key');
       if (process.env.LIVEGAP_REPORT_KEY && key !== process.env.LIVEGAP_REPORT_KEY) { res.writeHead(401, { 'Content-Type': 'text/plain' }); res.end('key required'); return; }
       let text;
-      try { text = require('./pinngap_report').buildReport(OPENWATCH_LOG_DIR, { tz: cfg.DISPLAY_TZ, title: 'OPENWATCH' }); } catch (e) { text = `Report failed: ${e.message}`; }
+      try {
+        const R = require('./pinngap_report');
+        text = R.buildReport(OPENWATCH_LOG_DIR, { tz: cfg.DISPLAY_TZ, title: 'OPENWATCH' });
+        if (cfg.OPENWATCH_BF_RECORD) text += '\n\n' + '═'.repeat(60) + '\n\n' + R.buildReport(OPENWATCH_BF_LOG_DIR, { tz: cfg.DISPLAY_TZ, title: 'OPENWATCH · BETFAIR 1X2', book: 'Betfair (net of commission)', noBlind: true, edges: [2, 3, 5] });
+      } catch (e) { text = `Report failed: ${e.message}`; }
       res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' });
       res.end(text);
       return;
@@ -3442,7 +3466,8 @@ async function main() {
   console.log(`Strategy LIVEMODEL [${on(cfg.LIVEMODEL_RECORD && cfg.LIVEGAP_ENABLED)}]: Bet365 in-play price vs similar historical matches, records sides ≥${cfg.LIVEMODEL_RECORD_MIN_PCT}% · alerts ${cfg.LIVEMODEL_ALERTS ? `ON (edge ≥${cfg.LIVEMODEL_MIN_EDGE_PCT}%${cfg.LIVEMODEL_USE_SE ? ' after 1 s.e.' : ''}, not ${cfg.LIVEMODEL_SKIP_FROM_PCT}–${cfg.LIVEMODEL_SKIP_TO_PCT}%, price ${cfg.LIVEMODEL_MIN_ODDS}–${cfg.LIVEMODEL_MAX_ODDS}, ≤${cfg.LIVEMODEL_MAX_MINUTE}', one per match)` : 'SILENT (would-be alerts logged and settled, not sent)'}${_liveModelPending.size ? ` · ${_liveModelPending.size} match(es) from before the restart awaiting FT` : ''}`);
   console.log(`Strategy PINNGAP [${on(cfg.PINNGAP_RECORD && cfg.PRICEGAP_ENABLED)}]: shadow recorder — Bet365 pre-match vs Pinnacle pre-match, same line, gaps ≥${cfg.PINNGAP_MIN_EDGE_PCT}% tracked open→closed, Pinnacle copies ≤${cfg.PINNGAP_MAX_PIN_AGE_S}s (never alerts)${_pinnPending.size ? ` · ${_pinnPending.size} fixture(s) awaiting FT` : ''}`);
   if (cfg.PRICEGAP_TRACK) console.log(`PRICEGAP tracking: alerts logged, closing snapshot and FT result → /pricegap/report${_pgPending.size ? ` · ${_pgPending.size} fixture(s) awaiting FT` : ''}`);
-  console.log(`Strategy OPENWATCH [${on(cfg.OPENWATCH_RECORD && cfg.PRICEGAP_ENABLED)}]: shadow recorder — Bet365 pre-match vs the predicted Pinnacle close (research_books.js), ≥${cfg.OPENWATCH_MIN_EDGE_PCT}% (never alerts)${_owPending.size ? ` · ${_owPending.size} fixture(s) awaiting FT` : ''}`);
+  console.log(`Strategy OPENWATCH [${on(cfg.OPENWATCH_RECORD && cfg.PRICEGAP_ENABLED)}]: shadow recorder — Bet365 pre-match vs the predicted Pinnacle close (research_books.js), ≥${cfg.OPENWATCH_MIN_EDGE_PCT}% (never alerts)${_owPending.size ? ` · ${_owPending.size} fixture(s) awaiting FT` : ''}`
+    + `${cfg.OPENWATCH_BF_RECORD ? ` · Betfair 1X2 leg ≥${cfg.OPENWATCH_BF_MIN_EDGE_PCT}% net of commission${_owBfPending.size ? ` (${_owBfPending.size} awaiting FT)` : ''}` : ''}`);
   console.log(`BFPORT [${on(cfg.BFPORT_RECORD && cfg.PRICEGAP_ENABLED && cfg.ODDSMONITOR_ENABLED)}]: paper portfolio — Betfair 1X2 net of ${cfg.BFPORT_COMMISSION * 100}% commission vs Pinnacle's pre-match fair, ≥${cfg.BFPORT_MIN_EDGE_PCT}%, ⅛ Kelly on a paper ${cfg.BFPORT_START_BANKROLL} (never alerts) · ${_bf.bets.length} bet(s) so far${_bfPending.size ? `, ${_bfPending.size} fixture(s) awaiting FT` : ''}`);
   console.log(`Strategy CROSSMARKET [${on(cfg.CROSSMARKET_RECORD && cfg.PRICEGAP_ENABLED)}]: shadow recorder — Bet365 AH vs its own 1X2+goal line and back, same-moment pre-match prices, logs sides ≥${cfg.CROSSMARKET_RECORD_MIN_PCT}% (never alerts)${_crossPending.size ? ` · ${_crossPending.size} fixture(s) awaiting FT` : ''}`);
   if (cfg.LIVEGAP_RECORD && _liveGapPending.size) console.log(`LIVEGAP: ${_liveGapPending.size} recorded match(es) from before the restart waiting for a confirmed result`);

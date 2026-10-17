@@ -47,6 +47,7 @@ function buildReport(dir, opts = {}) {
   const tz = opts.tz || 'Europe/Rome';
   const d = load(dir);
   const title = opts.title || 'PINNGAP';
+  const book = opts.book || 'Bet365';
   if (!d || !d.scans) return `No ${title} data yet (${dir}).`;
   const { rows, fin, noRes } = d;
   const when = t => new Date(t).toLocaleString('it-IT', { timeZone: tz, day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
@@ -61,10 +62,10 @@ function buildReport(dir, opts = {}) {
       if (r != null) { n++; pl += r - 1; settled.push({ ...o, ret: r }); }
       const c = cl.get(`${o.id}|${o.k}`); if (c && c.f > 1) { nc++; clv += o.p / c.f - 1; }
     }
-    out.push(`  ${label.padEnd(30)} ${String(list.length).padStart(5)} bets · settled ${String(n).padStart(5)}${n ? ` · ${units(pl).padStart(8)} · ROI ${pct(pl / n).padStart(7)}${blind.fmtVs(blind.vsBlind(blind.prematchTable(), settled), n)}` : ''}${nc ? ` · CLV ${pct(clv / nc)} (${nc})` : ''}`);
+    out.push(`  ${label.padEnd(30)} ${String(list.length).padStart(5)} bets · settled ${String(n).padStart(5)}${n ? ` · ${units(pl).padStart(8)} · ROI ${pct(pl / n).padStart(7)}${opts.noBlind ? '' : blind.fmtVs(blind.vsBlind(blind.prematchTable(), settled), n)}` : ''}${nc ? ` · CLV ${pct(clv / nc)} (${nc})` : ''}`);
   };
-  out.push('', 'FIRST SIGHTING — 1 unit at Bet365\'s price when the gap first reached the edge:');
-  for (const X of [3, 5, 8]) {
+  out.push('', `FIRST SIGHTING — 1 unit at ${book}'s price when the gap first reached the edge:`);
+  for (const X of opts.edges || [3, 5, 8]) {
     const L = opens.filter(o => o.e >= X);
     out.push(` Edge ≥ ${X}%:`);
     line('all', L);
@@ -75,6 +76,11 @@ function buildReport(dir, opts = {}) {
     if (L.some(o => o.op != null)) {
       line('  Bet365 still at its opening', L.filter(o => o.op === 1));
       line('  Bet365 already moved', L.filter(o => o.op === 0));
+      line('  Sbobet listed', L.filter(o => o.hs === 1));
+      line('  no Sbobet', L.filter(o => o.hs === 0));
+    } else if (L.some(o => o.hs != null)) {
+      // OPENWATCH's Betfair leg: hs only, plus the side.
+      for (const sd of ['home', 'draw', 'away']) line(`  ${sd}`, L.filter(o => o.side === sd));
       line('  Sbobet listed', L.filter(o => o.hs === 1));
       line('  no Sbobet', L.filter(o => o.hs === 0));
     }
@@ -89,10 +95,10 @@ function buildReport(dir, opts = {}) {
     const stillAtClose = [...cl.values()].filter(o => openKeys.has(`${o.id}|${o.k}`) && o.e >= 3).length;
     out.push('', ...[`LIFETIME — ${opens.length} gaps ≥ 3% opened · ${closed.length} closed (< 1%) · ${[...openKeys].filter(k => !closedKeys.has(k)).length} never seen to close (line changed, kick-off, or still open)`,
       closed.length ? `  minutes open until closed: median ${median(mins)} · 25% closed within ${[...mins].sort((a, b) => a - b)[Math.floor(mins.length / 4)]} min · 75% within ${[...mins].sort((a, b) => a - b)[Math.floor(mins.length * 3 / 4)]} min` : '  none closed yet',
-      closed.length ? `  closed mostly by Bet365's price coming down: ${byB} (${Math.round(byB / closed.length * 100)}%) · by Pinnacle's fair moving up: ${byP} (${Math.round(byP / closed.length * 100)}%)` : '',
+      closed.length ? `  closed mostly by ${book}'s price coming down: ${byB} (${Math.round(byB / closed.length * 100)}%) · by Pinnacle's fair moving up: ${byP} (${Math.round(byP / closed.length * 100)}%)` : '',
       `  still ≥ 3% in the closing snapshot: ${stillAtClose}`].filter(Boolean));
   }
-  out.push('', 'Vs blind = ROI minus what betting every side blind at Bet365\'s closing price returned at the same market and price band (blind_baseline.json).', 'Judge on CLV first (it needs no results) and on ROI only after a few hundred settled bets.');
+  out.push('', ...(opts.noBlind ? [] : ['Vs blind = ROI minus what betting every side blind at Bet365\'s closing price returned at the same market and price band (blind_baseline.json).']), 'Judge on CLV first (it needs no results) and on ROI only after a few hundred settled bets.');
   return out.join('\n');
 }
 

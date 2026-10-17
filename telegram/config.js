@@ -706,6 +706,12 @@ module.exports = {
   OPENWATCH_MIN_EDGE_PCT:    parseFloat(process.env.OPENWATCH_MIN_EDGE_PCT || '3'),
   OPENWATCH_MAX_EDGE_PCT:    parseFloat(process.env.OPENWATCH_MAX_EDGE_PCT || '25'),
   OPENWATCH_MAX_PIN_AGE_S:   parseInt(process.env.OPENWATCH_MAX_PIN_AGE_S || '600', 10),
+  // OPENWATCH exchange leg (added 2026-10-17): Betfair 1X2 back (oddsmonitor),
+  // net of BFPORT_COMMISSION, vs the 1X2 implied by the same predicted Pinnacle
+  // close; liquid books only (BFPORT_MIN_MATCHED / BFPORT_MAX_BOOK). Shadow,
+  // data/openwatch_bf/, shown under GET <bot>/openwatch/report.
+  OPENWATCH_BF_RECORD:       process.env.OPENWATCH_BF_RECORD !== 'false',
+  OPENWATCH_BF_MIN_EDGE_PCT: parseFloat(process.env.OPENWATCH_BF_MIN_EDGE_PCT || '2'),
   // BFPORT — paper portfolio on Betfair Exchange 1X2 (telegram/bfport.js, added
   // 2026-10-10): Betfair back (oddsmonitor.eu) net of commission vs Pinnacle's
   // pre-match fair (power de-vig), same moment; one paper bet per fixture,
