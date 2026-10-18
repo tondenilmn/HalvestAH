@@ -47,12 +47,14 @@ async function fetchJson(url) {
   return r.json();
 }
 async function getJson(url) {
+  if (!RELAY() && url.startsWith(BASE)) _st.relayError = 'no relay set (ODDSMONITOR_RELAY_URL / HASH_RELAY_URL / DATA_URL)';
   const relay = RELAY(), viaRelay = relay && url.startsWith(BASE) ? `${relay}/api/oddsmonitor?p=${encodeURIComponent(url.slice(BASE.length + 1))}` : null;
   if (viaRelay && Date.now() < _viaRelayUntil) return fetchJson(viaRelay);
   try { return await fetchJson(url); } catch (e) {
     if (e.status !== 403 || !viaRelay) throw e;
-    const d = await fetchJson(viaRelay);
-    _viaRelayUntil = Date.now() + 3600e3; _st.via = 'relay';
+    let d;
+    try { d = await fetchJson(viaRelay); } catch (e2) { _st.relayError = `${e2.message} from ${relay}/api/oddsmonitor`; throw new Error(`HTTP 403 direct, ${e2.message} via the web app relay`); }
+    _viaRelayUntil = Date.now() + 3600e3; _st.via = 'relay'; _st.relayError = null;
     return d;
   }
 }
@@ -174,7 +176,7 @@ function statusLine(dir, now = Date.now()) {
   let files = 0, bytes = 0;
   try { for (const day of fs.readdirSync(dir)) for (const f of fs.readdirSync(path.join(dir, day))) { files++; bytes += fs.statSync(path.join(dir, day, f)).size; } } catch { /* none */ }
   const a = ageS(now);
-  return `oddsmonitor: ${_st.events.length} matches listed (${_st.events.filter(e => e.inplay).length} live)${a != null ? `, list ${Math.round(a)} s old` : ''}${_st.via === 'relay' && Date.now() < _viaRelayUntil ? ' (via the web app relay — oddsmonitor refuses this IP)' : ''}${_st.error ? `, last error: ${_st.error}` : ''} · ${files} match histories saved (${(bytes / 1e6).toFixed(1)} MB)`;
+  return `oddsmonitor: ${_st.events.length} matches listed (${_st.events.filter(e => e.inplay).length} live)${a != null ? `, list ${Math.round(a)} s old` : ''}${_st.via === 'relay' && Date.now() < _viaRelayUntil ? ' (via the web app relay — oddsmonitor refuses this IP)' : ''}${_st.error ? `, last error: ${_st.error}` : ''}${_st.relayError ? ` (relay: ${_st.relayError})` : ''} · ${files} match histories saved (${(bytes / 1e6).toFixed(1)} MB)`;
 }
 
 module.exports = { pollEvents, findEvent, staleVsBetfair, compactChart, saveFinished, loadSaved, readHistory, statusLine, ageS, _st };
