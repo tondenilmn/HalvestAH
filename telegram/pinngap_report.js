@@ -78,6 +78,10 @@ function buildReport(dir, opts = {}) {
       line('  Bet365 already moved', L.filter(o => o.op === 0));
       line('  Sbobet listed', L.filter(o => o.hs === 1));
       line('  no Sbobet', L.filter(o => o.hs === 0));
+      if (L.length && L.every(o => o.mk === '1X2')) { // OPENWATCH's Bet365 1X2 leg
+        for (const sd of ['home', 'draw', 'away']) line(`  ${sd}`, L.filter(o => o.side === sd));
+        for (const [lab, lo, hi] of [['  price < 2', 0, 2], ['  2–3', 2, 3], ['  3–5', 3, 5], ['  ≥ 5', 5, 1e9]]) line(lab, L.filter(o => o.p >= lo && o.p < hi));
+      }
     } else if (L.some(o => o.hs != null)) {
       // OPENWATCH's Betfair leg: hs only, plus the side.
       for (const sd of ['home', 'draw', 'away']) line(`  ${sd}`, L.filter(o => o.side === sd));

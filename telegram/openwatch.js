@@ -69,6 +69,30 @@ function rowsFor(odds, pm, sboOdds) {
   return { rows, pred, pinLines: p.lines };
 }
 
+// Home / draw / away probabilities of a predicted close (μ, s), scoreline model.
+function x12Probs(pred) {
+  const [lh, la] = MF.lam(pred.mu, pred.s), P = FM.scoreGrid(lh, la);
+  let ph = 0, pd = 0;
+  for (let i = 0; i < P.length; i++) for (let j = 0; j < P[i].length; j++) { if (i > j) ph += P[i][j]; else if (i === j) pd += P[i][j]; }
+  return [ph, pd, 1 - ph - pd];
+}
+
+// Bet365 1X2 leg (added 2026-10-18): Bet365's CURRENT 1X2 (match.x2_odds, same
+// tablenext file and moment as the AH / goal line the prediction uses) against
+// the predicted close. research_openwatch_1x2.js backtested +13% at ≥ 5%, but its
+// dataset's 1X2 opening isn't recorded at the same moment as the AH openings (the
+// CROSSMARKET type A trap), so only these same-moment rows can tell.
+// Rows: { key '1X2|side|', mk '1X2', price, fair, edge, op (Bet365 1X2 still at its opening) }.
+function x12Rows(pred, x2) {
+  if (!pred || !x2) return [];
+  const pr = x12Probs(pred), sides = ['home', 'draw', 'away'];
+  const op = sides.every(sd => +x2[`${sd}_o`] > 1 && +x2[`${sd}_o`] === +x2[`${sd}_c`]);
+  return sides.map((side, i) => {
+    const price = +x2[`${side}_c`];
+    return price > 1 ? { key: `1X2|${side}|`, mk: '1X2', side, line: null, price, fair: 1 / pr[i], edge: price * pr[i] - 1, op, pin: null } : null;
+  }).filter(Boolean);
+}
+
 // Exchange leg (added 2026-10-17, user request — a plan for a Bet365 freeze):
 // the same predicted Pinnacle close (μ, s) turned into a fair 1X2 by the
 // scoreline model, against Betfair's best back price (oddsmonitor event) net of
@@ -81,14 +105,11 @@ function exchangeRows(pred, ev, o = {}) {
   if (!pred || bf.some(x => !(x > 1))) return [];
   const book = bf.reduce((t, x) => t + 1 / x, 0), mt = +ev.total_matched || 0;
   if (mt < (o.minMatched ?? 1000) || book > (o.maxBook ?? 1.04)) return [];
-  const [lh, la] = MF.lam(pred.mu, pred.s), P = FM.scoreGrid(lh, la);
-  let ph = 0, pd = 0;
-  for (let i = 0; i < P.length; i++) for (let j = 0; j < P[i].length; j++) { if (i > j) ph += P[i][j]; else if (i === j) pd += P[i][j]; }
-  const pr = [ph, pd, 1 - ph - pd];
+  const pr = x12Probs(pred);
   return ['home', 'draw', 'away'].map((side, i) => {
     const net = 1 + (bf[i] - 1) * (1 - c);
     return { key: `BF|1X2|${side}|`, mk: '1X2', side, line: null, price: +net.toFixed(4), bf: bf[i], fair: 1 / pr[i], edge: net * pr[i] - 1, pin: null, mt: Math.round(mt), book: +book.toFixed(3) };
   });
 }
 
-module.exports = { rowsFor, exchangeRows, predictClose, mainLine, fromOdds, fromPinnacle, W };
+module.exports = { rowsFor, exchangeRows, x12Rows, x12Probs, predictClose, mainLine, fromOdds, fromPinnacle, W };

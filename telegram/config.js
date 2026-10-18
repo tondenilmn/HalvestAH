@@ -710,6 +710,9 @@ module.exports = {
   // net of BFPORT_COMMISSION, vs the 1X2 implied by the same predicted Pinnacle
   // close; liquid books only (BFPORT_MIN_MATCHED / BFPORT_MAX_BOOK). Shadow,
   // data/openwatch_bf/, shown under GET <bot>/openwatch/report.
+  // OPENWATCH Bet365 1X2 leg (added 2026-10-18): Bet365's current 1X2 vs the
+  // 1X2 of the same predicted close (same edges as OPENWATCH), data/openwatch_x12/.
+  OPENWATCH_X12_RECORD:      process.env.OPENWATCH_X12_RECORD !== 'false',
   OPENWATCH_BF_RECORD:       process.env.OPENWATCH_BF_RECORD !== 'false',
   OPENWATCH_BF_MIN_EDGE_PCT: parseFloat(process.env.OPENWATCH_BF_MIN_EDGE_PCT || '2'),
   // BFPORT — paper portfolio on Betfair Exchange 1X2 (telegram/bfport.js, added

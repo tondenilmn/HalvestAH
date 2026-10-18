@@ -70,4 +70,14 @@ fs.rmSync(dir, { recursive: true });
   assert(/at Betfair \(net of commission\)'s price/.test(t2) && /  away\s+1 bets · settled\s+1 · \s*\+2\.39u/.test(t2) && !/vs blind/i.test(t2), t2);
   fs.rmSync(d2, { recursive: true });
 })();
+// Bet365 1X2 leg: rows vs the predicted close's 1X2, op = still at the opening price
+(() => {
+  const x2 = { home_c: 2.5, draw_c: 3.4, away_c: 3.0, home_o: 2.5, draw_o: 3.4, away_o: 3.0 };
+  const xr = OW.x12Rows({ mu: 2.5, s: 0.3 }, x2), pr = OW.x12Probs({ mu: 2.5, s: 0.3 });
+  assert.strictEqual(xr.length, 3);
+  assert(Math.abs(xr[0].edge - (2.5 * pr[0] - 1)) < 1e-12 && xr.every(r => r.op), 'edge = price × p − 1, unmoved');
+  assert.strictEqual(OW.x12Rows({ mu: 2.5, s: 0.3 }, { ...x2, home_c: 2.45 })[0].op, false, 'moved');
+  assert.strictEqual(OW.x12Rows(null, x2).length, 0);
+  assert.strictEqual(OW.x12Rows({ mu: 2.5, s: 0.3 }, null).length, 0);
+})();
 console.log('openwatch: all tests passed');
