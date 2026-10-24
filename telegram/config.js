@@ -573,7 +573,8 @@ module.exports = {
   // make it pay — opening prices only, power de-vig — are enforced in
   // pricegap.js, not here, because outside them the backtest found nothing
   // (closing vs closing: +0.1%). This flag only turns the market on or off.
-  PRICEGAP_X12:              process.env.PRICEGAP_X12 !== 'false',
+  // Off since 2026-10-24 (user request — 1X2 alerts −53.8% on 8 settled, PINNGAP's 1X2 −9.6% on 2,872).
+  PRICEGAP_X12:              process.env.PRICEGAP_X12 === 'true',
   // Pinnacle as a second reference (added 2026-10-11, telegram/research_7m_timing.js
   // on 7msport's timestamped history, 2026-04 → 10, 80k matches): Bet365 ≥ 5% above
   // Pinnacle's pre-match fair on the same AH / goal line → +3.4% on 15,049 first gaps,
@@ -626,7 +627,8 @@ module.exports = {
   // (followed 15 min after the gap last showed) + the last score of those
   // matches → telegram/data/livegap/YYYY-MM-DD.jsonl (needs a Railway volume
   // to survive redeploys) — the evidence for whether these gaps pay.
-  LIVEGAP_ENABLED:           process.env.LIVEGAP_ENABLED !== 'false',
+  // Off since 2026-10-24 (user request — −3.1% on 7,455 settled; it and LIVEMODEL were the bot's heaviest load).
+  LIVEGAP_ENABLED:           process.env.LIVEGAP_ENABLED === 'true',
   // Silent since 2026-10-08 (user request — negative in every window so far): it
   // still scans, records and settles every would-be alert; set LIVEGAP_ALERTS=true to send again.
   LIVEGAP_ALERTS:            process.env.LIVEGAP_ALERTS === 'true',
@@ -655,7 +657,8 @@ module.exports = {
   // other side once every 10 min (for calibration), to
   // telegram/data/livemodel/*.jsonl; settled from confirmed FT scores.
   // node livemodel_report.js  or  GET <bot>/livemodel/report
-  LIVEMODEL_RECORD:          process.env.LIVEMODEL_RECORD !== 'false',
+  // Off since 2026-10-24 with LIVEGAP (−3.1% on 3,918 settled would-be alerts).
+  LIVEMODEL_RECORD:          process.env.LIVEMODEL_RECORD === 'true',
   // LIVEMODEL alerts (2026-10-08, user request): one Telegram alert per match,
   // the first side passing livemodel.alertBlock. Defaults = the rule the first
   // two days of recordings pointed to (still far too few to call it proven).
@@ -706,6 +709,14 @@ module.exports = {
   OPENWATCH_MIN_EDGE_PCT:    parseFloat(process.env.OPENWATCH_MIN_EDGE_PCT || '3'),
   OPENWATCH_MAX_EDGE_PCT:    parseFloat(process.env.OPENWATCH_MAX_EDGE_PCT || '25'),
   OPENWATCH_MAX_PIN_AGE_S:   parseInt(process.env.OPENWATCH_MAX_PIN_AGE_S || '600', 10),
+  // OPENWATCH Telegram alert (added 2026-10-24, user request — live recorder ≥ 5%:
+  // +8.7% on 1,964 settled, CLV +7.0%). Same safeguards as PRICEGAP: the gap on
+  // OPENWATCH_ALERT_MIN_SCANS consecutive scans, the 7msport price check
+  // (PRICEGAP_7M), PRICEGAP's 24-h dedup (one alert per side+line across both).
+  OPENWATCH_ALERTS:          process.env.OPENWATCH_ALERTS !== 'false',
+  OPENWATCH_ALERT_MIN_PCT:   parseFloat(process.env.OPENWATCH_ALERT_MIN_PCT || '5'),
+  OPENWATCH_ALERT_MAX_PCT:   parseFloat(process.env.OPENWATCH_ALERT_MAX_PCT || '20'),
+  OPENWATCH_ALERT_MIN_SCANS: parseInt(process.env.OPENWATCH_ALERT_MIN_SCANS || '2', 10),
   // OPENWATCH exchange leg (added 2026-10-17): Betfair 1X2 back (oddsmonitor),
   // net of BFPORT_COMMISSION, vs the 1X2 implied by the same predicted Pinnacle
   // close; liquid books only (BFPORT_MIN_MATCHED / BFPORT_MAX_BOOK). Shadow,

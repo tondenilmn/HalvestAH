@@ -232,7 +232,7 @@ function formatAlert(match, gaps, toKickoffMin, esc, opts = {}) {
   const ko = kickoffLine(match, toKickoffMin, opts.displayTz);
   const kFrac = opts.kellyFraction ?? 0.25;
   const lines = [
-    `🟢 <b>PRICE GAP</b> · ${esc(match.league) || '—'}`,
+    `${opts.header || '🟢 <b>PRICE GAP</b>'} · ${esc(match.league) || '—'}`,
     `⚽ <b>${esc(match.home_team)} vs ${esc(match.away_team)}</b>`,
     ...(ko ? [ko] : []),
     ``,
@@ -243,7 +243,7 @@ function formatAlert(match, gaps, toKickoffMin, esc, opts = {}) {
     const stake = opts.bankroll ? `€${(opts.bankroll * k).toFixed(2)}` : `${(k * 100).toFixed(1)}% of bankroll`;
     lines.push(
       `👉 <b>${esc(r.label)}</b> (${MARKET_SHORT[r.market] || r.market}) @ <b>${r.price.toFixed(2)}</b>`,
-      `   min ${minOdds.toFixed(2)} · edge +${(r.edge * 100).toFixed(1)}%${r.ref === 'pin' ? ' vs Pinnacle' : ''} · stake ${stake}`,
+      `   min ${minOdds.toFixed(2)} · edge +${(r.edge * 100).toFixed(1)}%${opts.edgeNote ? ` ${opts.edgeNote}` : r.ref === 'pin' ? ' vs Pinnacle' : ''} · stake ${stake}`,
     );
   }
   const links = linksLine(match, esc);
@@ -275,4 +275,4 @@ function appendRecord(dir, t, heartbeat, rows) {
   }
 }
 
-module.exports = { bet365SearchUrl, linksLine, devig2, devigPower, marketUnmoved, x12Unmoved, kelly, findGaps, pinnacleGaps, bucketOf, qualifyingGaps, formatAlert, kickoffLine, sameLine, recordRow, appendRecord, X12_MIN_EDGE_PCT, X12_OPEN_ONLY };
+module.exports = { fmtLine, bet365SearchUrl, linksLine, devig2, devigPower, marketUnmoved, x12Unmoved, kelly, findGaps, pinnacleGaps, bucketOf, qualifyingGaps, formatAlert, kickoffLine, sameLine, recordRow, appendRecord, X12_MIN_EDGE_PCT, X12_OPEN_ONLY };

@@ -80,4 +80,24 @@ fs.rmSync(dir, { recursive: true });
   assert.strictEqual(OW.x12Rows(null, x2).length, 0);
   assert.strictEqual(OW.x12Rows({ mu: 2.5, s: 0.3 }, null).length, 0);
 })();
+// Alert shape: PRICEGAP's home-handicap line, labels, p
+(() => {
+  const fl = require('./pricegap').fmtLine, teams = { home: 'Roma', away: 'Lazio' };
+  const away = OW.toAlertRow({ mk: 'AH', side: 'away', line: 0.25, price: 2.05, fair: 1.9, edge: 0.079, op: true }, teams, fl);
+  assert.deepStrictEqual([away.market, away.line, away.label, away.unmoved], ['AH', -0.25, 'Lazio +0.25', true]);
+  const un = OW.toAlertRow({ mk: 'OU', side: 'under', line: 2.75, price: 2.0, fair: 1.88, edge: 0.064, op: false }, teams, fl);
+  assert.deepStrictEqual([un.line, un.label], [2.75, 'Under 2.75']);
+  assert(Math.abs(un.p - 1 / 1.88) < 1e-12);
+  const txt = require('./pricegap').formatAlert({ league: 'Serie A', home_team: 'Roma', away_team: 'Lazio' }, [away], 120, s => s, { header: '🟣 <b>OPENWATCH</b>', edgeNote: 'vs the predicted close', threshold: 5 });
+  assert(/OPENWATCH/.test(txt) && /Lazio \+0\.25/.test(txt) && /min 1\.99/.test(txt) && /vs the predicted close/.test(txt), txt);
+})();
+// Report: ALERTS SENT section settles alert rows at the price shown and at the minimum
+(() => {
+  const d = fs.mkdtempSync(path.join(os.tmpdir(), 'owa-')), T = Date.UTC(2026, 9, 24, 12);
+  const a = { t: T, ev: 'alert', id: 'q', ko: T + 7200e3, kmin: 120, k: 'AH|away|0.25', mk: 'AH', side: 'away', line: 0.25, p: 2.05, f: 1.9, e: 7.9, pa: 60, sc: '0-0', m: 'Roma v Lazio', lg: 'L', mo: 1.995 };
+  fs.writeFileSync(path.join(d, '2026-10-24.jsonl'), [{ hb: { t: T, paired: 1, fresh: true } }, a, { t: T + 9e6, id: 'q', res: '1-1' }].map(l => JSON.stringify(l)).join('\n') + '\n');
+  const t = require('./pinngap_report').buildReport(d, { tz: 'UTC', title: 'OPENWATCH' });
+  assert(/ALERTS SENT — 1 sides alerted on Telegram · settled 1 · at the price shown \+0\.52u/.test(t), t);
+  fs.rmSync(d, { recursive: true });
+})();
 console.log('openwatch: all tests passed');

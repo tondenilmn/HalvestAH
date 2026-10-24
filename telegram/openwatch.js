@@ -112,4 +112,12 @@ function exchangeRows(pred, ev, o = {}) {
   });
 }
 
-module.exports = { rowsFor, exchangeRows, x12Rows, x12Probs, predictClose, mainLine, fromOdds, fromPinnacle, W };
+// OPENWATCH row → PRICEGAP's alert shape (market, home-handicap line, label, p)
+// so the alert reuses pricegap.formatAlert, the 7msport check and the shared dedup.
+function toAlertRow(r, teams, fmtLine) {
+  const homeLine = r.mk === 'AH' && r.side === 'away' ? -r.line : r.line;
+  const label = r.mk === 'AH' ? `${(r.side === 'home' ? teams.home : teams.away) || r.side} ${fmtLine(r.line)}` : `${r.side === 'over' ? 'Over' : 'Under'} ${r.line}`;
+  return { market: r.mk, side: r.side, line: homeLine, label, price: r.price, fair: r.fair, edge: r.edge, p: 1 / r.fair, unmoved: r.op, ref: 'ow', _ow: r };
+}
+
+module.exports = { toAlertRow, rowsFor, exchangeRows, x12Rows, x12Probs, predictClose, mainLine, fromOdds, fromPinnacle, W };

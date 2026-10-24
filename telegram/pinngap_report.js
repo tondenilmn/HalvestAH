@@ -53,7 +53,7 @@ function buildReport(dir, opts = {}) {
   const when = t => new Date(t).toLocaleString('it-IT', { timeZone: tz, day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
   const opens = rows.filter(o => o.ev === 'open');
   const cl = new Map(rows.filter(o => o.ev === 'cl').map(o => [`${o.id}|${o.k}`, o]));
-  const out = [`${title} report (shadow — no alerts sent) · ${d.scans} scans from ${when(d.first)} to ${when(d.last)} · Pinnacle fresh on ${Math.round(d.fresh / d.scans * 100)}% of scans · ${opens.length} gaps opened on ${new Set(opens.map(o => o.id)).size} fixtures · ${[...new Set(opens.map(o => o.id))].filter(i => fin.has(i)).length} fixtures with a confirmed FT score`];
+  const out = [`${title} report ${opts.alerts ? '(alerts ON — the recorder rows below include every gap, alerted or not)' : '(shadow — no alerts sent)'} · ${d.scans} scans from ${when(d.first)} to ${when(d.last)} · Pinnacle fresh on ${Math.round(d.fresh / d.scans * 100)}% of scans · ${opens.length} gaps opened on ${new Set(opens.map(o => o.id)).size} fixtures · ${[...new Set(opens.map(o => o.id))].filter(i => fin.has(i)).length} fixtures with a confirmed FT score`];
 
   const line = (label, list) => {
     let n = 0, pl = 0, nc = 0, clv = 0; const settled = [];
@@ -64,6 +64,16 @@ function buildReport(dir, opts = {}) {
     }
     out.push(`  ${label.padEnd(30)} ${String(list.length).padStart(5)} bets · settled ${String(n).padStart(5)}${n ? ` · ${units(pl).padStart(8)} · ROI ${pct(pl / n).padStart(7)}${opts.noBlind ? '' : blind.fmtVs(blind.vsBlind(blind.prematchTable(), settled), n)}` : ''}${nc ? ` · CLV ${pct(clv / nc)} (${nc})` : ''}`);
   };
+  // Alerts actually sent (OPENWATCH's Telegram alert): settled at the price shown and at the minimum odds.
+  const sent = rows.filter(o => o.ev === 'alert'), blk = rows.filter(o => o.ev === 'blk7');
+  if (sent.length || blk.length) {
+    const tally = (L, key) => { let n = 0, pl = 0; for (const o of L) { const f = fin.get(o.id), r = f != null ? payout(o, f, key === 'mo' ? o.mo : o.p) : null; if (r != null) { n++; pl += r - 1; } } return { n, pl }; };
+    const a = tally(sent, 'p'), m = tally(sent, 'mo'), b = tally(blk, 'p');
+    out.push('', `ALERTS SENT — ${sent.length} sides alerted on Telegram · settled ${a.n}${a.n ? ` · at the price shown ${units(a.pl)} → ROI ${pct(a.pl / a.n)} · at the minimum odds ${units(m.pl)} → ROI ${pct(m.pl / m.n)}` : ''}`);
+    for (const mk of ['AH', 'OU']) { const L = sent.filter(o => o.mk === mk), t = tally(L, 'p'); if (L.length) out.push(`  ${mk}  ${L.length} sides · settled ${t.n}${t.n ? ` · ${units(t.pl)} · ROI ${pct(t.pl / t.n)}` : ''}`); }
+    if (blk.length) out.push(`  blocked by the 7msport check: ${blk.length} sides · settled ${b.n}${b.n ? ` · if sent at our price ${units(b.pl)} → ROI ${pct(b.pl / b.n)}` : ''}`);
+  }
+
   out.push('', `FIRST SIGHTING — 1 unit at ${book}'s price when the gap first reached the edge:`);
   for (const X of opts.edges || [3, 5, 8]) {
     const L = opens.filter(o => o.e >= X);
