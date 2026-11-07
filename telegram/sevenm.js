@@ -48,10 +48,32 @@ function parseFixtures(txt) {
   });
 }
 // Livescore page → [{id, home, away, ko: null}] from `analyse.7msport.com/<id>/… title="Home vs Away"`.
+// Matches not yet started carry only a `goaldata/en/<id>.shtml` link (found 2026-11-07:
+// with the analyse links alone, ~75% of today's fixtures were missing and the check said "not found").
 function parseLivePage(html) {
-  const out = [], re = /analyse\.7msport\.com\/(\d+)\/index\.shtml"[^>]*title="([^"]+?) vs ([^"]+?)"/g;
-  let m; while ((m = re.exec(html))) out.push({ id: m[1], rawH: m[2].replace(/&#39;|&apos;/g, "'").replace(/&amp;/g, '&'), rawA: m[3].replace(/&#39;|&apos;/g, "'").replace(/&amp;/g, '&'), ko: null });
+  const out = [], seen = new Set(), un = x => x.replace(/&#39;|&apos;/g, "'").replace(/&amp;/g, '&');
+  for (const re of [/analyse\.7msport\.com\/(\d+)\/index\.shtml"[^>]*title="([^"]+?) vs ([^"]+?)"/g, /goaldata\/en\/(\d+)\.shtml"[^>]*title="([^"]+?) vs ([^"]+?)"/g]) {
+    let m; while ((m = re.exec(html))) if (!seen.has(m[1])) { seen.add(m[1]); out.push({ id: m[1], rawH: un(m[2]), rawA: un(m[3]), ko: null }); }
+  }
   return out;
+}
+
+// live.7msport.com comes from two backends (checked 2026-11-07): one page lists every
+// fixture of the day (~790, ~0.7 MB), the other ~200 (~0.19 MB) — and Node's fetch often
+// gets the short one several times in a row. Today's not-yet-played matches are on no other
+// page (fixture/en_1 starts tomorrow 13:00 GMT+8, result/<today> holds finished ones), so
+// read it up to 4 times (stop at the full one) and keep entries seen in the last 18 h.
+const _live = new Map(); // id → { e, at }
+async function livePageEntries(now = Date.now()) {
+  let lastErr = null, got = 0;
+  for (let i = 0; i < 4; i++) {
+    let html; try { html = await getText(`https://live.7msport.com/?t=${now + i}`, 15000); } catch (e) { lastErr = e; continue; }
+    for (const e of parseLivePage(html)) { _live.set(e.id, { e, at: now }); got++; }
+    if (html.length > 400000) break;
+  }
+  for (const [id, v] of _live) if (now - v.at > 18 * 3600e3) _live.delete(id);
+  if (!got && !_live.size && lastErr) throw lastErr;
+  return [..._live.values()].map(v => v.e);
 }
 
 const state = { idx: [], at: 0, building: null, err: null, checks: { ok: 0, adj: 0, lower: 0, line: 0, nf: 0, err: 0 } };
@@ -61,7 +83,7 @@ async function refreshIndex(now = Date.now(), force = false) {
   if (state.building) return state.building;
   state.building = (async () => {
     const pages = await Promise.allSettled([
-      getText('https://live.7msport.com/', 15000).then(parseLivePage),
+      livePageEntries(now),
       ...[1, 2, 3, 4, 5, 6, 7].map(n => getText(`https://data.7msport.com/fixture/en_${n}.js`, 15000).then(parseFixtures)),
     ]);
     const byId = new Map();

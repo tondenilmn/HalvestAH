@@ -13,8 +13,10 @@ assert.strictEqual(fx[0].ko, Date.UTC(2026, 9, 12, 5, 0));
 assert.strictEqual(fx[1].rawH, "Moldova Women's");
 // Livescore page: ids + names from the analyse links
 const lp = S.parseLivePage(`<a href="//analyse.7msport.com/5073337/index.shtml" class="ana" title="Club Libertad vs Club Guarani" rel="nofollow"></a>
-<a href="//analyse.7msport.com/5073338/index.shtml" class="ana" title="O&#39;Connor Knights(U23) vs Cooma Tigers(U23)" rel="nofollow"></a>`);
-assert.deepStrictEqual(lp.map(e => [e.id, e.rawH, e.rawA]), [['5073337', 'Club Libertad', 'Club Guarani'], ['5073338', "O'Connor Knights(U23)", 'Cooma Tigers(U23)']]);
+<a href="//analyse.7msport.com/5073338/index.shtml" class="ana" title="O&#39;Connor Knights(U23) vs Cooma Tigers(U23)" rel="nofollow"></a>
+<a target="_blank" href="//data.7msport.com/goaldata/en/5113713.shtml" title="Eyupspor vs Kocaelispor">vs</a>
+<a target="_blank" href="//data.7msport.com/goaldata/en/5073337.shtml" title="Club Libertad vs Club Guarani">vs</a>`);
+assert.deepStrictEqual(lp.map(e => [e.id, e.rawH, e.rawA]), [['5073337', 'Club Libertad', 'Club Guarani'], ['5073338', "O'Connor Knights(U23)", 'Cooma Tigers(U23)'], ['5113713', 'Eyupspor', 'Kocaelispor']], 'goaldata links too, no duplicates');
 
 // Index entries as refreshIndex builds them
 const { kindOf } = require('./pinngap');
