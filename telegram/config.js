@@ -291,7 +291,7 @@ module.exports = {
   // than fall back to an unvalidated guess. Re-run focus_config_search.js
   // periodically as more months of data accumulate; it may find more.
   // ════════════════════════════════════════════════════════════════════════════
-  FOCUS_ENABLED:        process.env.FOCUS_ENABLED !== 'false',
+  FOCUS_ENABLED:        process.env.FOCUS_ENABLED === 'true', // OFF by default since 2026-11-21 (user: lower Railway memory — silent and losing; each needs the 0.7 GB history in RAM)
   // Silent since 2026-10-10 (user request — Telegram keeps LATEGOAL, PRICEGAP, CROSSDOG): FOCUS still runs and its
   // would-be alerts go to data/silent_alerts/ instead of Telegram. FOCUS_ALERTS=true to send again.
   FOCUS_ALERTS:            process.env.FOCUS_ALERTS === 'true',
@@ -361,7 +361,7 @@ module.exports = {
   // volume over05_2H) — treat it accordingly, same caution as NEWMODEL for
   // anything outside those two keys.
   // ════════════════════════════════════════════════════════════════════════════
-  LIVEWATCH_ENABLED:            process.env.LIVEWATCH_ENABLED !== 'false',
+  LIVEWATCH_ENABLED:            process.env.LIVEWATCH_ENABLED === 'true', // OFF by default since 2026-11-21 (user: lower Railway memory — silent and losing; each needs the 0.7 GB history in RAM)
   // Silent since 2026-10-10 (user request — Telegram keeps LATEGOAL, PRICEGAP, CROSSDOG): LIVEWATCH still runs and its
   // would-be alerts go to data/silent_alerts/ instead of Telegram. LIVEWATCH_ALERTS=true to send again.
   LIVEWATCH_ALERTS:        process.env.LIVEWATCH_ALERTS === 'true',
@@ -457,7 +457,7 @@ module.exports = {
   // mirroring the backtest's own mechanism — plain single-pool pricing (what
   // L123's layer1Live does) was NOT what was validated here, so OPENLINE
   // doesn't reuse layer1Live.
-  OPENLINE_ENABLED:     process.env.OPENLINE_ENABLED !== 'false',
+  OPENLINE_ENABLED:     process.env.OPENLINE_ENABLED === 'true', // OFF by default since 2026-11-21 (user: lower Railway memory — silent and losing; each needs the 0.7 GB history in RAM)
   // Silent since 2026-10-10 (user request — Telegram keeps LATEGOAL, PRICEGAP, CROSSDOG): OPENLINE still runs and its
   // would-be alerts go to data/silent_alerts/ instead of Telegram. OPENLINE_ALERTS=true to send again.
   OPENLINE_ALERTS:         process.env.OPENLINE_ALERTS === 'true',

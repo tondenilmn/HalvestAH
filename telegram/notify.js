@@ -3551,7 +3551,13 @@ function startHashRelayServer() {
 async function main() {
   const once = process.argv.includes('--once');
 
-  await loadDb();
+  // The Bet365 history (~228k rows, ~0.7 GB RSS — most of the bot's Railway bill) is only
+  // needed by the historical-pool strategies; skip loading it when none is on (2026-11-21).
+  const needsDb = cfg.L123_ENABLED || cfg.LATEGOAL_ENABLED || cfg.QUIET2H_ENABLED || cfg.HTPICK_ENABLED
+    || cfg.DASHBOARD_ENABLED || cfg.NEWMODEL_ENABLED || cfg.FOCUS_ENABLED || cfg.LIVEWATCH_ENABLED
+    || cfg.OPENLINE_ENABLED || (cfg.LIVEMODEL_RECORD && cfg.LIVEGAP_ENABLED);
+  if (needsDb) await loadDb();
+  else { _dbAll = []; console.log('[DB] Not loaded — no strategy that uses the Bet365 history is on'); }
   startHashRelayServer();
 
   const on = s => s ? 'ON ' : 'OFF';
