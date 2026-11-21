@@ -724,13 +724,13 @@ module.exports = {
   // OPENWATCH Bet365 1X2 leg (added 2026-10-18): Bet365's current 1X2 vs the
   // 1X2 of the same predicted close (same edges as OPENWATCH), data/openwatch_x12/.
   OPENWATCH_X12_RECORD:      process.env.OPENWATCH_X12_RECORD !== 'false',
-  OPENWATCH_BF_RECORD:       process.env.OPENWATCH_BF_RECORD !== 'false',
+  OPENWATCH_BF_RECORD:       process.env.OPENWATCH_BF_RECORD === 'true', // OFF since 2026-11-21 (user: lower Railway usage — Betfair legs lose)
   OPENWATCH_BF_MIN_EDGE_PCT: parseFloat(process.env.OPENWATCH_BF_MIN_EDGE_PCT || '2'),
   // BFPORT — paper portfolio on Betfair Exchange 1X2 (telegram/bfport.js, added
   // 2026-10-10): Betfair back (oddsmonitor.eu) net of commission vs Pinnacle's
   // pre-match fair (power de-vig), same moment; one paper bet per fixture,
   // ⅛ Kelly on a paper bankroll. Never alerts. GET <bot>/bfport/report.
-  BFPORT_RECORD:             process.env.BFPORT_RECORD !== 'false',
+  BFPORT_RECORD:             process.env.BFPORT_RECORD === 'true', // OFF since 2026-11-21 (user: lower Railway usage — Betfair legs lose)
   BFPORT_COMMISSION:         parseFloat(process.env.BFPORT_COMMISSION || '0.045'), // Betfair Italy, on winnings
   BFPORT_MIN_EDGE_PCT:       parseFloat(process.env.BFPORT_MIN_EDGE_PCT || '2'),
   BFPORT_MAX_EDGE_PCT:       parseFloat(process.env.BFPORT_MAX_EDGE_PCT || '15'),
@@ -745,7 +745,7 @@ module.exports = {
   // BFPORT scalp tracker (added 2026-10-17): Betfair back ≥ this % above Pinnacle's
   // fair, kick-off ≥ 30 min away → paper back-then-lay, exits at 15 / 60 min / last
   // 5 min before KO (bfport.scalpTrack). Shown in GET <bot>/bfport/report.
-  BFPORT_SCALP:              process.env.BFPORT_SCALP !== 'false',
+  BFPORT_SCALP:              process.env.BFPORT_SCALP === 'true', // OFF since 2026-11-21 (user: lower Railway usage — Betfair legs lose)
   BFPORT_SCALP_MIN_PCT:      parseFloat(process.env.BFPORT_SCALP_MIN_PCT || '3'),
   CROSSMARKET_RECORD_MIN_PCT: parseFloat(process.env.CROSSMARKET_RECORD_MIN_PCT || '3'),
   // ── oddsmonitor.eu — Betfair Exchange 1X2 (oddsmonitor.js, added 2026-10-09) ──
@@ -754,7 +754,7 @@ module.exports = {
   // (MC Alger: Bet365 2.25 vs Betfair 1.06 after a goal) — no alert on it.
   // History: each finished match's Betfair 1X2 price + money history is saved to
   // data/oddsmonitor/ when ≥ HISTORY_MIN_MATCHED was matched.
-  ODDSMONITOR_ENABLED:       process.env.ODDSMONITOR_ENABLED !== 'false',
+  ODDSMONITOR_ENABLED:       process.env.ODDSMONITOR_ENABLED === 'true', // OFF since 2026-11-21 (user: lower Railway usage — Betfair legs lose)
   ODDSMONITOR_HISTORY:       process.env.ODDSMONITOR_HISTORY !== 'false',
   ODDSMONITOR_HISTORY_MIN_MATCHED: parseFloat(process.env.ODDSMONITOR_HISTORY_MIN_MATCHED || '1000'),
   ODDSMONITOR_STALE_RATIO:   parseFloat(process.env.ODDSMONITOR_STALE_RATIO || '1.35'),
